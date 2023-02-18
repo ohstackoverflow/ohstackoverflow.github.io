@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grouping functions (tapply, by, aggregate) and the *apply family | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/grouping-functions-tapply-by-aggregate-and-the-apply-family/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../converting-from-a-string-to-boolean-in-python/" title="Converting from a string to boolean in Python" type="text/html">
+<link rel="next" href="../does-functional-programming-replace-gof-design-patterns/" title="Does functional programming replace GoF design patterns?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Grouping functions (tapply, by, aggregate) and the *apply family">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/grouping-functions-tapply-by-aggregate-and-the-apply-family/">
+<meta property="og:description" content="Whenever I want to do something &quot;map&quot;py in R, I usually try to use a function
+in the apply family.
+However, I've never quite understood the differences between them -- how
+{sapply, lapply, etc.} apply">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T05:23:54+08:00">
+<meta property="article:tag" content="apply">
+<meta property="article:tag" content="r">
+<meta property="article:tag" content="r-faq">
+<meta property="article:tag" content="vectorization">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Grouping functions (tapply, by, aggregate) and the *apply family</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T05:23:54+08:00" itemprop="datePublished" title="2023-02-17 05:23">2023-02-17 05:23</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Whenever I want to do something "map"py in R, I usually try to use a function
+in the <code>apply</code> family.</p>
+<p>However, I've never quite understood the differences between them -- how
+{<code>sapply</code>, <code>lapply</code>, etc.} apply the function to the input/grouped input, what
+the output will look like, or even what the input can be -- so I often just go
+through them all until I get what I want.</p>
+<p>Can someone explain how to use which one when?</p>
+<p>My current (probably incorrect/incomplete) understanding is...</p>
+<ol>
+<li>
+<p><code>sapply(vec, f)</code>: input is a vector. output is a vector/matrix, where element <code>i</code> is <code>f(vec[i])</code>, giving you a matrix if <code>f</code> has a multi-element output</p>
+</li>
+<li>
+<p><code>lapply(vec, f)</code>: same as <code>sapply</code>, but output is a list?</p>
+</li>
+<li>
+<p><code>apply(matrix, 1/2, f)</code>: input is a matrix. output is a vector, where element <code>i</code> is f(row/col i of the matrix)</p>
+</li>
+<li>
+<code>tapply(vector, grouping, f)</code>: output is a matrix/array, where an element in the matrix/array is the value of <code>f</code> at a grouping <code>g</code> of the vector, and <code>g</code> gets pushed to the row/col names</li>
+<li>
+<code>by(dataframe, grouping, f)</code>: let <code>g</code> be a grouping. apply <code>f</code> to each column of the group/dataframe. pretty print the grouping and the value of <code>f</code> at each column.</li>
+<li>
+<code>aggregate(matrix, grouping, f)</code>: similar to <code>by</code>, but instead of pretty printing the output, aggregate sticks everything into a dataframe.</li>
+</ol>
+<p>Side question: I still haven't learned plyr or reshape -- would <code>plyr</code> or
+<code>reshape</code> replace all of these entirely?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>R has many <em>apply functions which are ably described in the help files (e.g.
+<code>?apply</code>). There are enough of them, though, that beginning useRs may have
+difficulty deciding which one is appropriate for their situation or even
+remembering them all. They may have a general sense that "I should be using an
+</em>apply function here", but it can be tough to keep them all straight at first.</p>
+<p>Despite the fact (noted in other answers) that much of the functionality of
+the *apply family is covered by the extremely popular <code>plyr</code> package, the base
+functions remain useful and worth knowing.</p>
+<p>This answer is intended to act as a sort of <strong>signpost</strong> for new useRs to help
+direct them to the correct <em>apply function for their particular problem. Note,
+this is </em><em>not</em><em> intended to simply regurgitate or replace the R documentation!
+The hope is that this answer helps you to decide which </em>apply function suits
+your situation and then it is up to you to research it further. With one
+exception, performance differences will not be addressed.</p>
+<ul>
+<li>
+<p><strong>apply</strong> - <em>When you want to apply a function to the rows or columns of a matrix (and higher-dimensional analogues); not generally advisable for data frames as it will coerce to a matrix first.</em></p>
+<div class="code"><pre class="code literal-block"> # Two dimensional matrix
+</pre></div>
+
+<p>M &lt;- matrix(seq(1,16), 4, 4)</p>
+<p># apply min to rows
+ apply(M, 1, min)
+ [1] 1 2 3 4</p>
+<p># apply max to columns
+ apply(M, 2, max)
+ [1]  4  8 12 16</p>
+<p># 3 dimensional array
+ M &lt;- array( seq(32), dim = c(4,4,2))</p>
+<p># Apply sum across each M[*, , ] - i.e Sum across 2nd and 3rd dimension
+ apply(M, 1, sum)
+ # Result is one-dimensional
+ [1] 120 128 136 144</p>
+<p># Apply sum across each M[<em>, </em>, ] - i.e Sum across 3rd dimension
+ apply(M, c(1,2), sum)
+ # Result is two-dimensional
+      [,1] [,2] [,3] [,4]
+ [1,]   18   26   34   42
+ [2,]   20   28   36   44
+ [3,]   22   30   38   46
+ [4,]   24   32   40   48</p>
+</li>
+</ul>
+<p>If you want row/column means or sums for a 2D matrix, be sure to investigate
+the highly optimized, lightning-quick <code>colMeans</code>, <code>rowMeans</code>, <code>colSums</code>,
+<code>rowSums</code>.</p>
+<ul>
+<li>
+<strong>lapply</strong> - <em>When you want to apply a function to each element of a list in turn and get a list back.</em>
+</li>
+</ul>
+<p>This is the workhorse of many of the other *apply functions. Peel back their
+code and you will often find <code>lapply</code> underneath.</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="o">:</span><span class="m">3</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">10</span><span class="o">:</span><span class="m">100</span><span class="p">)</span><span class="w"> </span>
+<span class="w"> </span><span class="nf">lapply</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">FUN</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">length</span><span class="p">)</span><span class="w"> </span>
+<span class="w"> </span><span class="o">$</span><span class="n">a</span><span class="w"> </span>
+<span class="w"> </span><span class="p">[</span><span class="m">1</span><span class="p">]</span><span class="w"> </span><span class="m">1</span>
+<span class="w"> </span><span class="o">$</span><span class="n">b</span><span class="w"> </span>
+<span class="w"> </span><span class="p">[</span><span class="m">1</span><span class="p">]</span><span class="w"> </span><span class="m">3</span>
+<span class="w"> </span><span class="o">$</span><span class="n">c</span><span class="w"> </span>
+<span class="w"> </span><span class="p">[</span><span class="m">1</span><span class="p">]</span><span class="w"> </span><span class="m">91</span>
+<span class="w"> </span><span class="nf">lapply</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">FUN</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="p">)</span><span class="w"> </span>
+<span class="w"> </span><span class="o">$</span><span class="n">a</span><span class="w"> </span>
+<span class="w"> </span><span class="p">[</span><span class="m">1</span><span class="p">]</span><span class="w"> </span><span class="m">1</span>
+<span class="w"> </span><span class="o">$</span><span class="n">b</span><span class="w"> </span>
+<span class="w"> </span><span class="p">[</span><span class="m">1</span><span class="p">]</span><span class="w"> </span><span class="m">6</span>
+<span class="w"> </span><span class="o">$</span><span class="n">c</span><span class="w"> </span>
+<span class="w"> </span><span class="p">[</span><span class="m">1</span><span class="p">]</span><span class="w"> </span><span class="m">5005</span>
+</pre></div>
+
+<ul>
+<li>
+<strong>sapply</strong> - <em>When you want to apply a function to each element of a list in turn, but you want a <strong>vector</strong> back, rather than a list.</em>
+</li>
+</ul>
+<p>If you find yourself typing <code>unlist(lapply(...))</code>, stop and consider <code>sapply</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="o">:</span><span class="m">3</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">10</span><span class="o">:</span><span class="m">100</span><span class="p">)</span>
+<span class="w"> </span><span class="c1"># Compare with above; a named vector, not a list </span>
+<span class="w"> </span><span class="nf">sapply</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">FUN</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">length</span><span class="p">)</span><span class="w">  </span>
+<span class="w"> </span><span class="n">a</span><span class="w">  </span><span class="n">b</span><span class="w">  </span><span class="n">c</span><span class="w">   </span>
+<span class="w"> </span><span class="m">1</span><span class="w">  </span><span class="m">3</span><span class="w"> </span><span class="m">91</span>
+
+<span class="w"> </span><span class="nf">sapply</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">FUN</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="p">)</span><span class="w">   </span>
+<span class="w"> </span><span class="n">a</span><span class="w">    </span><span class="n">b</span><span class="w">    </span><span class="n">c</span><span class="w">    </span>
+<span class="w"> </span><span class="m">1</span><span class="w">    </span><span class="m">6</span><span class="w"> </span><span class="m">5005</span>
+</pre></div>
+
+<p>In more advanced uses of <code>sapply</code> it will attempt to coerce the result to a
+multi-dimensional array, if appropriate. For example, if our function returns
+vectors of the same length, <code>sapply</code> will use them as columns of a matrix:</p>
+<div class="code"><pre class="code literal-block">     sapply(1:5,function(x) rnorm(3,x))
+</pre></div>
+
+<p>If our function returns a 2 dimensional matrix, <code>sapply</code> will do essentially
+the same thing, treating each returned matrix as a single long vector:</p>
+<div class="code"><pre class="code literal-block">     sapply(1:5,function(x) matrix(x,2,2))
+</pre></div>
+
+<p>Unless we specify <code>simplify = "array"</code>, in which case it will use the
+individual matrices to build a multi-dimensional array:</p>
+<div class="code"><pre class="code literal-block">     sapply(1:5,function(x) matrix(x,2,2), simplify = "array")
+</pre></div>
+
+<p>Each of these behaviors is of course contingent on our function returning
+vectors or matrices of the same length or dimension.</p>
+<ul>
+<li>
+<strong>vapply</strong> - <em>When you want to use<code>sapply</code> but perhaps need to squeeze some more speed out of your code or want more type safety.</em>
+</li>
+</ul>
+<p>For <code>vapply</code>, you basically give R an example of what sort of thing your
+function will return, which can save some time coercing returned values to fit
+in a single atomic vector.</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="o">:</span><span class="m">3</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">10</span><span class="o">:</span><span class="m">100</span><span class="p">)</span>
+<span class="w"> </span><span class="c1">#Note that since the advantage here is mainly speed, this</span>
+<span class="w"> </span><span class="c1"># example is only for illustration. We're telling R that</span>
+<span class="w"> </span><span class="c1"># everything returned by length() should be an integer of </span>
+<span class="w"> </span><span class="c1"># length 1. </span>
+<span class="w"> </span><span class="nf">vapply</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">FUN</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">length</span><span class="p">,</span><span class="w"> </span><span class="n">FUN.VALUE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0L</span><span class="p">)</span><span class="w"> </span>
+<span class="w"> </span><span class="n">a</span><span class="w">  </span><span class="n">b</span><span class="w">  </span><span class="n">c</span><span class="w">  </span>
+<span class="w"> </span><span class="m">1</span><span class="w">  </span><span class="m">3</span><span class="w"> </span><span class="m">91</span>
+</pre></div>
+
+<ul>
+<li>
+<strong>mapply</strong> - <em>For when you have several data structures (e.g. vectors, lists) and you want to apply a function to the 1st elements of each, and then the 2nd elements of each, etc., coercing the result to a vector/array as in<code>sapply</code>.</em>
+</li>
+</ul>
+<p>This is multivariate in the sense that your function must accept multiple
+arguments.</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span>#<span class="nv">Sums</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="mi">1</span><span class="nv">st</span><span class="w"> </span><span class="nv">elements</span>,<span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="mi">2</span><span class="nv">nd</span><span class="w"> </span><span class="nv">elements</span>,<span class="w"> </span><span class="nv">etc</span>.<span class="w"> </span>
+<span class="w"> </span><span class="nv">mapply</span><span class="ss">(</span><span class="nv">sum</span>,<span class="w"> </span><span class="mi">1</span>:<span class="mi">5</span>,<span class="w"> </span><span class="mi">1</span>:<span class="mi">5</span>,<span class="w"> </span><span class="mi">1</span>:<span class="mi">5</span><span class="ss">)</span><span class="w"> </span>
+<span class="w"> </span>[<span class="mi">1</span>]<span class="w">  </span><span class="mi">3</span><span class="w">  </span><span class="mi">6</span><span class="w">  </span><span class="mi">9</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">15</span>
+<span class="w"> </span>#<span class="nv">To</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">rep</span><span class="ss">(</span><span class="mi">1</span>,<span class="mi">4</span><span class="ss">)</span>,<span class="w"> </span><span class="nv">rep</span><span class="ss">(</span><span class="mi">2</span>,<span class="mi">3</span><span class="ss">)</span>,<span class="w"> </span><span class="nv">etc</span>.
+<span class="w"> </span><span class="nv">mapply</span><span class="ss">(</span><span class="nv">rep</span>,<span class="w"> </span><span class="mi">1</span>:<span class="mi">4</span>,<span class="w"> </span><span class="mi">4</span>:<span class="mi">1</span><span class="ss">)</span><span class="w">   </span>
+<span class="w"> </span>[[<span class="mi">1</span>]]
+<span class="w"> </span>[<span class="mi">1</span>]<span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">1</span>
+
+<span class="w"> </span>[[<span class="mi">2</span>]]
+<span class="w"> </span>[<span class="mi">1</span>]<span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">2</span>
+
+<span class="w"> </span>[[<span class="mi">3</span>]]
+<span class="w"> </span>[<span class="mi">1</span>]<span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">3</span>
+
+<span class="w"> </span>[[<span class="mi">4</span>]]
+<span class="w"> </span>[<span class="mi">1</span>]<span class="w"> </span><span class="mi">4</span>
+</pre></div>
+
+<ul>
+<li>
+<p><strong>Map</strong> - <em>A wrapper to<code>mapply</code> with <code>SIMPLIFY = FALSE</code>, so it is guaranteed to return a list.</em></p>
+<div class="code"><pre class="code literal-block"> Map(sum, 1:5, 1:5, 1:5)
+</pre></div>
+
+<p>[[1]]
+ [1] 3</p>
+<p>[[2]]
+ [1] 6</p>
+<p>[[3]]
+ [1] 9</p>
+<p>[[4]]
+ [1] 12</p>
+<p>[[5]]
+ [1] 15</p>
+</li>
+<li>
+<p><strong>rapply</strong> - <em>For when you want to apply a function to each element of a <strong>nested list</strong> structure, recursively.</em></p>
+</li>
+</ul>
+<p>To give you some idea of how uncommon <code>rapply</code> is, I forgot about it when
+first posting this answer! Obviously, I'm sure many people use it, but YMMV.
+<code>rapply</code> is best illustrated with a user-defined function to apply:</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="c1"># Append ! to string, otherwise increment</span>
+<span class="w"> </span><span class="n">myFun</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">function</span><span class="p">(</span><span class="n">x</span><span class="p">){</span>
+<span class="w">     </span><span class="nf">if</span><span class="p">(</span><span class="nf">is.character</span><span class="p">(</span><span class="n">x</span><span class="p">)){</span>
+<span class="w">       </span><span class="nf">return</span><span class="p">(</span><span class="nf">paste</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="s">"!"</span><span class="p">,</span><span class="n">sep</span><span class="o">=</span><span class="s">""</span><span class="p">))</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">else</span><span class="p">{</span>
+<span class="w">       </span><span class="nf">return</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">1</span><span class="p">)</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w"> </span><span class="p">}</span>
+
+<span class="w"> </span><span class="c1">#A nested list structure</span>
+<span class="w"> </span><span class="n">l</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="n">a1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Boo"</span><span class="p">,</span><span class="w"> </span><span class="n">b1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Eeek"</span><span class="p">),</span><span class="w"> </span>
+<span class="w">           </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">3</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Yikes"</span><span class="p">,</span><span class="w"> </span>
+<span class="w">           </span><span class="n">d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="n">a2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="n">b2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="n">a3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Hey"</span><span class="p">,</span><span class="w"> </span><span class="n">b3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">5</span><span class="p">)))</span>
+
+
+<span class="w"> </span><span class="c1"># Result is named vector, coerced to character          </span>
+<span class="w"> </span><span class="nf">rapply</span><span class="p">(</span><span class="n">l</span><span class="p">,</span><span class="w"> </span><span class="n">myFun</span><span class="p">)</span>
+
+<span class="w"> </span><span class="c1"># Result is a nested list like l, with values altered</span>
+<span class="w"> </span><span class="nf">rapply</span><span class="p">(</span><span class="n">l</span><span class="p">,</span><span class="w"> </span><span class="n">myFun</span><span class="p">,</span><span class="w"> </span><span class="n">how</span><span class="o">=</span><span class="s">"replace"</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>
+<strong>tapply</strong> - <em>For when you want to apply a function to <strong>subsets</strong> of a vector and the subsets are defined by some other vector, usually a factor.</em>
+</li>
+</ul>
+<p>The black sheep of the *apply family, of sorts. The help file's use of the
+phrase "ragged array" can be a bit confusing, but it is actually quite simple.</p>
+<p>A vector:</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="m">1</span><span class="o">:</span><span class="m">20</span>
+</pre></div>
+
+<p>A factor (of the same length!) defining groups:</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="n">y</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">factor</span><span class="p">(</span><span class="nf">rep</span><span class="p">(</span><span class="kc">letters</span><span class="p">[</span><span class="m">1</span><span class="o">:</span><span class="m">5</span><span class="p">],</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">4</span><span class="p">))</span>
+</pre></div>
+
+<p>Add up the values in <code>x</code> within each subgroup defined by <code>y</code>:</p>
+<div class="code"><pre class="code literal-block">     tapply(x, y, sum)  
+  a  b  c  d  e  
+ 10 26 42 58 74
+</pre></div>
+
+<p>More complex examples can be handled where the subgroups are defined by the
+unique combinations of a list of several factors. <code>tapply</code> is similar in
+spirit to the split-apply-combine functions that are common in R (<code>aggregate</code>,
+<code>by</code>, <code>ave</code>, <code>ddply</code>, etc.) Hence its black sheep status.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>On the side note, here is how the various <code>plyr</code> functions correspond to the
+base <code>*apply</code> functions (from the intro to plyr document from the plyr webpage
+http://had.co.nz/plyr/)</p>
+<div class="code"><pre class="code literal-block"><span class="n">Base</span><span class="w"> </span><span class="k">function</span><span class="w">   </span><span class="n">Input</span><span class="w">   </span><span class="n">Output</span><span class="w">   </span><span class="n">plyr</span><span class="w"> </span><span class="k">function</span><span class="w"> </span>
+<span class="o">---------------------------------------</span>
+<span class="n">aggregate</span><span class="w">        </span><span class="n">d</span><span class="w">       </span><span class="n">d</span><span class="w">       </span><span class="n">ddply</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">colwise</span><span class="w"> </span>
+<span class="n">apply</span><span class="w">            </span><span class="n">a</span><span class="w">       </span><span class="n">a</span><span class="o">/</span><span class="n">l</span><span class="w">     </span><span class="n">aaply</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">alply</span><span class="w"> </span>
+<span class="n">by</span><span class="w">               </span><span class="n">d</span><span class="w">       </span><span class="n">l</span><span class="w">       </span><span class="n">dlply</span><span class="w"> </span>
+<span class="n">lapply</span><span class="w">           </span><span class="n">l</span><span class="w">       </span><span class="n">l</span><span class="w">       </span><span class="n">llply</span><span class="w">  </span>
+<span class="n">mapply</span><span class="w">           </span><span class="n">a</span><span class="w">       </span><span class="n">a</span><span class="o">/</span><span class="n">l</span><span class="w">     </span><span class="n">maply</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">mlply</span><span class="w"> </span>
+<span class="n">replicate</span><span class="w">        </span><span class="n">r</span><span class="w">       </span><span class="n">a</span><span class="o">/</span><span class="n">l</span><span class="w">     </span><span class="n">raply</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">rlply</span><span class="w"> </span>
+<span class="n">sapply</span><span class="w">           </span><span class="n">l</span><span class="w">       </span><span class="n">a</span><span class="w">       </span><span class="n">laply</span>
+</pre></div>
+
+<p>One of the goals of <code>plyr</code> is to provide consistent naming conventions for
+each of the functions, encoding the input and output data types in the
+function name. It also provides consistency in output, in that output from
+<code>dlply()</code> is easily passable to <code>ldply()</code> to produce useful output, etc.</p>
+<p>Conceptually, learning <code>plyr</code> is no more difficult than understanding the base
+<code>*apply</code> functions.</p>
+<p><code>plyr</code> and <code>reshape</code> functions have replaced almost all of these functions in
+my every day use. But, also from the Intro to Plyr document:</p>
+<blockquote>
+<p>Related functions <code>tapply</code> and <code>sweep</code> have no corresponding function in
+<code>plyr</code>, and remain useful. <code>merge</code> is useful for combining summaries with
+the original data.</p>
+</blockquote>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/apply/" rel="tag">apply</a></li>
+            <li><a class="tag p-category" href="../../categories/r/" rel="tag">r</a></li>
+            <li><a class="tag p-category" href="../../categories/r-faq/" rel="tag">r-faq</a></li>
+            <li><a class="tag p-category" href="../../categories/vectorization/" rel="tag">vectorization</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../converting-from-a-string-to-boolean-in-python/" rel="prev" title="Converting from a string to boolean in Python">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../does-functional-programming-replace-gof-design-patterns/" rel="next" title="Does functional programming replace GoF design patterns?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

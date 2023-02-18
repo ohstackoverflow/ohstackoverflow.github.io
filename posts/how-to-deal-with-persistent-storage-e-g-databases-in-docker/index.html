@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to deal with persistent storage (e.g. databases) in Docker | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-to-deal-with-persistent-storage-e-g-databases-in-docker/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../find-which-version-of-package-is-installed-with-pip/" title="Find which version of package is installed with pip" type="text/html">
+<link rel="next" href="../how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server/" title="How to create a file in memory for user to download, but not through server?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How to deal with persistent storage (e.g. databases) in Docker">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-to-deal-with-persistent-storage-e-g-databases-in-docker/">
+<meta property="og:description" content="How do people deal with persistent storage for your Docker containers?
+I am currently using this approach: build the image, e.g. for PostgreSQL, and
+then start the container with
+docker run --volumes-">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T06:30:27+08:00">
+<meta property="article:tag" content="docker">
+<meta property="article:tag" content="docker-container">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How to deal with persistent storage (e.g. databases) in Docker</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T06:30:27+08:00" itemprop="datePublished" title="2023-02-17 06:30">2023-02-17 06:30</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>How do people deal with persistent storage for your Docker containers?</p>
+<p>I am currently using this approach: build the image, e.g. for PostgreSQL, and
+then start the container with</p>
+<div class="code"><pre class="code literal-block">docker run --volumes-from c0dbc34fd631 -d app_name/postgres
+</pre></div>
+
+<p>IMHO, that has the drawback, that I must not ever (by accident) delete
+container "c0dbc34fd631".</p>
+<p>Another idea would be to mount host volumes "-v" into the container, however,
+the <strong>userid</strong> within the container does not necessarily match the <strong>userid</strong>
+from the host, and then permissions might be messed up.</p>
+<p>Note: Instead of <code>--volumes-from 'cryptic_id'</code> you can also use <code>--volumes-
+from my-data-container</code> where <code>my-data-container</code> is a name you assigned to a
+data-only container, e.g. <code>docker run --name my-data-container ...</code> (see the
+accepted answer)</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>Docker 1.9.0 and above</h3>
+<p>Use volume API</p>
+<div class="code"><pre class="code literal-block"><span class="nv">docker</span><span class="w"> </span><span class="nv">volume</span><span class="w"> </span><span class="nv">create</span><span class="w"> </span><span class="o">--</span><span class="nv">name</span><span class="w"> </span><span class="nv">hello</span>
+<span class="nv">docker</span><span class="w"> </span><span class="nv">run</span><span class="w"> </span><span class="o">-</span><span class="nv">d</span><span class="w"> </span><span class="o">-</span><span class="nv">v</span><span class="w"> </span><span class="nv">hello</span>:<span class="o">/</span><span class="nv">container</span><span class="o">/</span><span class="nv">path</span><span class="o">/</span><span class="k">for</span><span class="o">/</span><span class="nv">volume</span><span class="w"> </span><span class="nv">container_image</span><span class="w"> </span><span class="nv">my_command</span>
+</pre></div>
+
+<p>This means that the data-only container pattern must be abandoned in favour of
+the new volumes.</p>
+<p>Actually the volume API is only a better way to achieve what was the data-
+container pattern.</p>
+<p>If you create a container with a <code>-v volume_name:/container/fs/path</code> Docker
+will automatically create a named volume for you that can:</p>
+<ol>
+<li>Be listed through the <code>docker volume ls</code>
+</li>
+<li>Be identified through the <code>docker volume inspect volume_name</code>
+</li>
+<li>Backed up as a normal directory</li>
+<li>Backed up as before through a <code>--volumes-from</code> connection</li>
+</ol>
+<p>The new volume API adds a useful command that lets you identify dangling
+volumes:</p>
+<div class="code"><pre class="code literal-block">docker volume ls -f dangling=true
+</pre></div>
+
+<p>And then remove it through its name:</p>
+<div class="code"><pre class="code literal-block">docker volume rm &lt;volume name&gt;
+</pre></div>
+
+<p>As @mpugach underlines in the comments, you can get rid of all the dangling
+volumes with a nice one-liner:</p>
+<div class="code"><pre class="code literal-block">docker volume rm $(docker volume ls -f dangling=true -q)
+# Or using 1.13.x
+docker volume prune
+</pre></div>
+
+<h3>Docker 1.8.x and below</h3>
+<p>The approach that seems to work best for production is to use a <strong>data only
+container</strong>.</p>
+<p>The data only container is run on a barebones image and actually does nothing
+except exposing a data volume.</p>
+<p>Then you can run any other container to have access to the data container
+volumes:</p>
+<div class="code"><pre class="code literal-block">docker run --volumes-from data-container some-other-container command-to-execute
+</pre></div>
+
+<ul>
+<li>Here you can get a good picture of how to arrange the different containers.</li>
+<li>Here there is a good insight on how volumes work.</li>
+</ul>
+<p>In this blog post there is a good description of the so-called <strong>container as
+volume pattern</strong> which clarifies the main point of having <strong>data only
+containers</strong>.</p>
+<p>Docker documentation has now the DEFINITIVE description of the <strong>container as
+volume/s</strong> pattern.</p>
+<p>Following is the backup/restore procedure for Docker 1.8.x and below.</p>
+<p><strong>BACKUP:</strong></p>
+<div class="code"><pre class="code literal-block">sudo docker run --rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
+</pre></div>
+
+<ul>
+<li>--rm: remove the container when it exits</li>
+<li>--volumes-from DATA: attach to the volumes shared by the DATA container</li>
+<li>-v $(pwd):/backup: bind mount the current directory into the container; to write the tar file to</li>
+<li>busybox: a small simpler image - good for quick maintenance</li>
+<li>tar cvf /backup/backup.tar /data: creates an uncompressed tar file of all the files in the /data directory</li>
+</ul>
+<p><strong>RESTORE:</strong></p>
+<div class="code"><pre class="code literal-block"><span class="c1"># Create a new data container</span>
+<span class="n">$</span><span class="w"> </span><span class="n">sudo</span><span class="w"> </span><span class="n">docker</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="w"> </span><span class="o">/</span><span class="k">data</span><span class="w"> </span><span class="o">-</span><span class="k">name</span><span class="w"> </span><span class="n">DATA2</span><span class="w"> </span><span class="n">busybox</span><span class="w"> </span><span class="no">true</span>
+<span class="c1"># untar the backup files into the new container᾿s data volume</span>
+<span class="n">$</span><span class="w"> </span><span class="n">sudo</span><span class="w"> </span><span class="n">docker</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="o">--</span><span class="n">rm</span><span class="w"> </span><span class="o">--</span><span class="n">volumes</span><span class="o">-</span><span class="k">from</span><span class="w"> </span><span class="n">DATA2</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="w"> </span><span class="n">$</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span><span class="o">:/</span><span class="k">backup</span><span class="w"> </span><span class="n">busybox</span><span class="w"> </span><span class="n">tar</span><span class="w"> </span><span class="n">xvf</span><span class="w"> </span><span class="o">/</span><span class="k">backup</span><span class="o">/</span><span class="k">backup</span><span class="p">.</span><span class="n">tar</span>
+<span class="k">data</span><span class="o">/</span>
+<span class="k">data</span><span class="o">/</span><span class="n">sven</span><span class="p">.</span><span class="n">txt</span>
+<span class="c1"># Compare to the original container</span>
+<span class="n">$</span><span class="w"> </span><span class="n">sudo</span><span class="w"> </span><span class="n">docker</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="o">--</span><span class="n">rm</span><span class="w"> </span><span class="o">--</span><span class="n">volumes</span><span class="o">-</span><span class="k">from</span><span class="w"> </span><span class="k">DATA</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="w"> </span><span class="n n-Quoted">`pwd`</span><span class="o">:/</span><span class="k">backup</span><span class="w"> </span><span class="n">busybox</span><span class="w"> </span><span class="n">ls</span><span class="w"> </span><span class="o">/</span><span class="k">data</span>
+<span class="n">sven</span><span class="p">.</span><span class="n">txt</span>
+</pre></div>
+
+<p>Here is a nice article from the excellent Brian Goff explaining why it is good
+to use the same image for a container and a data container.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>In <strong>Docker release v1.0</strong> , binding a mount of a file or directory on the
+host machine can be done by the given command:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span>/host:/container<span class="w"> </span>...
+</pre></div>
+
+<p>The above volume could be used as a persistent storage on the host running
+Docker.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/docker/" rel="tag">docker</a></li>
+            <li><a class="tag p-category" href="../../categories/docker-container/" rel="tag">docker-container</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../find-which-version-of-package-is-installed-with-pip/" rel="prev" title="Find which version of package is installed with pip">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server/" rel="next" title="How to create a file in memory for user to download, but not through server?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

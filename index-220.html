@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="This is a snapshot site for StackOverflow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StackOverflow Snapshot (old posts, page 220) | StackOverflow Snapshot</title>
+<link href="assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/index-220.html">
+<link rel="prev" href="index-221.html" type="text/html">
+<link rel="next" href="index-219.html" type="text/html">
+<!--[if lt IE 9]><script src="assets/js/html5.js"></script><![endif]-->
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="archive.html">Archive</a>
+                </li>
+<li>
+<a href="categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+
+    
+
+
+    
+<div class="postindex">
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/replacing-a-32-bit-loop-counter-with-64-bit-introduces-crazy-performance-deviations-with-mm-popcnt-u64-on-intel-cpus/" class="u-url">Replacing a 32-bit loop counter with 64-bit introduces crazy performance deviations with _mm_popcnt_u64 on Intel CPUs</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/replacing-a-32-bit-loop-counter-with-64-bit-introduces-crazy-performance-deviations-with-mm-popcnt-u64-on-intel-cpus/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:15:02+08:00" itemprop="datePublished" title="2023-02-17 01:15">2023-02-17 01:15</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I was looking for the fastest way to <code>popcount</code> large arrays of data. I
+encountered a <em>very weird</em> effect: Changing the loop variable from <code>unsigned</code>
+to <code>uint64_t</code> made the performance drop by 50% on my PC.</p>
+<h3>The Benchmark</h3>
+<div class="code"><pre class="code literal-block"><span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">iostream</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">chrono</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">x86intrin</span><span class="p">.</span><span class="n">h</span><span class="o">&gt;</span>
+
+<span class="nc">int</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="nc">char</span><span class="o">*</span><span class="w"> </span><span class="n">argv</span><span class="err">[]</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">namespace</span><span class="w"> </span><span class="n">std</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">       </span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"usage: array_size in MB"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">       </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">uint64_t</span><span class="w"> </span><span class="k">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">atol</span><span class="p">(</span><span class="n">argv</span><span class="o">[</span><span class="n">1</span><span class="o">]</span><span class="p">)</span><span class="o">&lt;&lt;</span><span class="mi">20</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint64_t</span><span class="o">*</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">uint64_t</span><span class="o">[</span><span class="n">size/8</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="nc">char</span><span class="o">*</span><span class="w"> </span><span class="n">charbuffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reinterpret_cast</span><span class="o">&lt;</span><span class="nc">char</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">buffer</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">&lt;</span><span class="k">size</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span>
+<span class="w">        </span><span class="n">charbuffer</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">rand</span><span class="p">()</span><span class="o">%</span><span class="mi">256</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">uint64_t</span><span class="w"> </span><span class="nf">count</span><span class="p">,</span><span class="n">duration</span><span class="p">;</span>
+<span class="w">    </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">time_point</span><span class="o">&lt;</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">system_clock</span><span class="o">&gt;</span><span class="w"> </span><span class="n">startP</span><span class="p">,</span><span class="n">endP</span><span class="p">;</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="n">startP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">        </span><span class="nf">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="k">for</span><span class="p">(</span><span class="w"> </span><span class="n">unsigned</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Tight</span><span class="w"> </span><span class="n">unrolled</span><span class="w"> </span><span class="n">loop</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">unsigned</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">&lt;</span><span class="k">size</span><span class="o">/</span><span class="mi">8</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">+=</span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                </span><span class="nf">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">_mm_popcnt_u64</span><span class="p">(</span><span class="n">buffer</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">);</span>
+<span class="w">                </span><span class="nf">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">_mm_popcnt_u64</span><span class="p">(</span><span class="n">buffer</span><span class="o">[</span><span class="n">i+1</span><span class="o">]</span><span class="p">);</span>
+<span class="w">                </span><span class="nf">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">_mm_popcnt_u64</span><span class="p">(</span><span class="n">buffer</span><span class="o">[</span><span class="n">i+2</span><span class="o">]</span><span class="p">);</span>
+<span class="w">                </span><span class="nf">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">_mm_popcnt_u64</span><span class="p">(</span><span class="n">buffer</span><span class="o">[</span><span class="n">i+3</span><span class="o">]</span><span class="p">);</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">        </span><span class="n">endP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">        </span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">duration_cast</span><span class="o">&lt;</span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">nanoseconds</span><span class="o">&gt;</span><span class="p">(</span><span class="n">endP</span><span class="o">-</span><span class="n">startP</span><span class="p">).</span><span class="nf">count</span><span class="p">();</span>
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"unsigned\t"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nf">count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s1">'\t'</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">duration</span><span class="o">/</span><span class="mf">1.0E9</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" sec \t"</span>
+<span class="w">             </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="mf">10000.0</span><span class="o">*</span><span class="k">size</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">duration</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" GB/s"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="n">startP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">        </span><span class="nf">count</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="k">for</span><span class="p">(</span><span class="w"> </span><span class="n">unsigned</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Tight</span><span class="w"> </span><span class="n">unrolled</span><span class="w"> </span><span class="n">loop</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">uint64_t</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">uint64_t</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="k">size</span><span class="o">/</span><span class="mi">8</span><span class="p">;</span><span class="n">i</span><span class="o">+=</span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                </span><span class="nf">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">_mm_popcnt_u64</span><span class="p">(</span><span class="n">buffer</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">);</span>
+<span class="w">                </span><span class="nf">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">_mm_popcnt_u64</span><span class="p">(</span><span class="n">buffer</span><span class="o">[</span><span class="n">i+1</span><span class="o">]</span><span class="p">);</span>
+<span class="w">                </span><span class="nf">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">_mm_popcnt_u64</span><span class="p">(</span><span class="n">buffer</span><span class="o">[</span><span class="n">i+2</span><span class="o">]</span><span class="p">);</span>
+<span class="w">                </span><span class="nf">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">_mm_popcnt_u64</span><span class="p">(</span><span class="n">buffer</span><span class="o">[</span><span class="n">i+3</span><span class="o">]</span><span class="p">);</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">        </span><span class="n">endP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">        </span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">duration_cast</span><span class="o">&lt;</span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">nanoseconds</span><span class="o">&gt;</span><span class="p">(</span><span class="n">endP</span><span class="o">-</span><span class="n">startP</span><span class="p">).</span><span class="nf">count</span><span class="p">();</span>
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"uint64_t\t"</span><span class="w">  </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nf">count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s1">'\t'</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">duration</span><span class="o">/</span><span class="mf">1.0E9</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" sec \t"</span>
+<span class="w">             </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="mf">10000.0</span><span class="o">*</span><span class="k">size</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">duration</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" GB/s"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">free</span><span class="p">(</span><span class="n">charbuffer</span><span class="p">);</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>As you see, we create a buffer of random data, with the size being <code>x</code>
+megabytes where <code>x</code> is read from the command line. Afterwards, we iterate over
+the buffer and use an unrolled version of the x86 <code>popcount</code> intrinsic to
+perform the popcount. To get a more precise result, we do the popcount 10,000
+times. We measure the times for the popcount. In the upper case, the inner
+loop variable is <code>unsigned</code>, in the lower case, the inner loop variable is
+<code>uint64_t</code>. I thought that this should make no difference, but the opposite is
+the case.</p>
+<h3>The (absolutely crazy) results</h3>
+<p>I compile it like this (g++ version: Ubuntu 4.8.2-19ubuntu1):</p>
+<div class="code"><pre class="code literal-block">g++ -O3 -march=native -std=c++11 test.cpp -o test
+</pre></div>
+
+<p>Here are the results on my Haswell Core i7-4770K CPU @ 3.50 GHz, running <code>test
+1</code> (so 1 MB random data):</p>
+<ul>
+<li>unsigned 41959360000 0.401554 sec <strong>26.113 GB/s</strong>
+</li>
+<li>uint64_t 41959360000 0.759822 sec <strong>13.8003 GB/s</strong>
+</li>
+</ul>
+<p>As you see, the throughput of the <code>uint64_t</code> version is <strong>only half</strong> the one
+of the <code>unsigned</code> version! The problem seems to be that different assembly
+gets generated, but why? First, I thought of a compiler bug, so I tried
+<code>clang++</code> (Ubuntu Clang version 3.4-1ubuntu3):</p>
+<div class="code"><pre class="code literal-block">clang++ -O3 -march=native -std=c++11 teest.cpp -o test
+</pre></div>
+
+<p>Result: <code>test 1</code></p>
+<ul>
+<li>unsigned 41959360000 0.398293 sec <strong>26.3267 GB/s</strong>
+</li>
+<li>uint64_t 41959360000 0.680954 sec <strong>15.3986 GB/s</strong>
+</li>
+</ul>
+<p>So, it is almost the same result and is still strange. <em>But now it gets super
+strange.</em> I replace the buffer size that was read from input with a constant
+<code>1</code>, so I change:</p>
+<div class="code"><pre class="code literal-block">uint64_t size = atol(argv[1]) &lt;&lt; 20;
+</pre></div>
+
+<p>to</p>
+<div class="code"><pre class="code literal-block">uint64_t size = 1 &lt;&lt; 20;
+</pre></div>
+
+<p>Thus, the compiler now knows the buffer size at compile time. Maybe it can add
+some optimizations! Here are the numbers for <code>g++</code>:</p>
+<ul>
+<li>unsigned 41959360000 0.509156 sec <strong>20.5944 GB/s</strong>
+</li>
+<li>uint64_t 41959360000 0.508673 sec <strong>20.6139 GB/s</strong>
+</li>
+</ul>
+<p>Now, both versions are equally fast. However, the <code>unsigned</code> <strong>got even
+slower</strong>! It dropped from <code>26</code> to <code>20 GB/s</code>, thus replacing a non-constant by
+a constant value lead to a <strong>deoptimization</strong>. Seriously, I have no clue what
+is going on here! But now to <code>clang++</code> with the new version:</p>
+<ul>
+<li>unsigned 41959360000 0.677009 sec <strong>15.4884 GB/s</strong>
+</li>
+<li>uint64_t 41959360000 0.676909 sec <strong>15.4906 GB/s</strong>
+</li>
+</ul>
+<p><em>Wait, what?</em> Now, both versions dropped to the <strong>slow</strong> number of 15 GB/s.
+Thus, replacing a non-constant by a constant value even lead to slow code in
+<strong>both</strong> cases for Clang!</p>
+<p>I asked a colleague with an Ivy Bridge CPU to compile my benchmark. He got
+similar results, so it does not seem to be Haswell. Because two compilers
+produce strange results here, it also does not seem to be a compiler bug. We
+do not have an AMD CPU here, so we could only test with Intel.</p>
+<h3>More madness, please!</h3>
+<p>Take the first example (the one with <code>atol(argv[1])</code>) and put a <code>static</code>
+before the variable, i.e.:</p>
+<div class="code"><pre class="code literal-block">static uint64_t size=atol(argv[1])&lt;&lt;20;
+</pre></div>
+
+<p>Here are my results in g++:</p>
+<ul>
+<li>unsigned 41959360000 0.396728 sec <strong>26.4306 GB/s</strong>
+</li>
+<li>uint64_t 41959360000 0.509484 sec <strong>20.5811 GB/s</strong>
+</li>
+</ul>
+<p><em>Yay, yet another alternative</em>. We still have the fast 26 GB/s with <code>u32</code>, but
+we managed to get <code>u64</code> at least from the 13 GB/s to the 20 GB/s version! <strong>On
+my collegue's PC, the<code>u64</code> version became even faster than the <code>u32</code> version,
+yielding the fastest result of all.</strong> Sadly, this only works for <code>g++</code>,
+<code>clang++</code> does not seem to care about <code>static</code>.</p>
+<h3>My question</h3>
+<p>Can you explain these results? Especially:</p>
+<ul>
+<li>How can there be such a difference between <code>u32</code> and <code>u64</code>?</li>
+<li>How can replacing a non-constant by a constant buffer size trigger <em>less optimal code</em>?</li>
+<li>How can the insertion of the <code>static</code> keyword make the <code>u64</code> loop faster? Even faster than the original code on my collegue's computer!</li>
+</ul>
+<p>I know that optimization is a tricky territory, however, I never thought that
+such small changes can lead to a <strong>100% difference</strong> in execution time and
+that small factors like a constant buffer size can again mix results totally.
+Of course, I always want to have the version that is able to popcount 26 GB/s.
+The only reliable way I can think of is copy paste the assembly for this case
+and use inline assembly. This is the only way I can get rid of compilers that
+seem to go mad on small changes. What do you think? Is there another way to
+reliably get the code with most performance?</p>
+<h3>The Disassembly</h3>
+<p>Here is the disassembly for the various results:</p>
+<p>26 GB/s version from <strong>g++ / u32 / non-const bufsize</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="mh">0x400af8</span><span class="o">:</span>
+<span class="n">lea</span><span class="w"> </span><span class="mh">0x1</span><span class="o">(%</span><span class="n">rdx</span><span class="o">),%</span><span class="n">eax</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rax</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">r9</span>
+<span class="n">lea</span><span class="w"> </span><span class="mh">0x2</span><span class="o">(%</span><span class="n">rdx</span><span class="o">),%</span><span class="n">edi</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rax</span>
+<span class="n">lea</span><span class="w"> </span><span class="mh">0x3</span><span class="o">(%</span><span class="n">rdx</span><span class="o">),%</span><span class="n">esi</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">r9</span><span class="o">,%</span><span class="n">rax</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdi</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rcx</span>
+<span class="n">add</span><span class="w"> </span><span class="n">$0x4</span><span class="o">,%</span><span class="n">edx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rcx</span><span class="o">,%</span><span class="n">rax</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rsi</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rcx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rcx</span><span class="o">,%</span><span class="n">rax</span>
+<span class="n">mov</span><span class="w"> </span><span class="o">%</span><span class="n">edx</span><span class="o">,%</span><span class="n">ecx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rax</span><span class="o">,%</span><span class="n">r14</span>
+<span class="n">cmp</span><span class="w"> </span><span class="o">%</span><span class="n">rbp</span><span class="o">,%</span><span class="n">rcx</span>
+<span class="n">jb</span><span class="w"> </span><span class="mh">0x400af8</span>
+</pre></div>
+
+<p>13 GB/s version from <strong>g++ / u64 / non-const bufsize</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="mh">0x400c00</span><span class="o">:</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x8</span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rcx</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rax</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rcx</span><span class="o">,%</span><span class="n">rax</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x10</span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rcx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rcx</span><span class="o">,%</span><span class="n">rax</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x18</span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rcx</span>
+<span class="n">add</span><span class="w"> </span><span class="n">$0x4</span><span class="o">,%</span><span class="n">rdx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rcx</span><span class="o">,%</span><span class="n">rax</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rax</span><span class="o">,%</span><span class="n">r12</span>
+<span class="n">cmp</span><span class="w"> </span><span class="o">%</span><span class="n">rbp</span><span class="o">,%</span><span class="n">rdx</span>
+<span class="n">jb</span><span class="w"> </span><span class="mh">0x400c00</span>
+</pre></div>
+
+<p>15 GB/s version from <strong>clang++ / u64 / non-const bufsize</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="mh">0x400e50</span><span class="o">:</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="o">(%</span><span class="n">r15</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rdx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x8</span><span class="o">(%</span><span class="n">r15</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rsi</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rdx</span><span class="o">,%</span><span class="n">rsi</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x10</span><span class="o">(%</span><span class="n">r15</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rdx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rsi</span><span class="o">,%</span><span class="n">rdx</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x18</span><span class="o">(%</span><span class="n">r15</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rbx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rdx</span><span class="o">,%</span><span class="n">rbx</span>
+<span class="n">add</span><span class="w"> </span><span class="n">$0x4</span><span class="o">,%</span><span class="n">rcx</span>
+<span class="n">cmp</span><span class="w"> </span><span class="o">%</span><span class="n">rbp</span><span class="o">,%</span><span class="n">rcx</span>
+<span class="n">jb</span><span class="w"> </span><span class="mh">0x400e50</span>
+</pre></div>
+
+<p>20 GB/s version from <strong>g++ / u32 &amp;u64 / const bufsize</strong>:</p>
+<div class="code"><pre class="code literal-block"><span class="mh">0x400a68</span><span class="o">:</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span><span class="o">,</span><span class="mi">1</span><span class="o">),%</span><span class="n">rax</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x8</span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span><span class="o">,</span><span class="mi">1</span><span class="o">),%</span><span class="n">rcx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rax</span><span class="o">,%</span><span class="n">rcx</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x10</span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span><span class="o">,</span><span class="mi">1</span><span class="o">),%</span><span class="n">rax</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rax</span><span class="o">,%</span><span class="n">rcx</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x18</span><span class="o">(%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span><span class="o">,</span><span class="mi">1</span><span class="o">),%</span><span class="n">rsi</span>
+<span class="n">add</span><span class="w"> </span><span class="n">$0x20</span><span class="o">,%</span><span class="n">rdx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rsi</span><span class="o">,%</span><span class="n">rcx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rcx</span><span class="o">,%</span><span class="n">rbp</span>
+<span class="n">cmp</span><span class="w"> </span><span class="n">$0x100000</span><span class="o">,%</span><span class="n">rdx</span>
+<span class="n">jne</span><span class="w"> </span><span class="mh">0x400a68</span>
+</pre></div>
+
+<p>15 GB/s version from <strong>clang++ / u32 &amp;u64 / const bufsize</strong>:</p>
+<div class="code"><pre class="code literal-block"><span class="mh">0x400dd0</span><span class="o">:</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="o">(%</span><span class="n">r14</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rdx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rbx</span><span class="o">,%</span><span class="n">rdx</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x8</span><span class="o">(%</span><span class="n">r14</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rsi</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rdx</span><span class="o">,%</span><span class="n">rsi</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x10</span><span class="o">(%</span><span class="n">r14</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rdx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rsi</span><span class="o">,%</span><span class="n">rdx</span>
+<span class="n">popcnt</span><span class="w"> </span><span class="mh">0x18</span><span class="o">(%</span><span class="n">r14</span><span class="o">,%</span><span class="n">rcx</span><span class="o">,</span><span class="mi">8</span><span class="o">),%</span><span class="n">rbx</span>
+<span class="n">add</span><span class="w"> </span><span class="o">%</span><span class="n">rdx</span><span class="o">,%</span><span class="n">rbx</span>
+<span class="n">add</span><span class="w"> </span><span class="n">$0x4</span><span class="o">,%</span><span class="n">rcx</span>
+<span class="n">cmp</span><span class="w"> </span><span class="n">$0x20000</span><span class="o">,%</span><span class="n">rcx</span>
+<span class="n">jb</span><span class="w"> </span><span class="mh">0x400dd0</span>
+</pre></div>
+
+<p>Interestingly, the fastest (26 GB/s) version is also the longest! It seems to
+be the only solution that uses <code>lea</code>. Some versions use <code>jb</code> to jump, others
+use <code>jne</code>. But apart from that, all versions seem to be comparable. I don't
+see where a 100% performance gap could originate from, but I am not too adept
+at deciphering assembly. The slowest (13 GB/s) version looks even very short
+and good. Can anyone explain this?</p>
+<h3>Lessons learned</h3>
+<p>No matter what the answer to this question will be; I have learned that in
+really hot loops <em>every</em> detail can matter, <em>even details that do not seem to
+have any association to the hot code</em>. I have never thought about what type to
+use for a loop variable, but as you see such a minor change can make a <em>100%</em>
+difference! Even the storage type of a buffer can make a huge difference, as
+we saw with the insertion of the <code>static</code> keyword in front of the size
+variable! In the future, I will always test various alternatives on various
+compilers when writing really tight and hot loops that are crucial for system
+performance.</p>
+<p>The interesting thing is also that the performance difference is still so high
+although I have already unrolled the loop four times. So even if you unroll,
+you can still get hit by major performance deviations. Quite interesting.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>Culprit: False Data Dependency</strong> (and the compiler isn't even aware of it)</p>
+<p>On Sandy/Ivy Bridge and Haswell processors, the instruction:</p>
+<div class="code"><pre class="code literal-block">popcnt  src, dest
+</pre></div>
+
+<p>appears to have a false dependency on the destination register <code>dest</code>. Even
+though the instruction only writes to it, the instruction will wait until
+<code>dest</code> is ready before executing. This false dependency is (now) documented by
+Intel as erratum HSD146 (Haswell) and SKL029 (Skylake)</p>
+<p>Skylake fixed this for <code>lzcnt</code> and <code>tzcnt</code>.<br>
+Cannon Lake (and Ice Lake) fixed this for <code>popcnt</code>.<br><code>bsf</code>/<code>bsr</code> have a true output dependency: output unmodified for input=0. (But
+no way to take advantage of that with intrinsics - only AMD documents it and
+compilers don't expose it.)</p>
+<p>(Yes, these instructions all run on the same execution unit).</p>
+<hr>
+<p>This dependency doesn't just hold up the 4 <code>popcnt</code>s from a single loop
+iteration. It can carry across loop iterations making it impossible for the
+processor to parallelize different loop iterations.</p>
+<p>The <code>unsigned</code> vs. <code>uint64_t</code> and other tweaks don't directly affect the
+problem. But they influence the register allocator which assigns the registers
+to the variables.</p>
+<p>In your case, the speeds are a direct result of what is stuck to the (false)
+dependency chain depending on what the register allocator decided to do.</p>
+<ul>
+<li>13 GB/s has a chain: <code>popcnt</code>-<code>add</code>-<code>popcnt</code>-<code>popcnt</code> → next iteration</li>
+<li>15 GB/s has a chain: <code>popcnt</code>-<code>add</code>-<code>popcnt</code>-<code>add</code> → next iteration</li>
+<li>20 GB/s has a chain: <code>popcnt</code>-<code>popcnt</code> → next iteration</li>
+<li>26 GB/s has a chain: <code>popcnt</code>-<code>popcnt</code> → next iteration</li>
+</ul>
+<p>The difference between 20 GB/s and 26 GB/s seems to be a minor artifact of the
+indirect addressing. Either way, the processor starts to hit other bottlenecks
+once you reach this speed.</p>
+<hr>
+<p>To test this, I used inline assembly to bypass the compiler and get exactly
+the assembly I want. I also split up the <code>count</code> variable to break all other
+dependencies that might mess with the benchmarks.</p>
+<p>Here are the results:</p>
+<p><strong>Sandy Bridge Xeon @ 3.5 GHz:</strong> (full test code can be found at the bottom)</p>
+<ul>
+<li>GCC 4.6.3: <code>g++ popcnt.cpp -std=c++0x -O3 -save-temps -march=native</code>
+</li>
+<li>Ubuntu 12</li>
+</ul>
+<p>Different Registers: <strong>18.6195 GB/s</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nl">.L4:</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rax</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r8</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">8</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rax</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r9</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">16</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rax</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r10</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">24</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rax</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r11</span>
+<span class="w">    </span><span class="nf">addq</span><span class="w">    </span><span class="no">$4</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r8</span><span class="p">,</span><span class="w"> </span><span class="nv">%r8</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%r8</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdx</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r9</span><span class="p">,</span><span class="w"> </span><span class="nv">%r9</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%r9</span><span class="p">,</span><span class="w"> </span><span class="nv">%rcx</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r10</span><span class="p">,</span><span class="w"> </span><span class="nv">%r10</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%r10</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdi</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r11</span><span class="p">,</span><span class="w"> </span><span class="nv">%r11</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%r11</span><span class="p">,</span><span class="w"> </span><span class="nv">%rsi</span>
+
+<span class="w">    </span><span class="nf">cmpq</span><span class="w">    </span><span class="no">$131072</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">jne</span><span class="w"> </span><span class="no">.L4</span>
+</pre></div>
+
+<p>Same Register: <strong>8.49272 GB/s</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nl">.L9:</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rdx</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r9</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">8</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rdx</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r10</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">16</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rdx</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r11</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">24</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rdx</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="nf">addq</span><span class="w">    </span><span class="no">$4</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdx</span>
+
+<span class="w">    </span><span class="c1"># This time reuse "rax" for all the popcnts.</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r9</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%rcx</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r10</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%rsi</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r11</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%r8</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%rbp</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdi</span>
+
+<span class="w">    </span><span class="nf">cmpq</span><span class="w">    </span><span class="no">$131072</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdx</span>
+<span class="w">    </span><span class="nf">jne</span><span class="w"> </span><span class="no">.L9</span>
+</pre></div>
+
+<p>Same Register with broken chain: <strong>17.8869 GB/s</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nl">.L14:</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rdx</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r9</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">8</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rdx</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r10</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">16</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rdx</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%r11</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">    </span><span class="mi">24</span><span class="p">(</span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rdx</span><span class="p">,</span><span class="mi">8</span><span class="p">),</span><span class="w"> </span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="nf">addq</span><span class="w">    </span><span class="no">$4</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdx</span>
+
+<span class="w">    </span><span class="c1"># Reuse "rax" for all the popcnts.</span>
+<span class="w">    </span><span class="nf">xor</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span><span class="w">    </span><span class="c1"># Break the cross-iteration dependency by zeroing "rax".</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r9</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%rcx</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r10</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%rsi</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%r11</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%r8</span>
+<span class="w">    </span><span class="nf">popcnt</span><span class="w"> </span><span class="nv">%rbp</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdi</span>
+
+<span class="w">    </span><span class="nf">cmpq</span><span class="w">    </span><span class="no">$131072</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdx</span>
+<span class="w">    </span><span class="nf">jne</span><span class="w"> </span><span class="no">.L14</span>
+</pre></div>
+
+<hr>
+<p><strong>So what went wrong with the compiler?</strong></p>
+<p>It seems that neither GCC nor Visual Studio are aware that <code>popcnt</code> has such a
+false dependency. Nevertheless, these false dependencies aren't uncommon. It's
+just a matter of whether the compiler is aware of it.</p>
+<p><code>popcnt</code> isn't exactly the most used instruction. So it's not really a
+surprise that a major compiler could miss something like this. There also
+appears to be no documentation anywhere that mentions this problem. If Intel
+doesn't disclose it, then nobody outside will know until someone runs into it
+by chance.</p>
+<p>( <strong>Update:</strong> As of version 4.9.2, GCC is aware of this false-dependency and
+generates code to compensate it when optimizations are enabled. Major
+compilers from other vendors, including Clang, MSVC, and even Intel's own ICC
+are not yet aware of this microarchitectural erratum and will not emit code
+that compensates for it.)</p>
+<p><strong>Why does the CPU have such a false dependency?</strong></p>
+<p>We can speculate: it runs on the same execution unit as <code>bsf</code> / <code>bsr</code> which
+<em>do</em> have an output dependency. (How is POPCNT implemented in hardware?). For
+those instructions, Intel documents the integer result for input=0 as
+"undefined" (with ZF=1), but Intel hardware actually gives a stronger
+guarantee to avoid breaking old software: output unmodified. AMD documents
+this behaviour.</p>
+<p>Presumably it was somehow inconvenient to make some uops for this execution
+unit dependent on the output but others not.</p>
+<p>AMD processors do not appear to have this false dependency.</p>
+<hr>
+<p>The full test code is below for reference:</p>
+<div class="code"><pre class="code literal-block"><span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">iostream</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">chrono</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">x86intrin</span><span class="p">.</span><span class="n">h</span><span class="o">&gt;</span>
+
+<span class="nc">int</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="nc">char</span><span class="o">*</span><span class="w"> </span><span class="n">argv</span><span class="err">[]</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">   </span><span class="k">using</span><span class="w"> </span><span class="n">namespace</span><span class="w"> </span><span class="n">std</span><span class="p">;</span>
+<span class="w">   </span><span class="n">uint64_t</span><span class="w"> </span><span class="k">size</span><span class="o">=</span><span class="mi">1</span><span class="o">&lt;&lt;</span><span class="mi">20</span><span class="p">;</span>
+
+<span class="w">   </span><span class="n">uint64_t</span><span class="o">*</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">uint64_t</span><span class="o">[</span><span class="n">size/8</span><span class="o">]</span><span class="p">;</span>
+<span class="w">   </span><span class="nc">char</span><span class="o">*</span><span class="w"> </span><span class="n">charbuffer</span><span class="o">=</span><span class="n">reinterpret_cast</span><span class="o">&lt;</span><span class="nc">char</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">buffer</span><span class="p">);</span>
+<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="k">size</span><span class="p">;</span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="n">charbuffer</span><span class="o">[</span><span class="n">i</span><span class="o">]=</span><span class="nf">rand</span><span class="p">()</span><span class="o">%</span><span class="mi">256</span><span class="p">;</span>
+
+<span class="w">   </span><span class="n">uint64_t</span><span class="w"> </span><span class="nf">count</span><span class="p">,</span><span class="n">duration</span><span class="p">;</span>
+<span class="w">   </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">time_point</span><span class="o">&lt;</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">system_clock</span><span class="o">&gt;</span><span class="w"> </span><span class="n">startP</span><span class="p">,</span><span class="n">endP</span><span class="p">;</span>
+<span class="w">   </span><span class="err">{</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">startP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">      </span><span class="k">for</span><span class="p">(</span><span class="w"> </span><span class="n">unsigned</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">         </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">uint64_t</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="k">size</span><span class="o">/</span><span class="mi">8</span><span class="p">;</span><span class="n">i</span><span class="o">+=</span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 0</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 1</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 2</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 3</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">__asm__</span><span class="p">(</span>
+<span class="w">                </span><span class="ss">"popcnt %4, %4  \n\t"</span>
+<span class="w">                </span><span class="ss">"add %4, %0     \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %5, %5  \n\t"</span>
+<span class="w">                </span><span class="ss">"add %5, %1     \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %6, %6  \n\t"</span>
+<span class="w">                </span><span class="ss">"add %6, %2     \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %7, %7  \n\t"</span>
+<span class="w">                </span><span class="ss">"add %7, %3     \n\t"</span>
+<span class="w">                </span><span class="err">:</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c0</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c1</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c2</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c3</span><span class="p">)</span>
+<span class="w">                </span><span class="err">:</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r0</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r1</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r2</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r3</span><span class="p">)</span>
+<span class="w">            </span><span class="p">);</span>
+<span class="w">         </span><span class="err">}</span>
+<span class="w">      </span><span class="err">}</span>
+<span class="w">      </span><span class="nf">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c3</span><span class="p">;</span>
+<span class="w">      </span><span class="n">endP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">      </span><span class="n">duration</span><span class="o">=</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">duration_cast</span><span class="o">&lt;</span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">nanoseconds</span><span class="o">&gt;</span><span class="p">(</span><span class="n">endP</span><span class="o">-</span><span class="n">startP</span><span class="p">).</span><span class="nf">count</span><span class="p">();</span>
+<span class="w">      </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"No Chain\t"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nf">count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s1">'\t'</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">duration</span><span class="o">/</span><span class="mf">1.0E9</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" sec \t"</span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="mf">10000.0</span><span class="o">*</span><span class="k">size</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">duration</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" GB/s"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">   </span><span class="err">}</span>
+<span class="w">   </span><span class="err">{</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">startP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">      </span><span class="k">for</span><span class="p">(</span><span class="w"> </span><span class="n">unsigned</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">         </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">uint64_t</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="k">size</span><span class="o">/</span><span class="mi">8</span><span class="p">;</span><span class="n">i</span><span class="o">+=</span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 0</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 1</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 2</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 3</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">__asm__</span><span class="p">(</span>
+<span class="w">                </span><span class="ss">"popcnt %4, %%rax   \n\t"</span>
+<span class="w">                </span><span class="ss">"add %%rax, %0      \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %5, %%rax   \n\t"</span>
+<span class="w">                </span><span class="ss">"add %%rax, %1      \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %6, %%rax   \n\t"</span>
+<span class="w">                </span><span class="ss">"add %%rax, %2      \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %7, %%rax   \n\t"</span>
+<span class="w">                </span><span class="ss">"add %%rax, %3      \n\t"</span>
+<span class="w">                </span><span class="err">:</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c0</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c1</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c2</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c3</span><span class="p">)</span>
+<span class="w">                </span><span class="err">:</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r0</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r1</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r2</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r3</span><span class="p">)</span>
+<span class="w">                </span><span class="err">:</span><span class="w"> </span><span class="ss">"rax"</span>
+<span class="w">            </span><span class="p">);</span>
+<span class="w">         </span><span class="err">}</span>
+<span class="w">      </span><span class="err">}</span>
+<span class="w">      </span><span class="nf">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c3</span><span class="p">;</span>
+<span class="w">      </span><span class="n">endP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">      </span><span class="n">duration</span><span class="o">=</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">duration_cast</span><span class="o">&lt;</span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">nanoseconds</span><span class="o">&gt;</span><span class="p">(</span><span class="n">endP</span><span class="o">-</span><span class="n">startP</span><span class="p">).</span><span class="nf">count</span><span class="p">();</span>
+<span class="w">      </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"Chain 4   \t"</span><span class="w">  </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nf">count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s1">'\t'</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">duration</span><span class="o">/</span><span class="mf">1.0E9</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" sec \t"</span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="mf">10000.0</span><span class="o">*</span><span class="k">size</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">duration</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" GB/s"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">   </span><span class="err">}</span>
+<span class="w">   </span><span class="err">{</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">c3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">      </span><span class="n">startP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">      </span><span class="k">for</span><span class="p">(</span><span class="w"> </span><span class="n">unsigned</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">         </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">uint64_t</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="k">size</span><span class="o">/</span><span class="mi">8</span><span class="p">;</span><span class="n">i</span><span class="o">+=</span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 0</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 1</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 2</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">r3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">[</span><span class="n">i + 3</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">__asm__</span><span class="p">(</span>
+<span class="w">                </span><span class="ss">"xor %%rax, %%rax   \n\t"</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="o">&lt;---</span><span class="w"> </span><span class="k">Break</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">chain</span><span class="p">.</span>
+<span class="w">                </span><span class="ss">"popcnt %4, %%rax   \n\t"</span>
+<span class="w">                </span><span class="ss">"add %%rax, %0      \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %5, %%rax   \n\t"</span>
+<span class="w">                </span><span class="ss">"add %%rax, %1      \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %6, %%rax   \n\t"</span>
+<span class="w">                </span><span class="ss">"add %%rax, %2      \n\t"</span>
+<span class="w">                </span><span class="ss">"popcnt %7, %%rax   \n\t"</span>
+<span class="w">                </span><span class="ss">"add %%rax, %3      \n\t"</span>
+<span class="w">                </span><span class="err">:</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c0</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c1</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c2</span><span class="p">),</span><span class="w"> </span><span class="ss">"+r"</span><span class="w"> </span><span class="p">(</span><span class="n">c3</span><span class="p">)</span>
+<span class="w">                </span><span class="err">:</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r0</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r1</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r2</span><span class="p">),</span><span class="w"> </span><span class="ss">"r"</span><span class="w">  </span><span class="p">(</span><span class="n">r3</span><span class="p">)</span>
+<span class="w">                </span><span class="err">:</span><span class="w"> </span><span class="ss">"rax"</span>
+<span class="w">            </span><span class="p">);</span>
+<span class="w">         </span><span class="err">}</span>
+<span class="w">      </span><span class="err">}</span>
+<span class="w">      </span><span class="nf">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c3</span><span class="p">;</span>
+<span class="w">      </span><span class="n">endP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="nl">system_clock</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">      </span><span class="n">duration</span><span class="o">=</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">duration_cast</span><span class="o">&lt;</span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="nl">chrono</span><span class="p">:</span><span class="err">:</span><span class="n">nanoseconds</span><span class="o">&gt;</span><span class="p">(</span><span class="n">endP</span><span class="o">-</span><span class="n">startP</span><span class="p">).</span><span class="nf">count</span><span class="p">();</span>
+<span class="w">      </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"Broken Chain\t"</span><span class="w">  </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nf">count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s1">'\t'</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">duration</span><span class="o">/</span><span class="mf">1.0E9</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" sec \t"</span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="mf">10000.0</span><span class="o">*</span><span class="k">size</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">duration</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">" GB/s"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">   </span><span class="err">}</span>
+
+<span class="w">   </span><span class="k">free</span><span class="p">(</span><span class="n">charbuffer</span><span class="p">);</span>
+<span class="err">}</span>
+</pre></div>
+
+<hr>
+<p>An equally interesting benchmark can be found here:
+http://pastebin.com/kbzgL8si<br>
+This benchmark varies the number of <code>popcnt</code>s that are in the (false)
+dependency chain.</p>
+<div class="code"><pre class="code literal-block">False Chain 0:  41959360000 0.57748 sec     18.1578 GB/s
+False Chain 1:  41959360000 0.585398 sec    17.9122 GB/s
+False Chain 2:  41959360000 0.645483 sec    16.2448 GB/s
+False Chain 3:  41959360000 0.929718 sec    11.2784 GB/s
+False Chain 4:  41959360000 1.23572 sec     8.48557 GB/s
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>I coded up an equivalent C program to experiment, and I can confirm this
+strange behaviour. What's more, <code>gcc</code> believes the 64-bit integer (which
+should probably be a <code>size_t</code> anyway...) to be better, as using
+<code>uint_fast32_t</code> causes gcc to use a 64-bit uint.  </p>
+<p>I did a bit of mucking around with the assembly:<br>
+Simply take the 32-bit version, replace all 32-bit instructions/registers with
+the 64-bit version in the inner popcount-loop of the program. Observation: the
+code is <strong>just as fast as the 32-bit version!</strong>  </p>
+<p>This is obviously a hack, as the size of the variable isn't really 64 bit, as
+other parts of the program still use the 32-bit version, but as long as the
+inner popcount-loop dominates performance, this is a good start.  </p>
+<p>I then copied the inner loop code from the 32-bit version of the program,
+hacked it up to be 64 bit, fiddled with the registers to make it a replacement
+for the inner loop of the 64-bit version. <strong>This code also runs as fast as the
+32-bit version.</strong>  </p>
+<p>My conclusion is that this is bad instruction scheduling by the compiler, not
+actual speed/latency advantage of 32-bit instructions.  </p>
+<p>(Caveat: I hacked up assembly, could have broken something without noticing. I
+don't think so.)</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/using-auto-layout-in-uitableview-for-dynamic-cell-layouts-variable-row-heights/" class="u-url">Using Auto Layout in UITableView for dynamic cell layouts &amp; variable row heights</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/using-auto-layout-in-uitableview-for-dynamic-cell-layouts-variable-row-heights/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:14:32+08:00" itemprop="datePublished" title="2023-02-17 01:14">2023-02-17 01:14</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>How do you use Auto Layout within <code>UITableViewCell</code>s in a table view to let
+each cell's content and subviews determine the row height
+(itself/automatically), while maintaining smooth scrolling performance?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>TL;DR:</strong> Don't like reading? Jump straight to the sample projects on GitHub:</p>
+<ul>
+<li>iOS 8 Sample Project - Requires iOS 8</li>
+<li>iOS 7 Sample Project - Works on iOS 7+</li>
+</ul>
+<h2>Conceptual Description</h2>
+<p>The first 2 steps below are applicable regardless of which iOS versions you
+are developing for.</p>
+<h3>1. Set Up &amp; Add Constraints</h3>
+<p>In your <code>UITableViewCell</code> subclass, add constraints so that the subviews of
+the cell have their edges pinned to the edges of the cell's <strong>contentView</strong>
+(most importantly to the top AND bottom edges). <strong>NOTE: don't pin subviews to
+the cell itself; only to the cell's<code>contentView</code>!</strong> Let the intrinsic content
+size of these subviews drive the height of the table view cell's content view
+by making sure the <em>content compression resistance</em> and <em>content hugging</em>
+constraints in the vertical dimension for each subview are not being
+overridden by higher-priority constraints you have added. (Huh? Click here.)</p>
+<p>Remember, the idea is to have the cell's subviews connected vertically to the
+cell's content view so that they can "exert pressure" and make the content
+view expand to fit them. Using an example cell with a few subviews, here is a
+visual illustration of what <strong>some</strong> <em>(not all!)</em> of your constraints would
+need to look like:</p>
+<p><img alt="Example illustration of constraints on a table view
+cell." src="images/CTUPi.png"></p>
+<p>You can imagine that as more text is added to the multi-line body label in the
+example cell above, it will need to grow vertically to fit the text, which
+will effectively force the cell to grow in height. (Of course, you need to get
+the constraints right in order for this to work correctly!)</p>
+<p>Getting your constraints right is definitely the <strong>hardest and most important
+part</strong> of getting dynamic cell heights working with Auto Layout. If you make a
+mistake here, it could prevent everything else from working -- so take your
+time! I recommend setting up your constraints in code because you know exactly
+which constraints are being added where, and it's a lot easier to debug when
+things go wrong. Adding constraints in code can be just as easy as and
+significantly more powerful than Interface Builder using layout anchors, or
+one of the fantastic open source APIs available on GitHub.</p>
+<ul>
+<li>If you're adding constraints in code, you should do this once from within the <code>updateConstraints</code> method of your UITableViewCell subclass. Note that <code>updateConstraints</code> may be called more than once, so to avoid adding the same constraints more than once, make sure to wrap your constraint-adding code within <code>updateConstraints</code> in a check for a boolean property such as <code>didSetupConstraints</code> (which you set to YES after you run your constraint-adding code once). On the other hand, if you have code that updates existing constraints (such as adjusting the <code>constant</code> property on some constraints), place this in <code>updateConstraints</code> but outside of the check for <code>didSetupConstraints</code> so it can run every time the method is called.</li>
+</ul>
+<h3>2. Determine Unique Table View Cell Reuse Identifiers</h3>
+<p>For every unique set of constraints in the cell, use a unique cell reuse
+identifier. In other words, if your cells have more than one unique layout,
+each unique layout should receive its own reuse identifier. (A good hint that
+you need to use a new reuse identifier is when your cell variant has a
+different number of subviews, or the subviews are arranged in a distinct
+fashion.)</p>
+<p>For example, if you were displaying an email message in each cell, you might
+have 4 unique layouts: messages with just a subject, messages with a subject
+and a body, messages with a subject and a photo attachment, and messages with
+a subject, body, and photo attachment. Each layout has completely different
+constraints required to achieve it, so once the cell is initialized and the
+constraints are added for one of these cell types, the cell should get a
+unique reuse identifier specific to that cell type. This means when you
+dequeue a cell for reuse, the constraints have already been added and are
+ready to go for that cell type.</p>
+<p>Note that due to differences in intrinsic content size, cells with the same
+constraints (type) may still have varying heights! Don't confuse fundamentally
+different layouts (different constraints) with different calculated view
+frames (solved from identical constraints) due to different sizes of content.</p>
+<ul>
+<li>Do not add cells with completely different sets of constraints to the same reuse pool (i.e. use the same reuse identifier) and then attempt to remove the old constraints and set up new constraints from scratch after each dequeue. The internal Auto Layout engine is not designed to handle large scale changes in constraints, and you will see massive performance issues.</li>
+</ul>
+<h3>For iOS 8 - Self-Sizing Cells</h3>
+<h4>3. Enable Row Height Estimation</h4>
+<blockquote>
+<p>To enable self-sizing table view cells, you must set the table view’s
+rowHeight property to UITableViewAutomaticDimension. You must also assign a
+value to the estimatedRowHeight property. As soon as both of these
+properties are set, the system uses Auto Layout to calculate the row’s
+actual height</p>
+<p>Apple: Working with Self-Sizing Table View Cells</p>
+</blockquote>
+<p>With iOS 8, Apple has internalized much of the work that previously had to be
+implemented by you prior to iOS 8. In order to allow the self-sizing cell
+mechanism to work, you must first set the <code>rowHeight</code> property on the table
+view to the constant <code>UITableView.automaticDimension</code>. Then, you simply need
+to enable row height estimation by setting the table view's
+<code>estimatedRowHeight</code> property to a nonzero value, for example:</p>
+<div class="code"><pre class="code literal-block">self.tableView.rowHeight = UITableView.automaticDimension;
+self.tableView.estimatedRowHeight = 44.0; // set to whatever your "average" cell height is
+</pre></div>
+
+<p>What this does is provide the table view with a temporary estimate/placeholder
+for the row heights of cells that are not yet onscreen. Then, when these cells
+are about to scroll on screen, the actual row height will be calculated. To
+determine the actual height for each row, the table view automatically asks
+each cell what height its <code>contentView</code> needs to be based on the known fixed
+width of the content view (which is based on the table view's width, minus any
+additional things like a section index or accessory view) and the auto layout
+constraints you have added to the cell's content view and subviews. Once this
+actual cell height has been determined, the old estimated height for the row
+is updated with the new actual height (and any adjustments to the table view's
+contentSize/contentOffset are made as needed for you).</p>
+<p>Generally speaking, the estimate you provide doesn't have to be very accurate
+-- it is only used to correctly size the scroll indicator in the table view,
+and the table view does a good job of adjusting the scroll indicator for
+incorrect estimates as you scroll cells onscreen. You should set the
+<code>estimatedRowHeight</code> property on the table view (in <code>viewDidLoad</code> or similar)
+to a constant value that is the "average" row height. <em>Only if your row
+heights have extreme variability (e.g. differ by an order of magnitude) and
+you notice the scroll indicator "jumping" as you scroll should you bother
+implementing<code>tableView:estimatedHeightForRowAtIndexPath:</code> to do the minimal
+calculation required to return a more accurate estimate for each row.</em></p>
+<h3>For iOS 7 support (implementing auto cell sizing yourself)</h3>
+<h4>3. Do a Layout Pass &amp; Get The Cell Height</h4>
+<p>First, instantiate an offscreen instance of a table view cell, <em>one instance
+for each reuse identifier</em> , that is used strictly for height calculations.
+(Offscreen meaning the cell reference is stored in a property/ivar on the view
+controller and never returned from <code>tableView:cellForRowAtIndexPath:</code> for the
+table view to actually render onscreen.) Next, the cell must be configured
+with the exact content (e.g. text, images, etc) that it would hold if it were
+to be displayed in the table view.</p>
+<p>Then, force the cell to immediately layout its subviews, and then use the
+<code>systemLayoutSizeFittingSize:</code> method on the <code>UITableViewCell</code>'s <code>contentView</code>
+to find out what the required height of the cell is. Use
+<code>UILayoutFittingCompressedSize</code> to get the smallest size required to fit all
+the contents of the cell. The height can then be returned from the
+<code>tableView:heightForRowAtIndexPath:</code> delegate method.</p>
+<h4>4. Use Estimated Row Heights</h4>
+<p>If your table view has more than a couple dozen rows in it, you will find that
+doing the Auto Layout constraint solving can quickly bog down the main thread
+when first loading the table view, as <code>tableView:heightForRowAtIndexPath:</code> is
+called on each and every row upon first load (in order to calculate the size
+of the scroll indicator).</p>
+<p>As of iOS 7, you can (and absolutely should) use the <code>estimatedRowHeight</code>
+property on the table view. What this does is provide the table view with a
+temporary estimate/placeholder for the row heights of cells that are not yet
+onscreen. Then, when these cells are about to scroll on screen, the actual row
+height will be calculated (by calling <code>tableView:heightForRowAtIndexPath:</code>),
+and the estimated height updated with the actual one.</p>
+<p>Generally speaking, the estimate you provide doesn't have to be very accurate
+-- it is only used to correctly size the scroll indicator in the table view,
+and the table view does a good job of adjusting the scroll indicator for
+incorrect estimates as you scroll cells onscreen. You should set the
+<code>estimatedRowHeight</code> property on the table view (in <code>viewDidLoad</code> or similar)
+to a constant value that is the "average" row height. <em>Only if your row
+heights have extreme variability (e.g. differ by an order of magnitude) and
+you notice the scroll indicator "jumping" as you scroll should you bother
+implementing<code>tableView:estimatedHeightForRowAtIndexPath:</code> to do the minimal
+calculation required to return a more accurate estimate for each row.</em></p>
+<h4>5. (If Needed) Add Row Height Caching</h4>
+<p>If you've done all the above and are still finding that performance is
+unacceptably slow when doing the constraint solving in
+<code>tableView:heightForRowAtIndexPath:</code>, you'll unfortunately need to implement
+some caching for cell heights. (This is the approach suggested by Apple's
+engineers.) The general idea is to let the Autolayout engine solve the
+constraints the first time, then cache the calculated height for that cell and
+use the cached value for all future requests for that cell's height. The trick
+of course is to make sure you clear the cached height for a cell when anything
+happens that could cause the cell's height to change -- primarily, this would
+be when that cell's content changes or when other important events occur (like
+the user adjusting the Dynamic Type text size slider).</p>
+<h4>iOS 7 Generic Sample Code (with lots of juicy comments)</h4>
+<div class="code"><pre class="code literal-block"><span class="p">-</span> <span class="p">(</span><span class="bp">UITableViewCell</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">tableView:</span><span class="p">(</span><span class="bp">UITableView</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">tableView</span><span class="w"> </span><span class="nf">cellForRowAtIndexPath:</span><span class="p">(</span><span class="bp">NSIndexPath</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">indexPath</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Determine which reuse identifier should be used for the cell at this </span>
+<span class="w">    </span><span class="c1">// index path, depending on the particular layout required (you may have</span>
+<span class="w">    </span><span class="c1">// just one, or may have many).</span>
+<span class="w">    </span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">reuseIdentifier</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...;</span>
+
+<span class="w">    </span><span class="c1">// Dequeue a cell for the reuse identifier.</span>
+<span class="w">    </span><span class="c1">// Note that this method will init and return a new cell if there isn't</span>
+<span class="w">    </span><span class="c1">// one available in the reuse pool, so either way after this line of </span>
+<span class="w">    </span><span class="c1">// code you will have a cell with the correct constraints ready to go.</span>
+<span class="w">    </span><span class="bp">UITableViewCell</span><span class="w"> </span><span class="o">*</span><span class="n">cell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">tableView</span><span class="w"> </span><span class="n">dequeueReusableCellWithIdentifier</span><span class="o">:</span><span class="n">reuseIdentifier</span><span class="p">];</span>
+
+<span class="w">    </span><span class="c1">// Configure the cell with content for the given indexPath, for example:</span>
+<span class="w">    </span><span class="c1">// cell.textLabel.text = someTextForThisCell;</span>
+<span class="w">    </span><span class="c1">// ...</span>
+
+<span class="w">    </span><span class="c1">// Make sure the constraints have been set up for this cell, since it </span>
+<span class="w">    </span><span class="c1">// may have just been created from scratch. Use the following lines, </span>
+<span class="w">    </span><span class="c1">// assuming you are setting up constraints from within the cell's </span>
+<span class="w">    </span><span class="c1">// updateConstraints method:</span>
+<span class="w">    </span><span class="p">[</span><span class="n">cell</span><span class="w"> </span><span class="n">setNeedsUpdateConstraints</span><span class="p">];</span>
+<span class="w">    </span><span class="p">[</span><span class="n">cell</span><span class="w"> </span><span class="n">updateConstraintsIfNeeded</span><span class="p">];</span>
+
+<span class="w">    </span><span class="c1">// If you are using multi-line UILabels, don't forget that the </span>
+<span class="w">    </span><span class="c1">// preferredMaxLayoutWidth needs to be set correctly. Do it at this </span>
+<span class="w">    </span><span class="c1">// point if you are NOT doing it within the UITableViewCell subclass </span>
+<span class="w">    </span><span class="c1">// -[layoutSubviews] method. For example: </span>
+<span class="w">    </span><span class="c1">// cell.multiLineLabel.preferredMaxLayoutWidth = CGRectGetWidth(tableView.bounds);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">cell</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">-</span> <span class="p">(</span><span class="n">CGFloat</span><span class="p">)</span><span class="nf">tableView:</span><span class="p">(</span><span class="bp">UITableView</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">tableView</span><span class="w"> </span><span class="nf">heightForRowAtIndexPath:</span><span class="p">(</span><span class="bp">NSIndexPath</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">indexPath</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Determine which reuse identifier should be used for the cell at this </span>
+<span class="w">    </span><span class="c1">// index path.</span>
+<span class="w">    </span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">reuseIdentifier</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...;</span>
+
+<span class="w">    </span><span class="c1">// Use a dictionary of offscreen cells to get a cell for the reuse </span>
+<span class="w">    </span><span class="c1">// identifier, creating a cell and storing it in the dictionary if one </span>
+<span class="w">    </span><span class="c1">// hasn't already been added for the reuse identifier. WARNING: Don't </span>
+<span class="w">    </span><span class="c1">// call the table view's dequeueReusableCellWithIdentifier: method here </span>
+<span class="w">    </span><span class="c1">// because this will result in a memory leak as the cell is created but </span>
+<span class="w">    </span><span class="c1">// never returned from the tableView:cellForRowAtIndexPath: method!</span>
+<span class="w">    </span><span class="bp">UITableViewCell</span><span class="w"> </span><span class="o">*</span><span class="n">cell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">offscreenCells</span><span class="w"> </span><span class="n">objectForKey</span><span class="o">:</span><span class="n">reuseIdentifier</span><span class="p">];</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">cell</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">cell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[[</span><span class="n">YourTableViewCellClass</span><span class="w"> </span><span class="n">alloc</span><span class="p">]</span><span class="w"> </span><span class="n">init</span><span class="p">];</span>
+<span class="w">        </span><span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">offscreenCells</span><span class="w"> </span><span class="n">setObject</span><span class="o">:</span><span class="n">cell</span><span class="w"> </span><span class="n">forKey</span><span class="o">:</span><span class="n">reuseIdentifier</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Configure the cell with content for the given indexPath, for example:</span>
+<span class="w">    </span><span class="c1">// cell.textLabel.text = someTextForThisCell;</span>
+<span class="w">    </span><span class="c1">// ...</span>
+
+<span class="w">    </span><span class="c1">// Make sure the constraints have been set up for this cell, since it </span>
+<span class="w">    </span><span class="c1">// may have just been created from scratch. Use the following lines, </span>
+<span class="w">    </span><span class="c1">// assuming you are setting up constraints from within the cell's </span>
+<span class="w">    </span><span class="c1">// updateConstraints method:</span>
+<span class="w">    </span><span class="p">[</span><span class="n">cell</span><span class="w"> </span><span class="n">setNeedsUpdateConstraints</span><span class="p">];</span>
+<span class="w">    </span><span class="p">[</span><span class="n">cell</span><span class="w"> </span><span class="n">updateConstraintsIfNeeded</span><span class="p">];</span>
+
+<span class="w">    </span><span class="c1">// Set the width of the cell to match the width of the table view. This</span>
+<span class="w">    </span><span class="c1">// is important so that we'll get the correct cell height for different</span>
+<span class="w">    </span><span class="c1">// table view widths if the cell's height depends on its width (due to </span>
+<span class="w">    </span><span class="c1">// multi-line UILabels word wrapping, etc). We don't need to do this </span>
+<span class="w">    </span><span class="c1">// above in -[tableView:cellForRowAtIndexPath] because it happens </span>
+<span class="w">    </span><span class="c1">// automatically when the cell is used in the table view. Also note, </span>
+<span class="w">    </span><span class="c1">// the final width of the cell may not be the width of the table view in</span>
+<span class="w">    </span><span class="c1">// some cases, for example when a section index is displayed along </span>
+<span class="w">    </span><span class="c1">// the right side of the table view. You must account for the reduced </span>
+<span class="w">    </span><span class="c1">// cell width.</span>
+<span class="w">    </span><span class="n">cell</span><span class="p">.</span><span class="n">bounds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CGRectMake</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="n">CGRectGetWidth</span><span class="p">(</span><span class="n">tableView</span><span class="p">.</span><span class="n">bounds</span><span class="p">),</span><span class="w"> </span><span class="n">CGRectGetHeight</span><span class="p">(</span><span class="n">cell</span><span class="p">.</span><span class="n">bounds</span><span class="p">));</span>
+
+<span class="w">    </span><span class="c1">// Do the layout pass on the cell, which will calculate the frames for </span>
+<span class="w">    </span><span class="c1">// all the views based on the constraints. (Note that you must set the </span>
+<span class="w">    </span><span class="c1">// preferredMaxLayoutWidth on multiline UILabels inside the </span>
+<span class="w">    </span><span class="c1">// -[layoutSubviews] method of the UITableViewCell subclass, or do it </span>
+<span class="w">    </span><span class="c1">// manually at this point before the below 2 lines!)</span>
+<span class="w">    </span><span class="p">[</span><span class="n">cell</span><span class="w"> </span><span class="n">setNeedsLayout</span><span class="p">];</span>
+<span class="w">    </span><span class="p">[</span><span class="n">cell</span><span class="w"> </span><span class="n">layoutIfNeeded</span><span class="p">];</span>
+
+<span class="w">    </span><span class="c1">// Get the actual height required for the cell's contentView</span>
+<span class="w">    </span><span class="n">CGFloat</span><span class="w"> </span><span class="n">height</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">cell</span><span class="p">.</span><span class="n">contentView</span><span class="w"> </span><span class="n">systemLayoutSizeFittingSize</span><span class="o">:</span><span class="n">UILayoutFittingCompressedSize</span><span class="p">].</span><span class="n">height</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Add an extra point to the height to account for the cell separator, </span>
+<span class="w">    </span><span class="c1">// which is added between the bottom of the cell's contentView and the </span>
+<span class="w">    </span><span class="c1">// bottom of the table view cell.</span>
+<span class="w">    </span><span class="n">height</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">height</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// NOTE: Set the table view's estimatedRowHeight property instead of </span>
+<span class="c1">// implementing the below method, UNLESS you have extreme variability in </span>
+<span class="c1">// your row heights and you notice the scroll indicator "jumping" </span>
+<span class="c1">// as you scroll.</span>
+<span class="p">-</span> <span class="p">(</span><span class="n">CGFloat</span><span class="p">)</span><span class="nf">tableView:</span><span class="p">(</span><span class="bp">UITableView</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">tableView</span><span class="w"> </span><span class="nf">estimatedHeightForRowAtIndexPath:</span><span class="p">(</span><span class="bp">NSIndexPath</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">indexPath</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Do the minimal calculations required to be able to return an </span>
+<span class="w">    </span><span class="c1">// estimated row height that's within an order of magnitude of the </span>
+<span class="w">    </span><span class="c1">// actual height. For example:</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">([</span><span class="nb">self</span><span class="w"> </span><span class="n">isTallCellAtIndexPath</span><span class="o">:</span><span class="n">indexPath</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">350.0</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">40.0</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2>Sample Projects</h2>
+<ul>
+<li>iOS 8 Sample Project - Requires iOS 8</li>
+<li>iOS 7 Sample Project - Works on iOS 7+</li>
+</ul>
+<p>These projects are fully working examples of table views with variable row
+heights due to table view cells containing dynamic content in UILabels.</p>
+<h3>Xamarin (C#/.NET)</h3>
+<p>If you're using Xamarin, check out this sample project put together by
+@KentBoogaart.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>For iOS 8 above it's really simple:</p>
+<div class="code"><pre class="code literal-block"><span class="n">override</span><span class="w"> </span><span class="k">func</span><span class="w"> </span><span class="n">viewDidLoad</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">  </span>
+<span class="w">    </span><span class="n">super</span><span class="o">.</span><span class="n">viewDidLoad</span><span class="p">()</span>
+
+<span class="w">    </span><span class="bp">self</span><span class="o">.</span><span class="n">tableView</span><span class="o">.</span><span class="n">estimatedRowHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">80</span>
+<span class="w">    </span><span class="bp">self</span><span class="o">.</span><span class="n">tableView</span><span class="o">.</span><span class="n">rowHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UITableView</span><span class="o">.</span><span class="n">automaticDimension</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>or</p>
+<div class="code"><pre class="code literal-block"><span class="k">func</span><span class="w"> </span><span class="n">tableView</span><span class="p">(</span><span class="n">tableView</span><span class="p">:</span><span class="w"> </span><span class="n">UITableView</span><span class="p">,</span><span class="w"> </span><span class="n">heightForRowAtIndexPath</span><span class="w"> </span><span class="n">indexPath</span><span class="p">:</span><span class="w"> </span><span class="n">NSIndexPath</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">CGFloat</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">UITableView</span><span class="o">.</span><span class="n">automaticDimension</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>But for iOS 7, the key is calculate the height after autolayout:</p>
+<div class="code"><pre class="code literal-block"><span class="k">func</span><span class="w"> </span><span class="n">calculateHeightForConfiguredSizingCell</span><span class="p">(</span><span class="n">cell</span><span class="p">:</span><span class="w"> </span><span class="n">GSTableViewCell</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">CGFloat</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">cell</span><span class="o">.</span><span class="n">setNeedsLayout</span><span class="p">()</span>
+<span class="w">    </span><span class="n">cell</span><span class="o">.</span><span class="n">layoutIfNeeded</span><span class="p">()</span>
+<span class="w">    </span><span class="n">let</span><span class="w"> </span><span class="n">height</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cell</span><span class="o">.</span><span class="n">contentView</span><span class="o">.</span><span class="n">systemLayoutSizeFittingSize</span><span class="p">(</span><span class="n">UILayoutFittingExpandedSize</span><span class="p">)</span><span class="o">.</span><span class="n">height</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1.0</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">height</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>Important</strong></p>
+<ul>
+<li>
+<p>If multiple lines labels, don't forget set the <code>numberOfLines</code> to <code>0</code>.</p>
+</li>
+<li>
+<p>Don't forget <code>label.preferredMaxLayoutWidth = CGRectGetWidth(tableView.bounds)</code></p>
+</li>
+</ul>
+<p>The full example code is here.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-do-we-need-virtual-functions-in-c/" class="u-url">Why do we need virtual functions in C++?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-do-we-need-virtual-functions-in-c/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:14:01+08:00" itemprop="datePublished" title="2023-02-17 01:14">2023-02-17 01:14</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm learning C++ and I'm just getting into virtual functions.</p>
+<p>From what I've read (in the book and online), virtual functions are functions
+in the base class that you can override in derived classes.</p>
+<p>But earlier in the book, when learning about basic inheritance, I was able to
+override base functions in derived classes without using <code>virtual</code>.</p>
+<p>So what am I missing here? I know there is more to virtual functions, and it
+seems to be important so I want to be clear on what it is exactly. I just
+can't find a straightforward answer online.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Without "virtual" you get "early binding". Which implementation of the method
+is used gets decided at compile time based on the type of the pointer that you
+call through.</p>
+<p>With "virtual" you get "late binding". Which implementation of the method is
+used gets decided at run time based on the type of the pointed-to object -
+what it was originally constructed as. This is not necessarily what you'd
+think based on the type of the pointer that points to that object.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">Base</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">public</span><span class="p">:</span>
+<span class="w">            </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Method1</span><span class="w"> </span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Base::Method1"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="w">    </span><span class="n">virtual</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Method2</span><span class="w"> </span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Base::Method2"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="n">Derived</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">Base</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">public</span><span class="p">:</span>
+<span class="w">    </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Method1</span><span class="w"> </span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Derived::Method1"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="w">    </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Method2</span><span class="w"> </span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Derived::Method2"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="n">Base</span><span class="o">*</span><span class="w"> </span><span class="n">basePtr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Derived</span><span class="w"> </span><span class="p">();</span>
+<span class="w">  </span><span class="o">//</span><span class="w">  </span><span class="n">Note</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">constructed</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Derived</span><span class="p">,</span><span class="w"> </span><span class="n">but</span><span class="w"> </span><span class="n">pointer</span><span class="w"> </span><span class="n">stored</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Base</span><span class="o">*</span>
+
+<span class="n">basePtr</span><span class="o">-&gt;</span><span class="n">Method1</span><span class="w"> </span><span class="p">();</span><span class="w">  </span><span class="o">//</span><span class="w">  </span><span class="n">Prints</span><span class="w"> </span><span class="s2">"Base::Method1"</span>
+<span class="n">basePtr</span><span class="o">-&gt;</span><span class="n">Method2</span><span class="w"> </span><span class="p">();</span><span class="w">  </span><span class="o">//</span><span class="w">  </span><span class="n">Prints</span><span class="w"> </span><span class="s2">"Derived::Method2"</span>
+</pre></div>
+
+<p><strong>EDIT</strong> - see this question.</p>
+<p>Also - this tutorial covers early and late binding in C++.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Without "virtual" you get "early binding". Which implementation of the method
+is used gets decided at compile time based on the type of the pointer that you
+call through.</p>
+<p>With "virtual" you get "late binding". Which implementation of the method is
+used gets decided at run time based on the type of the pointed-to object -
+what it was originally constructed as. This is not necessarily what you'd
+think based on the type of the pointer that points to that object.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">Base</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">public</span><span class="p">:</span>
+<span class="w">            </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Method1</span><span class="w"> </span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Base::Method1"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="w">    </span><span class="n">virtual</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Method2</span><span class="w"> </span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Base::Method2"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="n">Derived</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">Base</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">public</span><span class="p">:</span>
+<span class="w">    </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Method1</span><span class="w"> </span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Derived::Method1"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="w">    </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Method2</span><span class="w"> </span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Derived::Method2"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="n">Base</span><span class="o">*</span><span class="w"> </span><span class="n">basePtr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Derived</span><span class="w"> </span><span class="p">();</span>
+<span class="w">  </span><span class="o">//</span><span class="w">  </span><span class="n">Note</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">constructed</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Derived</span><span class="p">,</span><span class="w"> </span><span class="n">but</span><span class="w"> </span><span class="n">pointer</span><span class="w"> </span><span class="n">stored</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Base</span><span class="o">*</span>
+
+<span class="n">basePtr</span><span class="o">-&gt;</span><span class="n">Method1</span><span class="w"> </span><span class="p">();</span><span class="w">  </span><span class="o">//</span><span class="w">  </span><span class="n">Prints</span><span class="w"> </span><span class="s2">"Base::Method1"</span>
+<span class="n">basePtr</span><span class="o">-&gt;</span><span class="n">Method2</span><span class="w"> </span><span class="p">();</span><span class="w">  </span><span class="o">//</span><span class="w">  </span><span class="n">Prints</span><span class="w"> </span><span class="s2">"Derived::Method2"</span>
+</pre></div>
+
+<p><strong>EDIT</strong> - see this question.</p>
+<p>Also - this tutorial covers early and late binding in C++.</p>
+    </div>
+    </article>
+</div>
+
+        <nav class="postindexpager"><ul class="pager">
+<li class="previous">
+                <a href="index-221.html" rel="prev">Newer posts</a>
+            </li>
+            <li class="next">
+                <a href="index-219.html" rel="next">Older posts</a>
+            </li>
+        </ul></nav>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="assets/js/search.js"></script>
+</body>
+</html>

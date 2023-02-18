@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secure hash and salt for PHP passwords | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/secure-hash-and-salt-for-php-passwords/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../what-is-a-correct-mime-type-for-docx-pptx-etc/" title="What is a correct MIME type for .docx, .pptx, etc.?" type="text/html">
+<link rel="next" href="../is-quitting-an-application-frowned-upon/" title="Is quitting an application frowned upon?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Secure hash and salt for PHP passwords">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/secure-hash-and-salt-for-php-passwords/">
+<meta property="og:description" content="It is currently said that MD5 is partially unsafe. Taking this into
+consideration, I'd like to know which mechanism to use for password
+protection.
+This question, Is “double hashing” a password less s">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T04:13:51+08:00">
+<meta property="article:tag" content="hash">
+<meta property="article:tag" content="passwords">
+<meta property="article:tag" content="php">
+<meta property="article:tag" content="security">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Secure hash and salt for PHP passwords</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:13:51+08:00" itemprop="datePublished" title="2023-02-17 04:13">2023-02-17 04:13</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>It is currently said that MD5 is partially unsafe. Taking this into
+consideration, I'd like to know which mechanism to use for password
+protection.</p>
+<p>This question, Is “double hashing” a password less secure than just hashing it
+once? suggests that hashing multiple times may be a good idea, whereas How to
+implement password protection for individual files? suggests using salt.</p>
+<p>I'm using PHP. I want a safe and fast password encryption system. Hashing a
+password a million times may be safer, but also slower. How to achieve a good
+balance between speed and safety? Also, I'd prefer the result to have a
+constant number of characters.</p>
+<ol>
+<li>The hashing mechanism must be available in PHP</li>
+<li>It must be safe</li>
+<li>It can use salt (in this case, are all salts equally good? Is there any way to generate good salts?)</li>
+</ol>
+<p>Also, should I store two fields in the database (one using MD5 and another one
+using SHA, for example)? Would it make it safer or unsafer?</p>
+<p>In case I wasn't clear enough, I want to know which hashing function(s) to use
+and how to pick a good salt in order to have a safe and fast password
+protection mechanism.</p>
+<p><em>Related questions that don't quite cover my question:</em></p>
+<p>What's the difference between SHA and MD5 in PHP<br>
+Simple Password Encryption<br>
+Secure methods of storing keys, passwords for asp.net<br>
+How would you implement salted passwords in Tomcat 5.5</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<blockquote>
+<p><strong>DISCLAIMER</strong> : This answer was written in 2008.</p>
+<p>Since then, PHP has given us <code>password_hash</code> and <code>password_verify</code> and,
+since their introduction, they are the recommended password hashing &amp;
+checking method.</p>
+<p>The theory of the answer is still a good read though.</p>
+</blockquote>
+<h3>TL;DR</h3>
+<h4>Don'ts</h4>
+<ul>
+<li>Don't limit what characters users can enter for passwords. Only idiots do this.</li>
+<li>Don't limit the length of a password. If your users want a sentence with supercalifragilisticexpialidocious in it, don't prevent them from using it.</li>
+<li>Don't strip or escape HTML and special characters in the password.</li>
+<li>Never store your user's password in plain-text.</li>
+<li>Never email a password to your user <em>except when they have lost theirs, and you sent a temporary one.</em>
+</li>
+<li>Never, ever log passwords in any manner.</li>
+<li>Never hash passwords with SHA1 or MD5 or even SHA256! Modern crackers can exceed 60 and 180 billion hashes/second (respectively).</li>
+<li>Don't mix bcrypt and with the <em>raw</em> output of hash(), either use hex output or base64_encode it. (This applies to any input that may have a rogue <code>\0</code> in it, which can seriously weaken security.)</li>
+</ul>
+<h4>Dos</h4>
+<ul>
+<li>Use scrypt when you can; bcrypt if you cannot.</li>
+<li>Use PBKDF2 if you cannot use either bcrypt or scrypt, with SHA2 hashes.</li>
+<li>Reset everyone's passwords when the database is compromised.</li>
+<li>Implement a reasonable 8-10 character minimum length, plus require at least 1 upper case letter, 1 lower case letter, a number, and a symbol. This will improve the entropy of the password, in turn making it harder to crack. (See the "What makes a good password?" section for some debate.)</li>
+</ul>
+<h3>Why hash passwords anyway?</h3>
+<p>The objective behind hashing passwords is simple: preventing malicious access
+to user accounts by compromising the database. So the goal of password hashing
+is to deter a hacker or cracker by costing them too much time or money to
+calculate the plain-text passwords. And time/cost are the best deterrents in
+your arsenal.</p>
+<p>Another reason that you want a good, robust hash on a user accounts is to give
+you enough time to change all the passwords in the system. If your database is
+compromised you will need enough time to at <em>least</em> lock the system down, if
+not change every password in the database.</p>
+<p>Jeremiah Grossman, CTO of Whitehat Security, stated on White Hat Security blog
+after a recent password recovery that required brute-force breaking of his
+password protection:</p>
+<blockquote>
+<p>Interestingly, in living out this nightmare, I learned A LOT I didn’t know
+about password cracking, storage, and complexity. <em>I’ve come to appreciate
+why password storage is ever so much more important than password
+complexity. If you don’t know how your password is stored, then all you
+really can depend upon is complexity.</em> This might be common knowledge to
+password and crypto pros, but for the average InfoSec or Web Security
+expert, I highly doubt it.</p>
+</blockquote>
+<p>(Emphasis mine.)</p>
+<h3>What makes a <em>good</em> password anyway?</h3>
+<p>Entropy. (Not that I fully subscribe to Randall's viewpoint.)</p>
+<p>In short, entropy is how much variation is within the password. When a
+password is only lowercase roman letters, that's only 26 characters. That
+isn't much variation. Alpha-numeric passwords are better, with 36 characters.
+But allowing upper and lower case, with symbols, is roughly 96 characters.
+That's a lot better than just letters. One problem is, to make our passwords
+memorable we insert patterns—which reduces entropy. Oops!</p>
+<p>Password entropy is approximated easily. Using the full range of ascii
+characters (roughly 96 typeable characters) yields an entropy of 6.6 per
+character, which at 8 characters for a password is still too low (52.679 bits
+of entropy) for future security. But the good news is: longer passwords, and
+passwords with unicode characters, really increase the entropy of a password
+and make it harder to crack.</p>
+<p>There's a longer discussion of password entropy on the Crypto StackExchange
+site. A good Google search will also turn up a lot of results.</p>
+<p>In the comments I talked with @popnoodles, who pointed out that <em>enforcing</em> a
+password policy of X length with X many letters, numbers, symbols, etc, can
+actually reduce entropy by making the password scheme more predictable. I do
+agree. Randomess, as truly random as possible, is always the safest but least
+memorable solution.</p>
+<p>So far as I've been able to tell, making the world's best password is a
+Catch-22. Either its not memorable, too predictable, too short, too many
+unicode characters (hard to type on a Windows/Mobile device), too long, etc.
+No password is truly good enough for our purposes, so we must protect them as
+though they were in Fort Knox.</p>
+<h3>Best practices</h3>
+<p>Bcrypt and scrypt are the current best practices. Scrypt will be better than
+bcrypt in time, but it hasn't seen adoption as a standard by Linux/Unix or by
+webservers, and hasn't had in-depth reviews of its algorithm posted yet. But
+still, the future of the algorithm does look promising. If you are working
+with Ruby there is an scrypt gem that will help you out, and Node.js now has
+its own scrypt package. You can use Scrypt in PHP either via the Scrypt
+extension or the Libsodium extension (both are available in PECL).</p>
+<p>I highly suggest reading the documentation for the crypt function if you want
+to understand how to use bcrypt, or finding yourself a good wrapper or use
+something like PHPASS for a more legacy implementation. I recommend a minimum
+of 12 rounds of bcrypt, if not 15 to 18.</p>
+<p>I changed my mind about using bcrypt when I learned that bcrypt only uses
+blowfish's key schedule, with a variable cost mechanism. The latter lets you
+increase the cost to brute-force a password by increasing blowfish's already
+expensive key schedule.</p>
+<h3>Average practices</h3>
+<p>I almost can't imagine this situation anymore. PHPASS supports PHP 3.0.18
+through 5.3, so it is usable on almost every installation imaginable—and
+should be used if you don't <em>know for certain</em> that your environment supports
+bcrypt.</p>
+<p>But suppose that you cannot use bcrypt or PHPASS at all. What then?</p>
+<p>Try an implementation of PDKBF2 with the maximum number of rounds that your
+environment/application/user-perception can tolerate. The lowest number I'd
+recommend is 2500 rounds. Also, make sure to use hash_hmac() if it is
+available to make the operation harder to reproduce.</p>
+<h3>Future Practices</h3>
+<p>Coming in PHP 5.5 is a full password protection library that abstracts away
+any pains of working with bcrypt. While most of us are stuck with PHP 5.2 and
+5.3 in most common environments, especially shared hosts, @ircmaxell has built
+a compatibility layer for the coming API that is backward compatible to PHP
+5.3.7.</p>
+<h3>Cryptography Recap &amp; Disclaimer</h3>
+<p>The computational power required to actually <em>crack</em> a hashed password doesn't
+exist. The only way for computers to "crack" a password is to recreate it and
+simulate the hashing algorithm used to secure it. The speed of the hash is
+linearly related to its ability to be brute-forced. Worse still, most hash
+algorithms can be easily parallelized to perform even faster. This is why
+costly schemes like bcrypt and scrypt are so important.</p>
+<p>You cannot possibly foresee all threats or avenues of attack, and so you must
+make your best effort to protect your users <strong>up front</strong>. If you do not, then
+you might even miss the fact that you were attacked until it's too late...
+<em>and you're liable</em>. To avoid that situation, act paranoid to begin with.
+Attack your own software (internally) and attempt to steal user credentials,
+or modify other user's accounts or access their data. If you don't test the
+security of your system, then you cannot blame anyone but yourself.</p>
+<p>Lastly: I am not a cryptographer. Whatever I've said is my opinion, but I
+happen to think it's based on good ol' common sense ... and lots of reading.
+Remember, be as paranoid as possible, make things as hard to intrude as
+possible, and then, if you are still worried, contact a white-hat hacker or
+cryptographer to see what they say about your code/system.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>A much shorter and safer answer - <strong>don't write your own password mechanism at
+all</strong> , use a tried and tested mechanism.</p>
+<ul>
+<li>PHP 5.5 or higher: password_hash() is good quality and part of PHP core.</li>
+<li>PHP 4.x (obsolete): OpenWall's phpass library is much better than most custom code - used in WordPress, Drupal, etc.</li>
+</ul>
+<p>Most programmers just don't have the expertise to write crypto related code
+safely without introducing vulnerabilities.</p>
+<p><strong>Quick self-test:</strong> what is password stretching and how many iterations
+should you use? If you don't know the answer, you should use
+<code>password_hash()</code>, as password stretching is now a critical feature of
+password mechanisms due to much faster CPUs and the use of GPUs and FPGAs to
+crack passwords at rates of billions of guesses per second (with GPUs).</p>
+<p>As of 2012, you could crack all 8-character Windows passwords in 6 hours using
+25 GPUs installed in 5 desktop PCs. This is brute-forcing i.e. enumerating and
+checking <em>every 8-character Windows password</em> , including special characters,
+and is not a dictionary attack. With modern GPUs, you can of course crack more
+passwords or use fewer GPUs - or rent the GPUs in the cloud for a few hours at
+reasonable cost.</p>
+<p>There are also many rainbow table attacks on Windows passwords that run on
+ordinary CPUs and are very fast.</p>
+<p>All this is because Windows <em>still</em> doesn't salt or stretch its passwords,
+even in Windows 10. This is still true in 2021. Don't make the same mistake as
+Microsoft did!</p>
+<p><strong>See also:</strong></p>
+<ul>
+<li>excellent answer with more about why <code>password_hash()</code> or <code>phpass</code> are the best way to go.</li>
+<li>good blog article giving recommmended 'work factors' (number of iterations) for main algorithms including bcrypt, scrypt and PBKDF2.</li>
+</ul>
+</div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/hash/" rel="tag">hash</a></li>
+            <li><a class="tag p-category" href="../../categories/passwords/" rel="tag">passwords</a></li>
+            <li><a class="tag p-category" href="../../categories/php/" rel="tag">php</a></li>
+            <li><a class="tag p-category" href="../../categories/security/" rel="tag">security</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../what-is-a-correct-mime-type-for-docx-pptx-etc/" rel="prev" title="What is a correct MIME type for .docx, .pptx, etc.?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../is-quitting-an-application-frowned-upon/" rel="next" title="Is quitting an application frowned upon?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

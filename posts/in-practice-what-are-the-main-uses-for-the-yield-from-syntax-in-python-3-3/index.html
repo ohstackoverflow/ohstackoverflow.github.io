@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>In practice, what are the main uses for the "yield from" syntax in Python 3.3? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/in-practice-what-are-the-main-uses-for-the-yield-from-syntax-in-python-3-3/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-trigger-a-file-download-when-clicking-an-html-button-or-javascript/" title="How to trigger a file download when clicking an HTML button or JavaScript" type="text/html">
+<link rel="next" href="../how-to-get-a-random-number-between-a-float-range/" title="How to get a random number between a float range?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content='In practice, what are the main uses for the "yield from" syntax in Pyt'>
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/in-practice-what-are-the-main-uses-for-the-yield-from-syntax-in-python-3-3/">
+<meta property="og:description" content="I'm having a hard time wrapping my brain around PEP 380.
+
+What are the situations where yield from is useful?
+What is the classic use case?
+Why is it compared to micro-threads?
+
+So far I have used gen">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T22:11:55+08:00">
+<meta property="article:tag" content="python">
+<meta property="article:tag" content="yield">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">In practice, what are the main uses for the "yield from" syntax in Python 3.3?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T22:11:55+08:00" itemprop="datePublished" title="2023-02-17 22:11">2023-02-17 22:11</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I'm having a hard time wrapping my brain around PEP 380.</p>
+<ol>
+<li>What are the situations where <code>yield from</code> is useful?</li>
+<li>What is the classic use case?</li>
+<li>Why is it compared to micro-threads?</li>
+</ol>
+<p>So far I have used generators, but never really used coroutines (introduced by
+PEP-342). Despite some similarities, generators and coroutines are basically
+two different concepts. Understanding coroutines (not only generators) is the
+key to understanding the new syntax.</p>
+<p>IMHO <strong>coroutines are the most obscure Python feature</strong> , most books make it
+look useless and uninteresting.</p>
+<hr>
+<p>Thanks for the great answers, but special thanks to agf and his comment
+linking to David Beazley presentations.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Let's get one thing out of the way first. The explanation that <code>yield from g</code>
+is equivalent to <code>for v in g: yield v</code> <strong>does not even begin to do justice</strong>
+to what <code>yield from</code> is all about. Because, let's face it, if all <code>yield from</code>
+does is expand the <code>for</code> loop, then it does not warrant adding <code>yield from</code> to
+the language and preclude a whole bunch of new features from being implemented
+in Python 2.x.</p>
+<p>What <code>yield from</code> does is it <strong><em>establishes a transparent bidirectional
+connection between the caller and the sub-generator</em></strong> :</p>
+<ul>
+<li>
+<p>The connection is "transparent" in the sense that it will propagate everything correctly too, not just the elements being generated (e.g. exceptions are propagated).</p>
+</li>
+<li>
+<p>The connection is "bidirectional" in the sense that data can be both sent <em>from</em> and <em>to</em> a generator.</p>
+</li>
+</ul>
+<p>( <em>If we were talking about TCP,<code>yield from g</code> might mean "now temporarily
+disconnect my client's socket and reconnect it to this other server socket".</em>)</p>
+<p>BTW, if you are not sure what <em>sending data to a generator</em> even means, you
+need to drop everything and read about <em>coroutines</em> first—they're very useful
+(contrast them with <em>subroutines</em> ), but unfortunately lesser-known in Python.
+Dave Beazley's Curious Course on Coroutines is an excellent start. Read slides
+24-33 for a quick primer.</p>
+<h3>Reading data from a generator using yield from</h3>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">reader</span><span class="ss">()</span>:
+<span class="w">    </span><span class="s2">"""A generator that fakes a read from a file, socket, etc."""</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">range</span><span class="ss">(</span><span class="mi">4</span><span class="ss">)</span>:
+<span class="w">        </span><span class="nv">yield</span><span class="w"> </span><span class="s1">'&lt;&lt; %s'</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="nv">i</span>
+
+<span class="nv">def</span><span class="w"> </span><span class="nv">reader_wrapper</span><span class="ss">(</span><span class="nv">g</span><span class="ss">)</span>:
+<span class="w">    </span>#<span class="w"> </span><span class="nv">Manually</span><span class="w"> </span><span class="nv">iterate</span><span class="w"> </span><span class="nv">over</span><span class="w"> </span><span class="nv">data</span><span class="w"> </span><span class="nv">produced</span><span class="w"> </span><span class="nv">by</span><span class="w"> </span><span class="nv">reader</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nv">v</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">g</span>:
+<span class="w">        </span><span class="nv">yield</span><span class="w"> </span><span class="nv">v</span>
+
+<span class="nv">wrap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">reader_wrapper</span><span class="ss">(</span><span class="nv">reader</span><span class="ss">())</span>
+<span class="k">for</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">wrap</span>:
+<span class="w">    </span><span class="nv">print</span><span class="ss">(</span><span class="nv">i</span><span class="ss">)</span>
+
+#<span class="w"> </span><span class="nb">Result</span>
+<span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span>
+<span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span>
+<span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span>
+<span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">3</span>
+</pre></div>
+
+<p>Instead of manually iterating over <code>reader()</code>, we can just <code>yield from</code> it.</p>
+<div class="code"><pre class="code literal-block">def reader_wrapper(g):
+    yield from g
+</pre></div>
+
+<p>That works, and we eliminated one line of code. And probably the intent is a
+little bit clearer (or not). But nothing life changing.</p>
+<h3>Sending data to a generator (coroutine) using yield from - Part 1</h3>
+<p>Now let's do something more interesting. Let's create a coroutine called
+<code>writer</code> that accepts data sent to it and writes to a socket, fd, etc.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">writer</span><span class="ss">()</span>:
+<span class="w">    </span><span class="s2">"""A coroutine that writes data *sent* to it to fd, socket, etc."""</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nv">True</span>:
+<span class="w">        </span><span class="nv">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">yield</span><span class="ss">)</span>
+<span class="w">        </span><span class="nv">print</span><span class="ss">(</span><span class="s1">'&gt;&gt; '</span>,<span class="w"> </span><span class="nv">w</span><span class="ss">)</span>
+</pre></div>
+
+<p>Now the question is, how should the wrapper function handle sending data to
+the writer, so that any data that is sent to the wrapper is <em>transparently</em>
+sent to the <code>writer()</code>?</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">writer_wrapper</span><span class="ss">(</span><span class="nv">coro</span><span class="ss">)</span>:
+<span class="w">    </span>#<span class="w"> </span><span class="nv">TBD</span>
+<span class="w">    </span><span class="nv">pass</span>
+
+<span class="nv">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">writer</span><span class="ss">()</span>
+<span class="nv">wrap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">writer_wrapper</span><span class="ss">(</span><span class="nv">w</span><span class="ss">)</span>
+<span class="nv">wrap</span>.<span class="k">send</span><span class="ss">(</span><span class="nv">None</span><span class="ss">)</span><span class="w">  </span>#<span class="w"> </span><span class="s2">"prime"</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">coroutine</span>
+<span class="k">for</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">range</span><span class="ss">(</span><span class="mi">4</span><span class="ss">)</span>:
+<span class="w">    </span><span class="nv">wrap</span>.<span class="k">send</span><span class="ss">(</span><span class="nv">i</span><span class="ss">)</span>
+
+#<span class="w"> </span><span class="nv">Expected</span><span class="w"> </span><span class="nb">result</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">0</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">1</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">2</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">3</span>
+</pre></div>
+
+<p>The wrapper needs to <em>accept</em> the data that is sent to it (obviously) and
+should also handle the <code>StopIteration</code> when the for loop is exhausted.
+Evidently just doing <code>for x in coro: yield x</code> won't do. Here is a version that
+works.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">writer_wrapper</span><span class="ss">(</span><span class="nv">coro</span><span class="ss">)</span>:
+<span class="w">    </span><span class="nv">coro</span>.<span class="k">send</span><span class="ss">(</span><span class="nv">None</span><span class="ss">)</span><span class="w">  </span>#<span class="w"> </span><span class="nv">prime</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">coro</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nv">True</span>:
+<span class="w">        </span><span class="nv">try</span>:
+<span class="w">            </span><span class="nv">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">yield</span><span class="ss">)</span><span class="w">  </span>#<span class="w"> </span><span class="nv">Capture</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">value</span><span class="w"> </span><span class="nv">that</span><span class="err">'s sent</span>
+<span class="err">            coro.send(x)  # and pass it to the writer</span>
+<span class="err">        except StopIteration:</span>
+<span class="err">            pass</span>
+</pre></div>
+
+<p>Or, we could do this.</p>
+<div class="code"><pre class="code literal-block">def writer_wrapper(coro):
+    yield from coro
+</pre></div>
+
+<p>That saves 6 lines of code, make it much much more readable and it just works.
+Magic!</p>
+<h3>Sending data to a generator yield from - Part 2 - Exception handling</h3>
+<p>Let's make it more complicated. What if our writer needs to handle exceptions?
+Let's say the <code>writer</code> handles a <code>SpamException</code> and it prints <code>***</code> if it
+encounters one.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">SpamException</span>(<span class="nb">Exception</span>):
+    <span class="nb">pass</span>
+
+<span class="n">def</span> <span class="n">writer</span>():
+    <span class="k">while</span> <span class="n">True:</span>
+        <span class="n">try:</span>
+            <span class="nb">w</span> = (<span class="nb">yield</span>)
+        <span class="n">except</span> <span class="n">SpamException:</span>
+            <span class="nb">print</span>(<span class="s">'***'</span>)
+        <span class="n">else:</span>
+            <span class="nb">print</span>(<span class="s">'&gt;&gt; '</span>, <span class="nb">w</span>)
+</pre></div>
+
+<p>What if we don't change <code>writer_wrapper</code>? Does it work? Let's try</p>
+<div class="code"><pre class="code literal-block">#<span class="w"> </span><span class="nv">writer_wrapper</span><span class="w"> </span><span class="nv">same</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">above</span>
+
+<span class="nv">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">writer</span><span class="ss">()</span>
+<span class="nv">wrap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">writer_wrapper</span><span class="ss">(</span><span class="nv">w</span><span class="ss">)</span>
+<span class="nv">wrap</span>.<span class="k">send</span><span class="ss">(</span><span class="nv">None</span><span class="ss">)</span><span class="w">  </span>#<span class="w"> </span><span class="s2">"prime"</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">coroutine</span>
+<span class="k">for</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span>[<span class="mi">0</span>,<span class="w"> </span><span class="mi">1</span>,<span class="w"> </span><span class="mi">2</span>,<span class="w"> </span><span class="s1">'spam'</span>,<span class="w"> </span><span class="mi">4</span>]:
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s1">'spam'</span>:
+<span class="w">        </span><span class="nv">wrap</span>.<span class="nv">throw</span><span class="ss">(</span><span class="nv">SpamException</span><span class="ss">)</span>
+<span class="w">    </span><span class="k">else</span>:
+<span class="w">        </span><span class="nv">wrap</span>.<span class="k">send</span><span class="ss">(</span><span class="nv">i</span><span class="ss">)</span>
+
+#<span class="w"> </span><span class="nv">Expected</span><span class="w"> </span><span class="nb">Result</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">0</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">1</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">2</span>
+<span class="o">***</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">4</span>
+
+#<span class="w"> </span><span class="nv">Actual</span><span class="w"> </span><span class="nb">Result</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">0</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">1</span>
+<span class="o">&gt;&gt;</span><span class="w">  </span><span class="mi">2</span>
+<span class="nv">Traceback</span><span class="w"> </span><span class="ss">(</span><span class="nv">most</span><span class="w"> </span><span class="nv">recent</span><span class="w"> </span><span class="k">call</span><span class="w"> </span><span class="nl">last</span><span class="ss">)</span>:
+<span class="w">  </span>...<span class="w"> </span><span class="nv">redacted</span><span class="w"> </span>...
+<span class="w">  </span><span class="nv">File</span><span class="w"> </span>...<span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">writer_wrapper</span>
+<span class="w">    </span><span class="nv">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">yield</span><span class="ss">)</span>
+<span class="nv">__main__</span>.<span class="nv">SpamException</span>
+</pre></div>
+
+<p>Um, it's not working because <code>x = (yield)</code> just raises the exception and
+everything comes to a crashing halt. Let's make it work, but manually handling
+exceptions and sending them or throwing them into the sub-generator (<code>writer</code>)</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">writer_wrapper</span><span class="ss">(</span><span class="nv">coro</span><span class="ss">)</span>:
+<span class="w">    </span><span class="s2">"""Works. Manually catches exceptions and throws them"""</span>
+<span class="w">    </span><span class="nv">coro</span>.<span class="k">send</span><span class="ss">(</span><span class="nv">None</span><span class="ss">)</span><span class="w">  </span>#<span class="w"> </span><span class="nv">prime</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">coro</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nv">True</span>:
+<span class="w">        </span><span class="nv">try</span>:
+<span class="w">            </span><span class="nv">try</span>:
+<span class="w">                </span><span class="nv">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">yield</span><span class="ss">)</span>
+<span class="w">            </span><span class="nv">except</span><span class="w"> </span><span class="nv">Exception</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">e</span>:<span class="w">   </span>#<span class="w"> </span><span class="nv">This</span><span class="w"> </span><span class="nv">catches</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">SpamException</span>
+<span class="w">                </span><span class="nv">coro</span>.<span class="nv">throw</span><span class="ss">(</span><span class="nv">e</span><span class="ss">)</span>
+<span class="w">            </span><span class="k">else</span>:
+<span class="w">                </span><span class="nv">coro</span>.<span class="k">send</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>
+<span class="w">        </span><span class="nv">except</span><span class="w"> </span><span class="nv">StopIteration</span>:
+<span class="w">            </span><span class="nv">pass</span>
+</pre></div>
+
+<p>This works.</p>
+<div class="code"><pre class="code literal-block"># Result
+&gt;&gt;  0
+&gt;&gt;  1
+&gt;&gt;  2
+***
+&gt;&gt;  4
+</pre></div>
+
+<p>But so does this!</p>
+<div class="code"><pre class="code literal-block">def writer_wrapper(coro):
+    yield from coro
+</pre></div>
+
+<p>The <code>yield from</code> transparently handles sending the values or throwing values
+into the sub-generator.</p>
+<p>This still does not cover all the corner cases though. What happens if the
+outer generator is closed? What about the case when the sub-generator returns
+a value (yes, in Python 3.3+, generators can return values), how should the
+return value be propagated? That <code>yield from</code> transparently handles all the
+corner cases is really impressive. <code>yield from</code> just magically works and
+handles all those cases.</p>
+<p>I personally feel <code>yield from</code> is a poor keyword choice because it does not
+make the <em>two-way</em> nature apparent. There were other keywords proposed (like
+<code>delegate</code> but were rejected because adding a new keyword to the language is
+much more difficult than combining existing ones.</p>
+<p>In summary, it's best to think of <code>yield from</code> as a <strong><code>transparent two way
+channel</code></strong> between the caller and the sub-generator.</p>
+<p>References:</p>
+<ol>
+<li>PEP 380 - Syntax for delegating to a sub-generator (Ewing) [v3.3, 2009-02-13]</li>
+<li>PEP 342 - Coroutines via Enhanced Generators (GvR, Eby) [v2.5, 2005-05-10]</li>
+</ol>
+<p><br></p>
+<h3>Suggest</h3>
+<blockquote>
+<p>What are the situations where "yield from" is useful?</p>
+</blockquote>
+<p>Every situation where you have a loop like this:</p>
+<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">subgenerator</span>:
+<span class="w">  </span><span class="nv">yield</span><span class="w"> </span><span class="nv">x</span>
+</pre></div>
+
+<p>As the PEP describes, this is a rather naive attempt at using the
+subgenerator, it's missing several aspects, especially the proper handling of
+the <code>.throw()</code>/<code>.send()</code>/<code>.close()</code> mechanisms introduced by PEP 342. To do
+this properly, rather complicated code is necessary.</p>
+<blockquote>
+<p>What is the classic use case?</p>
+</blockquote>
+<p>Consider that you want to extract information from a recursive data structure.
+Let's say we want to get all leaf nodes in a tree:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">traverse_tree</span><span class="ss">(</span><span class="nv">node</span><span class="ss">)</span>:
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">node</span>.<span class="nv">children</span>:
+<span class="w">    </span><span class="nv">yield</span><span class="w"> </span><span class="nv">node</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nv">child</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">node</span>.<span class="nv">children</span>:
+<span class="w">    </span><span class="nv">yield</span><span class="w"> </span><span class="nv">from</span><span class="w"> </span><span class="nv">traverse_tree</span><span class="ss">(</span><span class="nv">child</span><span class="ss">)</span>
+</pre></div>
+
+<p>Even more important is the fact that until the <code>yield from</code>, there was no
+simple method of refactoring the generator code. Suppose you have a
+(senseless) generator like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">get_list_values</span><span class="ss">(</span><span class="nv">lst</span><span class="ss">)</span>:
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nv">item</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">lst</span>:
+<span class="w">    </span><span class="nv">yield</span><span class="w"> </span><span class="nv">int</span><span class="ss">(</span><span class="nv">item</span><span class="ss">)</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nv">item</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">lst</span>:
+<span class="w">    </span><span class="nv">yield</span><span class="w"> </span><span class="nv">str</span><span class="ss">(</span><span class="nv">item</span><span class="ss">)</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nv">item</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">lst</span>:
+<span class="w">    </span><span class="nv">yield</span><span class="w"> </span><span class="nv">float</span><span class="ss">(</span><span class="nv">item</span><span class="ss">)</span>
+</pre></div>
+
+<p>Now you decide to factor out these loops into separate generators. Without
+<code>yield from</code>, this is ugly, up to the point where you will think twice whether
+you actually want to do it. With <code>yield from</code>, it's actually nice to look at:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">get_list_values</span><span class="ss">(</span><span class="nv">lst</span><span class="ss">)</span>:
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nv">sub</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span>[<span class="nv">get_list_values_as_int</span>,<span class="w"> </span>
+<span class="w">              </span><span class="nv">get_list_values_as_str</span>,<span class="w"> </span>
+<span class="w">              </span><span class="nv">get_list_values_as_float</span>]:
+<span class="w">    </span><span class="nv">yield</span><span class="w"> </span><span class="nv">from</span><span class="w"> </span><span class="nv">sub</span><span class="ss">(</span><span class="nv">lst</span><span class="ss">)</span>
+</pre></div>
+
+<blockquote>
+<p>Why is it compared to micro-threads?</p>
+</blockquote>
+<p>I think what this section in the PEP is talking about is that every generator
+does have its own isolated execution context. Together with the fact that
+execution is switched between the generator-iterator and the caller using
+<code>yield</code> and <code>__next__()</code>, respectively, this is similar to threads, where the
+operating system switches the executing thread from time to time, along with
+the execution context (stack, registers, ...).</p>
+<p>The effect of this is also comparable: Both the generator-iterator and the
+caller progress in their execution state at the same time, their executions
+are interleaved. For example, if the generator does some kind of computation
+and the caller prints out the results, you'll see the results as soon as
+they're available. This is a form of concurrency.</p>
+<p>That analogy isn't anything specific to <code>yield from</code>, though - it's rather a
+general property of generators in Python.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+            <li><a class="tag p-category" href="../../categories/yield/" rel="tag">yield</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-trigger-a-file-download-when-clicking-an-html-button-or-javascript/" rel="prev" title="How to trigger a file download when clicking an HTML button or JavaScript">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-to-get-a-random-number-between-a-float-range/" rel="next" title="How to get a random number between a float range?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

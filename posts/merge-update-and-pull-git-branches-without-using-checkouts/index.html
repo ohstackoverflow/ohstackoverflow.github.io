@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Merge, update, and pull Git branches without using checkouts | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/merge-update-and-pull-git-branches-without-using-checkouts/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../java-url-encoding-of-query-string-parameters/" title="Java URL encoding of query string parameters" type="text/html">
+<link rel="next" href="../how-do-i-push-amended-commit-to-the-remote-git-repository/" title="How do I push amended commit to the remote Git repository?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Merge, update, and pull Git branches without using checkouts">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/merge-update-and-pull-git-branches-without-using-checkouts/">
+<meta property="og:description" content="I work on a project that has 2 branches, A and B. I typically work on branch
+A, and merge stuff from branch B. For the merging, I would typically do:
+git merge origin/branchB
+
+
+However, I would also l">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T12:38:30+08:00">
+<meta property="article:tag" content="git">
+<meta property="article:tag" content="git-checkout">
+<meta property="article:tag" content="git-merge">
+<meta property="article:tag" content="git-pull">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Merge, update, and pull Git branches without using checkouts</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T12:38:30+08:00" itemprop="datePublished" title="2023-02-17 12:38">2023-02-17 12:38</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I work on a project that has 2 branches, A and B. I typically work on branch
+A, and merge stuff from branch B. For the merging, I would typically do:</p>
+<div class="code"><pre class="code literal-block">git merge origin/branchB
+</pre></div>
+
+<p>However, I would also like to keep a local copy of branch B, as I may
+occasionally check out the branch without first merging with my branch A. For
+this, I would do:</p>
+<div class="code"><pre class="code literal-block">git checkout branchB
+git pull
+git checkout branchA
+</pre></div>
+
+<p>Is there a way to do the above in one command, and without having to switch
+branch back and forth? Should I be using <code>git update-ref</code> for that? How?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>The Short Answer</h3>
+<p>As long as you're doing a <strong>fast-forward</strong> merge, then you can simply use</p>
+<div class="code"><pre class="code literal-block">git fetch &lt;remote&gt; &lt;sourceBranch&gt;:&lt;destinationBranch&gt;
+</pre></div>
+
+<p>Examples:</p>
+<div class="code"><pre class="code literal-block"># Merge local branch foo into local branch master,
+# without having to checkout master first.
+# Here `.` means to use the local repository as the "remote":
+git fetch . foo:master
+
+# Merge remote branch origin/foo into local branch foo,
+# without having to checkout foo first:
+git fetch origin foo:foo
+</pre></div>
+
+<p>While Amber's answer will also work in fast-forward cases, using <code>git fetch</code>
+in this way instead is a little safer than just force-moving the branch
+reference, since <code>git fetch</code> will automatically prevent accidental non-fast-
+forwards as long as you don't use <code>+</code> in the refspec.</p>
+<h3>The Long Answer</h3>
+<p>You cannot merge a branch B into branch A without checking out A first if it
+would result in a non-fast-forward merge. This is because a working copy is
+needed to resolve any potential conflicts.</p>
+<p>However, <strong>in the case of fast-forward merges, this is possible</strong> , because
+such merges can never result in conflicts, by definition. To do this without
+checking out a branch first, you can use <code>git fetch</code> with a refspec.</p>
+<p>Here's an example of updating <code>master</code> (disallowing non-fast-forward changes)
+if you have another branch <code>feature</code> checked out:</p>
+<div class="code"><pre class="code literal-block">git fetch upstream master:master
+</pre></div>
+
+<p>This use-case is so common, that you'll probably want to make an alias for it
+in your git configuration file, like this one:</p>
+<div class="code"><pre class="code literal-block"><span class="k">[alias]</span>
+<span class="w">    </span><span class="na">sync</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">!sh -c 'git checkout --quiet HEAD</span><span class="c1">; git fetch upstream master:master; git checkout --quiet -'</span>
+</pre></div>
+
+<p>What this alias does is the following:</p>
+<ol>
+<li>
+<p><code>git checkout HEAD</code>: this puts your working copy into a detached-head state. This is useful if you want to update <code>master</code> while you happen to have it checked-out. I think it was necessary to do with because otherwise the branch reference for <code>master</code> won't move, but I don't remember if that's really right off-the-top of my head.</p>
+</li>
+<li>
+<p><code>git fetch upstream master:master</code>: this fast-forwards your local <code>master</code> to the same place as <code>upstream/master</code>.</p>
+</li>
+<li>
+<p><code>git checkout -</code> checks out your previously checked-out branch (that's what the <code>-</code> does in this case).</p>
+</li>
+</ol>
+<h3>The syntax of <code>git fetch</code> for (non-)fast-forward merges</h3>
+<p>If you want the <code>fetch</code> command to fail if the update is non-fast-forward,
+then you simply use a refspec of the form</p>
+<div class="code"><pre class="code literal-block">git fetch &lt;remote&gt; &lt;remoteBranch&gt;:&lt;localBranch&gt;
+</pre></div>
+
+<p>If you want to allow non-fast-forward updates, then you add a <code>+</code> to the front
+of the refspec:</p>
+<div class="code"><pre class="code literal-block">git fetch &lt;remote&gt; +&lt;remoteBranch&gt;:&lt;localBranch&gt;
+</pre></div>
+
+<p>Note that you can pass your local repo as the "remote" parameter using <code>.</code>:</p>
+<div class="code"><pre class="code literal-block">git fetch . &lt;sourceBranch&gt;:&lt;destinationBranch&gt;
+</pre></div>
+
+<h3>The Documentation</h3>
+<p>From the <code>git fetch</code> documentation that explains this syntax (emphasis mine):</p>
+<blockquote>
+<p><code>&lt;refspec&gt;</code></p>
+<p>The format of a <code>&lt;refspec&gt;</code> parameter is an optional plus <code>+</code>, followed by
+the source ref <code>&lt;src&gt;</code>, followed by a colon <code>:</code>, followed by the destination
+ref <code>&lt;dst&gt;</code>.</p>
+<p><em><strong>The remote ref that matches<code>&lt;src&gt;</code> is fetched, and if <code>&lt;dst&gt;</code> is not
+empty string, the local ref that matches it is fast-forwarded using
+<code>&lt;src&gt;</code></strong></em>. If the optional plus <code>+</code> is used, the local ref is updated even
+if it does not result in a fast-forward update.</p>
+</blockquote>
+<h3>See Also</h3>
+<ol>
+<li>
+<p>Git checkout and merge without touching working tree</p>
+</li>
+<li>
+<p>Merging without changing the working directory</p>
+</li>
+</ol>
+<p><br></p>
+<h3>Suggest</h3>
+<p>No, there is not. A checkout of the target branch is necessary to allow you to
+resolve conflicts, among other things (if Git is unable to automatically merge
+them).</p>
+<p>However, if the merge is one that would be fast-forward, you don't need to
+check out the target branch, because you don't actually need to merge anything
+- all you have to do is update the branch to point to the new head ref. You
+can do this with <code>git branch -f</code>:</p>
+<div class="code"><pre class="code literal-block">git branch -f branch-b branch-a
+</pre></div>
+
+<p>Will update <code>branch-b</code> to point to the head of <code>branch-a</code>.</p>
+<p>The <code>-f</code> option stands for <code>--force</code>, which means <code>branch-b</code> will be
+overwritten.</p>
+<p><strong>Caution</strong> : A safer option is using <code>git fetch</code> which will only allow a
+<em>fast-forward</em>.</p>
+<p>This method can be used like so:</p>
+<div class="code"><pre class="code literal-block">git branch -f branch-b branch-b@{Upstream}
+</pre></div>
+
+<p>or shorter</p>
+<div class="code"><pre class="code literal-block">git branch -f branch-b branch-b@{U}
+</pre></div>
+
+<p>To force update a branch, without checking it out (say if they have diverged
+after rebase)</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/git/" rel="tag">git</a></li>
+            <li><a class="tag p-category" href="../../categories/git-checkout/" rel="tag">git-checkout</a></li>
+            <li><a class="tag p-category" href="../../categories/git-merge/" rel="tag">git-merge</a></li>
+            <li><a class="tag p-category" href="../../categories/git-pull/" rel="tag">git-pull</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../java-url-encoding-of-query-string-parameters/" rel="prev" title="Java URL encoding of query string parameters">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-do-i-push-amended-commit-to-the-remote-git-repository/" rel="next" title="How do I push amended commit to the remote Git repository?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why is processing a sorted array faster than processing an unsorted array? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/why-is-processing-a-sorted-array-faster-than-processing-an-unsorted-array/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../welcome-to-nikola/" title="Welcome to Nikola" type="text/html">
+<link rel="next" href="../how-do-i-undo-the-most-recent-local-commits-in-git/" title="How do I undo the most recent local commits in Git?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Why is processing a sorted array faster than processing an unsorted ar">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/why-is-processing-a-sorted-array-faster-than-processing-an-unsorted-array/">
+<meta property="og:description" content="Here is a piece of C++ code that shows some very peculiar behavior.
+For some reason, sorting the data ( before the timed region) miraculously
+makes the primary loop almost six times faster:
+#include &lt;">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-16T18:11:09+08:00">
+<meta property="article:tag" content="branch-prediction">
+<meta property="article:tag" content="c++">
+<meta property="article:tag" content="cpu-architecture">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="performance">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Why is processing a sorted array faster than processing an unsorted array?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T18:11:09+08:00" itemprop="datePublished" title="2023-02-16 18:11">2023-02-16 18:11</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Here is a piece of C++ code that shows some very peculiar behavior.</p>
+<p>For some reason, sorting the data ( <em>before</em> the timed region) miraculously
+makes the primary loop almost six times faster:</p>
+<div class="code"><pre class="code literal-block"><span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">algorithm</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">ctime</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">iostream</span><span class="o">&gt;</span>
+
+<span class="nc">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Generate</span><span class="w"> </span><span class="k">data</span>
+<span class="w">    </span><span class="n">const</span><span class="w"> </span><span class="n">unsigned</span><span class="w"> </span><span class="n">arraySize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32768</span><span class="p">;</span>
+<span class="w">    </span><span class="nc">int</span><span class="w"> </span><span class="k">data</span><span class="o">[</span><span class="n">arraySize</span><span class="o">]</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">arraySize</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">c</span><span class="p">)</span>
+<span class="w">        </span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="nf">rand</span><span class="p">()</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="err">!!!</span><span class="w"> </span><span class="k">With</span><span class="w"> </span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">next</span><span class="w"> </span><span class="n">loop</span><span class="w"> </span><span class="n">runs</span><span class="w"> </span><span class="n">faster</span><span class="p">.</span>
+<span class="w">    </span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="n">sort</span><span class="p">(</span><span class="k">data</span><span class="p">,</span><span class="w"> </span><span class="k">data</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">arraySize</span><span class="p">);</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Test</span>
+<span class="w">    </span><span class="n">clock_t</span><span class="w"> </span><span class="k">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clock</span><span class="p">();</span>
+<span class="w">    </span><span class="n">long</span><span class="w"> </span><span class="n">long</span><span class="w"> </span><span class="nf">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100000</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">arraySize</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">c</span><span class="p">)</span>
+<span class="w">        </span><span class="err">{</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="k">Primary</span><span class="w"> </span><span class="n">loop</span><span class="p">.</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">128</span><span class="p">)</span>
+<span class="w">                </span><span class="nf">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="n">elapsedTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">static_cast</span><span class="o">&lt;</span><span class="k">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">clock</span><span class="p">()</span><span class="o">-</span><span class="k">start</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">CLOCKS_PER_SEC</span><span class="p">;</span>
+
+<span class="w">    </span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">elapsedTime</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s1">'\n'</span><span class="p">;</span>
+<span class="w">    </span><span class="nl">std</span><span class="p">:</span><span class="err">:</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"sum = "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nf">sum</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s1">'\n'</span><span class="p">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<ul>
+<li>Without <code>std::sort(data, data + arraySize);</code>, the code runs in 11.54 seconds.</li>
+<li>With the sorted data, the code runs in 1.93 seconds.</li>
+</ul>
+<p>(Sorting itself takes more time than this one pass over the array, so it's not
+actually worth doing if we needed to calculate this for an unknown array.)</p>
+<hr>
+<p>Initially, I thought this might be just a language or compiler anomaly, so I
+tried Java:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">java.util.Arrays</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.util.Random</span><span class="p">;</span>
+
+<span class="n">public</span> <span class="k">class</span> <span class="nc">Main</span>
+<span class="p">{</span>
+    <span class="n">public</span> <span class="n">static</span> <span class="n">void</span> <span class="n">main</span><span class="p">(</span><span class="n">String</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="o">//</span> <span class="n">Generate</span> <span class="n">data</span>
+        <span class="nb">int</span> <span class="n">arraySize</span> <span class="o">=</span> <span class="mi">32768</span><span class="p">;</span>
+        <span class="nb">int</span> <span class="n">data</span><span class="p">[]</span> <span class="o">=</span> <span class="n">new</span> <span class="nb">int</span><span class="p">[</span><span class="n">arraySize</span><span class="p">];</span>
+
+        <span class="n">Random</span> <span class="n">rnd</span> <span class="o">=</span> <span class="n">new</span> <span class="n">Random</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+        <span class="k">for</span> <span class="p">(</span><span class="nb">int</span> <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">c</span> <span class="o">&lt;</span> <span class="n">arraySize</span><span class="p">;</span> <span class="o">++</span><span class="n">c</span><span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">rnd</span><span class="o">.</span><span class="n">nextInt</span><span class="p">()</span> <span class="o">%</span> <span class="mi">256</span><span class="p">;</span>
+
+        <span class="o">//</span> <span class="err">!!!</span> <span class="n">With</span> <span class="n">this</span><span class="p">,</span> <span class="n">the</span> <span class="nb">next</span> <span class="n">loop</span> <span class="n">runs</span> <span class="n">faster</span>
+        <span class="n">Arrays</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+        <span class="o">//</span> <span class="n">Test</span>
+        <span class="n">long</span> <span class="n">start</span> <span class="o">=</span> <span class="n">System</span><span class="o">.</span><span class="n">nanoTime</span><span class="p">();</span>
+        <span class="n">long</span> <span class="nb">sum</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+        <span class="k">for</span> <span class="p">(</span><span class="nb">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">100000</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">for</span> <span class="p">(</span><span class="nb">int</span> <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">c</span> <span class="o">&lt;</span> <span class="n">arraySize</span><span class="p">;</span> <span class="o">++</span><span class="n">c</span><span class="p">)</span>
+            <span class="p">{</span>   <span class="o">//</span> <span class="n">Primary</span> <span class="n">loop</span><span class="o">.</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">128</span><span class="p">)</span>
+                    <span class="nb">sum</span> <span class="o">+=</span> <span class="n">data</span><span class="p">[</span><span class="n">c</span><span class="p">];</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="n">System</span><span class="o">.</span><span class="n">out</span><span class="o">.</span><span class="n">println</span><span class="p">((</span><span class="n">System</span><span class="o">.</span><span class="n">nanoTime</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1000000000.0</span><span class="p">);</span>
+        <span class="n">System</span><span class="o">.</span><span class="n">out</span><span class="o">.</span><span class="n">println</span><span class="p">(</span><span class="s2">"sum = "</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>With a similar but less extreme result.</p>
+<hr>
+<p>My first thought was that sorting brings the data into the cache, but that's
+silly because the array was just generated.</p>
+<ul>
+<li>What is going on?</li>
+<li>Why is processing a sorted array faster than processing an unsorted array?</li>
+</ul>
+<p>The code is summing up some independent terms, so the order should not matter.</p>
+<hr>
+<p><strong>Related / follow-up Q &amp;As</strong> about the same effect with different/later
+compilers and options:</p>
+<ul>
+<li>Why is processing an unsorted array the same speed as processing a sorted array with modern x86-64 clang?</li>
+<li>gcc optimization flag -O3 makes code slower than -O2</li>
+</ul>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>You are a victim of branch prediction fail.</strong></p>
+<hr>
+<h3>What is Branch Prediction?</h3>
+<p>Consider a railroad junction:</p>
+<p><img alt="Image showing a railroad junction" src="../../images/muxnt.jpg"> Image by Mecanismo,
+via Wikimedia Commons. Used under the CC-By-SA 3.0 license.</p>
+<p>Now for the sake of argument, suppose this is back in the 1800s - before long-
+distance or radio communication.</p>
+<p>You are a blind operator of a junction and you hear a train coming. You have
+no idea which way it is supposed to go. You stop the train to ask the driver
+which direction they want. And then you set the switch appropriately.</p>
+<p><em>Trains are heavy and have a lot of inertia, so they take forever to start up
+and slow down.</em></p>
+<p>Is there a better way? You guess which direction the train will go!</p>
+<ul>
+<li>If you guessed right, it continues on.</li>
+<li>If you guessed wrong, the captain will stop, back up, and yell at you to flip the switch. Then it can restart down the other path.</li>
+</ul>
+<p><strong>If you guess right every time</strong> , the train will never have to stop.<br><strong>If you guess wrong too often</strong> , the train will spend a lot of time
+stopping, backing up, and restarting.</p>
+<hr>
+<p><strong>Consider an if-statement:</strong> At the processor level, it is a branch
+instruction:</p>
+<p><img alt="Screenshot of compiled code containing an if statement" src="../../images/pyfwC.png"></p>
+<p>You are a processor and you see a branch. You have no idea which way it will
+go. What do you do? You halt execution and wait until the previous
+instructions are complete. Then you continue down the correct path.</p>
+<p><em>Modern processors are complicated and have long pipelines. This means they
+take forever to "warm up" and "slow down".</em></p>
+<p>Is there a better way? You guess which direction the branch will go!</p>
+<ul>
+<li>If you guessed right, you continue executing.</li>
+<li>If you guessed wrong, you need to flush the pipeline and roll back to the branch. Then you can restart down the other path.</li>
+</ul>
+<p><strong>If you guess right every time</strong> , the execution will never have to stop.<br><strong>If you guess wrong too often</strong> , you spend a lot of time stalling, rolling
+back, and restarting.</p>
+<hr>
+<p>This is branch prediction. I admit it's not the best analogy since the train
+could just signal the direction with a flag. But in computers, the processor
+doesn't know which direction a branch will go until the last moment.</p>
+<p>How would you strategically guess to minimize the number of times that the
+train must back up and go down the other path? You look at the past history!
+If the train goes left 99% of the time, then you guess left. If it alternates,
+then you alternate your guesses. If it goes one way every three times, you
+guess the same...</p>
+<p><em><strong>In other words, you try to identify a pattern and follow it.</strong></em> This is
+more or less how branch predictors work.</p>
+<p>Most applications have well-behaved branches. Therefore, modern branch
+predictors will typically achieve &gt;90% hit rates. But when faced with
+unpredictable branches with no recognizable patterns, branch predictors are
+virtually useless.</p>
+<p>Further reading: "Branch predictor" article on Wikipedia.</p>
+<hr>
+<h3>As hinted from above, the culprit is this if-statement:</h3>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">128</span><span class="p">)</span>
+<span class="w">    </span><span class="nf">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="p">;</span>
+</pre></div>
+
+<p>Notice that the data is evenly distributed between 0 and 255. When the data is
+sorted, roughly the first half of the iterations will not enter the if-
+statement. After that, they will all enter the if-statement.</p>
+<p>This is very friendly to the branch predictor since the branch consecutively
+goes the same direction many times. Even a simple saturating counter will
+correctly predict the branch except for the few iterations after it switches
+direction.</p>
+<p><strong>Quick visualization:</strong></p>
+<div class="code"><pre class="code literal-block">T = branch taken
+N = branch not taken
+
+data[] = 0, 1, 2, 3, 4, ... 126, 127, 128, 129, 130, ... 250, 251, 252, ...
+branch = N  N  N  N  N  ...   N    N    T    T    T  ...   T    T    T  ...
+
+       = NNNNNNNNNNNN ... NNNNNNNTTTTTTTTT ... TTTTTTTTTT  (easy to predict)
+</pre></div>
+
+<p>However, when the data is completely random, the branch predictor is rendered
+useless, because it can't predict random data. Thus there will probably be
+around 50% misprediction (no better than random guessing).</p>
+<div class="code"><pre class="code literal-block"><span class="nv">data</span>[]<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">226</span>,<span class="w"> </span><span class="mi">185</span>,<span class="w"> </span><span class="mi">125</span>,<span class="w"> </span><span class="mi">158</span>,<span class="w"> </span><span class="mi">198</span>,<span class="w"> </span><span class="mi">144</span>,<span class="w"> </span><span class="mi">217</span>,<span class="w"> </span><span class="mi">79</span>,<span class="w"> </span><span class="mi">202</span>,<span class="w"> </span><span class="mi">118</span>,<span class="w">  </span><span class="mi">14</span>,<span class="w"> </span><span class="mi">150</span>,<span class="w"> </span><span class="mi">177</span>,<span class="w"> </span><span class="mi">182</span>,<span class="w"> </span>...
+<span class="nv">branch</span><span class="w"> </span><span class="o">=</span><span class="w">   </span><span class="nv">T</span>,<span class="w">   </span><span class="nv">T</span>,<span class="w">   </span><span class="nv">N</span>,<span class="w">   </span><span class="nv">T</span>,<span class="w">   </span><span class="nv">T</span>,<span class="w">   </span><span class="nv">T</span>,<span class="w">   </span><span class="nv">T</span>,<span class="w">  </span><span class="nv">N</span>,<span class="w">   </span><span class="nv">T</span>,<span class="w">   </span><span class="nv">N</span>,<span class="w">   </span><span class="nv">N</span>,<span class="w">   </span><span class="nv">T</span>,<span class="w">   </span><span class="nv">T</span>,<span class="w">   </span><span class="nv">T</span><span class="w">  </span>...
+
+<span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="nv">TTNTTTTNTNNTTT</span><span class="w"> </span>...<span class="w">   </span><span class="ss">(</span><span class="nv">completely</span><span class="w"> </span><span class="k">random</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">impossible</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">predict</span><span class="ss">)</span>
+</pre></div>
+
+<hr>
+<p><strong>What can be done?</strong></p>
+<p>If the compiler isn't able to optimize the branch into a conditional move, you
+can try some hacks if you are willing to sacrifice readability for
+performance.</p>
+<p>Replace:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">128</span><span class="p">)</span>
+<span class="w">    </span><span class="nf">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="p">;</span>
+</pre></div>
+
+<p>with:</p>
+<div class="code"><pre class="code literal-block"><span class="nc">int</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">128</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">31</span><span class="p">;</span>
+<span class="nf">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="o">~</span><span class="n">t</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="k">data</span><span class="o">[</span><span class="n">c</span><span class="o">]</span><span class="p">;</span>
+</pre></div>
+
+<p>This eliminates the branch and replaces it with some bitwise operations.</p>
+<p>(Note that this hack is not strictly equivalent to the original if-statement.
+But in this case, it's valid for all the input values of <code>data[]</code>.)</p>
+<p><strong>Benchmarks: Core i7 920 @ 3.5 GHz</strong></p>
+<p>C++ - Visual Studio 2010 - x64 Release</p>
+<table>
+<thead><tr>
+<th>Scenario</th>
+<th>Time (seconds)</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Branching - Random data</td>
+<td>11.777</td>
+</tr>
+<tr>
+<td>Branching - Sorted data</td>
+<td>2.352</td>
+</tr>
+<tr>
+<td>Branchless - Random data</td>
+<td>2.564</td>
+</tr>
+<tr>
+<td>Branchless - Sorted data</td>
+<td>2.587</td>
+</tr>
+</tbody>
+</table>
+<p>Java - NetBeans 7.1.1 JDK 7 - x64</p>
+<table>
+<thead><tr>
+<th>Scenario</th>
+<th>Time (seconds)</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Branching - Random data</td>
+<td>10.93293813</td>
+</tr>
+<tr>
+<td>Branching - Sorted data</td>
+<td>5.643797077</td>
+</tr>
+<tr>
+<td>Branchless - Random data</td>
+<td>3.113581453</td>
+</tr>
+<tr>
+<td>Branchless - Sorted data</td>
+<td>3.186068823</td>
+</tr>
+</tbody>
+</table>
+<p>Observations:</p>
+<ul>
+<li>
+<strong>With the Branch:</strong> There is a huge difference between the sorted and unsorted data.</li>
+<li>
+<strong>With the Hack:</strong> There is no difference between sorted and unsorted data.</li>
+<li>In the C++ case, the hack is actually a tad slower than with the branch when the data is sorted.</li>
+</ul>
+<p>A general rule of thumb is to avoid data-dependent branching in critical loops
+(such as in this example).</p>
+<hr>
+<p><strong>Update:</strong></p>
+<ul>
+<li>GCC 4.6.1 with <code>-O3</code> or <code>-ftree-vectorize</code> on x64 is able to generate a conditional move, so there is no difference between the sorted and unsorted data - both are fast.</li>
+</ul>
+<p>(Or somewhat fast: for the already-sorted case, <code>cmov</code> can be slower
+especially if GCC puts it on the critical path instead of just <code>add</code>,
+especially on Intel before Broadwell where <code>cmov</code> has 2 cycle latency: gcc
+optimization flag -O3 makes code slower than -O2)</p>
+<ul>
+<li>
+<p>VC++ 2010 is unable to generate conditional moves for this branch even under <code>/Ox</code>.</p>
+</li>
+<li>
+<p>Intel C++ Compiler (ICC) 11 does something miraculous. It interchanges the two loops, thereby hoisting the unpredictable branch to the outer loop. Not only is it immune to the mispredictions, it's also twice as fast as whatever VC++ and GCC can generate! In other words, ICC took advantage of the test-loop to defeat the benchmark...</p>
+</li>
+<li>
+<p>If you give the Intel compiler the branchless code, it just outright vectorizes it... and is just as fast as with the branch (with the loop interchange).</p>
+</li>
+</ul>
+<p>This goes to show that even mature modern compilers can vary wildly in their
+ability to optimize code...</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>Branch prediction.</strong></p>
+<p>With a sorted array, the condition <code>data[c] &gt;= 128</code> is first <code>false</code> for a
+streak of values, then becomes <code>true</code> for all later values. That's easy to
+predict. With an unsorted array, you pay for the branching cost.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/branch-prediction/" rel="tag">branch-prediction</a></li>
+            <li><a class="tag p-category" href="../../categories/c%2B%2B/" rel="tag">c++</a></li>
+            <li><a class="tag p-category" href="../../categories/cpu-architecture/" rel="tag">cpu-architecture</a></li>
+            <li><a class="tag p-category" href="../../categories/java/" rel="tag">java</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../welcome-to-nikola/" rel="prev" title="Welcome to Nikola">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-do-i-undo-the-most-recent-local-commits-in-git/" rel="next" title="How do I undo the most recent local commits in Git?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

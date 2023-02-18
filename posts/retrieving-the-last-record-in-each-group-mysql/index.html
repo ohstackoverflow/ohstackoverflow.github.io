@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retrieving the last record in each group - MySQL | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/retrieving-the-last-record-in-each-group-mysql/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-call-asynchronous-method-from-synchronous-method-in-c/" title="How to call asynchronous method from synchronous method in C#?" type="text/html">
+<link rel="next" href="../how-do-i-copy-a-version-of-a-single-file-from-one-git-branch-to-another/" title="How do I copy a version of a single file from one Git branch to another?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Retrieving the last record in each group - MySQL">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/retrieving-the-last-record-in-each-group-mysql/">
+<meta property="og:description" content="There is a table messages that contains data as shown below:
+Id   Name   Other_Columns
+-------------------------
+1    A       A_data_1
+2    A       A_data_2
+3    A       A_data_3
+4    B       B_data_1">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T03:47:03+08:00">
+<meta property="article:tag" content="greatest-n-per-group">
+<meta property="article:tag" content="group-by">
+<meta property="article:tag" content="groupwise-maximum">
+<meta property="article:tag" content="mysql">
+<meta property="article:tag" content="sql">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Retrieving the last record in each group - MySQL</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:47:03+08:00" itemprop="datePublished" title="2023-02-17 03:47">2023-02-17 03:47</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>There is a table <code>messages</code> that contains data as shown below:</p>
+<div class="code"><pre class="code literal-block"><span class="gh">Id   Name   Other_Columns</span>
+<span class="gh">-------------------------</span>
+1    A       A_data_1
+2    A       A_data_2
+3    A       A_data_3
+4    B       B_data_1
+5    B       B_data_2
+6    C       C_data_1
+</pre></div>
+
+<p>If I run a query <code>select * from messages group by name</code>, I will get the result
+as:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">1</span><span class="w">    </span><span class="n">A</span><span class="w">       </span><span class="n">A_data_1</span>
+<span class="mf">4</span><span class="w">    </span><span class="n">B</span><span class="w">       </span><span class="n">B_data_1</span>
+<span class="mf">6</span><span class="w">    </span><span class="n">C</span><span class="w">       </span><span class="n">C_data_1</span>
+</pre></div>
+
+<p>What query will return the following result?</p>
+<div class="code"><pre class="code literal-block"><span class="mf">3</span><span class="w">    </span><span class="n">A</span><span class="w">       </span><span class="n">A_data_3</span>
+<span class="mf">5</span><span class="w">    </span><span class="n">B</span><span class="w">       </span><span class="n">B_data_2</span>
+<span class="mf">6</span><span class="w">    </span><span class="n">C</span><span class="w">       </span><span class="n">C_data_1</span>
+</pre></div>
+
+<p>That is, the last record in each group should be returned.</p>
+<p>At present, this is the query that I use:</p>
+<div class="code"><pre class="code literal-block">SELECT
+  *
+FROM (SELECT
+  *
+FROM messages
+ORDER BY id DESC) AS x
+GROUP BY name
+</pre></div>
+
+<p>But this looks highly inefficient. Any other ways to achieve the same result?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>MySQL 8.0 now supports windowing functions, like almost all popular SQL
+implementations. With this standard syntax, we can write greatest-n-per-group
+queries:</p>
+<div class="code"><pre class="code literal-block">WITH ranked_messages AS (
+  SELECT m.*, ROW_NUMBER() OVER (PARTITION BY name ORDER BY id DESC) AS rn
+  FROM messages AS m
+)
+SELECT * FROM ranked_messages WHERE rn = 1;
+</pre></div>
+
+<p>This and other approaches to finding groupwise maximal rows are illustrated in
+the MySQL manual.</p>
+<p>Below is the original answer I wrote for this question in 2009:</p>
+<hr>
+<p>I write the solution this way:</p>
+<div class="code"><pre class="code literal-block">SELECT m1.*
+FROM messages m1 LEFT JOIN messages m2
+ ON (m1.name = m2.name AND m1.id &lt; m2.id)
+WHERE m2.id IS NULL;
+</pre></div>
+
+<p>Regarding performance, one solution or the other can be better, depending on
+the nature of your data. So you should test both queries and use the one that
+is better at performance given your database.</p>
+<p>For example, I have a copy of the StackOverflow August data dump. I'll use
+that for benchmarking. There are 1,114,357 rows in the <code>Posts</code> table. This is
+running on MySQL 5.0.75 on my Macbook Pro 2.40GHz.</p>
+<p>I'll write a query to find the most recent post for a given user ID (mine).</p>
+<p><strong>First using the technique shown by @Eric with the<code>GROUP BY</code> in a subquery:</strong></p>
+<div class="code"><pre class="code literal-block">SELECT p1.postid
+FROM Posts p1
+INNER JOIN (SELECT pi.owneruserid, MAX(pi.postid) AS maxpostid
+            FROM Posts pi GROUP BY pi.owneruserid) p2
+  ON (p1.postid = p2.maxpostid)
+WHERE p1.owneruserid = 20860;
+
+1 row in set (1 min 17.89 sec)
+</pre></div>
+
+<p>Even the <code>EXPLAIN</code> analysis takes over 16 seconds:</p>
+<div class="code"><pre class="code literal-block"><span class="nb">+----+-------------+------------+--------+----------------------------+-------------+---------+--------------+---------+-------------+</span>
+<span class="c">| id | select_type | table      | type   | possible_keys              | key         | key_len | ref          | rows    | Extra       |</span>
+<span class="nb">+----+-------------+------------+--------+----------------------------+-------------+---------+--------------+---------+-------------+</span>
+<span class="c">|  1 | PRIMARY     | </span><span class="nv">&lt;</span><span class="c">derived2</span><span class="nv">&gt;</span><span class="c"> | ALL    | NULL                       | NULL        | NULL    | NULL         |   76756 |             | </span>
+<span class="c">|  1 | PRIMARY     | p1         | eq_ref | PRIMARY</span><span class="nt">,</span><span class="c">PostId</span><span class="nt">,</span><span class="c">OwnerUserId | PRIMARY     | 8       | p2</span><span class="nt">.</span><span class="c">maxpostid |       1 | Using where | </span>
+<span class="c">|  2 | DERIVED     | pi         | index  | NULL                       | OwnerUserId | 8       | NULL         | 1151268 | Using index | </span>
+<span class="nb">+----+-------------+------------+--------+----------------------------+-------------+---------+--------------+---------+-------------+</span>
+<span class="c">3 rows in set (16</span><span class="nt">.</span><span class="c">09 sec)</span>
+</pre></div>
+
+<p><strong>Now produce the same query result using my technique with<code>LEFT JOIN</code>:</strong></p>
+<div class="code"><pre class="code literal-block">SELECT p1.postid
+FROM Posts p1 LEFT JOIN posts p2
+  ON (p1.owneruserid = p2.owneruserid AND p1.postid &lt; p2.postid)
+WHERE p2.postid IS NULL AND p1.owneruserid = 20860;
+
+1 row in set (0.28 sec)
+</pre></div>
+
+<p>The <code>EXPLAIN</code> analysis shows that both tables are able to use their indexes:</p>
+<div class="code"><pre class="code literal-block"><span class="nb">+----+-------------+-------+------+----------------------------+-------------+---------+-------+------+--------------------------------------+</span>
+<span class="c">| id | select_type | table | type | possible_keys              | key         | key_len | ref   | rows | Extra                                |</span>
+<span class="nb">+----+-------------+-------+------+----------------------------+-------------+---------+-------+------+--------------------------------------+</span>
+<span class="c">|  1 | SIMPLE      | p1    | ref  | OwnerUserId                | OwnerUserId | 8       | const | 1384 | Using index                          | </span>
+<span class="c">|  1 | SIMPLE      | p2    | ref  | PRIMARY</span><span class="nt">,</span><span class="c">PostId</span><span class="nt">,</span><span class="c">OwnerUserId | OwnerUserId | 8       | const | 1384 | Using where; Using index; Not exists | </span>
+<span class="nb">+----+-------------+-------+------+----------------------------+-------------+---------+-------+------+--------------------------------------+</span>
+<span class="c">2 rows in set (0</span><span class="nt">.</span><span class="c">00 sec)</span>
+</pre></div>
+
+<hr>
+<p>Here's the DDL for my <code>Posts</code> table:</p>
+<div class="code"><pre class="code literal-block"><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n n-Quoted">`posts`</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n n-Quoted">`PostId`</span><span class="w"> </span><span class="kt">bigint</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">unsigned</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="w"> </span><span class="k">auto_increment</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`PostTypeId`</span><span class="w"> </span><span class="kt">bigint</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">unsigned</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`AcceptedAnswerId`</span><span class="w"> </span><span class="kt">bigint</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">unsigned</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`ParentId`</span><span class="w"> </span><span class="kt">bigint</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">unsigned</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`CreationDate`</span><span class="w"> </span><span class="kt">datetime</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`Score`</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="s1">'0'</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`ViewCount`</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="s1">'0'</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`Body`</span><span class="w"> </span><span class="kt">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`OwnerUserId`</span><span class="w"> </span><span class="kt">bigint</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">unsigned</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`OwnerDisplayName`</span><span class="w"> </span><span class="kt">varchar</span><span class="p">(</span><span class="mi">40</span><span class="p">)</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`LastEditorUserId`</span><span class="w"> </span><span class="kt">bigint</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">unsigned</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`LastEditDate`</span><span class="w"> </span><span class="kt">datetime</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`LastActivityDate`</span><span class="w"> </span><span class="kt">datetime</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`Title`</span><span class="w"> </span><span class="kt">varchar</span><span class="p">(</span><span class="mi">250</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="s1">''</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`Tags`</span><span class="w"> </span><span class="kt">varchar</span><span class="p">(</span><span class="mi">150</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="s1">''</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`AnswerCount`</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="s1">'0'</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`CommentCount`</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="s1">'0'</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`FavoriteCount`</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">11</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="s1">'0'</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`ClosedDate`</span><span class="w"> </span><span class="kt">datetime</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w">  </span><span class="p">(</span><span class="n n-Quoted">`PostId`</span><span class="p">),</span>
+<span class="w">  </span><span class="k">UNIQUE</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="n n-Quoted">`PostId`</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`PostId`</span><span class="p">),</span>
+<span class="w">  </span><span class="k">KEY</span><span class="w"> </span><span class="n n-Quoted">`PostTypeId`</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`PostTypeId`</span><span class="p">),</span>
+<span class="w">  </span><span class="k">KEY</span><span class="w"> </span><span class="n n-Quoted">`AcceptedAnswerId`</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`AcceptedAnswerId`</span><span class="p">),</span>
+<span class="w">  </span><span class="k">KEY</span><span class="w"> </span><span class="n n-Quoted">`OwnerUserId`</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`OwnerUserId`</span><span class="p">),</span>
+<span class="w">  </span><span class="k">KEY</span><span class="w"> </span><span class="n n-Quoted">`LastEditorUserId`</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`LastEditorUserId`</span><span class="p">),</span>
+<span class="w">  </span><span class="k">KEY</span><span class="w"> </span><span class="n n-Quoted">`ParentId`</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`ParentId`</span><span class="p">),</span>
+<span class="w">  </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n n-Quoted">`posts_ibfk_1`</span><span class="w"> </span><span class="k">FOREIGN</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`PostTypeId`</span><span class="p">)</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n n-Quoted">`posttypes`</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`PostTypeId`</span><span class="p">)</span>
+<span class="p">)</span><span class="w"> </span><span class="k">ENGINE</span><span class="o">=</span><span class="n">InnoDB</span><span class="p">;</span>
+</pre></div>
+
+<hr>
+<p><strong>Note to commenters: If you want another benchmark with a different version
+of MySQL, a different dataset, or different table design, feel free to do it
+yourself. I have shown the technique above. Stack Overflow is here to show you
+how to do software development work, not to do all the work for you.</strong></p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><em>UPD: 2017-03-31, the version 5.7.5 of MySQL made the ONLY_FULL_GROUP_BY
+switch enabled by default (hence, non-deterministic GROUP BY queries became
+disabled). Moreover, they updated the GROUP BY implementation and the solution
+might not work as expected anymore even with the disabled switch. One needs to
+check.</em></p>
+<p>Bill Karwin's solution above works fine when item count within groups is
+rather small, but the performance of the query becomes bad when the groups are
+rather large, since the solution requires about <code>n*n/2 + n/2</code> of only <code>IS
+NULL</code> comparisons.</p>
+<p>I made my tests on a InnoDB table of <code>18684446</code> rows with <code>1182</code> groups. The
+table contains testresults for functional tests and has the <code>(test_id,
+request_id)</code> as the primary key. Thus, <code>test_id</code> is a group and I was
+searching for the last <code>request_id</code> for each <code>test_id</code>.</p>
+<p>Bill's solution has already been running for several hours on my dell e4310
+and I do not know when it is going to finish even though it operates on a
+coverage index (hence <code>using index</code> in EXPLAIN).</p>
+<p>I have a couple of other solutions that are based on the same ideas:</p>
+<ul>
+<li>if the underlying index is BTREE index (which is usually the case), the largest <code>(group_id, item_value)</code> pair is the last value within each <code>group_id</code>, that is the first for each <code>group_id</code> if we walk through the index in descending order;</li>
+<li>if we read the values which are covered by an index, the values are read in the order of the index;</li>
+<li>each index implicitly contains primary key columns appended to that (that is the primary key is in the coverage index). In solutions below I operate directly on the primary key, in you case, you will just need to add primary key columns in the result.</li>
+<li>in many cases it is much cheaper to collect the required row ids in the required order in a subquery and join the result of the subquery on the id. Since for each row in the subquery result MySQL will need a single fetch based on primary key, the subquery will be put first in the join and the rows will be output in the order of the ids in the subquery (if we omit explicit ORDER BY for the join)</li>
+</ul>
+<p>3 ways MySQL uses indexes is a great article to understand some details.</p>
+<p><strong>Solution 1</strong></p>
+<p>This one is incredibly fast, it takes about 0,8 secs on my 18M+ rows:</p>
+<div class="code"><pre class="code literal-block">SELECT test_id, MAX(request_id) AS request_id
+FROM testresults
+GROUP BY test_id DESC;
+</pre></div>
+
+<p>If you want to change the order to ASC, put it in a subquery, return the ids
+only and use that as the subquery to join to the rest of the columns:</p>
+<div class="code"><pre class="code literal-block">SELECT test_id, request_id
+FROM (
+    SELECT test_id, MAX(request_id) AS request_id
+    FROM testresults
+    GROUP BY test_id DESC) as ids
+ORDER BY test_id;
+</pre></div>
+
+<p>This one takes about 1,2 secs on my data.</p>
+<p><strong>Solution 2</strong></p>
+<p>Here is another solution that takes about 19 seconds for my table:</p>
+<div class="code"><pre class="code literal-block"><span class="k">SELECT</span><span class="w"> </span><span class="n">test_id</span><span class="p">,</span><span class="w"> </span><span class="n">request_id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">testresults</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="k">SELECT</span><span class="w"> </span><span class="nv">@group</span><span class="err">:</span><span class="o">=</span><span class="k">NULL</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">init</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">IF</span><span class="p">(</span><span class="n">IFNULL</span><span class="p">(</span><span class="nv">@group</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">=</span><span class="nv">@group</span><span class="err">:</span><span class="o">=</span><span class="n">test_id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">test_id</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">request_id</span><span class="w"> </span><span class="k">DESC</span>
+</pre></div>
+
+<p>It returns tests in descending order as well. It is much slower since it does
+a full index scan but it is here to give you an idea how to output N max rows
+for each group.</p>
+<p>The disadvantage of the query is that its result cannot be cached by the query
+cache.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/greatest-n-per-group/" rel="tag">greatest-n-per-group</a></li>
+            <li><a class="tag p-category" href="../../categories/group-by/" rel="tag">group-by</a></li>
+            <li><a class="tag p-category" href="../../categories/groupwise-maximum/" rel="tag">groupwise-maximum</a></li>
+            <li><a class="tag p-category" href="../../categories/mysql/" rel="tag">mysql</a></li>
+            <li><a class="tag p-category" href="../../categories/sql/" rel="tag">sql</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-call-asynchronous-method-from-synchronous-method-in-c/" rel="prev" title="How to call asynchronous method from synchronous method in C#?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-do-i-copy-a-version-of-a-single-file-from-one-git-branch-to-another/" rel="next" title="How do I copy a version of a single file from one Git branch to another?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

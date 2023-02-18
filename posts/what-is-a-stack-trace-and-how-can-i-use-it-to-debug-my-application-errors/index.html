@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is a stack trace, and how can I use it to debug my application errors? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/what-is-a-stack-trace-and-how-can-i-use-it-to-debug-my-application-errors/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../volatile-vs-interlocked-vs-lock/" title="Volatile vs. Interlocked vs. lock" type="text/html">
+<link rel="next" href="../what-is-common-gateway-interface-cgi/" title="What is Common Gateway Interface (CGI)?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="What is a stack trace, and how can I use it to debug my application er">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/what-is-a-stack-trace-and-how-can-i-use-it-to-debug-my-application-errors/">
+<meta property="og:description" content='Sometimes when I run my application it gives me an error that looks like:
+Exception in thread "main" java.lang.NullPointerException
+        at com.example.myproject.Book.getTitle(Book.java:16)
+       '>
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T14:23:25+08:00">
+<meta property="article:tag" content="debugging">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="stack-trace">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">What is a stack trace, and how can I use it to debug my application errors?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T14:23:25+08:00" itemprop="datePublished" title="2023-02-17 14:23">2023-02-17 14:23</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Sometimes when I run my application it gives me an error that looks like:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Exception</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">thread</span><span class="w"> </span><span class="s2">"main"</span><span class="w"> </span><span class="nv">java</span>.<span class="nv">lang</span>.<span class="nv">NullPointerException</span>
+<span class="w">        </span><span class="nv">at</span><span class="w"> </span><span class="nv">com</span>.<span class="nv">example</span>.<span class="nv">myproject</span>.<span class="nv">Book</span>.<span class="k">getTitle</span><span class="ss">(</span><span class="nv">Book</span>.<span class="nv">java</span>:<span class="mi">16</span><span class="ss">)</span>
+<span class="w">        </span><span class="nv">at</span><span class="w"> </span><span class="nv">com</span>.<span class="nv">example</span>.<span class="nv">myproject</span>.<span class="nv">Author</span>.<span class="nv">getBookTitles</span><span class="ss">(</span><span class="nv">Author</span>.<span class="nv">java</span>:<span class="mi">25</span><span class="ss">)</span>
+<span class="w">        </span><span class="nv">at</span><span class="w"> </span><span class="nv">com</span>.<span class="nv">example</span>.<span class="nv">myproject</span>.<span class="nv">Bootstrap</span>.<span class="nv">main</span><span class="ss">(</span><span class="nv">Bootstrap</span>.<span class="nv">java</span>:<span class="mi">14</span><span class="ss">)</span>
+</pre></div>
+
+<p>People have referred to this as a "stack trace". <strong>What is a stack trace?</strong>
+What can it tell me about the error that's happening in my program?</p>
+<hr>
+<p><em>About this question - quite often I see a question come through where a
+novice programmer is "getting an error", and they simply paste their stack
+trace and some random block of code without understanding what the stack trace
+is or how they can use it. This question is intended as a reference for novice
+programmers who might need help understanding the value of a stack trace.</em></p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>In simple terms, a <strong>stack trace</strong> is a list of the method calls that the
+application was in the middle of when an Exception was thrown.</p>
+<p><strong>Simple Example</strong></p>
+<p>With the example given in the question, we can determine exactly where the
+exception was thrown in the application. Let's have a look at the stack trace:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Exception</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">thread</span><span class="w"> </span><span class="s2">"main"</span><span class="w"> </span><span class="nv">java</span>.<span class="nv">lang</span>.<span class="nv">NullPointerException</span>
+<span class="w">        </span><span class="nv">at</span><span class="w"> </span><span class="nv">com</span>.<span class="nv">example</span>.<span class="nv">myproject</span>.<span class="nv">Book</span>.<span class="k">getTitle</span><span class="ss">(</span><span class="nv">Book</span>.<span class="nv">java</span>:<span class="mi">16</span><span class="ss">)</span>
+<span class="w">        </span><span class="nv">at</span><span class="w"> </span><span class="nv">com</span>.<span class="nv">example</span>.<span class="nv">myproject</span>.<span class="nv">Author</span>.<span class="nv">getBookTitles</span><span class="ss">(</span><span class="nv">Author</span>.<span class="nv">java</span>:<span class="mi">25</span><span class="ss">)</span>
+<span class="w">        </span><span class="nv">at</span><span class="w"> </span><span class="nv">com</span>.<span class="nv">example</span>.<span class="nv">myproject</span>.<span class="nv">Bootstrap</span>.<span class="nv">main</span><span class="ss">(</span><span class="nv">Bootstrap</span>.<span class="nv">java</span>:<span class="mi">14</span><span class="ss">)</span>
+</pre></div>
+
+<p>This is a very simple stack trace. If we start at the beginning of the list of
+"at ...", we can tell where our error happened. What we're looking for is the
+<strong>topmost</strong> method call that is part of our application. In this case, it's:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">at</span><span class="w"> </span><span class="nv">com</span>.<span class="nv">example</span>.<span class="nv">myproject</span>.<span class="nv">Book</span>.<span class="k">getTitle</span><span class="ss">(</span><span class="nv">Book</span>.<span class="nv">java</span>:<span class="mi">16</span><span class="ss">)</span>
+</pre></div>
+
+<p>To debug this, we can open up <code>Book.java</code> and look at line <code>16</code>, which is:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">15</span><span class="w">   </span><span class="n">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="kr">get</span><span class="n">Title</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="mf">16</span><span class="w">      </span><span class="kr">Sys</span><span class="n">tem</span><span class="mf">.</span><span class="n">out</span><span class="mf">.</span><span class="kr">print</span><span class="n">ln</span><span class="p">(</span><span class="n">title</span><span class="mf">.</span><span class="kr">to</span><span class="n">String</span><span class="p">());</span>
+<span class="mf">17</span><span class="w">      </span><span class="kr">return</span><span class="w"> </span><span class="n">title</span><span class="p">;</span>
+<span class="mf">18</span><span class="w">   </span><span class="err">}</span>
+</pre></div>
+
+<p>This would indicate that something (probably <code>title</code>) is <code>null</code> in the above
+code.</p>
+<p><strong>Example with a chain of exceptions</strong></p>
+<p>Sometimes applications will catch an Exception and re-throw it as the cause of
+another Exception. This typically looks like:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">34</span><span class="w">   </span><span class="n">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="kr">get</span><span class="n">BookIds</span><span class="p">(</span><span class="nb">int</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="mf">35</span><span class="w">      </span><span class="n">try</span><span class="w"> </span><span class="err">{</span>
+<span class="mf">36</span><span class="w">         </span><span class="n">book</span><span class="mf">.</span><span class="kr">get</span><span class="n">Id</span><span class="p">(</span><span class="n">id</span><span class="p">);</span><span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">method</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">NullPointerException</span><span class="w"> </span><span class="kr">on</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">22</span>
+<span class="mf">37</span><span class="w">      </span><span class="err">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">NullPointerException</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="mf">38</span><span class="w">         </span><span class="n">throw</span><span class="w"> </span><span class="kr">new</span><span class="w"> </span><span class="n">IllegalStateException</span><span class="p">(</span><span class="s">"A book has a null property"</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
+<span class="mf">39</span><span class="w">      </span><span class="err">}</span>
+<span class="mf">40</span><span class="w">   </span><span class="err">}</span>
+</pre></div>
+
+<p>This might give you a stack trace that looks like:</p>
+<div class="code"><pre class="code literal-block">Exception in thread "main" java.lang.IllegalStateException: A book has a null property
+        at com.example.myproject.Author.getBookIds(Author.java:38)
+        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)
+Caused by: java.lang.NullPointerException
+        at com.example.myproject.Book.getId(Book.java:22)
+        at com.example.myproject.Author.getBookIds(Author.java:36)
+        ... 1 more
+</pre></div>
+
+<p>What's different about this one is the "Caused by". Sometimes exceptions will
+have multiple "Caused by" sections. For these, you typically want to find the
+"root cause", which will be one of the lowest "Caused by" sections in the
+stack trace. In our case, it's:</p>
+<div class="code"><pre class="code literal-block">Caused by: java.lang.NullPointerException &lt;-- root cause
+        at com.example.myproject.Book.getId(Book.java:22) &lt;-- important line
+</pre></div>
+
+<p>Again, with this exception we'd want to look at line <code>22</code> of <code>Book.java</code> to
+see what might cause the <code>NullPointerException</code> here.</p>
+<p><strong>More daunting example with library code</strong></p>
+<p>Usually stack traces are much more complex than the two examples above. Here's
+an example (it's a long one, but demonstrates several levels of chained
+exceptions):</p>
+<div class="code"><pre class="code literal-block"><span class="n">javax</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">ServletException</span><span class="p">:</span><span class="w"> </span><span class="n">Something</span><span class="w"> </span><span class="n">bad</span><span class="w"> </span><span class="n">happened</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">OpenSessionInViewFilter</span><span class="o">.</span><span class="n">doFilter</span><span class="p">(</span><span class="n">OpenSessionInViewFilter</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">60</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">ServletHandler</span><span class="o">$</span><span class="n">CachedChain</span><span class="o">.</span><span class="n">doFilter</span><span class="p">(</span><span class="n">ServletHandler</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">1157</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">ExceptionHandlerFilter</span><span class="o">.</span><span class="n">doFilter</span><span class="p">(</span><span class="n">ExceptionHandlerFilter</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">28</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">ServletHandler</span><span class="o">$</span><span class="n">CachedChain</span><span class="o">.</span><span class="n">doFilter</span><span class="p">(</span><span class="n">ServletHandler</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">1157</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">OutputBufferFilter</span><span class="o">.</span><span class="n">doFilter</span><span class="p">(</span><span class="n">OutputBufferFilter</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">33</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">ServletHandler</span><span class="o">$</span><span class="n">CachedChain</span><span class="o">.</span><span class="n">doFilter</span><span class="p">(</span><span class="n">ServletHandler</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">1157</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">ServletHandler</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">ServletHandler</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">388</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">security</span><span class="o">.</span><span class="n">SecurityHandler</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">SecurityHandler</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">216</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">SessionHandler</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">SessionHandler</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">182</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">ContextHandler</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">ContextHandler</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">765</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">webapp</span><span class="o">.</span><span class="n">WebAppContext</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">WebAppContext</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">418</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">handler</span><span class="o">.</span><span class="n">HandlerWrapper</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">HandlerWrapper</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">152</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">Server</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">Server</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">326</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">HttpConnection</span><span class="o">.</span><span class="n">handleRequest</span><span class="p">(</span><span class="n">HttpConnection</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">542</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">HttpConnection</span><span class="o">$</span><span class="n">RequestHandler</span><span class="o">.</span><span class="n">content</span><span class="p">(</span><span class="n">HttpConnection</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">943</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">HttpParser</span><span class="o">.</span><span class="n">parseNext</span><span class="p">(</span><span class="n">HttpParser</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">756</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">HttpParser</span><span class="o">.</span><span class="n">parseAvailable</span><span class="p">(</span><span class="n">HttpParser</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">218</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">HttpConnection</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">HttpConnection</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">404</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">bio</span><span class="o">.</span><span class="n">SocketConnector</span><span class="o">$</span><span class="n">Connection</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">SocketConnector</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">228</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">thread</span><span class="o">.</span><span class="n">QueuedThreadPool</span><span class="o">$</span><span class="n">PoolThread</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">QueuedThreadPool</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">582</span><span class="p">)</span>
+<span class="n">Caused</span><span class="w"> </span><span class="n">by</span><span class="p">:</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">MyProjectServletException</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">MyServlet</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">MyServlet</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">169</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">javax</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">http</span><span class="o">.</span><span class="n">HttpServlet</span><span class="o">.</span><span class="n">service</span><span class="p">(</span><span class="n">HttpServlet</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">727</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">javax</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">http</span><span class="o">.</span><span class="n">HttpServlet</span><span class="o">.</span><span class="n">service</span><span class="p">(</span><span class="n">HttpServlet</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">820</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">ServletHolder</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">ServletHolder</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">511</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">mortbay</span><span class="o">.</span><span class="n">jetty</span><span class="o">.</span><span class="n">servlet</span><span class="o">.</span><span class="n">ServletHandler</span><span class="o">$</span><span class="n">CachedChain</span><span class="o">.</span><span class="n">doFilter</span><span class="p">(</span><span class="n">ServletHandler</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">1166</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">OpenSessionInViewFilter</span><span class="o">.</span><span class="n">doFilter</span><span class="p">(</span><span class="n">OpenSessionInViewFilter</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">30</span><span class="p">)</span>
+<span class="w">    </span><span class="o">...</span><span class="w"> </span><span class="mi">27</span><span class="w"> </span><span class="n">more</span>
+<span class="n">Caused</span><span class="w"> </span><span class="n">by</span><span class="p">:</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">ConstraintViolationException</span><span class="p">:</span><span class="w"> </span><span class="n">could</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">insert</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">MyEntity</span><span class="p">]</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">SQLStateConverter</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="n">SQLStateConverter</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">96</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">JDBCExceptionHelper</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="n">JDBCExceptionHelper</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">66</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">insert</span><span class="o">.</span><span class="n">AbstractSelectingDelegate</span><span class="o">.</span><span class="n">performInsert</span><span class="p">(</span><span class="n">AbstractSelectingDelegate</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">64</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">persister</span><span class="o">.</span><span class="n">entity</span><span class="o">.</span><span class="n">AbstractEntityPersister</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">AbstractEntityPersister</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">2329</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">persister</span><span class="o">.</span><span class="n">entity</span><span class="o">.</span><span class="n">AbstractEntityPersister</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">AbstractEntityPersister</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">2822</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">action</span><span class="o">.</span><span class="n">EntityIdentityInsertAction</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">EntityIdentityInsertAction</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">71</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">engine</span><span class="o">.</span><span class="n">ActionQueue</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">ActionQueue</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">268</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">def</span><span class="o">.</span><span class="n">AbstractSaveEventListener</span><span class="o">.</span><span class="n">performSaveOrReplicate</span><span class="p">(</span><span class="n">AbstractSaveEventListener</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">321</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">def</span><span class="o">.</span><span class="n">AbstractSaveEventListener</span><span class="o">.</span><span class="n">performSave</span><span class="p">(</span><span class="n">AbstractSaveEventListener</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">204</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">def</span><span class="o">.</span><span class="n">AbstractSaveEventListener</span><span class="o">.</span><span class="n">saveWithGeneratedId</span><span class="p">(</span><span class="n">AbstractSaveEventListener</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">130</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">def</span><span class="o">.</span><span class="n">DefaultSaveOrUpdateEventListener</span><span class="o">.</span><span class="n">saveWithGeneratedOrRequestedId</span><span class="p">(</span><span class="n">DefaultSaveOrUpdateEventListener</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">210</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">def</span><span class="o">.</span><span class="n">DefaultSaveEventListener</span><span class="o">.</span><span class="n">saveWithGeneratedOrRequestedId</span><span class="p">(</span><span class="n">DefaultSaveEventListener</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">56</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">def</span><span class="o">.</span><span class="n">DefaultSaveOrUpdateEventListener</span><span class="o">.</span><span class="n">entityIsTransient</span><span class="p">(</span><span class="n">DefaultSaveOrUpdateEventListener</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">195</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">def</span><span class="o">.</span><span class="n">DefaultSaveEventListener</span><span class="o">.</span><span class="n">performSaveOrUpdate</span><span class="p">(</span><span class="n">DefaultSaveEventListener</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">50</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">def</span><span class="o">.</span><span class="n">DefaultSaveOrUpdateEventListener</span><span class="o">.</span><span class="n">onSaveOrUpdate</span><span class="p">(</span><span class="n">DefaultSaveOrUpdateEventListener</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">93</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">SessionImpl</span><span class="o">.</span><span class="n">fireSave</span><span class="p">(</span><span class="n">SessionImpl</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">705</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">SessionImpl</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">SessionImpl</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">693</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">SessionImpl</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">SessionImpl</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">689</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">sun</span><span class="o">.</span><span class="n">reflect</span><span class="o">.</span><span class="n">GeneratedMethodAccessor5</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">Unknown</span><span class="w"> </span><span class="n">Source</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">sun</span><span class="o">.</span><span class="n">reflect</span><span class="o">.</span><span class="n">DelegatingMethodAccessorImpl</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">DelegatingMethodAccessorImpl</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">25</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">java</span><span class="o">.</span><span class="n">lang</span><span class="o">.</span><span class="n">reflect</span><span class="o">.</span><span class="n">Method</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">Method</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">597</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">ThreadLocalSessionContext</span><span class="o">$</span><span class="n">TransactionProtectionWrapper</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">ThreadLocalSessionContext</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">344</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="o">$</span><span class="n">Proxy19</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">Unknown</span><span class="w"> </span><span class="n">Source</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">MyEntityService</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">MyEntityService</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">59</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;--</span><span class="w"> </span><span class="n">relevant</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="p">(</span><span class="n">see</span><span class="w"> </span><span class="n">notes</span><span class="w"> </span><span class="n">below</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">myproject</span><span class="o">.</span><span class="n">MyServlet</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">MyServlet</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">164</span><span class="p">)</span>
+<span class="w">    </span><span class="o">...</span><span class="w"> </span><span class="mi">32</span><span class="w"> </span><span class="n">more</span>
+<span class="n">Caused</span><span class="w"> </span><span class="n">by</span><span class="p">:</span><span class="w"> </span><span class="n">java</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">SQLException</span><span class="p">:</span><span class="w"> </span><span class="n">Violation</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">unique</span><span class="w"> </span><span class="n">constraint</span><span class="w"> </span><span class="n">MY_ENTITY_UK_1</span><span class="p">:</span><span class="w"> </span><span class="n">duplicate</span><span class="w"> </span><span class="n">value</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">column</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="n">MY_COLUMN</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">statement</span><span class="w"> </span><span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hsqldb</span><span class="o">.</span><span class="n">jdbc</span><span class="o">.</span><span class="n">Util</span><span class="o">.</span><span class="n">throwError</span><span class="p">(</span><span class="n">Unknown</span><span class="w"> </span><span class="n">Source</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hsqldb</span><span class="o">.</span><span class="n">jdbc</span><span class="o">.</span><span class="n">jdbcPreparedStatement</span><span class="o">.</span><span class="n">executeUpdate</span><span class="p">(</span><span class="n">Unknown</span><span class="w"> </span><span class="n">Source</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">com</span><span class="o">.</span><span class="n">mchange</span><span class="o">.</span><span class="n">v2</span><span class="o">.</span><span class="n">c3p0</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">NewProxyPreparedStatement</span><span class="o">.</span><span class="n">executeUpdate</span><span class="p">(</span><span class="n">NewProxyPreparedStatement</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">105</span><span class="p">)</span>
+<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">org</span><span class="o">.</span><span class="n">hibernate</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">insert</span><span class="o">.</span><span class="n">AbstractSelectingDelegate</span><span class="o">.</span><span class="n">performInsert</span><span class="p">(</span><span class="n">AbstractSelectingDelegate</span><span class="o">.</span><span class="n">java</span><span class="p">:</span><span class="mi">57</span><span class="p">)</span>
+<span class="w">    </span><span class="o">...</span><span class="w"> </span><span class="mi">54</span><span class="w"> </span><span class="n">more</span>
+</pre></div>
+
+<p>In this example, there's a lot more. What we're mostly concerned about is
+looking for methods that are from <em>our code</em> , which would be anything in the
+<code>com.example.myproject</code> package. From the second example (above), we'd first
+want to look down for the root cause, which is:</p>
+<div class="code"><pre class="code literal-block">Caused by: java.sql.SQLException
+</pre></div>
+
+<p>However, all the method calls under that are library code. So we'll <strong>move
+up</strong> to the <strong>"Caused by" above</strong> it, and in that "Caused by" block, look for
+the <strong>first method call originating from our code</strong> , which is:</p>
+<div class="code"><pre class="code literal-block">at com.example.myproject.MyEntityService.save(MyEntityService.java:59)
+</pre></div>
+
+<p>Like in previous examples, we should look at <code>MyEntityService.java</code> on line
+<code>59</code>, because that's where this error originated (this one's a bit obvious
+what went wrong, since the SQLException states the error, but the debugging
+procedure is what we're after).</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>What is a Stacktrace?</strong></p>
+<p>A stacktrace is a very helpful debugging tool. It shows the call stack
+(meaning, the stack of functions that were called up to that point) at the
+time an uncaught exception was thrown (or the time the stacktrace was
+generated manually). This is very useful because it doesn't only show you
+where the error happened, but also how the program ended up in that place of
+the code. This leads over to the next question:</p>
+<p><strong>What is an Exception?</strong></p>
+<p>An Exception is what the runtime environment uses to tell you that an error
+occurred. Popular examples are NullPointerException, IndexOutOfBoundsException
+or ArithmeticException. Each of these are caused when you try to do something
+that is not possible. For example, a NullPointerException will be thrown when
+you try to dereference a Null-object:</p>
+<div class="code"><pre class="code literal-block">Object a = null;
+a.toString();                 //this line throws a NullPointerException
+
+Object[] b = new Object[5];
+System.out.println(b[10]);    //this line throws an IndexOutOfBoundsException,
+                              //because b is only 5 elements long
+int ia = 5;
+int ib = 0;
+ia = ia/ib;                   //this line throws an  ArithmeticException with the 
+                              //message "/ by 0", because you are trying to
+                              //divide by 0, which is not possible.
+</pre></div>
+
+<p><strong>How should I deal with Stacktraces/Exceptions?</strong></p>
+<p>At first, find out what is causing the Exception. Try googling the name of the
+exception to find out what the cause of that exception is. Most of the time it
+will be caused by incorrect code. In the given examples above, all of the
+exceptions are caused by incorrect code. So for the NullPointerException
+example you could make sure that <code>a</code> is never null at that time. You could,
+for example, initialise <code>a</code> or include a check like this one:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">a</span><span class="o">!=</span><span class="nv">null</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">a</span>.<span class="nv">toString</span><span class="ss">()</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>This way, the offending line is not executed if <code>a==null</code>. Same goes for the
+other examples.</p>
+<p>Sometimes you can't make sure that you don't get an exception. For example, if
+you are using a network connection in your program, you cannot stop the
+computer from loosing it's internet connection (e.g. you can't stop the user
+from disconnecting the computer's network connection). In this case the
+network library will probably throw an exception. Now you should catch the
+exception and <strong>handle</strong> it. This means, in the example with the network
+connection, you should try to reopen the connection or notify the user or
+something like that. Also, whenever you use catch, always catch only the
+exception you want to catch, <strong>do not use broad catch statements like<code>catch
+(Exception e)</code></strong> that would catch all exceptions. This is very important,
+because otherwise you might accidentally catch the wrong exception and react
+in the wrong way.</p>
+<div class="code"><pre class="code literal-block">try {
+    Socket x = new Socket("1.1.1.1", 6789);
+    x.getInputStream().read()
+} catch (IOException e) {
+    System.err.println("Connection could not be established, please try again later!")
+}
+</pre></div>
+
+<p><strong>Why should I not use<code>catch (Exception e)</code>?</strong></p>
+<p>Let's use a small example to show why you should not just catch all
+exceptions:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">int</span><span class="w"> </span><span class="nt">mult</span><span class="o">(</span><span class="nt">Integer</span><span class="w"> </span><span class="nt">a</span><span class="o">,</span><span class="nt">Integer</span><span class="w"> </span><span class="nt">b</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">try</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">int</span><span class="w"> </span><span class="err">result</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">a/b</span>
+<span class="w">        </span><span class="err">return</span><span class="w"> </span><span class="err">result</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="nt">catch</span><span class="w"> </span><span class="o">(</span><span class="nt">Exception</span><span class="w"> </span><span class="nt">e</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="err">System.err.println("</span><span class="n">Error</span><span class="p">:</span><span class="w"> </span><span class="n">Division</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">zero</span><span class="o">!</span><span class="err">"</span><span class="p">);</span>
+<span class="w">        </span><span class="err">return</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>What this code is trying to do is to catch the <code>ArithmeticException</code> caused by
+a possible division by 0. But it also catches a possible
+<code>NullPointerException</code> that is thrown if <code>a</code> or <code>b</code> are <code>null</code>. This means,
+you might get a <code>NullPointerException</code> but you'll treat it as an
+ArithmeticException and probably do the wrong thing. In the best case you
+still miss that there was a NullPointerException. Stuff like that makes
+debugging much harder, so don't do that.</p>
+<p><strong>TLDR</strong></p>
+<ol>
+<li>Figure out what is the cause of the exception and fix it, so that it doesn't throw the exception at all.</li>
+<li>If 1. is not possible, catch the specific exception and handle it. <ul>
+<li>Never just add a try/catch and then just ignore the exception! Don't do that!</li>
+<li>Never use <code>catch (Exception e)</code>, always catch specific Exceptions. That will save you a lot of headaches.</li>
+</ul>
+</li>
+</ol>
+</div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/debugging/" rel="tag">debugging</a></li>
+            <li><a class="tag p-category" href="../../categories/java/" rel="tag">java</a></li>
+            <li><a class="tag p-category" href="../../categories/stack-trace/" rel="tag">stack-trace</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../volatile-vs-interlocked-vs-lock/" rel="prev" title="Volatile vs. Interlocked vs. lock">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-is-common-gateway-interface-cgi/" rel="next" title="What is Common Gateway Interface (CGI)?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How would Git handle a SHA-1 collision on a blob? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-would-git-handle-a-sha-1-collision-on-a-blob/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-do-you-detect-credit-card-type-based-on-number/" title="How do you detect Credit card type based on number?" type="text/html">
+<link rel="next" href="../update-and-replace-part-of-a-string/" title="UPDATE and REPLACE part of a string" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How would Git handle a SHA-1 collision on a blob?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-would-git-handle-a-sha-1-collision-on-a-blob/">
+<meta property="og:description" content="This probably never happened in the real-world yet, and may never happen, but
+let's consider this: say you have a git repository, make a commit, and get
+very very unlucky: one of the blobs ends up hav">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-18T02:11:38+08:00">
+<meta property="article:tag" content="git">
+<meta property="article:tag" content="hash-collision">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How would Git handle a SHA-1 collision on a blob?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T02:11:38+08:00" itemprop="datePublished" title="2023-02-18 02:11">2023-02-18 02:11</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>This probably never happened in the real-world yet, and may never happen, but
+let's consider this: say you have a git repository, make a commit, and get
+very very unlucky: one of the blobs ends up having the same SHA-1 as another
+that is already in your repository. Question is, how would Git handle this?
+Simply fail? Find a way to link the two blobs and check which one is needed
+according to the context?</p>
+<p>More a brain-teaser than an actual problem, but I found the issue interesting.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I did an experiment to find out exactly how Git would behave in this case.
+This is with version 2.7.9~rc0+next.20151210 (Debian version). I basically
+just reduced the hash size from 160-bit to 4-bit by applying the following
+diff and rebuilding git:</p>
+<div class="code"><pre class="code literal-block"><span class="gd">--- git-2.7.0~rc0+next.20151210.orig/block-sha1/sha1.c</span>
+<span class="gi">+++ git-2.7.0~rc0+next.20151210/block-sha1/sha1.c</span>
+<span class="gu">@@ -246,6 +246,8 @@ void blk_SHA1_Final(unsigned char hashou</span>
+<span class="w"> </span>   blk_SHA1_Update(ctx, padlen, 8);
+
+<span class="w"> </span>   /* Output hash */
+<span class="gd">-   for (i = 0; i &lt; 5; i++)</span>
+<span class="gd">-       put_be32(hashout + i * 4, ctx-&gt;H[i]);</span>
+<span class="gi">+   for (i = 0; i &lt; 1; i++)</span>
+<span class="gi">+       put_be32(hashout + i * 4, (ctx-&gt;H[i] &amp; 0xf000000));</span>
+<span class="gi">+   for (i = 1; i &lt; 5; i++)</span>
+<span class="gi">+       put_be32(hashout + i * 4, 0);</span>
+<span class="w"> </span>}
+</pre></div>
+
+<p>Then I did a few commits and noticed the following.</p>
+<ol>
+<li>If a blob already exists with the same hash, you will not get any warnings at all. Everything seems to be ok, but when you push, someone clones, or you revert, you will lose the latest version (in line with what is explained above).</li>
+<li>If a tree object already exists and you make a blob with the same hash: Everything will seem normal, until you either try to push or someone clones your repository. Then you will see that the repo is corrupt.</li>
+<li>If a commit object already exists and you make a blob with the same hash: same as #2 - corrupt</li>
+<li>If a blob already exists and you make a commit object with the same hash, it will fail when updating the "ref".</li>
+<li>If a blob already exists and you make a tree object with the same hash. It will fail when creating the commit.</li>
+<li>If a tree object already exists and you make a commit object with the same hash, it will fail when updating the "ref".</li>
+<li>If a tree object already exists and you make a tree object with the same hash, everything will seem ok. But when you commit, all of the repository will reference the wrong tree.</li>
+<li>If a commit object already exists and you make a commit object with the same hash, everything will seem ok. But when you commit, the commit will never be created, and the HEAD pointer will be moved to an old commit.</li>
+<li>If a commit object already exists and you make a tree object with the same hash, it will fail when creating the commit.</li>
+</ol>
+<p>For #2 you will typically get an error like this when you run "git push":</p>
+<div class="code"><pre class="code literal-block"><span class="n">error</span><span class="o">:</span><span class="w"> </span><span class="n">object</span><span class="w"> </span><span class="mi">0400000000000000000000000000000000000000</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">tree</span><span class="o">,</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">blob</span>
+<span class="n">fatal</span><span class="o">:</span><span class="w"> </span><span class="n">bad</span><span class="w"> </span><span class="n">blob</span><span class="w"> </span><span class="n">object</span>
+<span class="n">error</span><span class="o">:</span><span class="w"> </span><span class="n">failed</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">push</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">refs</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">origin</span>
+</pre></div>
+
+<p>or:</p>
+<div class="code"><pre class="code literal-block"><span class="n">error</span><span class="o">:</span><span class="w"> </span><span class="n">unable</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="n">sha1</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">file</span><span class="o">.</span><span class="na">txt</span><span class="w"> </span><span class="o">(</span><span class="mi">0400000000000000000000000000000000000000</span><span class="o">)</span>
+</pre></div>
+
+<p>if you delete the file and then run "git checkout file.txt".</p>
+<p>For #4 and #6, you will typically get an error like this:</p>
+<div class="code"><pre class="code literal-block"><span class="n">error</span><span class="o">:</span><span class="w"> </span><span class="n">Trying</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">write</span><span class="w"> </span><span class="n">non</span><span class="o">-</span><span class="n">commit</span><span class="w"> </span><span class="n">object</span>
+<span class="n">f000000000000000000000000000000000000000</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="n">refs</span><span class="sr">/heads/</span><span class="n">master</span>
+<span class="n">fatal</span><span class="o">:</span><span class="w"> </span><span class="n">cannot</span><span class="w"> </span><span class="n">update</span><span class="w"> </span><span class="n">HEAD</span><span class="w"> </span><span class="n">ref</span>
+</pre></div>
+
+<p>when running "git commit". In this case you can typically just type "git
+commit" again since this will create a new hash (because of the changed
+timestamp)</p>
+<p>For #5 and #9, you will typically get an error like this:</p>
+<div class="code"><pre class="code literal-block"><span class="n">fatal</span><span class="o">:</span><span class="w"> </span><span class="mi">1000000000000000000000000000000000000000</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">valid</span><span class="w"> </span><span class="s1">'tree'</span><span class="w"> </span><span class="n">object</span>
+</pre></div>
+
+<p>when running "git commit"</p>
+<p>If someone tries to clone your corrupt repository, they will typically see
+something like:</p>
+<div class="code"><pre class="code literal-block">git clone (one repo with collided blob,
+d000000000000000000000000000000000000000 is commit,
+f000000000000000000000000000000000000000 is tree)
+
+Cloning into 'clonedversion'...
+done.
+error: unable to read sha1 file of s (d000000000000000000000000000000000000000)
+error: unable to read sha1 file of tullebukk
+(f000000000000000000000000000000000000000)
+fatal: unable to checkout working tree
+warning: Clone succeeded, but checkout failed.
+You can inspect what was checked out with 'git status'
+and retry the checkout with 'git checkout -f HEAD'
+</pre></div>
+
+<p>What "worries" me is that in two cases (2,3) the repository becomes corrupt
+without any warnings, and in 3 cases (1,7,8), everything seems ok, but the
+repository content is different than what you expect it to be. People cloning
+or pulling will have a different content than what you have. The cases 4,5,6
+and 9 are ok, since it will stop with an error. I suppose it would be better
+if it failed with an error at least in all cases.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Original answer (2012) (see <code>shattered.io</code> 2017 SHA1 collision below)</p>
+<p>That old (2006) answer from Linus might still be relevant:</p>
+<blockquote>
+<p>Nope. If it has the same SHA1, it means that when we receive the object from
+the other end, we will <em>not</em> overwrite the object we already have.</p>
+<p>So what happens is that if we ever see a collision, the "earlier" object in
+any particular repository will always end up overriding. But note that
+"earlier" is obviously per-repository, in the sense that the git object
+network generates a DAG that is not fully ordered, so while different
+repositories will agree about what is "earlier" in the case of direct
+ancestry, if the object came through separate and not directly related
+branches, two different repos may obviously have gotten the two objects in
+different order.</p>
+<p>However, the "earlier will override" is very much what you want from a
+security standpoint: remember that the git model is that you should
+primarily trust only your <em>own</em> repository.<br>
+ So if you do a "<code>git pull</code>", the new incoming objects are by definition
+less trustworthy than the objects you already have, and as such it would be
+wrong to allow a new object to replace an old one.</p>
+<p>So you have two cases of collision:</p>
+<ul>
+<li>
+<p>the <strong>inadvertent kind</strong> , where you somehow are very very unlucky, and
+two files end up having the same SHA1.<br>
+ At that point, what happens is that when you commit that file (or do a
+"<code>git-update-index</code>" to move it into the index, but not committed yet), the
+SHA1 of the new contents will be computed, but <strong>since it matches an old
+object, a new object won't be created, and the commit-or-index ends up
+pointing to the <em>old</em> object</strong>.<br>
+ You won't notice immediately (since the index will match the old object
+SHA1, and that means that something like "<code>git diff</code>" will use the checked-
+out copy), but if you ever do a tree-level diff (or you do a clone or pull,
+or force a checkout) you'll suddenly notice that that file has changed to
+something <em>completely</em> different than what you expected.<br>
+ So you would generally notice this kind of collision fairly quickly.<br>
+ In related news, the question is what to do about the inadvertent
+collision..<br>
+ First off, let me remind people that the inadvertent kind of collision is
+really really <em>really</em> damn unlikely, so we'll quite likely never ever see
+it in the full history of the universe.<br>
+ But <em>if</em> it happens, it's not the end of the world: <strong>what you'd most
+likely have to do is just change the file that collided slightly, and just
+force a new commit with the changed contents</strong> (add a comment saying "<code>/*
+This line added to avoid collision */</code>") and then teach git about the magic
+SHA1 that has been shown to be dangerous.<br>
+ So over a couple of million years, maybe we'll have to add one or two
+"poisoned" SHA1 values to git. It's very unlikely to be a maintenance
+problem ;)</p>
+</li>
+<li>
+<p>The <strong>attacker kind of collision</strong> because somebody broke (or brute-
+forced) SHA1.<br>
+ This one is clearly a <em>lot</em> more likely than the inadvertent kind, but by
+definition it's always a "remote" repository. If the attacker had access to
+the local repository, he'd have much easier ways to screw you up.<br>
+ So in this case, <strong>the collision is entirely a non-issue</strong> : you'll get a
+"bad" repository that is different from what the attacker intended, but
+<strong>since you'll never actually use his colliding object, it's <em>literally</em> no
+different from the attacker just not having found a collision at all</strong>, but
+just using the object you already had (ie it's 100% equivalent to the
+"trivial" collision of the identical file generating the same SHA1).</p>
+</li>
+</ul>
+</blockquote>
+<p>The question of using SHA-256 is regularly mentioned, but not act upon for now
+(2012).<br>
+Note: starting 2018 and Git 2.19, the code is being refactored to use SHA-256.</p>
+<hr>
+<p>Note (Humor): you can force a commit to a particular SHA1 <em>prefix</em> , with the
+project <strong>gitbrute</strong> from Brad Fitzpatrick (<code>bradfitz</code>).</p>
+<blockquote>
+<p>gitbrute brute-forces a pair of author+committer timestamps such that the
+resulting git commit has your desired prefix.</p>
+</blockquote>
+<p>Example: https://github.com/bradfitz/deadbeef</p>
+<hr>
+<p>Daniel Dinnyes points out in the comments to 7.1 Git Tools - Revision
+Selection, which includes:</p>
+<blockquote>
+<p>A higher probability exists that every member of your programming team will
+be attacked and killed by wolves in unrelated incidents on the same night.</p>
+</blockquote>
+<hr>
+<p>Even the more recently (February 2017) <strong><code>shattered.io</code></strong> demonstrated the
+possibility of forging a SHA1 collision:<br>
+(see much more in my <strong>separate answer</strong> , including Linus Torvalds' Google+
+post)</p>
+<ul>
+<li>a/ still requires over 9,223,372,036,854,775,808 SHA1 computations. This took the equivalent processing power as 6,500 years of single-CPU computations and 110 years of single-GPU computations. </li>
+<li>b/ would forge <em>one</em> file (with the same SHA1), but with the additional constraint its content <em>and</em> size would produce the identical SHA1 (a collision on the content alone is not enough): see "How is the git hash calculated?"): a blob SHA1 is computed based on the content <em>and</em> size.</li>
+</ul>
+<p>See "Lifetimes of cryptographic hash functions" from <strong>Valerie Anita Aurora</strong>
+for more.<br>
+In that page, she notes:</p>
+<blockquote>
+<p>Google spent 6500 CPU years and 110 GPU years to convince everyone we need
+to stop using SHA-1 for security critical applications.<br>
+ Also because it was cool</p>
+</blockquote>
+<p>See more in my <strong>separate answer below</strong>.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/git/" rel="tag">git</a></li>
+            <li><a class="tag p-category" href="../../categories/hash-collision/" rel="tag">hash-collision</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-do-you-detect-credit-card-type-based-on-number/" rel="prev" title="How do you detect Credit card type based on number?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../update-and-replace-part-of-a-string/" rel="next" title="UPDATE and REPLACE part of a string">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

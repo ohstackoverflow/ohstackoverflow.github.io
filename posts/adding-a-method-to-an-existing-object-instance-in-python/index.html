@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adding a method to an existing object instance in Python | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/adding-a-method-to-an-existing-object-instance-in-python/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-break-out-of-jquery-each-loop/" title="How to break out of jQuery each loop?" type="text/html">
+<link rel="next" href="../view-a-file-in-a-different-git-branch-without-changing-branches/" title="View a file in a different Git branch without changing branches" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Adding a method to an existing object instance in Python">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/adding-a-method-to-an-existing-object-instance-in-python/">
+<meta property="og:description" content="I've read that it is possible to add a method to an existing object (i.e., not
+in the class definition) in Python.
+I understand that it's not always good to do so. But how might one do this?
+
+Answer
+I">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T12:19:02+08:00">
+<meta property="article:tag" content="methods">
+<meta property="article:tag" content="monkeypatching">
+<meta property="article:tag" content="oop">
+<meta property="article:tag" content="python">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Adding a method to an existing object instance in Python</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T12:19:02+08:00" itemprop="datePublished" title="2023-02-17 12:19">2023-02-17 12:19</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I've read that it is possible to add a method to an existing object (i.e., not
+in the class definition) in Python.</p>
+<p>I understand that it's not always good to do so. But how might one do this?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>In Python, there is a difference between functions and bound methods.</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; def foo():
+...     print "foo"
+...
+&gt;&gt;&gt; class A:
+...     def bar( self ):
+...         print "bar"
+...
+&gt;&gt;&gt; a = A()
+&gt;&gt;&gt; foo
+&lt;function foo at 0x00A98D70&gt;
+&gt;&gt;&gt; a.bar
+&lt;bound method A.bar of &lt;__main__.A instance at 0x00A9BC88&gt;&gt;
+&gt;&gt;&gt;
+</pre></div>
+
+<p>Bound methods have been "bound" (how descriptive) to an instance, and that
+instance will be passed as the first argument whenever the method is called.</p>
+<p>Callables that are attributes of a class (as opposed to an instance) are still
+unbound, though, so you can modify the class definition whenever you want:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; def fooFighters( self ):
+...     print "fooFighters"
+...
+&gt;&gt;&gt; A.fooFighters = fooFighters
+&gt;&gt;&gt; a2 = A()
+&gt;&gt;&gt; a2.fooFighters
+&lt;bound method A.fooFighters of &lt;__main__.A instance at 0x00A9BEB8&gt;&gt;
+&gt;&gt;&gt; a2.fooFighters()
+fooFighters
+</pre></div>
+
+<p>Previously defined instances are updated as well (as long as they haven't
+overridden the attribute themselves):</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a.fooFighters()
+fooFighters
+</pre></div>
+
+<p>The problem comes when you want to attach a method to a single instance:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; def barFighters( self ):
+...     print "barFighters"
+...
+&gt;&gt;&gt; a.barFighters = barFighters
+&gt;&gt;&gt; a.barFighters()
+Traceback (most recent call last):
+  File "&lt;stdin&gt;", line 1, in &lt;module&gt;
+TypeError: barFighters() takes exactly 1 argument (0 given)
+</pre></div>
+
+<p>The function is not automatically bound when it's attached directly to an
+instance:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a.barFighters
+&lt;function barFighters at 0x00A98EF0&gt;
+</pre></div>
+
+<p>To bind it, we can use the MethodType function in the types module:</p>
+<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">types</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">a</span><span class="o">.</span><span class="n">barFighters</span> <span class="o">=</span> <span class="n">types</span><span class="o">.</span><span class="n">MethodType</span><span class="p">(</span> <span class="n">barFighters</span><span class="p">,</span> <span class="n">a</span> <span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">a</span><span class="o">.</span><span class="n">barFighters</span>
+<span class="o">&lt;</span><span class="n">bound</span> <span class="n">method</span> <span class="err">?</span><span class="o">.</span><span class="n">barFighters</span> <span class="n">of</span> <span class="o">&lt;</span><span class="n">__main__</span><span class="o">.</span><span class="n">A</span> <span class="n">instance</span> <span class="n">at</span> <span class="mh">0x00A9BC88</span><span class="o">&gt;&gt;</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">a</span><span class="o">.</span><span class="n">barFighters</span><span class="p">()</span>
+<span class="n">barFighters</span>
+</pre></div>
+
+<p>This time other instances of the class have not been affected:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a2.barFighters()
+Traceback (most recent call last):
+  File "&lt;stdin&gt;", line 1, in &lt;module&gt;
+AttributeError: A instance has no attribute 'barFighters'
+</pre></div>
+
+<p>More information can be found by reading about descriptors and metaclass
+programming.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Preface - a note on compatibility: other answers may only work in Python 2 -
+this answer should work perfectly well in Python 2 and 3. If writing Python 3
+only, you might leave out explicitly inheriting from <code>object</code>, but otherwise
+the code should remain the same.</p>
+<blockquote>
+<h2>Adding a Method to an Existing Object Instance</h2>
+<p>I've read that it is possible to add a method to an existing object (e.g.
+not in the class definition) in Python.</p>
+<p>I understand that it's not always a good decision to do so. <strong>But, how might
+one do this?</strong></p>
+</blockquote>
+<h3>Yes, it is possible - But not recommended</h3>
+<p>I don't recommend this. This is a bad idea. Don't do it.</p>
+<p>Here's a couple of reasons:</p>
+<ul>
+<li>You'll add a bound object to every instance you do this to. If you do this a lot, you'll probably waste a lot of memory. Bound methods are typically only created for the short duration of their call, and they then cease to exist when automatically garbage collected. If you do this manually, you'll have a name binding referencing the bound method - which will prevent its garbage collection on usage.</li>
+<li>Object instances of a given type generally have its methods on all objects of that type. If you add methods elsewhere, some instances will have those methods and others will not. Programmers will not expect this, and you risk violating the rule of least surprise.</li>
+<li>Since there are other really good reasons not to do this, you'll additionally give yourself a poor reputation if you do it.</li>
+</ul>
+<p>Thus, I suggest that you not do this unless you have a really good reason.
+<strong>It is far better to define the correct method in the class definition</strong> or
+<em>less</em> preferably to monkey-patch the class directly, like this:</p>
+<div class="code"><pre class="code literal-block">Foo.sample_method = sample_method
+</pre></div>
+
+<p>Since it's instructive, however, I'm going to show you some ways of doing
+this.</p>
+<h3>How it can be done</h3>
+<p>Here's some setup code. We need a class definition. It could be imported, but
+it really doesn't matter.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Foo</span>(<span class="n">object</span>):
+    <span class="s">'''An empty class to demonstrate adding a method to an instance'''</span>
+</pre></div>
+
+<p>Create an instance:</p>
+<div class="code"><pre class="code literal-block">foo = Foo()
+</pre></div>
+
+<p>Create a method to add to it:</p>
+<div class="code"><pre class="code literal-block">def sample_method(self, bar, baz):
+    print(bar + baz)
+</pre></div>
+
+<h4>Method nought (0) - use the descriptor method, <code>__get__</code>
+</h4>
+<p>Dotted lookups on functions call the <code>__get__</code> method of the function with the
+instance, binding the object to the method and thus creating a "bound method."</p>
+<div class="code"><pre class="code literal-block">foo.sample_method = sample_method.__get__(foo)
+</pre></div>
+
+<p>and now:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; foo.sample_method(1,2)
+3
+</pre></div>
+
+<h4>Method one - types.MethodType</h4>
+<p>First, import types, from which we'll get the method constructor:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">types</span>
+</pre></div>
+
+<p>Now we add the method to the instance. To do this, we require the MethodType
+constructor from the <code>types</code> module (which we imported above).</p>
+<p>The argument signature for types.MethodType (in Python 3) is <code>(function,
+instance)</code>:</p>
+<div class="code"><pre class="code literal-block">foo.sample_method = types.MethodType(sample_method, foo)
+</pre></div>
+
+<p>and usage:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; foo.sample_method(1,2)
+3
+</pre></div>
+
+<p>Parenthetically, in Python 2 the signature was <code>(function, instance, class)</code>:</p>
+<div class="code"><pre class="code literal-block">foo.sample_method = types.MethodType(sample_method, foo, Foo)
+</pre></div>
+
+<h4>Method two: lexical binding</h4>
+<p>First, we create a wrapper function that binds the method to the instance:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">bind</span><span class="ss">(</span><span class="nv">instance</span>,<span class="w"> </span><span class="nv">method</span><span class="ss">)</span>:
+<span class="w">    </span><span class="nv">def</span><span class="w"> </span><span class="nv">binding_scope_fn</span><span class="ss">(</span><span class="o">*</span><span class="nv">args</span>,<span class="w"> </span><span class="o">**</span><span class="nv">kwargs</span><span class="ss">)</span>:<span class="w"> </span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nv">method</span><span class="ss">(</span><span class="nv">instance</span>,<span class="w"> </span><span class="o">*</span><span class="nv">args</span>,<span class="w"> </span><span class="o">**</span><span class="nv">kwargs</span><span class="ss">)</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">binding_scope_fn</span>
+</pre></div>
+
+<p>usage:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; foo.sample_method = bind(foo, sample_method)    
+&gt;&gt;&gt; foo.sample_method(1,2)
+3
+</pre></div>
+
+<h4>Method three: functools.partial</h4>
+<p>A partial function applies the first argument(s) to a function (and optionally
+keyword arguments), and can later be called with the remaining arguments (and
+overriding keyword arguments). Thus:</p>
+<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">foo</span><span class="o">.</span><span class="n">sample_method</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">sample_method</span><span class="p">,</span> <span class="n">foo</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">foo</span><span class="o">.</span><span class="n">sample_method</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="mi">3</span>
+</pre></div>
+
+<p>This makes sense when you consider that bound methods are partial functions of
+the instance.</p>
+<h3>Unbound function as an object attribute - why this doesn't work:</h3>
+<p>If we try to add the sample_method in the same way as we might add it to the
+class, it is unbound from the instance, and doesn't take the implicit self as
+the first argument.</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; foo.sample_method = sample_method
+&gt;&gt;&gt; foo.sample_method(1,2)
+Traceback (most recent call last):
+  File "&lt;stdin&gt;", line 1, in &lt;module&gt;
+TypeError: sample_method() takes exactly 3 arguments (2 given)
+</pre></div>
+
+<p>We can make the unbound function work by explicitly passing the instance (or
+anything, since this method doesn't actually use the <code>self</code> argument
+variable), but it would not be consistent with the expected signature of other
+instances (if we're monkey-patching this instance):</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; foo.sample_method(foo, 1, 2)
+3
+</pre></div>
+
+<h3>Conclusion</h3>
+<p>You now know several ways you <em>could</em> do this, but in all seriousness - don't
+do this.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/methods/" rel="tag">methods</a></li>
+            <li><a class="tag p-category" href="../../categories/monkeypatching/" rel="tag">monkeypatching</a></li>
+            <li><a class="tag p-category" href="../../categories/oop/" rel="tag">oop</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-break-out-of-jquery-each-loop/" rel="prev" title="How to break out of jQuery each loop?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../view-a-file-in-a-different-git-branch-without-changing-branches/" rel="next" title="View a file in a different Git branch without changing branches">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

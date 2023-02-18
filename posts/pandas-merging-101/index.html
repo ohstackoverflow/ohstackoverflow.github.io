@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pandas Merging 101 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/pandas-merging-101/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-can-i-iterate-over-files-in-a-given-directory/" title="How can I iterate over files in a given directory?" type="text/html">
+<link rel="next" href="../what-is-the-simplest-and-most-robust-way-to-get-the-user-s-current-location-on-android/" title="What is the simplest and most robust way to get the user's current location on Android?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Pandas Merging 101">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/pandas-merging-101/">
+<meta property="og:description" content="How can I perform a (INNER| (LEFT|RIGHT|FULL) OUTER) JOIN with pandas?
+How do I add NaNs for missing rows after a merge?
+How do I get rid of NaNs after merging?
+Can I merge on the index?
+How do I merg">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T11:20:53+08:00">
+<meta property="article:tag" content="concatenation">
+<meta property="article:tag" content="join">
+<meta property="article:tag" content="merge">
+<meta property="article:tag" content="pandas">
+<meta property="article:tag" content="python">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Pandas Merging 101</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T11:20:53+08:00" itemprop="datePublished" title="2023-02-17 11:20">2023-02-17 11:20</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <ul>
+<li>How can I perform a (<code>INNER</code>| (<code>LEFT</code>|<code>RIGHT</code>|<code>FULL</code>) <code>OUTER</code>) <code>JOIN</code> with pandas?</li>
+<li>How do I add NaNs for missing rows after a merge?</li>
+<li>How do I get rid of NaNs after merging?</li>
+<li>Can I merge on the index?</li>
+<li>How do I merge multiple DataFrames?</li>
+<li>Cross join with pandas</li>
+<li>
+<code>merge</code>? <code>join</code>? <code>concat</code>? <code>update</code>? Who? What? Why?!</li>
+</ul>
+<p>... and more. I've seen these recurring questions asking about various facets
+of the pandas merge functionality. Most of the information regarding merge and
+its various use cases today is fragmented across dozens of badly worded,
+unsearchable posts. The aim here is to collate some of the more important
+points for posterity.</p>
+<p>This Q&amp;A is meant to be the next installment in a series of helpful user
+guides on common pandas idioms (see this post on pivoting, and this post on
+concatenation, which I will be touching on, later).</p>
+<p>Please note that this post is <em>not</em> meant to be a replacement for the
+documentation, so please read that as well! Some of the examples are taken
+from there.</p>
+<hr>
+<h4>Table of Contents</h4>
+<p>For ease of access.</p>
+<ul>
+<li>
+<p>Merging basics - basic types of joins (read this first)</p>
+</li>
+<li>
+<p>Index-based joins</p>
+</li>
+<li>
+<p>Generalizing to multiple DataFrames</p>
+</li>
+<li>
+<p>Cross join</p>
+</li>
+</ul>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>This post aims to give readers a primer on SQL-flavored merging with Pandas,
+how to use it, and when not to use it.</p>
+<p>In particular, here's what this post will go through:</p>
+<ul>
+<li>
+<p>The basics - types of joins (LEFT, RIGHT, OUTER, INNER)</p>
+<ul>
+<li>merging with different column names</li>
+<li>merging with multiple columns</li>
+<li>avoiding duplicate merge key column in output</li>
+</ul>
+</li>
+</ul>
+<p>What this post (and other posts by me on this thread) will not go through:</p>
+<ul>
+<li>Performance-related discussions and timings (for now). Mostly notable mentions of better alternatives, wherever appropriate.</li>
+<li>Handling suffixes, removing extra columns, renaming outputs, and other specific use cases. There are other (read: better) posts that deal with that, so figure it out!</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong> Most examples default to INNER JOIN operations while demonstrating
+various features, unless otherwise specified.</p>
+<p>Furthermore, all the DataFrames here can be copied and replicated so you can
+play with them. Also, see this post on how to read DataFrames from your
+clipboard.</p>
+<p>Lastly, all visual representation of JOIN operations have been hand-drawn
+using Google Drawings. Inspiration from here.</p>
+</blockquote>
+<hr>
+<hr>
+<h2>Enough talk - just show me how to use <code>merge</code>!</h2>
+<h4>Setup &amp; Basics</h4>
+<div class="code"><pre class="code literal-block"><span class="nv">np</span>.<span class="k">random</span>.<span class="nv">seed</span><span class="ss">(</span><span class="mi">0</span><span class="ss">)</span>
+<span class="nv">left</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">pd</span>.<span class="nv">DataFrame</span><span class="ss">(</span>{<span class="s1">'key'</span>:<span class="w"> </span>[<span class="s1">'A'</span>,<span class="w"> </span><span class="s1">'B'</span>,<span class="w"> </span><span class="s1">'C'</span>,<span class="w"> </span><span class="s1">'D'</span>],<span class="w"> </span><span class="s1">'value'</span>:<span class="w"> </span><span class="nv">np</span>.<span class="k">random</span>.<span class="nv">randn</span><span class="ss">(</span><span class="mi">4</span><span class="ss">)</span>}<span class="ss">)</span>
+<span class="nv">right</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">pd</span>.<span class="nv">DataFrame</span><span class="ss">(</span>{<span class="s1">'key'</span>:<span class="w"> </span>[<span class="s1">'B'</span>,<span class="w"> </span><span class="s1">'D'</span>,<span class="w"> </span><span class="s1">'E'</span>,<span class="w"> </span><span class="s1">'F'</span>],<span class="w"> </span><span class="s1">'value'</span>:<span class="w"> </span><span class="nv">np</span>.<span class="k">random</span>.<span class="nv">randn</span><span class="ss">(</span><span class="mi">4</span><span class="ss">)</span>}<span class="ss">)</span>
+
+<span class="nv">left</span>
+
+<span class="w">  </span><span class="nv">key</span><span class="w">     </span><span class="nv">value</span>
+<span class="mi">0</span><span class="w">   </span><span class="nv">A</span><span class="w">  </span><span class="mi">1</span>.<span class="mi">764052</span>
+<span class="mi">1</span><span class="w">   </span><span class="nv">B</span><span class="w">  </span><span class="mi">0</span>.<span class="mi">400157</span>
+<span class="mi">2</span><span class="w">   </span><span class="nv">C</span><span class="w">  </span><span class="mi">0</span>.<span class="mi">978738</span>
+<span class="mi">3</span><span class="w">   </span><span class="nv">D</span><span class="w">  </span><span class="mi">2</span>.<span class="mi">240893</span>
+
+<span class="nv">right</span>
+
+<span class="w">  </span><span class="nv">key</span><span class="w">     </span><span class="nv">value</span>
+<span class="mi">0</span><span class="w">   </span><span class="nv">B</span><span class="w">  </span><span class="mi">1</span>.<span class="mi">867558</span>
+<span class="mi">1</span><span class="w">   </span><span class="nv">D</span><span class="w"> </span><span class="o">-</span><span class="mi">0</span>.<span class="mi">977278</span>
+<span class="mi">2</span><span class="w">   </span><span class="nv">E</span><span class="w">  </span><span class="mi">0</span>.<span class="mi">950088</span>
+<span class="mi">3</span><span class="w">   </span><span class="nv">F</span><span class="w"> </span><span class="o">-</span><span class="mi">0</span>.<span class="mi">151357</span>
+</pre></div>
+
+<p>For the sake of simplicity, the key column has the same name (for now).</p>
+<p>An <strong>INNER JOIN</strong> is represented by</p>
+<p><img alt="" src="../../images/YvuOa.png"></p>
+<blockquote>
+<p><strong>Note</strong> This, along with the forthcoming figures all follow this
+convention:</p>
+<ul>
+<li>
+<strong>blue</strong> indicates rows that are present in the merge result</li>
+<li>
+<strong>red</strong> indicates rows that are excluded from the result (i.e., removed)</li>
+<li>
+<strong>green</strong> indicates missing values that are replaced with <code>NaN</code>s in the
+result
+</li>
+</ul>
+</blockquote>
+<p>To perform an INNER JOIN, call <code>merge</code> on the left DataFrame, specifying the
+right DataFrame and the join key (at the very least) as arguments.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">left</span>.<span class="nv">merge</span><span class="ss">(</span><span class="nv">right</span>,<span class="w"> </span><span class="nv">on</span><span class="o">=</span><span class="s1">'key'</span><span class="ss">)</span>
+#<span class="w"> </span><span class="nv">Or</span>,<span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="nv">want</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">be</span><span class="w"> </span><span class="nv">explicit</span>
+#<span class="w"> </span><span class="nv">left</span>.<span class="nv">merge</span><span class="ss">(</span><span class="nv">right</span>,<span class="w"> </span><span class="nv">on</span><span class="o">=</span><span class="s1">'key'</span>,<span class="w"> </span><span class="nv">how</span><span class="o">=</span><span class="s1">'inner'</span><span class="ss">)</span>
+
+<span class="w">  </span><span class="nv">key</span><span class="w">   </span><span class="nv">value_x</span><span class="w">   </span><span class="nv">value_y</span>
+<span class="mi">0</span><span class="w">   </span><span class="nv">B</span><span class="w">  </span><span class="mi">0</span>.<span class="mi">400157</span><span class="w">  </span><span class="mi">1</span>.<span class="mi">867558</span>
+<span class="mi">1</span><span class="w">   </span><span class="nv">D</span><span class="w">  </span><span class="mi">2</span>.<span class="mi">240893</span><span class="w"> </span><span class="o">-</span><span class="mi">0</span>.<span class="mi">977278</span>
+</pre></div>
+
+<p>This returns only rows from <code>left</code> and <code>right</code> which share a common key (in
+this example, "B" and "D).</p>
+<p>A <strong>LEFT OUTER JOIN</strong> , or LEFT JOIN is represented by</p>
+<p><img alt="" src="../../images/BECid.png"></p>
+<p>This can be performed by specifying <code>how='left'</code>.</p>
+<div class="code"><pre class="code literal-block">left.merge(right, on='key', how='left')
+
+  key   value_x   value_y
+0   A  1.764052       NaN
+1   B  0.400157  1.867558
+2   C  0.978738       NaN
+3   D  2.240893 -0.977278
+</pre></div>
+
+<p>Carefully note the placement of NaNs here. If you specify <code>how='left'</code>, then
+only keys from <code>left</code> are used, and missing data from <code>right</code> is replaced by
+NaN.</p>
+<p>And similarly, for a <strong>RIGHT OUTER JOIN</strong> , or RIGHT JOIN which is...</p>
+<p><img alt="" src="../../images/8w1US.png"></p>
+<p>...specify <code>how='right'</code>:</p>
+<div class="code"><pre class="code literal-block">left.merge(right, on='key', how='right')
+
+  key   value_x   value_y
+0   B  0.400157  1.867558
+1   D  2.240893 -0.977278
+2   E       NaN  0.950088
+3   F       NaN -0.151357
+</pre></div>
+
+<p>Here, keys from <code>right</code> are used, and missing data from <code>left</code> is replaced by
+NaN.</p>
+<p>Finally, for the <strong>FULL OUTER JOIN</strong> , given by</p>
+<p><img alt="" src="../../images/euLoe.png"></p>
+<p>specify <code>how='outer'</code>.</p>
+<div class="code"><pre class="code literal-block">left.merge(right, on='key', how='outer')
+
+  key   value_x   value_y
+0   A  1.764052       NaN
+1   B  0.400157  1.867558
+2   C  0.978738       NaN
+3   D  2.240893 -0.977278
+4   E       NaN  0.950088
+5   F       NaN -0.151357
+</pre></div>
+
+<p>This uses the keys from both frames, and NaNs are inserted for missing rows in
+both.</p>
+<p>The documentation summarizes these various merges nicely:</p>
+<p><img alt="Enter image description here" src="../../images/5qDIy.png"></p>
+<hr>
+<h4>**Other JOINs - LEFT-Excluding, RIGHT-Excluding, and FULL-Excluding/ANTI</h4>
+<p>JOINs**</p>
+<p>If you need <strong>LEFT-Excluding JOINs</strong> and <strong>RIGHT-Excluding JOINs</strong> in two
+steps.</p>
+<p>For LEFT-Excluding JOIN, represented as</p>
+<p><img alt="" src="../../images/bXWIV.png"></p>
+<p>Start by performing a LEFT OUTER JOIN and then filtering to rows coming from
+<code>left</code> only (excluding everything from the right),</p>
+<div class="code"><pre class="code literal-block">(left.merge(right, on='key', how='left', indicator=True)
+     .query('_merge == "left_only"')
+     .drop('_merge', 1))
+
+  key   value_x  value_y
+0   A  1.764052      NaN
+2   C  0.978738      NaN
+</pre></div>
+
+<p>Where,</p>
+<div class="code"><pre class="code literal-block">left.merge(right, on='key', how='left', indicator=True)
+
+  key   value_x   value_y     _merge
+0   A  1.764052       NaN  left_only
+1   B  0.400157  1.867558       both
+2   C  0.978738       NaN  left_only
+3   D  2.240893 -0.977278       both
+</pre></div>
+
+<p>And similarly, for a RIGHT-Excluding JOIN,</p>
+<p><img alt="" src="../../images/Z0br2.png"></p>
+<div class="code"><pre class="code literal-block">(left.merge(right, on='key', how='right', indicator=True)
+     .query('_merge == "right_only"')
+     .drop('_merge', 1))
+
+  key  value_x   value_y
+2   E      NaN  0.950088
+3   F      NaN -0.151357
+</pre></div>
+
+<p>Lastly, if you are required to do a merge that only retains keys from the left
+or right, but not both (IOW, performing an <strong>ANTI-JOIN</strong> ),</p>
+<p><img alt="" src="../../images/PWMYd.png"></p>
+<p>You can do this in similar fashion—</p>
+<div class="code"><pre class="code literal-block">(left.merge(right, on='key', how='outer', indicator=True)
+     .query('_merge != "both"')
+     .drop('_merge', 1))
+
+  key   value_x   value_y
+0   A  1.764052       NaN
+2   C  0.978738       NaN
+4   E       NaN  0.950088
+5   F       NaN -0.151357
+</pre></div>
+
+<hr>
+<h4><strong>Different names for key columns</strong></h4>
+<p>If the key columns are named differently—for example, <code>left</code> has <code>keyLeft</code>,
+and <code>right</code> has <code>keyRight</code> instead of <code>key</code>—then you will have to specify
+<code>left_on</code> and <code>right_on</code> as arguments instead of <code>on</code>:</p>
+<div class="code"><pre class="code literal-block">left2 = left.rename({'key':'keyLeft'}, axis=1)
+right2 = right.rename({'key':'keyRight'}, axis=1)
+
+left2
+
+  keyLeft     value
+0       A  1.764052
+1       B  0.400157
+2       C  0.978738
+3       D  2.240893
+
+right2
+
+  keyRight     value
+0        B  1.867558
+1        D -0.977278
+2        E  0.950088
+3        F -0.151357
+
+
+
+left2.merge(right2, left_on='keyLeft', right_on='keyRight', how='inner')
+
+  keyLeft   value_x keyRight   value_y
+0       B  0.400157        B  1.867558
+1       D  2.240893        D -0.977278
+</pre></div>
+
+<hr>
+<h4><strong>Avoiding duplicate key column in output</strong></h4>
+<p>When merging on <code>keyLeft</code> from <code>left</code> and <code>keyRight</code> from <code>right</code>, if you only
+want either of the <code>keyLeft</code> or <code>keyRight</code> (but not both) in the output, you
+can start by setting the index as a preliminary step.</p>
+<div class="code"><pre class="code literal-block">left3 = left2.set_index('keyLeft')
+left3.merge(right2, left_index=True, right_on='keyRight')
+
+    value_x keyRight   value_y
+0  0.400157        B  1.867558
+1  2.240893        D -0.977278
+</pre></div>
+
+<p>Contrast this with the output of the command just before (that is, the output
+of <code>left2.merge(right2, left_on='keyLeft', right_on='keyRight',
+how='inner')</code>), you'll notice <code>keyLeft</code> is missing. You can figure out what
+column to keep based on which frame's index is set as the key. This may matter
+when, say, performing some OUTER JOIN operation.</p>
+<hr>
+<h4><strong>Merging only a single column from one of the<code>DataFrames</code></strong></h4>
+<p>For example, consider</p>
+<div class="code"><pre class="code literal-block"><span class="n">right3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">right</span><span class="p">.</span><span class="k">assign</span><span class="p">(</span><span class="n">newcol</span><span class="o">=</span><span class="n">np</span><span class="p">.</span><span class="n">arange</span><span class="p">(</span><span class="n">len</span><span class="p">(</span><span class="n">right</span><span class="p">)))</span>
+<span class="n">right3</span>
+<span class="w">  </span><span class="n">key</span><span class="w">     </span><span class="n">value</span><span class="w">  </span><span class="n">newcol</span>
+<span class="mh">0</span><span class="w">   </span><span class="n">B</span><span class="w">  </span><span class="mf">1.867558</span><span class="w">       </span><span class="mh">0</span>
+<span class="mh">1</span><span class="w">   </span><span class="n">D</span><span class="w"> </span><span class="o">-</span><span class="mf">0.977278</span><span class="w">       </span><span class="mh">1</span>
+<span class="mh">2</span><span class="w">   </span><span class="n">E</span><span class="w">  </span><span class="mf">0.950088</span><span class="w">       </span><span class="mh">2</span>
+<span class="mh">3</span><span class="w">   </span><span class="n">F</span><span class="w"> </span><span class="o">-</span><span class="mf">0.151357</span><span class="w">       </span><span class="mh">3</span>
+</pre></div>
+
+<p>If you are required to merge only "newcol" (without any of the other columns),
+you can usually just subset columns before merging:</p>
+<div class="code"><pre class="code literal-block">left.merge(right3[['key', 'newcol']], on='key')
+
+  key     value  newcol
+0   B  0.400157       0
+1   D  2.240893       1
+</pre></div>
+
+<p>If you're doing a LEFT OUTER JOIN, a more performant solution would involve
+<code>map</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="p">#</span><span class="w"> </span><span class="n">left</span><span class="p">['</span><span class="n">newcol</span><span class="p">']</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">left</span><span class="p">['</span><span class="n">key</span><span class="p">'].</span><span class="n">map</span><span class="p">(</span><span class="n">right3</span><span class="p">.</span><span class="n">set_index</span><span class="p">('</span><span class="n">key</span><span class="p">')['</span><span class="n">newcol</span><span class="p">']))</span>
+<span class="n">left</span><span class="p">.</span><span class="k">assign</span><span class="p">(</span><span class="n">newcol</span><span class="o">=</span><span class="n">left</span><span class="p">['</span><span class="n">key</span><span class="p">'].</span><span class="n">map</span><span class="p">(</span><span class="n">right3</span><span class="p">.</span><span class="n">set_index</span><span class="p">('</span><span class="n">key</span><span class="p">')['</span><span class="n">newcol</span><span class="p">']))</span>
+
+<span class="w">  </span><span class="n">key</span><span class="w">     </span><span class="n">value</span><span class="w">  </span><span class="n">newcol</span>
+<span class="mh">0</span><span class="w">   </span><span class="n">A</span><span class="w">  </span><span class="mf">1.764052</span><span class="w">     </span><span class="n">NaN</span>
+<span class="mh">1</span><span class="w">   </span><span class="n">B</span><span class="w">  </span><span class="mf">0.400157</span><span class="w">     </span><span class="mf">0.0</span>
+<span class="mh">2</span><span class="w">   </span><span class="n">C</span><span class="w">  </span><span class="mf">0.978738</span><span class="w">     </span><span class="n">NaN</span>
+<span class="mh">3</span><span class="w">   </span><span class="n">D</span><span class="w">  </span><span class="mf">2.240893</span><span class="w">     </span><span class="mf">1.0</span>
+</pre></div>
+
+<p>As mentioned, this is similar to, but faster than</p>
+<div class="code"><pre class="code literal-block">left.merge(right3[['key', 'newcol']], on='key', how='left')
+
+  key     value  newcol
+0   A  1.764052     NaN
+1   B  0.400157     0.0
+2   C  0.978738     NaN
+3   D  2.240893     1.0
+</pre></div>
+
+<hr>
+<h4><strong>Merging on multiple columns</strong></h4>
+<p>To join on more than one column, specify a list for <code>on</code> (or <code>left_on</code> and
+<code>right_on</code>, as appropriate).</p>
+<div class="code"><pre class="code literal-block">left.merge(right, on=['key1', 'key2'] ...)
+</pre></div>
+
+<p>Or, in the event the names are different,</p>
+<div class="code"><pre class="code literal-block">left.merge(right, left_on=['lkey1', 'lkey2'], right_on=['rkey1', 'rkey2'])
+</pre></div>
+
+<hr>
+<h4><strong>Other useful<code>merge*</code> operations and functions</strong></h4>
+<ul>
+<li>
+<p>Merging a DataFrame with Series on index: See this answer.</p>
+</li>
+<li>
+<p>Besides <code>merge</code>, <code>DataFrame.update</code> and <code>DataFrame.combine_first</code> are also used in certain cases to update one DataFrame with another.</p>
+</li>
+<li>
+<p><code>pd.merge_ordered</code> is a useful function for ordered JOINs.</p>
+</li>
+<li>
+<p><code>pd.merge_asof</code> (read: merge_asOf) is useful for <em>approximate</em> joins.</p>
+</li>
+</ul>
+<p><strong>This section only covers the very basics, and is designed to only whet your
+appetite. For more examples and cases, see the documentation on<code>merge</code>,
+<code>join</code>, and <code>concat</code> as well as the links to the function specifications.</strong></p>
+<hr>
+<hr>
+<h2>Continue Reading</h2>
+<p>Jump to other topics in Pandas Merging 101 to continue learning:</p>
+<ul>
+<li>
+<p>Merging basics - basic types of joins *</p>
+</li>
+<li>
+<p>Index-based joins</p>
+</li>
+<li>
+<p>Generalizing to multiple DataFrames</p>
+</li>
+<li>
+<p>Cross join</p>
+</li>
+</ul>
+<p>*You are here.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>A supplemental visual view of <code>pd.concat([df0, df1], kwargs)</code>. Notice that,
+kwarg <code>axis=0</code> or <code>axis=1</code> 's meaning is not as intuitive as <code>df.mean()</code> or
+<code>df.apply(func)</code></p>
+<hr>
+<p><img alt="on pd.concat([df0, df1])" src="../../images/1rb1R.jpg"></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/concatenation/" rel="tag">concatenation</a></li>
+            <li><a class="tag p-category" href="../../categories/join/" rel="tag">join</a></li>
+            <li><a class="tag p-category" href="../../categories/merge/" rel="tag">merge</a></li>
+            <li><a class="tag p-category" href="../../categories/pandas/" rel="tag">pandas</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-can-i-iterate-over-files-in-a-given-directory/" rel="prev" title="How can I iterate over files in a given directory?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-is-the-simplest-and-most-robust-way-to-get-the-user-s-current-location-on-android/" rel="next" title="What is the simplest and most robust way to get the user's current location on Android?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

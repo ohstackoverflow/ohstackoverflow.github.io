@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why is it bad style to `rescue Exception =&gt; e` in Ruby? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/why-is-it-bad-style-to-rescue-exception-e-in-ruby/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-do-i-force-my-net-application-to-run-as-administrator/" title="How do I force my .NET application to run as administrator?" type="text/html">
+<link rel="next" href="../should-css-always-precede-javascript/" title="Should CSS always precede JavaScript?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Why is it bad style to `rescue Exception =&gt; e` in Ruby?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/why-is-it-bad-style-to-rescue-exception-e-in-ruby/">
+<meta property="og:description" content="Ryan Davis’s Ruby QuickRef says (without explanation):
+
+Don’t rescue Exception. EVER. or I will stab you.
+
+Why not? What’s the right thing to do?
+
+Answer
+TL;DR : Use StandardError instead for general ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T08:22:58+08:00">
+<meta property="article:tag" content="exception">
+<meta property="article:tag" content="ruby">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Why is it bad style to `rescue Exception =&gt; e` in Ruby?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T08:22:58+08:00" itemprop="datePublished" title="2023-02-17 08:22">2023-02-17 08:22</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Ryan Davis’s Ruby QuickRef says (without explanation):</p>
+<blockquote>
+<p>Don’t rescue Exception. EVER. or I will stab you.</p>
+</blockquote>
+<p>Why not? What’s the right thing to do?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>TL;DR</strong> : Use <code>StandardError</code> instead for general exception catching. When
+the original exception is re-raised (e.g. when rescuing to log the exception
+only), rescuing <code>Exception</code> is probably okay.</p>
+<hr>
+<p><code>Exception</code> is the root of Ruby's exception hierarchy, so when you <code>rescue
+Exception</code> you rescue from <em>everything</em> , including subclasses such as
+<code>SyntaxError</code>, <code>LoadError</code>, and <code>Interrupt</code>.</p>
+<p>Rescuing <code>Interrupt</code> prevents the user from using <code>CTRL``C</code> to exit the
+program.</p>
+<p>Rescuing <code>SignalException</code> prevents the program from responding correctly to
+signals. It will be unkillable except by <code>kill -9</code>.</p>
+<p>Rescuing <code>SyntaxError</code> means that <code>eval</code>s that fail will do so silently.</p>
+<p>All of these can be shown by running this program, and trying to <code>CTRL``C</code> or
+<code>kill</code> it:</p>
+<div class="code"><pre class="code literal-block"><span class="k">loop</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nv">begin</span>
+<span class="w">    </span><span class="nv">sleep</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="nv">eval</span><span class="w"> </span><span class="s2">"djsakru3924r9eiuorwju3498 += 5u84fior8u8t4ruyf8ihiure"</span>
+<span class="w">  </span><span class="nv">rescue</span><span class="w"> </span><span class="nv">Exception</span>
+<span class="w">    </span><span class="nv">puts</span><span class="w"> </span><span class="s2">"I refuse to fail or be stopped!"</span>
+<span class="w">  </span><span class="k">end</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>Rescuing from <code>Exception</code> isn't even the default. Doing</p>
+<div class="code"><pre class="code literal-block"><span class="nv">begin</span>
+<span class="w">  </span>#<span class="w"> </span><span class="nv">iceberg</span><span class="o">!</span>
+<span class="nv">rescue</span>
+<span class="w">  </span>#<span class="w"> </span><span class="nv">lifeboats</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>does not rescue from <code>Exception</code>, it rescues from <code>StandardError</code>. You should
+generally specify something more specific than the default <code>StandardError</code>,
+but rescuing from <code>Exception</code> <em>broadens</em> the scope rather than narrowing it,
+and can have catastrophic results and make bug-hunting extremely difficult.</p>
+<hr>
+<p>If you have a situation where you do want to rescue from <code>StandardError</code> and
+you need a variable with the exception, you can use this form:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">begin</span>
+<span class="w">  </span>#<span class="w"> </span><span class="nv">iceberg</span><span class="o">!</span>
+<span class="nv">rescue</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nv">e</span>
+<span class="w">  </span>#<span class="w"> </span><span class="nv">lifeboats</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>which is equivalent to:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">begin</span>
+<span class="w">  </span>#<span class="w"> </span><span class="nv">iceberg</span><span class="o">!</span>
+<span class="nv">rescue</span><span class="w"> </span><span class="nv">StandardError</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nv">e</span>
+<span class="w">  </span>#<span class="w"> </span><span class="nv">lifeboats</span>
+<span class="k">end</span>
+</pre></div>
+
+<hr>
+<p>One of the few common cases where it’s sane to rescue from <code>Exception</code> is for
+logging/reporting purposes, in which case you should immediately re-raise the
+exception:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">begin</span>
+<span class="w">  </span>#<span class="w"> </span><span class="nv">iceberg</span>?
+<span class="nv">rescue</span><span class="w"> </span><span class="nv">Exception</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nv">e</span>
+<span class="w">  </span>#<span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">some</span><span class="w"> </span><span class="nv">logging</span>
+<span class="w">  </span><span class="nv">raise</span><span class="w"> </span>#<span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">enough</span><span class="w"> </span><span class="nv">lifeboats</span><span class="w"> </span><span class="c1">;)</span>
+<span class="k">end</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>The <em>real</em> rule is: Don't throw away exceptions. The objectivity of the author
+of your quote is questionable, as evidenced by the fact that it ends with</p>
+<blockquote>
+<p>or I will stab you</p>
+</blockquote>
+<p>Of course, be aware that signals (by default) throw exceptions, and normally
+long-running processes are terminated through a signal, so catching Exception
+and not terminating on signal exceptions will make your program very hard to
+stop. So don't do this:</p>
+<div class="code"><table class="codetable">
+<tr>
+<td class="linenos linenodiv"><a href="#-1"><code data-line-number=" 1"></code></a></td>
+<td class="code"><code><span class="ch">#! /usr/bin/ruby</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-2"><code data-line-number=" 2"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-3"><code data-line-number=" 3"></code></a></td>
+<td class="code"><code><span class="k">while</span><span class="w"> </span><span class="kp">true</span><span class="w"> </span><span class="k">do</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-4"><code data-line-number=" 4"></code></a></td>
+<td class="code"><code><span class="w">  </span><span class="k">begin</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-5"><code data-line-number=" 5"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="n">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">STDIN</span><span class="o">.</span><span class="n">gets</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-6"><code data-line-number=" 6"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="c1"># heavy processing</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-7"><code data-line-number=" 7"></code></a></td>
+<td class="code"><code><span class="w">  </span><span class="k">rescue</span><span class="w"> </span><span class="no">Exception</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">e</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-8"><code data-line-number=" 8"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="nb">puts</span><span class="w"> </span><span class="s2">"caught exception </span><span class="si">#{</span><span class="n">e</span><span class="si">}</span><span class="s2">! ohnoes!"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-9"><code data-line-number=" 9"></code></a></td>
+<td class="code"><code><span class="w">  </span><span class="k">end</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-10"><code data-line-number="10"></code></a></td>
+<td class="code"><code><span class="k">end</span>
+</code></td>
+</tr>
+</table></div>
+<p>No, really, don't do it. Don't even run that to see if it works.</p>
+<p>However, say you have a threaded server and you want all exceptions to not:</p>
+<ol>
+<li>be ignored (the default)</li>
+<li>stop the server (which happens if you say <code>thread.abort_on_exception = true</code>). </li>
+</ol>
+<p>Then this is perfectly acceptable in your connection handling thread:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">begin</span>
+<span class="w">  </span>#<span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">stuff</span>
+<span class="nv">rescue</span><span class="w"> </span><span class="nv">Exception</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nv">e</span>
+<span class="w">  </span><span class="nv">myLogger</span>.<span class="nv">error</span><span class="ss">(</span><span class="s2">"uncaught #{e} exception while handling connection: #{e.message}"</span><span class="ss">)</span>
+<span class="w">    </span><span class="nv">myLogger</span>.<span class="nv">error</span><span class="ss">(</span><span class="s2">"Stack trace: #{backtrace.map {|l| "</span><span class="w">  </span>#{<span class="nv">l</span>}\<span class="nv">n</span><span class="s2">"}.join}"</span><span class="ss">)</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>The above works out to a variation of Ruby's default exception handler, with
+the advantage that it doesn't also kill your program. Rails does this in its
+request handler.</p>
+<p>Signal exceptions are raised in the main thread. Background threads won't get
+them, so there is no point in trying to catch them there.</p>
+<p>This is particularly useful in a production environment, where you do <em>not</em>
+want your program to simply stop whenever something goes wrong. Then you can
+take the stack dumps in your logs and add to your code to deal with specific
+exception further down the call chain and in a more graceful manner.</p>
+<p>Note also that there is another Ruby idiom which has much the same effect:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">do_something</span><span class="w"> </span><span class="nv">rescue</span><span class="w"> </span><span class="s2">"something else"</span>
+</pre></div>
+
+<p>In this line, if <code>do_something</code> raises an exception, it is caught by Ruby,
+thrown away, and <code>a</code> is assigned <code>"something else"</code>.</p>
+<p>Generally, don't do that, except in special cases where you <em>know</em> you don't
+need to worry. One example:</p>
+<div class="code"><pre class="code literal-block">debugger rescue nil
+</pre></div>
+
+<p>The <code>debugger</code> function is a rather nice way to set a breakpoint in your code,
+but if running outside a debugger, and Rails, it raises an exception. Now
+theoretically you shouldn't be leaving debug code lying around in your program
+(pff! nobody does that!) but you might want to keep it there for a while for
+some reason, but not continually run your debugger.</p>
+<p>Note:</p>
+<ol>
+<li>
+<p>If you've run someone else's program that catches signal exceptions and ignores them, (say the code above) then:</p>
+<ul>
+<li>in Linux, in a shell, type <code>pgrep ruby</code>, or <code>ps | grep ruby</code>, look for your offending program's PID, and then run <code>kill -9 &lt;PID&gt;</code>. </li>
+<li>in Windows, use the Task Manager (<code>CTRL</code>-<code>SHIFT</code>-<code>ESC</code>), go to the "processes" tab, find your process, right click it and select "End process".</li>
+<li>
+<p>If you are working with someone else's program which is, for whatever reason, peppered with these ignore-exception blocks, then putting this at the top of the mainline is one possible cop-out:</p>
+<p>%W/INT QUIT TERM/.each { |sig| trap sig,"SYSTEM_DEFAULT" }</p>
+</li>
+</ul>
+</li>
+</ol>
+<p>This causes the program to respond to the normal termination signals by
+immediately terminating, bypassing exception handlers, <em>with no cleanup</em>. So
+it could cause data loss or similar. Be careful!</p>
+<ol>
+<li>If you need to do this:<div class="code"><pre class="code literal-block">begin
+</pre></div>
+
+<p>do_something
+rescue Exception =&gt; e
+  critical_cleanup
+  raise
+end</p>
+</li>
+</ol>
+<p>you can actually do this:</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="nv">begin</span>
+<span class="w">  </span><span class="nv">do_something</span>
+<span class="nv">ensure</span>
+<span class="w">  </span><span class="nv">critical_cleanup</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>In the second case, <code>critical cleanup</code> will be called every time, whether or
+not an exception is thrown.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/exception/" rel="tag">exception</a></li>
+            <li><a class="tag p-category" href="../../categories/ruby/" rel="tag">ruby</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-do-i-force-my-net-application-to-run-as-administrator/" rel="prev" title="How do I force my .NET application to run as administrator?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../should-css-always-precede-javascript/" rel="next" title="Should CSS always precede JavaScript?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

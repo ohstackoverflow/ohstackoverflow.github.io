@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why is 2 * (i * i) faster than 2 * i * i in Java? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/why-is-2-i-i-faster-than-2-i-i-in-java/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-do-you-implement-a-stack-and-a-queue-in-javascript/" title="How do you implement a Stack and a Queue in JavaScript?" type="text/html">
+<link rel="next" href="../why-use-apparently-meaningless-do-while-and-if-else-statements-in-macros/" title="Why use apparently meaningless do-while and if-else statements in macros?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Why is 2 * (i * i) faster than 2 * i * i in Java?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/why-is-2-i-i-faster-than-2-i-i-in-java/">
+<meta property="og:description" content="The following Java program takes on average between 0.50 secs and 0.55 secs to
+run:
+public static void main(String[] args) {
+    long startTime = System.nanoTime();
+    int n = 0;
+    for (int i = 0; ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T10:01:02+08:00">
+<meta property="article:tag" content="benchmarking">
+<meta property="article:tag" content="bytecode">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="jit">
+<meta property="article:tag" content="performance">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Why is 2 * (i * i) faster than 2 * i * i in Java?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T10:01:02+08:00" itemprop="datePublished" title="2023-02-17 10:01">2023-02-17 10:01</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>The following Java program takes on average between 0.50 secs and 0.55 secs to
+run:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">static</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">main</span><span class="ss">(</span><span class="nv">String</span>[]<span class="w"> </span><span class="nv">args</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">long</span><span class="w"> </span><span class="nv">startTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">System</span>.<span class="nv">nanoTime</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">int</span><span class="w"> </span><span class="nv">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; i &lt; 1000000000; i++) {</span>
+<span class="w">        </span><span class="nv">n</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="ss">(</span><span class="nv">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nv">i</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span>}
+<span class="w">    </span><span class="nv">System</span>.<span class="nv">out</span>.<span class="nv">println</span><span class="ss">(</span>
+<span class="w">        </span><span class="ss">(</span><span class="nv">double</span><span class="ss">)</span><span class="w"> </span><span class="ss">(</span><span class="nv">System</span>.<span class="nv">nanoTime</span><span class="ss">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">startTime</span><span class="ss">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1000000000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" s"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">System</span>.<span class="nv">out</span>.<span class="nv">println</span><span class="ss">(</span><span class="s2">"n = "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">n</span><span class="ss">)</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>If I replace <code>2 * (i * i)</code> with <code>2 * i * i</code>, it takes between 0.60 and 0.65
+secs to run. How come?</p>
+<p>I ran each version of the program 15 times, alternating between the two. Here
+are the results:</p>
+<div class="code"><pre class="code literal-block"> 2*(i*i)  │  2*i*i
+──────────┼──────────
+0.5183738 │ 0.6246434
+0.5298337 │ 0.6049722
+0.5308647 │ 0.6603363
+0.5133458 │ 0.6243328
+0.5003011 │ 0.6541802
+0.5366181 │ 0.6312638
+0.515149  │ 0.6241105
+0.5237389 │ 0.627815
+0.5249942 │ 0.6114252
+0.5641624 │ 0.6781033
+0.538412  │ 0.6393969
+0.5466744 │ 0.6608845
+0.531159  │ 0.6201077
+0.5048032 │ 0.6511559
+0.5232789 │ 0.6544526
+</pre></div>
+
+<p>The fastest run of <code>2 * i * i</code> took longer than the slowest run of <code>2 * (i *
+i)</code>. If they had the same efficiency, the probability of this happening would
+be less than <code>1/2^15 * 100% = 0.00305%</code>.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>There is a slight difference in the ordering of the bytecode.</p>
+<p><code>2 * (i * i)</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="n">iconst_2</span>
+<span class="w">     </span><span class="n">iload0</span>
+<span class="w">     </span><span class="n">iload0</span>
+<span class="w">     </span><span class="n">imul</span>
+<span class="w">     </span><span class="n">imul</span>
+<span class="w">     </span><span class="n">iadd</span>
+</pre></div>
+
+<p>vs <code>2 * i * i</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="n">iconst_2</span>
+<span class="w">     </span><span class="n">iload0</span>
+<span class="w">     </span><span class="n">imul</span>
+<span class="w">     </span><span class="n">iload0</span>
+<span class="w">     </span><span class="n">imul</span>
+<span class="w">     </span><span class="n">iadd</span>
+</pre></div>
+
+<p>At first sight this should not make a difference; if anything the second
+version is more optimal since it uses one slot less.</p>
+<p>So we need to dig deeper into the lower level (JIT)1.</p>
+<p>Remember that JIT tends to unroll small loops very aggressively. Indeed we
+observe a 16x unrolling for the <code>2 * (i * i)</code> case:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">030</span><span class="w">   </span><span class="n">B2</span><span class="p">:</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">B2</span><span class="w"> </span><span class="n">B3</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">B1</span><span class="w"> </span><span class="n">B2</span><span class="w">  </span><span class="n">Loop</span><span class="p">:</span><span class="w"> </span><span class="n">B2</span><span class="o">-</span><span class="n">B2</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="n">main</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">N18</span><span class="w"> </span><span class="nb">Fre</span><span class="n">q</span><span class="p">:</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">+</span><span class="mf">006</span>
+<span class="mf">030</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">RBP</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">033</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">036</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">039</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="n">RBP</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">03</span><span class="n">c</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">03</span><span class="n">f</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">13</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">043</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">047</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">049</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">04</span><span class="n">c</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R8</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">04</span><span class="n">f</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R8</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">15</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">053</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">056</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">XMM1</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">05</span><span class="n">b</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">05</span><span class="n">f</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R8</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">062</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R8</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">12</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">066</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R8</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">06</span><span class="n">a</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">06</span><span class="n">d</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">32</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">072</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R8</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">075</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RBX</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">078</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RBX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">07</span><span class="n">b</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RBX</span><span class="p">,</span><span class="w"> </span><span class="n">RBX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">07</span><span class="n">e</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">081</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">084</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="n">RCX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">087</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">RBX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">089</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">08</span><span class="n">b</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RDX</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">08</span><span class="n">e</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RDX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">091</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RDX</span><span class="p">,</span><span class="w"> </span><span class="n">RDX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">094</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RDI</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">097</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RDI</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">7</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">09</span><span class="n">a</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RDI</span><span class="p">,</span><span class="w"> </span><span class="n">RDI</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">09</span><span class="n">d</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">RDX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">09</span><span class="n">f</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">RDI</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">0</span><span class="n">a1</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RAX</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">a4</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RAX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">6</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">a7</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RAX</span><span class="p">,</span><span class="w"> </span><span class="n">RAX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">aa</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RSI</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">ad</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RSI</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">4</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">b0</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RSI</span><span class="p">,</span><span class="w"> </span><span class="n">RSI</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">b3</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">RAX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">0</span><span class="n">b5</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">RSI</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">0</span><span class="n">b7</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">ba</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">2</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">be</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">c2</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R14</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">c5</span><span class="w">     </span><span class="n">incl</span><span class="w">    </span><span class="n">R14</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">c8</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R14</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">cc</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">0</span><span class="n">cf</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R14</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">0</span><span class="n">d2</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R14</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">d5</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R14</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">d8</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">db</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">3</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">df</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">e3</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">e6</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">5</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">ea</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">ee</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">0</span><span class="n">f1</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">f4</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">RSI</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">f7</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">0</span><span class="n">fa</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">fd</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">RAX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">100</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">RDI</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">103</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">RDX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">106</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">109</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">10</span><span class="n">d</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">111</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">114</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">117</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">RCX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">11</span><span class="n">a</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">RBX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">11</span><span class="n">d</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">120</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">123</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">126</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">32</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">12</span><span class="n">a</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R13</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">16</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">12</span><span class="n">e</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">131</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">135</span><span class="w">     </span><span class="n">sall</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">1</span>
+<span class="mf">138</span><span class="w">     </span><span class="n">cmpl</span><span class="w">    </span><span class="n">R13</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">999999985</span>
+<span class="mf">13</span><span class="n">f</span><span class="w">     </span><span class="n">jl</span><span class="w">     </span><span class="n">B2</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">loop</span><span class="w"> </span><span class="kr">end</span><span class="w">  </span><span class="n">P</span><span class="o">=</span><span class="mf">1.000000</span><span class="w"> </span><span class="n">C</span><span class="o">=</span><span class="mf">6554623.000000</span>
+</pre></div>
+
+<p>We see that there is 1 register that is "spilled" onto the stack.</p>
+<p>And for the <code>2 * i * i</code> version:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">05</span><span class="n">a</span><span class="w">   </span><span class="n">B3</span><span class="p">:</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">B2</span><span class="w"> </span><span class="n">B4</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">B1</span><span class="w"> </span><span class="n">B2</span><span class="w">  </span><span class="n">Loop</span><span class="p">:</span><span class="w"> </span><span class="n">B3</span><span class="o">-</span><span class="n">B2</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="n">main</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">N18</span><span class="w"> </span><span class="nb">Fre</span><span class="n">q</span><span class="p">:</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">+</span><span class="mf">006</span>
+<span class="mf">05</span><span class="n">a</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RBX</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">05</span><span class="n">d</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">32</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">RBX</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">061</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">064</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">15</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">068</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">36</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">06</span><span class="n">d</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">070</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">074</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">077</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">16</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">07</span><span class="n">b</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">XMM2</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">080</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">083</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">086</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">XMM1</span><span class="p">,</span><span class="w"> </span><span class="n">RCX</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">08</span><span class="n">a</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">08</span><span class="n">d</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">12</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">091</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">XMM4</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">096</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">099</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">09</span><span class="n">c</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">XMM6</span><span class="p">,</span><span class="w"> </span><span class="n">RCX</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">a0</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RBX</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">a3</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RBX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">a6</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">a9</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">6</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">ac</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RDX</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">af</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RDX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">4</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">b2</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">2</span><span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">b6</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">b9</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">22</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">bd</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">XMM3</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">c2</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RDI</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">c5</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RDI</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">20</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">c8</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RAX</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">cb</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RAX</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">32</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">ce</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RSI</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">d1</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RSI</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">18</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">d4</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R13</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">d7</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R13</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">24</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">db</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">de</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">26</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">e2</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">40</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">e7</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="n">R14</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">ea</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">28</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">ed</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">f1</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R14</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">30</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">f5</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R14</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">36</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">0</span><span class="n">fb</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">0</span><span class="n">fe</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">102</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">XMM3</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">107</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">10</span><span class="n">b</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">44</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">110</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">113</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">117</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RDI</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">11</span><span class="n">b</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">11</span><span class="n">e</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">122</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">XMM2</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">127</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">12</span><span class="n">b</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">48</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">130</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">133</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">7</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">137</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">XMM1</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">13</span><span class="n">c</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">140</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">52</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">145</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">148</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">6</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">14</span><span class="n">c</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">XMM4</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">151</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">155</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">56</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">15</span><span class="n">a</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">15</span><span class="n">d</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">5</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">161</span><span class="w">     </span><span class="n">movdl</span><span class="w">   </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">XMM6</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">166</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">16</span><span class="n">a</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="err">[</span><span class="n">rsp</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">60</span><span class="err">]</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">16</span><span class="n">f</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">172</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">4</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">176</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RBX</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">17</span><span class="n">a</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">17</span><span class="n">d</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">3</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">181</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RCX</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">185</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">188</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">2</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">18</span><span class="n">c</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">RDX</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">190</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">193</span><span class="w">     </span><span class="n">incl</span><span class="w">    </span><span class="n">R11</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">196</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">19</span><span class="n">a</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">32</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">19</span><span class="n">f</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="n">RDX</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">a2</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="n">RCX</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">a5</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="n">RBX</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">a8</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">60</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">ad</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">56</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">b2</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">52</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">b7</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R9</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">48</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">bc</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">1</span><span class="n">bf</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">c3</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">RSI</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">c7</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R9</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">ca</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">RDI</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">cd</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">44</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">d2</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">1</span><span class="n">d5</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R11</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">12</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">d9</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R13</span><span class="p">,</span><span class="w"> </span><span class="n">R11</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">dd</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R13</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">e0</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">1</span><span class="n">e3</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">e7</span><span class="w">     </span><span class="n">imull</span><span class="w">   </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">[</span><span class="n">RSP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">#</span><span class="mf">40</span><span class="w"> </span><span class="p">(</span><span class="mf">32</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="err">]</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">ed</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R13</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">f0</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">RBP</span><span class="p">,</span><span class="w"> </span><span class="n">R10</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">f3</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R14</span><span class="p">,</span><span class="w"> </span><span class="n">RBP</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">f6</span><span class="w">     </span><span class="n">movl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="n">R8</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">spill</span>
+<span class="mf">1</span><span class="n">f9</span><span class="w">     </span><span class="n">addl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">16</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nb">int</span>
+<span class="mf">1</span><span class="n">fd</span><span class="w">     </span><span class="n">cmpl</span><span class="w">    </span><span class="n">R10</span><span class="p">,</span><span class="w"> </span><span class="err">#</span><span class="mf">999999985</span>
+<span class="mf">204</span><span class="w">     </span><span class="n">jl</span><span class="w">     </span><span class="n">B2</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">loop</span><span class="w"> </span><span class="kr">end</span><span class="w">  </span><span class="n">P</span><span class="o">=</span><span class="mf">1.000000</span><span class="w"> </span><span class="n">C</span><span class="o">=</span><span class="mf">7419903.000000</span>
+</pre></div>
+
+<p>Here we observe much more "spilling" and more accesses to the stack <code>[RSP +
+...]</code>, due to more intermediate results that need to be preserved.</p>
+<p>Thus the answer to the question is simple: <code>2 * (i * i)</code> is faster than <code>2 * i
+* i</code> because the JIT generates more optimal assembly code for the first case.</p>
+<hr>
+<p>But of course it is obvious that neither the first nor the second version is
+any good; the loop could really benefit from vectorization, since any x86-64
+CPU has at least SSE2 support.</p>
+<p>So it's an issue of the optimizer; as is often the case, it unrolls too
+aggressively and shoots itself in the foot, all the while missing out on
+various other opportunities.</p>
+<p>In fact, modern x86-64 CPUs break down the instructions further into micro-ops
+(µops) and with features like register renaming, µop caches and loop buffers,
+loop optimization takes a lot more finesse than a simple unrolling for optimal
+performance. According to Agner Fog's optimization guide:</p>
+<blockquote>
+<p>The gain in performance due to the µop cache can be quite considerable if
+the average instruction length is more than 4 bytes. The following methods
+of optimizing the use of the µop cache may be considered:</p>
+<ul>
+<li>Make sure that critical loops are small enough to fit into the µop
+cache.</li>
+<li>Align the most critical loop entries and function entries by 32.</li>
+<li>Avoid unnecessary loop unrolling.</li>
+<li>Avoid instructions that have extra load time<br>
+ . . .
+</li>
+</ul>
+</blockquote>
+<p>Regarding those load times - even the fastest L1D hit costs 4 cycles, an extra
+register and µop, so yes, even a few accesses to memory will hurt performance
+in tight loops.</p>
+<p>But back to the vectorization opportunity - to see how fast it can be, we can
+compile a similar C application with GCC, which outright vectorizes it (AVX2
+is shown, SSE2 is similar)2:</p>
+<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="n">vmovdqa</span><span class="w"> </span><span class="n">ymm0</span><span class="p">,</span><span class="w"> </span><span class="n">YMMWORD</span><span class="w"> </span><span class="n">PTR</span><span class="w"> </span><span class="p">.</span><span class="n">LC0</span><span class="o">[</span><span class="n">rip</span><span class="o">]</span>
+<span class="w">  </span><span class="n">vmovdqa</span><span class="w"> </span><span class="n">ymm3</span><span class="p">,</span><span class="w"> </span><span class="n">YMMWORD</span><span class="w"> </span><span class="n">PTR</span><span class="w"> </span><span class="p">.</span><span class="n">LC1</span><span class="o">[</span><span class="n">rip</span><span class="o">]</span>
+<span class="w">  </span><span class="n">xor</span><span class="w"> </span><span class="n">eax</span><span class="p">,</span><span class="w"> </span><span class="n">eax</span>
+<span class="w">  </span><span class="n">vpxor</span><span class="w"> </span><span class="n">xmm2</span><span class="p">,</span><span class="w"> </span><span class="n">xmm2</span><span class="p">,</span><span class="w"> </span><span class="n">xmm2</span>
+<span class="p">.</span><span class="nl">L2</span><span class="p">:</span>
+<span class="w">  </span><span class="n">vpmulld</span><span class="w"> </span><span class="n">ymm1</span><span class="p">,</span><span class="w"> </span><span class="n">ymm0</span><span class="p">,</span><span class="w"> </span><span class="n">ymm0</span>
+<span class="w">  </span><span class="n">inc</span><span class="w"> </span><span class="n">eax</span>
+<span class="w">  </span><span class="n">vpaddd</span><span class="w"> </span><span class="n">ymm0</span><span class="p">,</span><span class="w"> </span><span class="n">ymm0</span><span class="p">,</span><span class="w"> </span><span class="n">ymm3</span>
+<span class="w">  </span><span class="n">vpslld</span><span class="w"> </span><span class="n">ymm1</span><span class="p">,</span><span class="w"> </span><span class="n">ymm1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="n">vpaddd</span><span class="w"> </span><span class="n">ymm2</span><span class="p">,</span><span class="w"> </span><span class="n">ymm2</span><span class="p">,</span><span class="w"> </span><span class="n">ymm1</span>
+<span class="w">  </span><span class="n">cmp</span><span class="w"> </span><span class="n">eax</span><span class="p">,</span><span class="w"> </span><span class="mi">125000000</span><span class="w">      </span><span class="p">;</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="n">calculations</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">iteration</span>
+<span class="w">  </span><span class="n">jne</span><span class="w"> </span><span class="p">.</span><span class="n">L2</span>
+<span class="w">  </span><span class="n">vmovdqa</span><span class="w"> </span><span class="n">xmm0</span><span class="p">,</span><span class="w"> </span><span class="n">xmm2</span>
+<span class="w">  </span><span class="n">vextracti128</span><span class="w"> </span><span class="n">xmm2</span><span class="p">,</span><span class="w"> </span><span class="n">ymm2</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="n">vpaddd</span><span class="w"> </span><span class="n">xmm2</span><span class="p">,</span><span class="w"> </span><span class="n">xmm0</span><span class="p">,</span><span class="w"> </span><span class="n">xmm2</span>
+<span class="w">  </span><span class="n">vpsrldq</span><span class="w"> </span><span class="n">xmm0</span><span class="p">,</span><span class="w"> </span><span class="n">xmm2</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span>
+<span class="w">  </span><span class="n">vpaddd</span><span class="w"> </span><span class="n">xmm0</span><span class="p">,</span><span class="w"> </span><span class="n">xmm2</span><span class="p">,</span><span class="w"> </span><span class="n">xmm0</span>
+<span class="w">  </span><span class="n">vpsrldq</span><span class="w"> </span><span class="n">xmm1</span><span class="p">,</span><span class="w"> </span><span class="n">xmm0</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span>
+<span class="w">  </span><span class="n">vpaddd</span><span class="w"> </span><span class="n">xmm0</span><span class="p">,</span><span class="w"> </span><span class="n">xmm0</span><span class="p">,</span><span class="w"> </span><span class="n">xmm1</span>
+<span class="w">  </span><span class="n">vmovd</span><span class="w"> </span><span class="n">eax</span><span class="p">,</span><span class="w"> </span><span class="n">xmm0</span>
+<span class="w">  </span><span class="n">vzeroupper</span>
+</pre></div>
+
+<p>With run times:</p>
+<ul>
+<li>SSE: 0.24 s, or 2 times as fast.</li>
+<li>AVX: 0.15 s, or 3 times as fast.</li>
+<li>AVX2: 0.08 s, or 5 times as fast.</li>
+</ul>
+<hr>
+<p>1 To get JIT generated assembly output, get a debug JVM and run with
+<code>-XX:+PrintOptoAssembly</code></p>
+<p>2 The C version is compiled with the <code>-fwrapv</code> flag, which enables GCC to
+treat signed integer overflow as a two's-complement wrap-around.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>(Editor's note: this answer is contradicted by evidence from looking at the
+asm, as shown by another answer. This was a guess backed up by some
+experiments, but it turned out not to be correct.)</p>
+<hr>
+<p>When the multiplication is <code>2 * (i * i)</code>, the JVM is able to factor out the
+multiplication by <code>2</code> from the loop, resulting in this equivalent but more
+efficient code:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">;</span>
+<span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; i &lt; 1000000000; i++) {</span>
+<span class="w">    </span><span class="nv">n</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nv">i</span><span class="c1">;</span>
+}
+<span class="nv">n</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="mi">2</span><span class="c1">;</span>
+</pre></div>
+
+<p>but when the multiplication is <code>(2 * i) * i</code>, the JVM doesn't optimize it
+since the multiplication by a constant is no longer right before the <code>n +=</code>
+addition.</p>
+<p>Here are a few reasons why I think this is the case:</p>
+<ul>
+<li>Adding an <code>if (n == 0) n = 1</code> statement at the start of the loop results in both versions being as efficient, since factoring out the multiplication no longer guarantees that the result will be the same</li>
+<li>The optimized version (by factoring out the multiplication by 2) is exactly as fast as the <code>2 * (i * i)</code> version</li>
+</ul>
+<p>Here is the test code that I used to draw these conclusions:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">public</span><span class="w"> </span><span class="nt">static</span><span class="w"> </span><span class="nt">void</span><span class="w"> </span><span class="nt">main</span><span class="o">(</span><span class="nt">String</span><span class="cp">[]</span><span class="w"> </span><span class="nt">args</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">fastVersion</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">slowVersion</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">optimizedVersion</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">modifiedFastVersion</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">modifiedSlowVersion</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">for</span><span class="w"> </span><span class="err">(int</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">10</span><span class="p">;</span><span class="w"> </span><span class="err">i++)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">fastVersion</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">fastVersion()</span><span class="p">;</span>
+<span class="w">        </span><span class="err">slowVersion</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">slowVersion()</span><span class="p">;</span>
+<span class="w">        </span><span class="err">optimizedVersion</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">optimizedVersion()</span><span class="p">;</span>
+<span class="w">        </span><span class="err">modifiedFastVersion</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">modifiedFastVersion()</span><span class="p">;</span>
+<span class="w">        </span><span class="err">modifiedSlowVersion</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">modifiedSlowVersion()</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="nt">System</span><span class="p">.</span><span class="nc">out</span><span class="p">.</span><span class="nc">println</span><span class="o">(</span><span class="s2">"Fast version: "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">(</span><span class="nt">double</span><span class="o">)</span><span class="w"> </span><span class="nt">fastVersion</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">1000000000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" s"</span><span class="o">);</span>
+<span class="w">    </span><span class="nt">System</span><span class="p">.</span><span class="nc">out</span><span class="p">.</span><span class="nc">println</span><span class="o">(</span><span class="s2">"Slow version: "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">(</span><span class="nt">double</span><span class="o">)</span><span class="w"> </span><span class="nt">slowVersion</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">1000000000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" s"</span><span class="o">);</span>
+<span class="w">    </span><span class="nt">System</span><span class="p">.</span><span class="nc">out</span><span class="p">.</span><span class="nc">println</span><span class="o">(</span><span class="s2">"Optimized version: "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">(</span><span class="nt">double</span><span class="o">)</span><span class="w"> </span><span class="nt">optimizedVersion</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">1000000000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" s"</span><span class="o">);</span>
+<span class="w">    </span><span class="nt">System</span><span class="p">.</span><span class="nc">out</span><span class="p">.</span><span class="nc">println</span><span class="o">(</span><span class="s2">"Modified fast version: "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">(</span><span class="nt">double</span><span class="o">)</span><span class="w"> </span><span class="nt">modifiedFastVersion</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">1000000000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" s"</span><span class="o">);</span>
+<span class="w">    </span><span class="nt">System</span><span class="p">.</span><span class="nc">out</span><span class="p">.</span><span class="nc">println</span><span class="o">(</span><span class="s2">"Modified slow version: "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">(</span><span class="nt">double</span><span class="o">)</span><span class="w"> </span><span class="nt">modifiedSlowVersion</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">1000000000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" s"</span><span class="o">);</span>
+<span class="err">}</span>
+
+<span class="nt">private</span><span class="w"> </span><span class="nt">static</span><span class="w"> </span><span class="nt">long</span><span class="w"> </span><span class="nt">fastVersion</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">startTime</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">System.nanoTime()</span><span class="p">;</span>
+<span class="w">    </span><span class="err">int</span><span class="w"> </span><span class="err">n</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">for</span><span class="w"> </span><span class="err">(int</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">1000000000</span><span class="p">;</span><span class="w"> </span><span class="err">i++)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">n</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">(i</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">i)</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">return</span><span class="w"> </span><span class="nt">System</span><span class="p">.</span><span class="nc">nanoTime</span><span class="o">()</span><span class="w"> </span><span class="nt">-</span><span class="w"> </span><span class="nt">startTime</span><span class="o">;</span>
+<span class="err">}</span>
+
+<span class="nt">private</span><span class="w"> </span><span class="nt">static</span><span class="w"> </span><span class="nt">long</span><span class="w"> </span><span class="nt">slowVersion</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">startTime</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">System.nanoTime()</span><span class="p">;</span>
+<span class="w">    </span><span class="err">int</span><span class="w"> </span><span class="err">n</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">for</span><span class="w"> </span><span class="err">(int</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">1000000000</span><span class="p">;</span><span class="w"> </span><span class="err">i++)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">n</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">i</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">return</span><span class="w"> </span><span class="nt">System</span><span class="p">.</span><span class="nc">nanoTime</span><span class="o">()</span><span class="w"> </span><span class="nt">-</span><span class="w"> </span><span class="nt">startTime</span><span class="o">;</span>
+<span class="err">}</span>
+
+<span class="nt">private</span><span class="w"> </span><span class="nt">static</span><span class="w"> </span><span class="nt">long</span><span class="w"> </span><span class="nt">optimizedVersion</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">startTime</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">System.nanoTime()</span><span class="p">;</span>
+<span class="w">    </span><span class="err">int</span><span class="w"> </span><span class="err">n</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">for</span><span class="w"> </span><span class="err">(int</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">1000000000</span><span class="p">;</span><span class="w"> </span><span class="err">i++)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">n</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">i</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">n</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="nt">2</span><span class="o">;</span>
+<span class="w">    </span><span class="nt">return</span><span class="w"> </span><span class="nt">System</span><span class="p">.</span><span class="nc">nanoTime</span><span class="o">()</span><span class="w"> </span><span class="nt">-</span><span class="w"> </span><span class="nt">startTime</span><span class="o">;</span>
+<span class="err">}</span>
+
+<span class="nt">private</span><span class="w"> </span><span class="nt">static</span><span class="w"> </span><span class="nt">long</span><span class="w"> </span><span class="nt">modifiedFastVersion</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">startTime</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">System.nanoTime()</span><span class="p">;</span>
+<span class="w">    </span><span class="err">int</span><span class="w"> </span><span class="err">n</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">for</span><span class="w"> </span><span class="err">(int</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">1000000000</span><span class="p">;</span><span class="w"> </span><span class="err">i++)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">if</span><span class="w"> </span><span class="err">(n</span><span class="w"> </span><span class="err">==</span><span class="w"> </span><span class="err">0)</span><span class="w"> </span><span class="err">n</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">1</span><span class="p">;</span>
+<span class="w">        </span><span class="err">n</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">(i</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">i)</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">return</span><span class="w"> </span><span class="nt">System</span><span class="p">.</span><span class="nc">nanoTime</span><span class="o">()</span><span class="w"> </span><span class="nt">-</span><span class="w"> </span><span class="nt">startTime</span><span class="o">;</span>
+<span class="err">}</span>
+
+<span class="nt">private</span><span class="w"> </span><span class="nt">static</span><span class="w"> </span><span class="nt">long</span><span class="w"> </span><span class="nt">modifiedSlowVersion</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">long</span><span class="w"> </span><span class="err">startTime</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">System.nanoTime()</span><span class="p">;</span>
+<span class="w">    </span><span class="err">int</span><span class="w"> </span><span class="err">n</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">for</span><span class="w"> </span><span class="err">(int</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">1000000000</span><span class="p">;</span><span class="w"> </span><span class="err">i++)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">if</span><span class="w"> </span><span class="err">(n</span><span class="w"> </span><span class="err">==</span><span class="w"> </span><span class="err">0)</span><span class="w"> </span><span class="err">n</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">1</span><span class="p">;</span>
+<span class="w">        </span><span class="err">n</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">i</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">i</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">return</span><span class="w"> </span><span class="nt">System</span><span class="p">.</span><span class="nc">nanoTime</span><span class="o">()</span><span class="w"> </span><span class="nt">-</span><span class="w"> </span><span class="nt">startTime</span><span class="o">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>And here are the results:</p>
+<div class="code"><pre class="code literal-block">Fast version: 5.7274411 s
+Slow version: 7.6190804 s
+Optimized version: 5.1348007 s
+Modified fast version: 7.1492705 s
+Modified slow version: 7.2952668 s
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/benchmarking/" rel="tag">benchmarking</a></li>
+            <li><a class="tag p-category" href="../../categories/bytecode/" rel="tag">bytecode</a></li>
+            <li><a class="tag p-category" href="../../categories/java/" rel="tag">java</a></li>
+            <li><a class="tag p-category" href="../../categories/jit/" rel="tag">jit</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-do-you-implement-a-stack-and-a-queue-in-javascript/" rel="prev" title="How do you implement a Stack and a Queue in JavaScript?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../why-use-apparently-meaningless-do-while-and-if-else-statements-in-macros/" rel="next" title="Why use apparently meaningless do-while and if-else statements in macros?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

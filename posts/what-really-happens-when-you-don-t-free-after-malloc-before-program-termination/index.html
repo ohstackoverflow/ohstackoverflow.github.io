@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What REALLY happens when you don't free after malloc before program termination? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/what-really-happens-when-you-don-t-free-after-malloc-before-program-termination/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../understanding-rest-verbs-error-codes-and-authentication/" title="Understanding REST: Verbs, error codes, and authentication" type="text/html">
+<link rel="next" href="../xcode-6-bug-unknown-class-in-interface-builder-file/" title="Xcode 6 Bug: Unknown class in Interface Builder file" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="What REALLY happens when you don't free after malloc before program te">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/what-really-happens-when-you-don-t-free-after-malloc-before-program-termination/">
+<meta property="og:description" content="We are all taught that you MUST free every pointer that is allocated. I'm a
+bit curious, though, about the real cost of not freeing memory. In some
+obvious cases, like when malloc() is called inside a">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T21:39:51+08:00">
+<meta property="article:tag" content="c">
+<meta property="article:tag" content="free">
+<meta property="article:tag" content="malloc">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">What REALLY happens when you don't free after malloc before program termination?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T21:39:51+08:00" itemprop="datePublished" title="2023-02-17 21:39">2023-02-17 21:39</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>We are all taught that you MUST free every pointer that is allocated. I'm a
+bit curious, though, about the real cost of not freeing memory. In some
+obvious cases, like when <code>malloc()</code> is called inside a loop or part of a
+thread execution, it's very important to free so there are no memory leaks.
+But consider the following two examples:</p>
+<p>First, if I have code that's something like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">main</span><span class="ss">()</span>
+{
+<span class="w">    </span><span class="nv">char</span><span class="w"> </span><span class="o">*</span><span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">malloc</span><span class="ss">(</span><span class="mi">1024</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="cm">/* Do some arbitrary stuff with 'a' (no alloc functions) */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>What's the real result here? My thinking is that the process dies and then the
+heap space is gone anyway so there's no harm in missing the call to <code>free</code>
+(however, I do recognize the importance of having it anyway for closure,
+maintainability, and good practice). Am I right in this thinking?</p>
+<p>Second, let's say I have a program that acts a bit like a shell. Users can
+declare variables like <code>aaa = 123</code> and those are stored in some dynamic data
+structure for later use. Clearly, it seems obvious that you'd use some
+solution that will calls some *alloc function (hashmap, linked list, something
+like that). For this kind of program, it doesn't make sense to ever free after
+calling <code>malloc</code> because these variables must be present at all times during
+the program's execution and there's no good way (that I can see) to implement
+this with statically allocated space. Is it bad design to have a bunch of
+memory that's allocated but only freed as part of the process ending? If so,
+what's the alternative?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Just about every modern operating system will recover all the allocated memory
+space after a program exits. The only exception I can think of might be
+something like Palm OS where the program's static storage and runtime memory
+are pretty much the same thing, so not freeing might cause the program to take
+up more storage. (I'm only speculating here.)</p>
+<p>So generally, there's no harm in it, except the runtime cost of having more
+storage than you need. Certainly in the example you give, you want to keep the
+memory for a variable that might be used until it's cleared.</p>
+<p>However, it's considered good style to free memory as soon as you don't need
+it any more, and to free anything you still have around on program exit. It's
+more of an exercise in knowing what memory you're using, and thinking about
+whether you still need it. If you don't keep track, you might have memory
+leaks.</p>
+<p>On the other hand, the similar admonition to close your files on exit has a
+much more concrete result - if you don't, the data you wrote to them might not
+get flushed, or if they're a temp file, they might not get deleted when you're
+done. Also, database handles should have their transactions committed and then
+closed when you're done with them. Similarly, if you're using an object
+oriented language like C++ or Objective C, not freeing an object when you're
+done with it will mean the destructor will never get called, and any resources
+the class is responsible might not get cleaned up.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Yes you are right, your example doesn't do any harm (at least not on most
+modern operating systems). All the memory allocated by your process will be
+recovered by the operating system once the process exits.</p>
+<p>Source: Allocation and GC Myths (PostScript alert!)</p>
+<blockquote>
+<p>Allocation Myth 4: Non-garbage-collected programs should always deallocate
+all memory they allocate.</p>
+<p>The Truth: Omitted deallocations in frequently executed code cause growing
+leaks. They are rarely acceptable. but Programs that retain most allocated
+memory until program exit often perform better without any intervening
+deallocation. Malloc is much easier to implement if there is no free.</p>
+<p>In most cases, <strong>deallocating memory just before program exit is
+pointless.</strong> The OS will reclaim it anyway. Free will touch and page in the
+dead objects; the OS won't.</p>
+<p>Consequence: Be careful with "leak detectors" that count allocations. Some
+"leaks" are good!</p>
+</blockquote>
+<p>That said, you should really try to avoid all memory leaks!</p>
+<p>Second question: your design is ok. If you need to store something until your
+application exits then its ok to do this with dynamic memory allocation. If
+you don't know the required size upfront, you can't use statically allocated
+memory.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/c/" rel="tag">c</a></li>
+            <li><a class="tag p-category" href="../../categories/free/" rel="tag">free</a></li>
+            <li><a class="tag p-category" href="../../categories/malloc/" rel="tag">malloc</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../understanding-rest-verbs-error-codes-and-authentication/" rel="prev" title="Understanding REST: Verbs, error codes, and authentication">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../xcode-6-bug-unknown-class-in-interface-builder-file/" rel="next" title="Xcode 6 Bug: Unknown class in Interface Builder file">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

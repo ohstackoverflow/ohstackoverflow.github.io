@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why is reading lines from stdin much slower in C++ than Python? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/why-is-reading-lines-from-stdin-much-slower-in-c-than-python/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../regex-match-open-tags-except-xhtml-self-contained-tags/" title="RegEx match open tags except XHTML self-contained tags" type="text/html">
+<link rel="next" href="../how-to-return-only-the-date-from-a-sql-server-datetime-datatype/" title="How to return only the Date from a SQL Server DateTime datatype" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Why is reading lines from stdin much slower in C++ than Python?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/why-is-reading-lines-from-stdin-much-slower-in-c-than-python/">
+<meta property="og:description" content="I wanted to compare reading lines of string input from stdin using Python and
+C++ and was shocked to see my C++ code run an order of magnitude slower than
+the equivalent Python code. Since my C++ is r">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-16T22:31:48+08:00">
+<meta property="article:tag" content="benchmarking">
+<meta property="article:tag" content="c++">
+<meta property="article:tag" content="getline">
+<meta property="article:tag" content="iostream">
+<meta property="article:tag" content="python">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Why is reading lines from stdin much slower in C++ than Python?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T22:31:48+08:00" itemprop="datePublished" title="2023-02-16 22:31">2023-02-16 22:31</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I wanted to compare reading lines of string input from stdin using Python and
+C++ and was shocked to see my C++ code run an order of magnitude slower than
+the equivalent Python code. Since my C++ is rusty and I'm not yet an expert
+Pythonista, please tell me if I'm doing something wrong or if I'm
+misunderstanding something.</p>
+<hr>
+<p>( <strong>TLDR answer:</strong> include the statement: <code>cin.sync_with_stdio(false)</code> or just
+use <code>fgets</code> instead.</p>
+<p><strong>TLDR results:</strong> scroll all the way down to the bottom of my question and
+look at the table.)</p>
+<hr>
+<p><strong>C++ code:</strong></p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;time.h&gt;</span>
+
+<span class="n">using</span><span class="w"> </span><span class="n">namespace</span><span class="w"> </span><span class="nn">std</span><span class="p">;</span>
+
+<span class="kr">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kr">string</span><span class="w"> </span><span class="n">input_line</span><span class="p">;</span>
+<span class="w">    </span><span class="kr">long</span><span class="w"> </span><span class="n">line_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">time_t</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">time</span><span class="p">(</span><span class="nb">NULL</span><span class="p">);</span>
+<span class="w">    </span><span class="kr">int</span><span class="w"> </span><span class="n">sec</span><span class="p">;</span>
+<span class="w">    </span><span class="kr">int</span><span class="w"> </span><span class="n">lps</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">cin</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">getline</span><span class="p">(</span><span class="n">cin</span><span class="p">,</span><span class="w"> </span><span class="n">input_line</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">cin</span><span class="p">.</span><span class="n">eof</span><span class="p">())</span>
+<span class="w">            </span><span class="n">line_count</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="n">sec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kr">int</span><span class="p">)</span><span class="w"> </span><span class="n">time</span><span class="p">(</span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">;</span>
+<span class="w">    </span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Read "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">line_count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" lines in "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">sec</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" seconds."</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">sec</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">lps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line_count</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">sec</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" LPS: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">lps</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span>
+<span class="w">        </span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// Compiled with:</span>
+<span class="c1">// g++ -O3 -o readline_test_cpp foo.cpp</span>
+</pre></div>
+
+<p><strong>Python Equivalent:</strong></p>
+<div class="code"><table class="codetable">
+<tr>
+<td class="linenos linenodiv"><a href="#-1"><code data-line-number=" 1"></code></a></td>
+<td class="code"><code><span class="ch">#!/usr/bin/env python</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-2"><code data-line-number=" 2"></code></a></td>
+<td class="code"><code><span class="kn">import</span> <span class="nn">time</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-3"><code data-line-number=" 3"></code></a></td>
+<td class="code"><code><span class="kn">import</span> <span class="nn">sys</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-4"><code data-line-number=" 4"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-5"><code data-line-number=" 5"></code></a></td>
+<td class="code"><code><span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-6"><code data-line-number=" 6"></code></a></td>
+<td class="code"><code><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-7"><code data-line-number=" 7"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-8"><code data-line-number=" 8"></code></a></td>
+<td class="code"><code><span class="k">for</span> <span class="n">line</span> <span class="ow">in</span>  <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-9"><code data-line-number=" 9"></code></a></td>
+<td class="code"><code>    <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-10"><code data-line-number="10"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-11"><code data-line-number="11"></code></a></td>
+<td class="code"><code><span class="n">delta_sec</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-12"><code data-line-number="12"></code></a></td>
+<td class="code"><code><span class="k">if</span> <span class="n">delta_sec</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-13"><code data-line-number="13"></code></a></td>
+<td class="code"><code>    <span class="n">lines_per_sec</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">count</span><span class="o">/</span><span class="n">delta_sec</span><span class="p">))</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-14"><code data-line-number="14"></code></a></td>
+<td class="code"><code>    <span class="nb">print</span><span class="p">(</span><span class="s2">"Read </span><span class="si">{0}</span><span class="s2"> lines in </span><span class="si">{1}</span><span class="s2"> seconds. LPS: </span><span class="si">{2}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">delta_sec</span><span class="p">,</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="#-15"><code data-line-number="15"></code></a></td>
+<td class="code"><code>       <span class="n">lines_per_sec</span><span class="p">))</span>
+</code></td>
+</tr>
+</table></div>
+<p><strong>Here are my results:</strong></p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>cat<span class="w"> </span>test_lines<span class="w"> </span><span class="p">|</span><span class="w"> </span>./readline_test_cpp
+Read<span class="w"> </span><span class="m">5570000</span><span class="w"> </span>lines<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">9</span><span class="w"> </span>seconds.<span class="w"> </span>LPS:<span class="w"> </span><span class="m">618889</span>
+
+$<span class="w"> </span>cat<span class="w"> </span>test_lines<span class="w"> </span><span class="p">|</span><span class="w"> </span>./readline_test.py
+Read<span class="w"> </span><span class="m">5570000</span><span class="w"> </span>lines<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">1</span><span class="w"> </span>seconds.<span class="w"> </span>LPS:<span class="w"> </span><span class="m">5570000</span>
+</pre></div>
+
+<p><em>I should note that I tried this both under Mac OS X v10.6.8 (Snow Leopard)
+and Linux 2.6.32 (Red Hat Linux 6.2). The former is a MacBook Pro, and the
+latter is a very beefy server, not that this is too pertinent.</em></p>
+<div class="code"><pre class="code literal-block"><span class="n">$</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="err">{</span><span class="mf">1..5</span><span class="err">}</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="n">echo</span><span class="w"> </span><span class="s2">"Test run $i at `date`"</span><span class="p">;</span><span class="w"> </span><span class="n">echo</span><span class="w"> </span><span class="o">-</span><span class="n">n</span><span class="w"> </span><span class="s2">"CPP:"</span><span class="p">;</span><span class="w"> </span><span class="n">cat</span><span class="w"> </span><span class="n">test_lines</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">.</span><span class="o">/</span><span class="n">readline_test_cpp</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">echo</span><span class="w"> </span><span class="o">-</span><span class="n">n</span><span class="w"> </span><span class="s2">"Python:"</span><span class="p">;</span><span class="w"> </span><span class="n">cat</span><span class="w"> </span><span class="n">test_lines</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">.</span><span class="o">/</span><span class="n">readline_test</span><span class="p">.</span><span class="n">py</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">done</span>
+
+
+
+<span class="n">Test</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">at</span><span class="w"> </span><span class="n">Mon</span><span class="w"> </span><span class="n">Feb</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="mi">21</span><span class="o">:</span><span class="mi">29</span><span class="o">:</span><span class="mi">28</span><span class="w"> </span><span class="n">EST</span><span class="w"> </span><span class="mi">2012</span>
+<span class="n">CPP</span><span class="o">:</span><span class="w">   </span><span class="k">Read</span><span class="w"> </span><span class="mi">5570001</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">9</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">618889</span>
+<span class="n">Python</span><span class="o">:</span><span class="k">Read</span><span class="w"> </span><span class="mi">5570000</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">5570000</span>
+<span class="n">Test</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="k">at</span><span class="w"> </span><span class="n">Mon</span><span class="w"> </span><span class="n">Feb</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="mi">21</span><span class="o">:</span><span class="mi">29</span><span class="o">:</span><span class="mi">39</span><span class="w"> </span><span class="n">EST</span><span class="w"> </span><span class="mi">2012</span>
+<span class="n">CPP</span><span class="o">:</span><span class="w">   </span><span class="k">Read</span><span class="w"> </span><span class="mi">5570001</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">9</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">618889</span>
+<span class="n">Python</span><span class="o">:</span><span class="k">Read</span><span class="w"> </span><span class="mi">5570000</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">5570000</span>
+<span class="n">Test</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="k">at</span><span class="w"> </span><span class="n">Mon</span><span class="w"> </span><span class="n">Feb</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="mi">21</span><span class="o">:</span><span class="mi">29</span><span class="o">:</span><span class="mi">50</span><span class="w"> </span><span class="n">EST</span><span class="w"> </span><span class="mi">2012</span>
+<span class="n">CPP</span><span class="o">:</span><span class="w">   </span><span class="k">Read</span><span class="w"> </span><span class="mi">5570001</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">9</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">618889</span>
+<span class="n">Python</span><span class="o">:</span><span class="k">Read</span><span class="w"> </span><span class="mi">5570000</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">5570000</span>
+<span class="n">Test</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="k">at</span><span class="w"> </span><span class="n">Mon</span><span class="w"> </span><span class="n">Feb</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="mi">21</span><span class="o">:</span><span class="mi">30</span><span class="o">:</span><span class="mi">01</span><span class="w"> </span><span class="n">EST</span><span class="w"> </span><span class="mi">2012</span>
+<span class="n">CPP</span><span class="o">:</span><span class="w">   </span><span class="k">Read</span><span class="w"> </span><span class="mi">5570001</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">9</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">618889</span>
+<span class="n">Python</span><span class="o">:</span><span class="k">Read</span><span class="w"> </span><span class="mi">5570000</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">5570000</span>
+<span class="n">Test</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">at</span><span class="w"> </span><span class="n">Mon</span><span class="w"> </span><span class="n">Feb</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="mi">21</span><span class="o">:</span><span class="mi">30</span><span class="o">:</span><span class="mi">11</span><span class="w"> </span><span class="n">EST</span><span class="w"> </span><span class="mi">2012</span>
+<span class="n">CPP</span><span class="o">:</span><span class="w">   </span><span class="k">Read</span><span class="w"> </span><span class="mi">5570001</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">557000</span>
+<span class="n">Python</span><span class="o">:</span><span class="k">Read</span><span class="w"> </span><span class="mi">5570000</span><span class="w"> </span><span class="k">lines</span><span class="w"> </span><span class="k">in</span><span class="w">  </span><span class="mi">1</span><span class="w"> </span><span class="n">seconds</span><span class="p">.</span><span class="w"> </span><span class="n">LPS</span><span class="o">:</span><span class="w"> </span><span class="mi">5570000</span>
+</pre></div>
+
+<hr>
+<p>Tiny benchmark addendum and recap</p>
+<p>For completeness, I thought I'd update the read speed for the same file on the
+same box with the original (synced) C++ code. Again, this is for a 100M line
+file on a fast disk. Here's the comparison, with several solutions/approaches:</p>
+<table>
+<thead><tr>
+<th>Implementation</th>
+<th>Lines per second</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>python (default)</td>
+<td>3,571,428</td>
+</tr>
+<tr>
+<td>cin (default/naive)</td>
+<td>819,672</td>
+</tr>
+<tr>
+<td>cin (no sync)</td>
+<td>12,500,000</td>
+</tr>
+<tr>
+<td>fgets</td>
+<td>14,285,714</td>
+</tr>
+<tr>
+<td>wc (not fair comparison)</td>
+<td>54,644,808</td>
+</tr>
+</tbody>
+</table>
+<p><br><br></p>
+<h2>Answer</h2>
+<h4>tl;dr: Because of different default settings in C++ requiring more system</h4>
+<p>calls.</p>
+<p>By default, <code>cin</code> is synchronized with stdio, which causes it to avoid any
+input buffering. If you add this to the top of your main, you should see much
+better performance:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">std</span><span class="p">::</span><span class="nd">ios_base</span><span class="p">::</span><span class="nd">sync_with_stdio</span><span class="o">(</span><span class="nt">false</span><span class="o">);</span>
+</pre></div>
+
+<p>Normally, when an input stream is buffered, instead of reading one character
+at a time, the stream will be read in larger chunks. This reduces the number
+of system calls, which are typically relatively expensive. However, since the
+<code>FILE*</code> based <code>stdio</code> and <code>iostreams</code> often have separate implementations and
+therefore separate buffers, this could lead to a problem if both were used
+together. For example:</p>
+<div class="code"><pre class="code literal-block">int myvalue1;
+cin &gt;&gt; myvalue1;
+int myvalue2;
+scanf("%d",&amp;myvalue2);
+</pre></div>
+
+<p>If more input was read by <code>cin</code> than it actually needed, then the second
+integer value wouldn't be available for the <code>scanf</code> function, which has its
+own independent buffer. This would lead to unexpected results.</p>
+<p>To avoid this, by default, streams are synchronized with <code>stdio</code>. One common
+way to achieve this is to have <code>cin</code> read each character one at a time as
+needed using <code>stdio</code> functions. Unfortunately, this introduces a lot of
+overhead. For small amounts of input, this isn't a big problem, but when you
+are reading millions of lines, the performance penalty is significant.</p>
+<p>Fortunately, the library designers decided that you should also be able to
+disable this feature to get improved performance if you knew what you were
+doing, so they provided the <code>sync_with_stdio</code> method. From this link (emphasis
+added):</p>
+<blockquote>
+<p>If the synchronization is turned off, the C++ standard streams are allowed
+to buffer their I/O independently, <strong>which may be considerably faster in
+some cases</strong>.</p>
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Just out of curiosity I've taken a look at what happens under the hood, and
+I've used dtruss/strace on each test.</p>
+<p>C++</p>
+<div class="code"><pre class="code literal-block">./a.out &lt; in
+Saw 6512403 lines in 8 seconds.  Crunch speed: 814050
+</pre></div>
+
+<p>syscalls <code>sudo dtruss -c ./a.out &lt; in</code></p>
+<div class="code"><pre class="code literal-block">CALL                                        COUNT
+__mac_syscall                                   1
+&lt;snip&gt;
+open                                            6
+pread                                           8
+mprotect                                       17
+mmap                                           22
+stat64                                         30
+read_nocancel                               25958
+</pre></div>
+
+<p>Python</p>
+<div class="code"><pre class="code literal-block">./a.py &lt; in
+Read 6512402 lines in 1 seconds. LPS: 6512402
+</pre></div>
+
+<p>syscalls <code>sudo dtruss -c ./a.py &lt; in</code></p>
+<div class="code"><pre class="code literal-block">CALL                                        COUNT
+__mac_syscall                                   1
+&lt;snip&gt;
+open                                            5
+pread                                           8
+mprotect                                       17
+mmap                                           21
+stat64                                         29
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/benchmarking/" rel="tag">benchmarking</a></li>
+            <li><a class="tag p-category" href="../../categories/c%2B%2B/" rel="tag">c++</a></li>
+            <li><a class="tag p-category" href="../../categories/getline/" rel="tag">getline</a></li>
+            <li><a class="tag p-category" href="../../categories/iostream/" rel="tag">iostream</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../regex-match-open-tags-except-xhtml-self-contained-tags/" rel="prev" title="RegEx match open tags except XHTML self-contained tags">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-to-return-only-the-date-from-a-sql-server-datetime-datatype/" rel="next" title="How to return only the Date from a SQL Server DateTime datatype">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Separation of business logic and data access in django | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/separation-of-business-logic-and-data-access-in-django/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-replace-all-occurrences-of-a-character-in-string/" title="How to replace all occurrences of a character in string?" type="text/html">
+<link rel="next" href="../a-non-blocking-read-on-a-subprocess-pipe-in-python/" title="A non-blocking read on a subprocess.PIPE in Python" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Separation of business logic and data access in django">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/separation-of-business-logic-and-data-access-in-django/">
+<meta property="og:description" content="I am writing a project in Django and I see that 80% of the code is in the file
+models.py. This code is confusing and, after a certain time, I cease to
+understand what is really happening.
+Here is what">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-18T00:48:15+08:00">
+<meta property="article:tag" content="business-logic-layer">
+<meta property="article:tag" content="data-access-layer">
+<meta property="article:tag" content="django">
+<meta property="article:tag" content="model-view-controller">
+<meta property="article:tag" content="python">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Separation of business logic and data access in django</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:48:15+08:00" itemprop="datePublished" title="2023-02-18 00:48">2023-02-18 00:48</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I am writing a project in Django and I see that 80% of the code is in the file
+<code>models.py</code>. This code is confusing and, after a certain time, I cease to
+understand what is really happening.</p>
+<p>Here is what bothers me:</p>
+<ol>
+<li>I find it ugly that my model level (which was supposed to be responsible only for the work with data from a database) is also sending email, walking on API to other services, etc.</li>
+<li>Also, I find it unacceptable to place business logic in the view, because this way it becomes difficult to control. For example, in my application there are at least three ways to create new instances of <code>User</code>, but technically it should create them uniformly.</li>
+<li>I do not always notice when the methods and properties of my models become non-deterministic and when they develop side effects.</li>
+</ol>
+<p>Here is a simple example. At first, the <code>User</code> model was like this:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">User</span>(<span class="n">db</span>.<span class="n">Models</span>):
+
+    <span class="n">def</span> <span class="n">get_present_name</span>(<span class="nb">self</span>):
+        <span class="k">return</span> <span class="nb">self</span>.<span class="nb">name</span> <span class="o">or</span> <span class="s">'Anonymous'</span>
+
+    <span class="n">def</span> <span class="n">activate</span>(<span class="nb">self</span>):
+        <span class="nb">self</span>.<span class="nb">status</span> = <span class="s">'activated'</span>
+        <span class="nb">self</span>.<span class="n">save</span>()
+</pre></div>
+
+<p>Over time, it turned into this:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">User</span>(<span class="n">db</span>.<span class="n">Models</span>):
+
+    <span class="n">def</span> <span class="n">get_present_name</span>(<span class="nb">self</span>): 
+        <span class="c1"># property became non-deterministic in terms of database</span>
+        <span class="c1"># data is taken from another service by api</span>
+        <span class="k">return</span> <span class="n">remote_api</span>.<span class="n">request_user_name</span>(<span class="nb">self</span>.<span class="n">uid</span>) <span class="o">or</span> <span class="s">'Anonymous'</span>
+
+    <span class="n">def</span> <span class="n">activate</span>(<span class="nb">self</span>):
+        <span class="c1"># method now has a side effect (send message to user)</span>
+        <span class="nb">self</span>.<span class="nb">status</span> = <span class="s">'activated'</span>
+        <span class="nb">self</span>.<span class="n">save</span>()
+        <span class="n">send_mail</span>(<span class="s">'Your account is activated!'</span>, <span class="s">'…'</span>, [<span class="nb">self</span>.<span class="n">email</span>])
+</pre></div>
+
+<p>What I want is to separate entities in my code:</p>
+<ol>
+<li><strong>Database level entities, i.e. database level logic: What kind of data does my application store?</strong></li>
+<li><strong>application level entities, i.e. business level logic: What does my application do?</strong></li>
+</ol>
+<p>What are the good practices to implement such an approach that can be applied
+in Django?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>It seems like you are asking about the difference between the <em>data model</em> and
+the <em>domain model</em> – the latter is where you can find the business logic and
+entities as perceived by your end user, the former is where you actually store
+your data.</p>
+<p>Furthermore, I've interpreted the 3rd part of your question as: how to notice
+failure to keep these models separate.</p>
+<p>These are two very different concepts and it's always hard to keep them
+separate. However, there are some common patterns and tools that can be used
+for this purpose.</p>
+<h3>About the Domain Model</h3>
+<p>The first thing you need to recognize is that your domain model is not really
+about data; it is about <em>actions</em> and <em>questions</em> such as "activate this
+user", "deactivate this user", "which users are currently activated?", and
+"what is this user's name?". In classical terms: it's about <em>queries</em> and
+<em>commands</em>.</p>
+<h3>Thinking in Commands</h3>
+<p>Let's start by looking at the commands in your example: "activate this user"
+and "deactivate this user". The nice thing about commands is that they can
+easily be expressed by small given-when-then scenario's:</p>
+<blockquote>
+<p><strong>given</strong> an inactive user<br><strong>when</strong> the admin activates this user<br><strong>then</strong> the user becomes active<br><strong>and</strong> a confirmation e-mail is sent to the user<br><strong>and</strong> an entry is added to the system log<br>
+ (etc. etc.)</p>
+</blockquote>
+<p>Such scenario's are useful to see how different parts of your infrastructure
+can be affected by a single command – in this case your database (some kind of
+'active' flag), your mail server, your system log, etc.</p>
+<p>Such scenario's also really help you in setting up a Test Driven Development
+environment.</p>
+<p>And finally, thinking in commands really helps you create a task-oriented
+application. Your users will appreciate this :-)</p>
+<h3>Expressing Commands</h3>
+<p>Django provides two easy ways of expressing commands; they are both valid
+options and it is not unusual to mix the two approaches.</p>
+<h4>The service layer</h4>
+<p>The <em>service module</em> has already been described by @Hedde. Here you define a
+separate module and each command is represented as a function.</p>
+<p><strong>services.py</strong></p>
+<div class="code"><pre class="code literal-block">def activate_user(user_id):
+    user = User.objects.get(pk=user_id)
+
+    # set active flag
+    user.active = True
+    user.save()
+
+    # mail user
+    send_mail(...)
+
+    # etc etc
+</pre></div>
+
+<h4>Using forms</h4>
+<p>The other way is to use a Django Form for each command. I prefer this
+approach, because it combines multiple closely related aspects:</p>
+<ul>
+<li>execution of the command (what does it do?)</li>
+<li>validation of the command parameters (can it do this?)</li>
+<li>presentation of the command (how can I do this?)</li>
+</ul>
+<p><strong>forms.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nt">class</span><span class="w"> </span><span class="nt">ActivateUserForm</span><span class="o">(</span><span class="nt">forms</span><span class="p">.</span><span class="nc">Form</span><span class="o">):</span>
+
+<span class="w">    </span><span class="nt">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">IntegerField</span><span class="o">(</span><span class="nt">widget</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">UsernameSelectWidget</span><span class="o">,</span><span class="w"> </span><span class="nt">verbose_name</span><span class="o">=</span><span class="s2">"Select a user to activate"</span><span class="o">)</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">username</span><span class="w"> </span><span class="nt">select</span><span class="w"> </span><span class="nt">widget</span><span class="w"> </span><span class="nt">is</span><span class="w"> </span><span class="nt">not</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="nt">standard</span><span class="w"> </span><span class="nt">Django</span><span class="w"> </span><span class="nt">widget</span><span class="o">,</span><span class="w"> </span><span class="nt">I</span><span class="w"> </span><span class="nt">just</span><span class="w"> </span><span class="nt">made</span><span class="w"> </span><span class="nt">it</span><span class="w"> </span><span class="nt">up</span>
+
+<span class="w">    </span><span class="nt">def</span><span class="w"> </span><span class="nt">clean_user_id</span><span class="o">(</span><span class="nt">self</span><span class="o">):</span>
+<span class="w">        </span><span class="nt">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">self</span><span class="p">.</span><span class="nc">cleaned_data</span><span class="cp">[</span><span class="s1">'user_id'</span><span class="cp">]</span>
+<span class="w">        </span><span class="nt">if</span><span class="w"> </span><span class="nt">User</span><span class="p">.</span><span class="nc">objects</span><span class="p">.</span><span class="nc">get</span><span class="o">(</span><span class="nt">pk</span><span class="o">=</span><span class="nt">user_id</span><span class="o">)</span><span class="p">.</span><span class="nc">active</span><span class="o">:</span>
+<span class="w">            </span><span class="nt">raise</span><span class="w"> </span><span class="nt">ValidationError</span><span class="o">(</span><span class="s2">"This user cannot be activated"</span><span class="o">)</span>
+<span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">you</span><span class="w"> </span><span class="nt">can</span><span class="w"> </span><span class="nt">also</span><span class="w"> </span><span class="nt">check</span><span class="w"> </span><span class="nt">authorizations</span><span class="w"> </span><span class="nt">etc</span><span class="o">.</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">return</span><span class="w"> </span><span class="nt">user_id</span>
+
+<span class="w">    </span><span class="nt">def</span><span class="w"> </span><span class="nt">execute</span><span class="o">(</span><span class="nt">self</span><span class="o">):</span>
+<span class="w">        </span><span class="s2">"""</span>
+<span class="s2">        This is not a standard method in the forms API; it is intended to replace the </span>
+<span class="s2">        'extract-data-from-form-in-view-and-do-stuff' pattern by a more testable pattern. </span>
+<span class="s2">        """</span>
+<span class="w">        </span><span class="nt">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">self</span><span class="p">.</span><span class="nc">cleaned_data</span><span class="cp">[</span><span class="s1">'user_id'</span><span class="cp">]</span>
+
+<span class="w">        </span><span class="nt">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">User</span><span class="p">.</span><span class="nc">objects</span><span class="p">.</span><span class="nc">get</span><span class="o">(</span><span class="nt">pk</span><span class="o">=</span><span class="nt">user_id</span><span class="o">)</span>
+
+<span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">set</span><span class="w"> </span><span class="nt">active</span><span class="w"> </span><span class="nt">flag</span>
+<span class="w">        </span><span class="nt">user</span><span class="p">.</span><span class="nc">active</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">True</span>
+<span class="w">        </span><span class="nt">user</span><span class="p">.</span><span class="nc">save</span><span class="o">()</span>
+
+<span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">mail</span><span class="w"> </span><span class="nt">user</span>
+<span class="w">        </span><span class="nt">send_mail</span><span class="o">(...)</span>
+
+<span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">etc</span><span class="w"> </span><span class="nt">etc</span>
+</pre></div>
+
+<h3>Thinking in Queries</h3>
+<p>You example did not contain any queries, so I took the liberty of making up a
+few useful queries. I prefer to use the term "question", but queries is the
+classical terminology. Interesting queries are: "What is the name of this
+user?", "Can this user log in?", "Show me a list of deactivated users", and
+"What is the geographical distribution of deactivated users?"</p>
+<p>Before embarking on answering these queries, you should always ask yourself
+this question, is this:</p>
+<ul>
+<li>a <em>presentational</em> query just for my templates, and/or</li>
+<li>a <em>business logic</em> query tied to executing my commands, and/or</li>
+<li>a <em>reporting</em> query.</li>
+</ul>
+<p>Presentational queries are merely made to improve the user interface. The
+answers to business logic queries directly affect the execution of your
+commands. Reporting queries are merely for analytical purposes and have looser
+time constraints. These categories are not mutually exclusive.</p>
+<p>The other question is: "do I have complete control over the answers?" For
+example, when querying the user's name (in this context) we do not have any
+control over the outcome, because we rely on an external API.</p>
+<h3>Making Queries</h3>
+<p>The most basic query in Django is the use of the Manager object:</p>
+<div class="code"><pre class="code literal-block">User.objects.filter(active=True)
+</pre></div>
+
+<p>Of course, this only works if the data is actually represented in your data
+model. This is not always the case. In those cases, you can consider the
+options below.</p>
+<h4>Custom tags and filters</h4>
+<p>The first alternative is useful for queries that are merely presentational:
+custom tags and template filters.</p>
+<p><strong>template.html</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;h1&gt;</span>Welcome,<span class="w"> </span><span class="cp">{{</span> <span class="nv">user</span><span class="o">|</span><span class="nf">friendly_name</span> <span class="cp">}}</span><span class="nt">&lt;/h1&gt;</span>
+</pre></div>
+
+<p><strong>template_tags.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">@register</span><span class="p">.</span><span class="k">filter</span>
+<span class="n">def</span><span class="w"> </span><span class="n">friendly_name</span><span class="p">(</span><span class="k">user</span><span class="p">)</span><span class="err">:</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">remote_api</span><span class="p">.</span><span class="n">get_cached_name</span><span class="p">(</span><span class="k">user</span><span class="p">.</span><span class="n">id</span><span class="p">)</span>
+</pre></div>
+
+<h4>Query methods</h4>
+<p>If your query is not merely presentational, you could add queries to your
+<strong>services.py</strong> (if you are using that), or introduce a <strong>queries.py</strong> module:</p>
+<p><strong>queries.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">inactive_users</span><span class="ss">()</span>:
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">User</span>.<span class="nv">objects</span>.<span class="nv">filter</span><span class="ss">(</span><span class="nv">active</span><span class="o">=</span><span class="nv">False</span><span class="ss">)</span>
+
+
+<span class="nv">def</span><span class="w"> </span><span class="nv">users_called_publysher</span><span class="ss">()</span>:
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nv">user</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">User</span>.<span class="nv">objects</span>.<span class="nv">all</span><span class="ss">()</span>:
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nv">remote_api</span>.<span class="nv">get_cached_name</span><span class="ss">(</span><span class="nv">user</span>.<span class="nv">id</span><span class="ss">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"publysher"</span>:
+<span class="w">            </span><span class="nv">yield</span><span class="w"> </span><span class="nv">user</span>
+</pre></div>
+
+<h4>Proxy models</h4>
+<p>Proxy models are very useful in the context of business logic and reporting.
+You basically define an enhanced subset of your model. You can override a
+Manager’s base QuerySet by overriding the <code>Manager.get_queryset()</code> method.</p>
+<p><strong>models.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">InactiveUserManager</span>(<span class="n">models</span>.<span class="n">Manager</span>):
+    <span class="n">def</span> <span class="n">get_queryset</span>(<span class="nb">self</span>):
+        <span class="n">query_set</span> = <span class="n">super</span>(<span class="n">InactiveUserManager</span>, <span class="nb">self</span>).<span class="n">get_queryset</span>()
+        <span class="k">return</span> <span class="n">query_set</span>.<span class="n">filter</span>(<span class="n">active</span>=<span class="nb">False</span>)
+
+<span class="k">class</span> <span class="n">InactiveUser</span>(<span class="n">User</span>):
+    <span class="s">"""</span>
+<span class="s">    &gt;&gt;&gt; for user in InactiveUser.objects.all():</span>
+<span class="s">    …        assert user.active is False </span>
+<span class="s">    """</span>
+
+    <span class="n">objects</span> = <span class="n">InactiveUserManager</span>()
+    <span class="k">class</span> <span class="n">Meta:</span>
+        <span class="n">proxy</span> = <span class="nb">True</span>
+</pre></div>
+
+<h4>Query models</h4>
+<p>For queries that are inherently complex, but are executed quite often, there
+is the possibility of query models. A query model is a form of denormalization
+where relevant data for a single query is stored in a separate model. The
+trick of course is to keep the denormalized model in sync with the primary
+model. Query models can only be used if changes are entirely under your
+control.</p>
+<p><strong>models.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">InactiveUserDistribution</span>(<span class="n">models</span>.<span class="n">Model</span>):
+    <span class="n">country</span> = <span class="n">CharField</span>(<span class="n">max_length</span>=<span class="mi">200</span>)
+    <span class="n">inactive_user_count</span> = <span class="n">IntegerField</span>(<span class="k">default</span>=<span class="mi">0</span>)
+</pre></div>
+
+<p>The first option is to update these models in your commands. This is very
+useful if these models are only changed by one or two commands.</p>
+<p><strong>forms.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">ActivateUserForm</span>(<span class="n">forms</span>.<span class="n">Form</span>):
+    <span class="c1"># see above</span>
+
+    <span class="n">def</span> <span class="n">execute</span>(<span class="nb">self</span>):
+        <span class="c1"># see above</span>
+        <span class="n">query_model</span> = <span class="n">InactiveUserDistribution</span>.<span class="n">objects</span>.<span class="n">get_or_create</span>(<span class="n">country</span>=<span class="n">user</span>.<span class="n">country</span>)
+        <span class="n">query_model</span>.<span class="n">inactive_user_count</span> -= <span class="mi">1</span>
+        <span class="n">query_model</span>.<span class="n">save</span>()
+</pre></div>
+
+<p>A better option would be to use custom signals. These signals are of course
+emitted by your commands. Signals have the advantage that you can keep
+multiple query models in sync with your original model. Furthermore, signal
+processing can be offloaded to background tasks, using Celery or similar
+frameworks.</p>
+<p><strong>signals.py</strong></p>
+<div class="code"><pre class="code literal-block">user_activated = Signal(providing_args = ['user'])
+user_deactivated = Signal(providing_args = ['user'])
+</pre></div>
+
+<p><strong>forms.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">ActivateUserForm</span>(<span class="n">forms</span>.<span class="n">Form</span>):
+    <span class="c1"># see above</span>
+
+    <span class="n">def</span> <span class="n">execute</span>(<span class="nb">self</span>):
+        <span class="c1"># see above</span>
+        <span class="n">user_activated</span>.<span class="n">send_robust</span>(<span class="n">sender</span>=<span class="nb">self</span>, <span class="n">user</span>=<span class="n">user</span>)
+</pre></div>
+
+<p><strong>models.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">InactiveUserDistribution</span><span class="p">(</span><span class="n">models</span><span class="p">.</span><span class="n">Model</span><span class="p">)</span><span class="err">:</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="n">above</span>
+
+<span class="nv">@receiver</span><span class="p">(</span><span class="n">user_activated</span><span class="p">)</span>
+<span class="n">def</span><span class="w"> </span><span class="n">on_user_activated</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="err">:</span>
+<span class="w">        </span><span class="k">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kwargs</span><span class="o">[</span><span class="n">'user'</span><span class="o">]</span>
+<span class="w">        </span><span class="n">query_model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">InactiveUserDistribution</span><span class="p">.</span><span class="n">objects</span><span class="p">.</span><span class="n">get_or_create</span><span class="p">(</span><span class="n">country</span><span class="o">=</span><span class="k">user</span><span class="p">.</span><span class="n">country</span><span class="p">)</span>
+<span class="w">        </span><span class="n">query_model</span><span class="p">.</span><span class="n">inactive_user_count</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">        </span><span class="n">query_model</span><span class="p">.</span><span class="k">save</span><span class="p">()</span>
+</pre></div>
+
+<h3>Keeping it clean</h3>
+<p>When using this approach, it becomes ridiculously easy to determine if your
+code stays clean. Just follow these guidelines:</p>
+<ul>
+<li>Does my model contain methods that do more than managing database state? You should extract a command.</li>
+<li>Does my model contain properties that do not map to database fields? You should extract a query.</li>
+<li>Does my model reference infrastructure that is not my database (such as mail)? You should extract a command.</li>
+</ul>
+<p>The same goes for views (because views often suffer from the same problem).</p>
+<ul>
+<li>Does my view actively manage database models? You should extract a command.</li>
+</ul>
+<h3>Some References</h3>
+<p>Django documentation: proxy models</p>
+<p>Django documentation: signals</p>
+<p>Architecture: Domain Driven Design</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I usually implement a service layer in between views and models. This acts
+like your project's API and gives you a good helicopter view of what is going
+on. I inherited this practice from a colleague of mine that uses this layering
+technique a lot with Java projects (JSF), e.g:</p>
+<p><strong>models.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Book:</span>
+   <span class="n">author</span> = <span class="n">models</span>.<span class="n">ForeignKey</span>(<span class="n">User</span>)
+   <span class="n">title</span> = <span class="n">models</span>.<span class="n">CharField</span>(<span class="n">max_length</span>=<span class="mi">125</span>)
+
+   <span class="k">class</span> <span class="n">Meta:</span>
+       <span class="n">app_label</span> = <span class="s">"library"</span>
+</pre></div>
+
+<p><strong>services.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">library.models</span> <span class="kn">import</span> <span class="n">Book</span>
+
+<span class="k">def</span> <span class="nf">get_books</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">filters</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">""" simple service function for retrieving books can be widely extended """</span>
+    <span class="k">return</span> <span class="n">Book</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="o">**</span><span class="n">filters</span><span class="p">)[:</span><span class="n">limit</span><span class="p">]</span>  <span class="c1"># list[:None] will return the entire list</span>
+</pre></div>
+
+<p><strong>views.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">library.services</span> <span class="kn">import</span> <span class="n">get_books</span>
+
+<span class="k">class</span> <span class="nc">BookListView</span><span class="p">(</span><span class="n">ListView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">""" simple view, e.g. implement a _build and _apply filters function """</span>
+    <span class="n">queryset</span> <span class="o">=</span> <span class="n">get_books</span><span class="p">()</span>
+</pre></div>
+
+<blockquote>
+<p>Mind you, I usually take models, views and services to module level and
+separate even further depending on the project's size</p>
+</blockquote>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/business-logic-layer/" rel="tag">business-logic-layer</a></li>
+            <li><a class="tag p-category" href="../../categories/data-access-layer/" rel="tag">data-access-layer</a></li>
+            <li><a class="tag p-category" href="../../categories/django/" rel="tag">django</a></li>
+            <li><a class="tag p-category" href="../../categories/model-view-controller/" rel="tag">model-view-controller</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-replace-all-occurrences-of-a-character-in-string/" rel="prev" title="How to replace all occurrences of a character in string?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../a-non-blocking-read-on-a-subprocess-pipe-in-python/" rel="next" title="A non-blocking read on a subprocess.PIPE in Python">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

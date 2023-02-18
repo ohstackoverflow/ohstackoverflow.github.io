@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to efficiently concatenate strings in go | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-to-efficiently-concatenate-strings-in-go/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../getting-the-client-s-time-zone-and-offset-in-javascript/" title="Getting the client's time zone (and offset) in JavaScript" type="text/html">
+<link rel="next" href="../how-do-you-sort-a-dictionary-by-value/" title="How do you sort a dictionary by value?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How to efficiently concatenate strings in go">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-to-efficiently-concatenate-strings-in-go/">
+<meta property="og:description" content="In Go, a string is a primitive type, which means it is read-only, and every
+manipulation of it will create a new string.
+So if I want to concatenate strings many times without knowing the length of
+th">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T09:20:42+08:00">
+<meta property="article:tag" content="go">
+<meta property="article:tag" content="string">
+<meta property="article:tag" content="string-concatenation">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How to efficiently concatenate strings in go</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T09:20:42+08:00" itemprop="datePublished" title="2023-02-17 09:20">2023-02-17 09:20</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>In Go, a <code>string</code> is a primitive type, which means it is read-only, and every
+manipulation of it will create a new string.</p>
+<p>So if I want to concatenate strings many times without knowing the length of
+the resulting string, what's the best way to do it?</p>
+<p>The naive way would be:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="n">string</span>
+<span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="p">:</span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">s</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">getShortStringFromSomewhere</span><span class="p">()</span>
+<span class="p">}</span>
+<span class="k">return</span><span class="w"> </span><span class="n">s</span>
+</pre></div>
+
+<p>but that does not seem very efficient.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h4>New Way:</h4>
+<p>From Go 1.10 there is a <code>strings.Builder</code> type, please take a look at this
+answer for more detail.</p>
+<h4>Old Way:</h4>
+<p>Use the <code>bytes</code> package. It has a <code>Buffer</code> type which implements <code>io.Writer</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="n">package</span> <span class="n">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+    <span class="s2">"bytes"</span>
+    <span class="s2">"fmt"</span>
+<span class="p">)</span>
+
+<span class="n">func</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">var</span> <span class="n">buffer</span> <span class="nb">bytes</span><span class="o">.</span><span class="n">Buffer</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">1000</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span> <span class="p">{</span>
+        <span class="n">buffer</span><span class="o">.</span><span class="n">WriteString</span><span class="p">(</span><span class="s2">"a"</span><span class="p">)</span>
+    <span class="p">}</span>
+
+    <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="n">buffer</span><span class="o">.</span><span class="n">String</span><span class="p">())</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>This does it in O(n) time.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>In Go 1.10+ there is <strong><code>strings.Builder</code></strong> , here.</p>
+<blockquote>
+<p>A Builder is used to efficiently build a string using Write methods. It
+minimizes memory copying. The zero value is ready to use.</p>
+</blockquote>
+<hr>
+<h3>Example</h3>
+<p>It's almost the same with <code>bytes.Buffer</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="n">package</span> <span class="n">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+    <span class="s2">"strings"</span>
+    <span class="s2">"fmt"</span>
+<span class="p">)</span>
+
+<span class="n">func</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="o">//</span> <span class="n">ZERO</span><span class="o">-</span><span class="n">VALUE</span><span class="p">:</span>
+    <span class="o">//</span>
+    <span class="o">//</span> <span class="n">It</span><span class="s1">'s ready to use from the get-go.</span>
+    <span class="o">//</span> <span class="n">You</span> <span class="n">don</span><span class="s1">'t need to initialize it.</span>
+    <span class="n">var</span> <span class="n">sb</span> <span class="n">strings</span><span class="o">.</span><span class="n">Builder</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">1000</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span> <span class="p">{</span>
+        <span class="n">sb</span><span class="o">.</span><span class="n">WriteString</span><span class="p">(</span><span class="s2">"a"</span><span class="p">)</span>
+    <span class="p">}</span>
+
+    <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="n">sb</span><span class="o">.</span><span class="n">String</span><span class="p">())</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Click to see this on the playground.</p>
+<hr>
+<h3>Supported Interfaces</h3>
+<p>StringBuilder's methods are being implemented with the existing interfaces in
+mind. So that you can switch to the new Builder type easily in your code.</p>
+<ul>
+<li>Grow(int) <em>- &gt; bytes.Buffer#Grow</em>
+</li>
+<li>Len() int <em>- &gt; bytes.Buffer#Len</em>
+</li>
+<li>Reset() <em>- &gt; bytes.Buffer#Reset</em>
+</li>
+<li>String() string <em>- &gt; fmt.Stringer</em>
+</li>
+<li>Write([]byte) (int, error) <em>- &gt; io.Writer</em>
+</li>
+<li>WriteByte(byte) error <em>- &gt; io.ByteWriter</em>
+</li>
+<li>WriteRune(rune) (int, error) <em>- &gt; bufio.Writer#WriteRune - bytes.Buffer#WriteRune</em>
+</li>
+<li>WriteString(string) (int, error) <em>- &gt; io.stringWriter</em>
+</li>
+</ul>
+<hr>
+<h3>Differences from bytes.Buffer</h3>
+<ul>
+<li>
+<p>It can only grow or reset.</p>
+</li>
+<li>
+<p>It has a copyCheck mechanism built-in that prevents accidentially copying it:</p>
+</li>
+</ul>
+<p><code>func (b *Builder) copyCheck() { ... }</code></p>
+<ul>
+<li>
+<p>In <code>bytes.Buffer</code>, one can access the underlying bytes like this: <code>(*Buffer).Bytes()</code>.</p>
+<ul>
+<li>
+<code>strings.Builder</code> prevents this problem.</li>
+<li>Sometimes, this is not a problem though and desired instead.</li>
+<li>For example: <em>For the peeking behavior when the bytes are passed to an<code>io.Reader</code> etc.</em>
+</li>
+<li>
+<code>bytes.Buffer.Reset()</code> rewinds and reuses the underlying buffer whereas the <code>strings.Builder.Reset()</code> does not, it detaches the buffer.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3>Note</h3>
+<ul>
+<li>Do not copy a StringBuilder value as it caches the underlying data.</li>
+<li>If you want to share a StringBuilder value, use a pointer to it.</li>
+</ul>
+<hr>
+<p><strong>Check out its source code for more details, here</strong>.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/go/" rel="tag">go</a></li>
+            <li><a class="tag p-category" href="../../categories/string/" rel="tag">string</a></li>
+            <li><a class="tag p-category" href="../../categories/string-concatenation/" rel="tag">string-concatenation</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../getting-the-client-s-time-zone-and-offset-in-javascript/" rel="prev" title="Getting the client's time zone (and offset) in JavaScript">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-do-you-sort-a-dictionary-by-value/" rel="next" title="How do you sort a dictionary by value?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

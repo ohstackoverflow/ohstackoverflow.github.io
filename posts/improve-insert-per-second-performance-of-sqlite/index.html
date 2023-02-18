@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Improve INSERT-per-second performance of SQLite | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/improve-insert-per-second-performance-of-sqlite/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../echo-newline-in-bash-prints-literal-n/" title="Echo newline in Bash prints literal \n" type="text/html">
+<link rel="next" href="../least-astonishment-and-the-mutable-default-argument/" title='"Least Astonishment" and the Mutable Default Argument' type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Improve INSERT-per-second performance of SQLite">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/improve-insert-per-second-performance-of-sqlite/">
+<meta property="og:description" content="Optimizing SQLite is tricky. Bulk-insert performance of a C application can
+vary from 85 inserts per second to over 96,000 inserts per second!
+Background: We are using SQLite as part of a desktop appl">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-16T19:49:06+08:00">
+<meta property="article:tag" content="c">
+<meta property="article:tag" content="optimization">
+<meta property="article:tag" content="performance">
+<meta property="article:tag" content="sqlite">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Improve INSERT-per-second performance of SQLite</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T19:49:06+08:00" itemprop="datePublished" title="2023-02-16 19:49">2023-02-16 19:49</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Optimizing SQLite is tricky. Bulk-insert performance of a C application can
+vary from 85 inserts per second to over 96,000 inserts per second!</p>
+<p><strong>Background:</strong> We are using SQLite as part of a desktop application. We have
+large amounts of configuration data stored in XML files that are parsed and
+loaded into an SQLite database for further processing when the application is
+initialized. SQLite is ideal for this situation because it's fast, it requires
+no specialized configuration, and the database is stored on disk as a single
+file.</p>
+<p><strong>Rationale:</strong> <em>Initially I was disappointed with the performance I was
+seeing.</em> It turns-out that the performance of SQLite can vary significantly
+(both for bulk-inserts and selects) depending on how the database is
+configured and how you're using the API. It was not a trivial matter to figure
+out what all of the options and techniques were, so I thought it prudent to
+create this community wiki entry to share the results with Stack Overflow
+readers in order to save others the trouble of the same investigations.</p>
+<p><strong>The Experiment:</strong> Rather than simply talking about performance tips in the
+general sense (i.e. <em>"Use a transaction!"</em> ), I thought it best to write some
+C code and <em>actually measure</em> the impact of various options. We're going to
+start with some simple data:</p>
+<ul>
+<li>A 28 MB TAB-delimited text file (approximately 865,000 records) of the complete transit schedule for the city of Toronto</li>
+<li>My test machine is a 3.60 GHz P4 running Windows XP.</li>
+<li>The code is compiled with Visual C++ 2005 as "Release" with "Full Optimization" (/Ox) and Favor Fast Code (/Ot).</li>
+<li>I'm using the SQLite "Amalgamation", compiled directly into my test application. The SQLite version I happen to have is a bit older (3.6.7), but I suspect these results will be comparable to the latest release (please leave a comment if you think otherwise).</li>
+</ul>
+<p><em>Let's write some code!</em></p>
+<p><strong>The Code:</strong> A simple C program that reads the text file line-by-line, splits
+the string into values and then inserts the data into an SQLite database. In
+this "baseline" version of the code, the database is created, but we won't
+actually insert data:</p>
+<div class="code"><pre class="code literal-block"><span class="cm">/*************************************************************</span>
+<span class="cm">    Baseline code to experiment with SQLite performance.</span>
+
+<span class="cm">    Input data is a 28 MB TAB-delimited text file of the</span>
+<span class="cm">    complete Toronto Transit System schedule/route info</span>
+<span class="cm">    from http://www.toronto.ca/open/datasets/ttc-routes/</span>
+
+<span class="cm">**************************************************************/</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">stdio</span><span class="p">.</span><span class="n">h</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">stdlib</span><span class="p">.</span><span class="n">h</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="nc">time</span><span class="p">.</span><span class="n">h</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">string</span><span class="p">.</span><span class="n">h</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="ss">"sqlite3.h"</span>
+
+<span class="n">#define</span><span class="w"> </span><span class="n">INPUTDATA</span><span class="w"> </span><span class="ss">"C:\\TTC_schedule_scheduleitem_10-27-2009.txt"</span>
+<span class="n">#define</span><span class="w"> </span><span class="k">DATABASE</span><span class="w"> </span><span class="ss">"c:\\TTC_schedule_scheduleitem_10-27-2009.sqlite"</span>
+<span class="n">#define</span><span class="w"> </span><span class="nc">TABLE</span><span class="w"> </span><span class="ss">"CREATE TABLE IF NOT EXISTS TTC (id INTEGER PRIMARY KEY, Route_ID TEXT, Branch_Code TEXT, Version INTEGER, Stop INTEGER, Vehicle_Index INTEGER, Day Integer, Time TEXT)"</span>
+<span class="n">#define</span><span class="w"> </span><span class="n">BUFFER_SIZE</span><span class="w"> </span><span class="mi">256</span>
+
+<span class="nc">int</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="nc">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="n">sqlite3</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">db</span><span class="p">;</span>
+<span class="w">    </span><span class="n">sqlite3_stmt</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">stmt</span><span class="p">;</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sErrMsg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">tail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="nc">int</span><span class="w"> </span><span class="n">nRetCode</span><span class="p">;</span>
+<span class="w">    </span><span class="nc">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">clock_t</span><span class="w"> </span><span class="n">cStartClock</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">FILE</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">pFile</span><span class="p">;</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="n">sInputBuf</span><span class="w"> </span><span class="o">[</span><span class="n">BUFFER_SIZE</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"\0"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sRT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Route */</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sBR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Branch */</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sVR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Version */</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sST</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Stop Number */</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sVI</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Vehicle */</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sDT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Date */</span>
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sTM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Time */</span>
+
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="n">sSQL</span><span class="w"> </span><span class="o">[</span><span class="n">BUFFER_SIZE</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"\0"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="cm">/*********************************************/</span>
+<span class="w">    </span><span class="cm">/* Open the Database and create the Schema */</span>
+<span class="w">    </span><span class="n">sqlite3_open</span><span class="p">(</span><span class="k">DATABASE</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">db</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="nc">TABLE</span><span class="p">,</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+
+<span class="w">    </span><span class="cm">/*********************************************/</span>
+<span class="w">    </span><span class="cm">/* Open input file and import into Database*/</span>
+<span class="w">    </span><span class="n">cStartClock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clock</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">pFile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="w"> </span><span class="p">(</span><span class="n">INPUTDATA</span><span class="p">,</span><span class="ss">"r"</span><span class="p">);</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="err">!</span><span class="n">feof</span><span class="p">(</span><span class="n">pFile</span><span class="p">))</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="n">fgets</span><span class="w"> </span><span class="p">(</span><span class="n">sInputBuf</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFER_SIZE</span><span class="p">,</span><span class="w"> </span><span class="n">pFile</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">sRT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strtok</span><span class="w"> </span><span class="p">(</span><span class="n">sInputBuf</span><span class="p">,</span><span class="w"> </span><span class="ss">"\t"</span><span class="p">);</span><span class="w">     </span><span class="cm">/* Get Route */</span>
+<span class="w">        </span><span class="n">sBR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strtok</span><span class="w"> </span><span class="p">(</span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="ss">"\t"</span><span class="p">);</span><span class="w">            </span><span class="cm">/* Get Branch */</span>
+<span class="w">        </span><span class="n">sVR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strtok</span><span class="w"> </span><span class="p">(</span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="ss">"\t"</span><span class="p">);</span><span class="w">            </span><span class="cm">/* Get Version */</span>
+<span class="w">        </span><span class="n">sST</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strtok</span><span class="w"> </span><span class="p">(</span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="ss">"\t"</span><span class="p">);</span><span class="w">            </span><span class="cm">/* Get Stop Number */</span>
+<span class="w">        </span><span class="n">sVI</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strtok</span><span class="w"> </span><span class="p">(</span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="ss">"\t"</span><span class="p">);</span><span class="w">            </span><span class="cm">/* Get Vehicle */</span>
+<span class="w">        </span><span class="n">sDT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strtok</span><span class="w"> </span><span class="p">(</span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="ss">"\t"</span><span class="p">);</span><span class="w">            </span><span class="cm">/* Get Date */</span>
+<span class="w">        </span><span class="n">sTM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strtok</span><span class="w"> </span><span class="p">(</span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="ss">"\t"</span><span class="p">);</span><span class="w">            </span><span class="cm">/* Get Time */</span>
+
+<span class="w">        </span><span class="cm">/* ACTUAL INSERT WILL GO HERE */</span>
+
+<span class="w">        </span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="n">fclose</span><span class="w"> </span><span class="p">(</span><span class="n">pFile</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="ss">"Imported %d records in %4.2f seconds\n"</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">clock</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">cStartClock</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="k">double</span><span class="p">)</span><span class="n">CLOCKS_PER_SEC</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">sqlite3_close</span><span class="p">(</span><span class="n">db</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<hr>
+<h3>The "Control"</h3>
+<p>Running the code as-is doesn't actually perform any database operations, but
+it will give us an idea of how fast the raw C file I/O and string processing
+operations are.</p>
+<blockquote>
+<p>Imported 864913 records in 0.94 seconds</p>
+</blockquote>
+<p>Great! We can do 920,000 inserts per second, provided we don't actually do any
+inserts :-)</p>
+<hr>
+<h3>The "Worst-Case-Scenario"</h3>
+<p>We're going to generate the SQL string using the values read from the file and
+invoke that SQL operation using sqlite3_exec:</p>
+<div class="code"><pre class="code literal-block"><span class="k">sprintf</span><span class="ss">(</span><span class="nv">sSQL</span>,<span class="w"> </span><span class="s2">"INSERT INTO TTC VALUES (NULL, '%s', '%s', '%s', '%s', '%s', '%s', '%s')"</span>,<span class="w"> </span><span class="nv">sRT</span>,<span class="w"> </span><span class="nv">sBR</span>,<span class="w"> </span><span class="nv">sVR</span>,<span class="w"> </span><span class="nv">sST</span>,<span class="w"> </span><span class="nv">sVI</span>,<span class="w"> </span><span class="nv">sDT</span>,<span class="w"> </span><span class="nv">sTM</span><span class="ss">)</span><span class="c1">;</span>
+<span class="nv">sqlite3_exec</span><span class="ss">(</span><span class="nv">db</span>,<span class="w"> </span><span class="nv">sSQL</span>,<span class="w"> </span><span class="nv">NULL</span>,<span class="w"> </span><span class="nv">NULL</span>,<span class="w"> </span><span class="o">&amp;</span><span class="nv">sErrMsg</span><span class="ss">)</span><span class="c1">;</span>
+</pre></div>
+
+<p>This is going to be slow because the SQL will be compiled into VDBE code for
+every insert and every insert will happen in its own transaction. <em>How slow?</em></p>
+<blockquote>
+<p>Imported 864913 records in 9933.61 seconds</p>
+</blockquote>
+<p>Yikes! 2 hours and 45 minutes! That's only <strong>85 inserts per second.</strong></p>
+<h3>Using a Transaction</h3>
+<p>By default, SQLite will evaluate every INSERT / UPDATE statement within a
+unique transaction. If performing a large number of inserts, it's advisable to
+wrap your operation in a transaction:</p>
+<div class="code"><pre class="code literal-block"><span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s">"BEGIN TRANSACTION"</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+
+<span class="n">pFile</span> <span class="o">=</span> <span class="n">fopen</span> <span class="p">(</span><span class="n">INPUTDATA</span><span class="p">,</span><span class="s">"r"</span><span class="p">);</span>
+<span class="n">while</span> <span class="p">(</span><span class="err">!</span><span class="n">feof</span><span class="p">(</span><span class="n">pFile</span><span class="p">))</span> <span class="p">{</span>
+
+    <span class="p">...</span>
+
+<span class="p">}</span>
+<span class="n">fclose</span> <span class="p">(</span><span class="n">pFile</span><span class="p">);</span>
+
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s">"END TRANSACTION"</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+</pre></div>
+
+<blockquote>
+<p>Imported 864913 records in 38.03 seconds</p>
+</blockquote>
+<p>That's better. Simply wrapping all of our inserts in a single transaction
+improved our performance to <strong>23,000 inserts per second.</strong></p>
+<h3>Using a Prepared Statement</h3>
+<p>Using a transaction was a huge improvement, but recompiling the SQL statement
+for every insert doesn't make sense if we using the same SQL over-and-over.
+Let's use <code>sqlite3_prepare_v2</code> to compile our SQL statement once and then bind
+our parameters to that statement using <code>sqlite3_bind_text</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="o">/*</span> <span class="n">Open</span> <span class="nb">input</span> <span class="n">file</span> <span class="ow">and</span> <span class="kn">import</span> <span class="nn">into</span> <span class="n">the</span> <span class="n">database</span> <span class="o">*/</span>
+<span class="n">cStartClock</span> <span class="o">=</span> <span class="n">clock</span><span class="p">();</span>
+
+<span class="n">sprintf</span><span class="p">(</span><span class="n">sSQL</span><span class="p">,</span> <span class="s2">"INSERT INTO TTC VALUES (NULL, @RT, @BR, @VR, @ST, @VI, @DT, @TM)"</span><span class="p">);</span>
+<span class="n">sqlite3_prepare_v2</span><span class="p">(</span><span class="n">db</span><span class="p">,</span>  <span class="n">sSQL</span><span class="p">,</span> <span class="n">BUFFER_SIZE</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">stmt</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">tail</span><span class="p">);</span>
+
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s2">"BEGIN TRANSACTION"</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+
+<span class="n">pFile</span> <span class="o">=</span> <span class="n">fopen</span> <span class="p">(</span><span class="n">INPUTDATA</span><span class="p">,</span><span class="s2">"r"</span><span class="p">);</span>
+<span class="k">while</span> <span class="p">(</span><span class="err">!</span><span class="n">feof</span><span class="p">(</span><span class="n">pFile</span><span class="p">))</span> <span class="p">{</span>
+
+    <span class="n">fgets</span> <span class="p">(</span><span class="n">sInputBuf</span><span class="p">,</span> <span class="n">BUFFER_SIZE</span><span class="p">,</span> <span class="n">pFile</span><span class="p">);</span>
+
+    <span class="n">sRT</span> <span class="o">=</span> <span class="n">strtok</span> <span class="p">(</span><span class="n">sInputBuf</span><span class="p">,</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">);</span>   <span class="o">/*</span> <span class="n">Get</span> <span class="n">Route</span> <span class="o">*/</span>
+    <span class="n">sBR</span> <span class="o">=</span> <span class="n">strtok</span> <span class="p">(</span><span class="n">NULL</span><span class="p">,</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">);</span>        <span class="o">/*</span> <span class="n">Get</span> <span class="n">Branch</span> <span class="o">*/</span>
+    <span class="n">sVR</span> <span class="o">=</span> <span class="n">strtok</span> <span class="p">(</span><span class="n">NULL</span><span class="p">,</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">);</span>        <span class="o">/*</span> <span class="n">Get</span> <span class="n">Version</span> <span class="o">*/</span>
+    <span class="n">sST</span> <span class="o">=</span> <span class="n">strtok</span> <span class="p">(</span><span class="n">NULL</span><span class="p">,</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">);</span>        <span class="o">/*</span> <span class="n">Get</span> <span class="n">Stop</span> <span class="n">Number</span> <span class="o">*/</span>
+    <span class="n">sVI</span> <span class="o">=</span> <span class="n">strtok</span> <span class="p">(</span><span class="n">NULL</span><span class="p">,</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">);</span>        <span class="o">/*</span> <span class="n">Get</span> <span class="n">Vehicle</span> <span class="o">*/</span>
+    <span class="n">sDT</span> <span class="o">=</span> <span class="n">strtok</span> <span class="p">(</span><span class="n">NULL</span><span class="p">,</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">);</span>        <span class="o">/*</span> <span class="n">Get</span> <span class="n">Date</span> <span class="o">*/</span>
+    <span class="n">sTM</span> <span class="o">=</span> <span class="n">strtok</span> <span class="p">(</span><span class="n">NULL</span><span class="p">,</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">);</span>        <span class="o">/*</span> <span class="n">Get</span> <span class="n">Time</span> <span class="o">*/</span>
+
+    <span class="n">sqlite3_bind_text</span><span class="p">(</span><span class="n">stmt</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">sRT</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">SQLITE_TRANSIENT</span><span class="p">);</span>
+    <span class="n">sqlite3_bind_text</span><span class="p">(</span><span class="n">stmt</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">sBR</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">SQLITE_TRANSIENT</span><span class="p">);</span>
+    <span class="n">sqlite3_bind_text</span><span class="p">(</span><span class="n">stmt</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">sVR</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">SQLITE_TRANSIENT</span><span class="p">);</span>
+    <span class="n">sqlite3_bind_text</span><span class="p">(</span><span class="n">stmt</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">sST</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">SQLITE_TRANSIENT</span><span class="p">);</span>
+    <span class="n">sqlite3_bind_text</span><span class="p">(</span><span class="n">stmt</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">sVI</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">SQLITE_TRANSIENT</span><span class="p">);</span>
+    <span class="n">sqlite3_bind_text</span><span class="p">(</span><span class="n">stmt</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="n">sDT</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">SQLITE_TRANSIENT</span><span class="p">);</span>
+    <span class="n">sqlite3_bind_text</span><span class="p">(</span><span class="n">stmt</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">sTM</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">SQLITE_TRANSIENT</span><span class="p">);</span>
+
+    <span class="n">sqlite3_step</span><span class="p">(</span><span class="n">stmt</span><span class="p">);</span>
+
+    <span class="n">sqlite3_clear_bindings</span><span class="p">(</span><span class="n">stmt</span><span class="p">);</span>
+    <span class="n">sqlite3_reset</span><span class="p">(</span><span class="n">stmt</span><span class="p">);</span>
+
+    <span class="n">n</span><span class="o">++</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="n">fclose</span> <span class="p">(</span><span class="n">pFile</span><span class="p">);</span>
+
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s2">"END TRANSACTION"</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+
+<span class="n">printf</span><span class="p">(</span><span class="s2">"Imported </span><span class="si">%d</span><span class="s2"> records in </span><span class="si">%4.2f</span><span class="s2"> seconds</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="p">(</span><span class="n">clock</span><span class="p">()</span> <span class="o">-</span> <span class="n">cStartClock</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">double</span><span class="p">)</span><span class="n">CLOCKS_PER_SEC</span><span class="p">);</span>
+
+<span class="n">sqlite3_finalize</span><span class="p">(</span><span class="n">stmt</span><span class="p">);</span>
+<span class="n">sqlite3_close</span><span class="p">(</span><span class="n">db</span><span class="p">);</span>
+
+<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</pre></div>
+
+<blockquote>
+<p>Imported 864913 records in 16.27 seconds</p>
+</blockquote>
+<p>Nice! There's a little bit more code (don't forget to call
+<code>sqlite3_clear_bindings</code> and <code>sqlite3_reset</code>), but we've more than doubled our
+performance to <strong>53,000 inserts per second.</strong></p>
+<h3>PRAGMA synchronous = OFF</h3>
+<p>By default, SQLite will pause after issuing a OS-level write command. This
+guarantees that the data is written to the disk. By setting <code>synchronous =
+OFF</code>, we are instructing SQLite to simply hand-off the data to the OS for
+writing and then continue. There's a chance that the database file may become
+corrupted if the computer suffers a catastrophic crash (or power failure)
+before the data is written to the platter:</p>
+<div class="code"><pre class="code literal-block"><span class="o">/*</span><span class="w"> </span><span class="n">Open</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">database</span><span class="w"> </span><span class="nb">and</span><span class="w"> </span><span class="n">create</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">schema</span><span class="w"> </span><span class="o">*/</span>
+<span class="n">sqlite3_open</span><span class="p">(</span><span class="n">DATABASE</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">db</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="n">TABLE</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="s">"PRAGMA synchronous = OFF"</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+</pre></div>
+
+<blockquote>
+<p>Imported 864913 records in 12.41 seconds</p>
+</blockquote>
+<p>The improvements are now smaller, but we're up to <strong>69,600 inserts per
+second.</strong></p>
+<h3>PRAGMA journal_mode = MEMORY</h3>
+<p>Consider storing the rollback journal in memory by evaluating <code>PRAGMA
+journal_mode = MEMORY</code>. Your transaction will be faster, but if you lose power
+or your program crashes during a transaction you database could be left in a
+corrupt state with a partially-completed transaction:</p>
+<div class="code"><pre class="code literal-block"><span class="o">/*</span><span class="w"> </span><span class="n">Open</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">database</span><span class="w"> </span><span class="nb">and</span><span class="w"> </span><span class="n">create</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">schema</span><span class="w"> </span><span class="o">*/</span>
+<span class="n">sqlite3_open</span><span class="p">(</span><span class="n">DATABASE</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">db</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="n">TABLE</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="s">"PRAGMA journal_mode = MEMORY"</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+</pre></div>
+
+<blockquote>
+<p>Imported 864913 records in 13.50 seconds</p>
+</blockquote>
+<p>A little slower than the previous optimization at <strong>64,000 inserts per
+second.</strong></p>
+<h3>PRAGMA synchronous = OFF <em>and</em> PRAGMA journal_mode = MEMORY</h3>
+<p>Let's combine the previous two optimizations. It's a little more risky (in
+case of a crash), but we're just importing data (not running a bank):</p>
+<div class="code"><pre class="code literal-block"><span class="o">/*</span><span class="w"> </span><span class="n">Open</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">database</span><span class="w"> </span><span class="nb">and</span><span class="w"> </span><span class="n">create</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">schema</span><span class="w"> </span><span class="o">*/</span>
+<span class="n">sqlite3_open</span><span class="p">(</span><span class="n">DATABASE</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">db</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="n">TABLE</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="s">"PRAGMA synchronous = OFF"</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="w"> </span><span class="s">"PRAGMA journal_mode = MEMORY"</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+</pre></div>
+
+<blockquote>
+<p>Imported 864913 records in 12.00 seconds</p>
+</blockquote>
+<p>Fantastic! We're able to do <strong>72,000 inserts per second.</strong></p>
+<h3>Using an In-Memory Database</h3>
+<p>Just for kicks, let's build upon all of the previous optimizations and
+redefine the database filename so we're working entirely in RAM:</p>
+<div class="code"><pre class="code literal-block">#define DATABASE ":memory:"
+</pre></div>
+
+<blockquote>
+<p>Imported 864913 records in 10.94 seconds</p>
+</blockquote>
+<p>It's not super-practical to store our database in RAM, but it's impressive
+that we can perform <strong>79,000 inserts per second.</strong></p>
+<h3>Refactoring C Code</h3>
+<p>Although not specifically an SQLite improvement, I don't like the extra
+<code>char*</code> assignment operations in the <code>while</code> loop. Let's quickly refactor that
+code to pass the output of <code>strtok()</code> directly into <code>sqlite3_bind_text()</code>, and
+let the compiler try to speed things up for us:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">pFile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">fopen</span><span class="w"> </span><span class="ss">(</span><span class="nv">INPUTDATA</span>,<span class="s2">"r"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="k">while</span><span class="w"> </span><span class="ss">(</span><span class="o">!</span><span class="nv">feof</span><span class="ss">(</span><span class="nv">pFile</span><span class="ss">))</span><span class="w"> </span>{
+
+<span class="w">    </span><span class="nv">fgets</span><span class="w"> </span><span class="ss">(</span><span class="nv">sInputBuf</span>,<span class="w"> </span><span class="nv">BUFFER_SIZE</span>,<span class="w"> </span><span class="nv">pFile</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">    </span><span class="nv">sqlite3_bind_text</span><span class="ss">(</span><span class="nv">stmt</span>,<span class="w"> </span><span class="mi">1</span>,<span class="w"> </span><span class="nv">strtok</span><span class="w"> </span><span class="ss">(</span><span class="nv">sInputBuf</span>,<span class="w"> </span><span class="s2">"\t"</span><span class="ss">)</span>,<span class="w"> </span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="nv">SQLITE_TRANSIENT</span><span class="ss">)</span><span class="c1">; /* Get Route */</span>
+<span class="w">    </span><span class="nv">sqlite3_bind_text</span><span class="ss">(</span><span class="nv">stmt</span>,<span class="w"> </span><span class="mi">2</span>,<span class="w"> </span><span class="nv">strtok</span><span class="w"> </span><span class="ss">(</span><span class="nv">NULL</span>,<span class="w"> </span><span class="s2">"\t"</span><span class="ss">)</span>,<span class="w"> </span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="nv">SQLITE_TRANSIENT</span><span class="ss">)</span><span class="c1">;    /* Get Branch */</span>
+<span class="w">    </span><span class="nv">sqlite3_bind_text</span><span class="ss">(</span><span class="nv">stmt</span>,<span class="w"> </span><span class="mi">3</span>,<span class="w"> </span><span class="nv">strtok</span><span class="w"> </span><span class="ss">(</span><span class="nv">NULL</span>,<span class="w"> </span><span class="s2">"\t"</span><span class="ss">)</span>,<span class="w"> </span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="nv">SQLITE_TRANSIENT</span><span class="ss">)</span><span class="c1">;    /* Get Version */</span>
+<span class="w">    </span><span class="nv">sqlite3_bind_text</span><span class="ss">(</span><span class="nv">stmt</span>,<span class="w"> </span><span class="mi">4</span>,<span class="w"> </span><span class="nv">strtok</span><span class="w"> </span><span class="ss">(</span><span class="nv">NULL</span>,<span class="w"> </span><span class="s2">"\t"</span><span class="ss">)</span>,<span class="w"> </span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="nv">SQLITE_TRANSIENT</span><span class="ss">)</span><span class="c1">;    /* Get Stop Number */</span>
+<span class="w">    </span><span class="nv">sqlite3_bind_text</span><span class="ss">(</span><span class="nv">stmt</span>,<span class="w"> </span><span class="mi">5</span>,<span class="w"> </span><span class="nv">strtok</span><span class="w"> </span><span class="ss">(</span><span class="nv">NULL</span>,<span class="w"> </span><span class="s2">"\t"</span><span class="ss">)</span>,<span class="w"> </span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="nv">SQLITE_TRANSIENT</span><span class="ss">)</span><span class="c1">;    /* Get Vehicle */</span>
+<span class="w">    </span><span class="nv">sqlite3_bind_text</span><span class="ss">(</span><span class="nv">stmt</span>,<span class="w"> </span><span class="mi">6</span>,<span class="w"> </span><span class="nv">strtok</span><span class="w"> </span><span class="ss">(</span><span class="nv">NULL</span>,<span class="w"> </span><span class="s2">"\t"</span><span class="ss">)</span>,<span class="w"> </span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="nv">SQLITE_TRANSIENT</span><span class="ss">)</span><span class="c1">;    /* Get Date */</span>
+<span class="w">    </span><span class="nv">sqlite3_bind_text</span><span class="ss">(</span><span class="nv">stmt</span>,<span class="w"> </span><span class="mi">7</span>,<span class="w"> </span><span class="nv">strtok</span><span class="w"> </span><span class="ss">(</span><span class="nv">NULL</span>,<span class="w"> </span><span class="s2">"\t"</span><span class="ss">)</span>,<span class="w"> </span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="nv">SQLITE_TRANSIENT</span><span class="ss">)</span><span class="c1">;    /* Get Time */</span>
+
+<span class="w">    </span><span class="nv">sqlite3_step</span><span class="ss">(</span><span class="nv">stmt</span><span class="ss">)</span><span class="c1">;        /* Execute the SQL Statement */</span>
+<span class="w">    </span><span class="nv">sqlite3_clear_bindings</span><span class="ss">(</span><span class="nv">stmt</span><span class="ss">)</span><span class="c1">;    /* Clear bindings */</span>
+<span class="w">    </span><span class="nv">sqlite3_reset</span><span class="ss">(</span><span class="nv">stmt</span><span class="ss">)</span><span class="c1">;        /* Reset VDBE */</span>
+
+<span class="w">    </span><span class="nv">n</span><span class="o">++</span><span class="c1">;</span>
+}
+<span class="nv">fclose</span><span class="w"> </span><span class="ss">(</span><span class="nv">pFile</span><span class="ss">)</span><span class="c1">;</span>
+</pre></div>
+
+<p><strong>Note: We are back to using a real database file. In-memory databases are
+fast, but not necessarily practical</strong></p>
+<blockquote>
+<p>Imported 864913 records in 8.94 seconds</p>
+</blockquote>
+<p>A slight refactoring to the string processing code used in our parameter
+binding has allowed us to perform <strong>96,700 inserts per second.</strong> I think it's
+safe to say that this is <em>plenty fast</em>. As we start to tweak other variables
+(i.e. page size, index creation, etc.) this will be our benchmark.</p>
+<hr>
+<h3>Summary (so far)</h3>
+<p><em>I hope you're still with me!</em> The reason we started down this road is that
+bulk-insert performance varies so wildly with SQLite, and it's not always
+obvious what changes need to be made to speed-up our operation. Using the same
+compiler (and compiler options), the same version of SQLite and the same data
+we've optimized our code and our usage of SQLite to go <strong>from a worst-case
+scenario of 85 inserts per second to over 96,000 inserts per second!</strong></p>
+<hr>
+<h3>CREATE INDEX then INSERT vs. INSERT then CREATE INDEX</h3>
+<p>Before we start measuring <code>SELECT</code> performance, we know that we'll be creating
+indices. It's been suggested in one of the answers below that when doing bulk
+inserts, it is faster to create the index after the data has been inserted (as
+opposed to creating the index first then inserting the data). Let's try:</p>
+<p><strong>Create Index then Insert Data</strong></p>
+<div class="code"><pre class="code literal-block"><span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s">"CREATE  INDEX 'TTC_Stop_Index' ON 'TTC' ('Stop')"</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s">"BEGIN TRANSACTION"</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+<span class="p">...</span>
+</pre></div>
+
+<blockquote>
+<p>Imported 864913 records in 18.13 seconds</p>
+</blockquote>
+<p><strong>Insert Data then Create Index</strong></p>
+<div class="code"><pre class="code literal-block"><span class="p">...</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s">"END TRANSACTION"</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+<span class="n">sqlite3_exec</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s">"CREATE  INDEX 'TTC_Stop_Index' ON 'TTC' ('Stop')"</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="n">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sErrMsg</span><span class="p">);</span>
+</pre></div>
+
+<blockquote>
+<p>Imported 864913 records in 13.66 seconds</p>
+</blockquote>
+<p>As expected, bulk-inserts are slower if one column is indexed, but it does
+make a difference if the index is created after the data is inserted. Our no-
+index baseline is 96,000 inserts per second. <strong>Creating the index first then
+inserting data gives us 47,700 inserts per second, whereas inserting the data
+first then creating the index gives us 63,300 inserts per second.</strong></p>
+<hr>
+<p>I'd gladly take suggestions for other scenarios to try... And will be
+compiling similar data for SELECT queries soon.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Several tips:</p>
+<ol>
+<li>Put inserts/updates in a transaction.</li>
+<li>For older versions of SQLite - Consider a less paranoid journal mode (<code>pragma journal_mode</code>). There is <code>NORMAL</code>, and then there is <code>OFF</code>, which can significantly increase insert speed if you're not too worried about the database possibly getting corrupted if the OS crashes. If your application crashes the data should be fine. Note that in newer versions, the <code>OFF/MEMORY</code> settings are not safe for application level crashes.</li>
+<li>Playing with page sizes makes a difference as well (<code>PRAGMA page_size</code>). Having larger page sizes can make reads and writes go a bit faster as larger pages are held in memory. Note that more memory will be used for your database.</li>
+<li>If you have indices, consider calling <code>CREATE INDEX</code> after doing all your inserts. This is significantly faster than creating the index and then doing your inserts.</li>
+<li>You have to be quite careful if you have concurrent access to SQLite, as the whole database is locked when writes are done, and although multiple readers are possible, writes will be locked out. This has been improved somewhat with the addition of a WAL in newer SQLite versions.</li>
+<li>Take advantage of saving space...smaller databases go faster. For instance, if you have key value pairs, try making the key an <code>INTEGER PRIMARY KEY</code> if possible, which will replace the implied unique row number column in the table.</li>
+<li>If you are using multiple threads, you can try using the shared page cache, which will allow loaded pages to be shared between threads, which can avoid expensive I/O calls.</li>
+<li>Don't use <code>!feof(file)</code>!</li>
+</ol>
+<p>I've also asked similar questions here and here.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Try using <code>SQLITE_STATIC</code> instead of <code>SQLITE_TRANSIENT</code> for those inserts.</p>
+<p><code>SQLITE_TRANSIENT</code> will cause SQLite to copy the string data before returning.</p>
+<p><code>SQLITE_STATIC</code> tells it that the memory address you gave it will be valid
+until the query has been performed (which in this loop is always the case).
+This will save you several allocate, copy and deallocate operations per loop.
+Possibly a large improvement.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/c/" rel="tag">c</a></li>
+            <li><a class="tag p-category" href="../../categories/optimization/" rel="tag">optimization</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+            <li><a class="tag p-category" href="../../categories/sqlite/" rel="tag">sqlite</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../echo-newline-in-bash-prints-literal-n/" rel="prev" title="Echo newline in Bash prints literal \n">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../least-astonishment-and-the-mutable-default-argument/" rel="next" title='"Least Astonishment" and the Mutable Default Argument'>Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proper use of the IDisposable interface | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/proper-use-of-the-idisposable-interface/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-convert-decimal-to-hexadecimal-in-javascript/" title="How to convert decimal to hexadecimal in JavaScript" type="text/html">
+<link rel="next" href="../button-vs-input-type-button-which-to-use/" title='&lt;button&gt; vs. &lt;input type="button" /&gt;. Which to use?' type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Proper use of the IDisposable interface">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/proper-use-of-the-idisposable-interface/">
+<meta property="og:description" content='I know from reading Microsoft documentation that the "primary" use of the
+IDisposable interface is to clean up unmanaged resources.
+To me, "unmanaged" means things like database connections, sockets, '>
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-16T23:56:42+08:00">
+<meta property="article:tag" content=".net">
+<meta property="article:tag" content=".net-c#">
+<meta property="article:tag" content="garbage-collection">
+<meta property="article:tag" content="idisposable">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Proper use of the IDisposable interface</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T23:56:42+08:00" itemprop="datePublished" title="2023-02-16 23:56">2023-02-16 23:56</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I know from reading Microsoft documentation that the "primary" use of the
+<code>IDisposable</code> interface is to clean up unmanaged resources.</p>
+<p>To me, "unmanaged" means things like database connections, sockets, window
+handles, etc. But, I've seen code where the <code>Dispose()</code> method is implemented
+to free <em>managed</em> resources, which seems redundant to me, since the garbage
+collector should take care of that for you.</p>
+<p>For example:</p>
+<div class="code"><pre class="code literal-block">public class MyCollection : IDisposable
+{
+    private List&lt;String&gt; _theList = new List&lt;String&gt;();
+    private Dictionary&lt;String, Point&gt; _theDict = new Dictionary&lt;String, Point&gt;();
+
+    // Die, clear it up! (free unmanaged resources)
+    public void Dispose()
+    {
+        _theList.clear();
+        _theDict.clear();
+        _theList = null;
+        _theDict = null;
+    }
+}
+</pre></div>
+
+<p>My question is, does this make the garbage collector free memory used by
+<code>MyCollection</code> any faster than it normally would?</p>
+<hr>
+<p><strong>Edit</strong> : So far people have posted some good examples of using <code>IDisposable</code>
+to clean up unmanaged resources such as database connections and bitmaps. But
+suppose that <code>_theList</code> in the above code contained a million strings, and you
+wanted to free that memory <em>now</em> , rather than waiting for the garbage
+collector. Would the above code accomplish that?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The point of Dispose <strong>is</strong> to free unmanaged resources. It needs to be done
+at some point, otherwise they will never be cleaned up. The garbage collector
+doesn't know <strong>how</strong> to call <code>DeleteHandle()</code> on a variable of type <code>IntPtr</code>,
+it doesn't know <strong>whether</strong> or not it needs to call <code>DeleteHandle()</code>.</p>
+<blockquote>
+<p><strong>Note</strong> : What is an <em>unmanaged resource</em>? If you found it in the Microsoft
+.NET Framework: it's managed. If you went poking around MSDN yourself, it's
+unmanaged. Anything you've used P/Invoke calls to get outside of the nice
+comfy world of everything available to you in the .NET Framework is
+unmanaged – and you're now responsible for cleaning it up.</p>
+</blockquote>
+<p>The object that you've created needs to expose <em>some</em> method, that the outside
+world can call, in order to clean up unmanaged resources. The method can be
+named whatever you like:</p>
+<div class="code"><pre class="code literal-block">public void Cleanup()
+</pre></div>
+
+<p>or</p>
+<div class="code"><pre class="code literal-block">public void Shutdown()
+</pre></div>
+
+<p>But instead there is a standardized name for this method:</p>
+<div class="code"><pre class="code literal-block">public void Dispose()
+</pre></div>
+
+<p>There was even an interface created, <code>IDisposable</code>, that has just that one
+method:</p>
+<div class="code"><pre class="code literal-block">public interface IDisposable
+{
+   void Dispose()
+}
+</pre></div>
+
+<p>So you make your object expose the <code>IDisposable</code> interface, and that way you
+promise that you've written that single method to clean up your unmanaged
+resources:</p>
+<div class="code"><pre class="code literal-block">public void Dispose()
+{
+   Win32.DestroyHandle(this.CursorFileBitmapIconServiceHandle);
+}
+</pre></div>
+
+<p>And you're done. <strong>Except you can do better.</strong></p>
+<hr>
+<p>What if your object has allocated a 250MB <strong>System.Drawing.Bitmap</strong> (i.e. the
+.NET managed Bitmap class) as some sort of frame buffer? Sure, this is a
+managed .NET object, and the garbage collector will free it. But do you really
+want to leave 250MB of memory just sitting there – waiting for the garbage
+collector to <em>eventually</em> come along and free it? What if there's an open
+database connection? Surely we don't want that connection sitting open,
+waiting for the GC to finalize the object.</p>
+<p>If the user has called <code>Dispose()</code> (meaning they no longer plan to use the
+object) why not get rid of those wasteful bitmaps and database connections?</p>
+<p>So now we will:</p>
+<ul>
+<li>get rid of unmanaged resources (because we have to), and</li>
+<li>get rid of managed resources (because we want to be helpful)</li>
+</ul>
+<p>So let's update our <code>Dispose()</code> method to get rid of those managed objects:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">Dispose</span><span class="ss">()</span>
+{
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">unmanaged</span><span class="w"> </span><span class="nv">resources</span>
+<span class="w">   </span><span class="nv">Win32</span>.<span class="nv">DestroyHandle</span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">CursorFileBitmapIconServiceHandle</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">managed</span><span class="w"> </span><span class="nv">resources</span><span class="w"> </span><span class="nv">too</span>
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">databaseConnection</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span>
+<span class="w">   </span>{
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">databaseConnection</span>.<span class="nv">Dispose</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">databaseConnection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">   </span>}
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">frameBufferImage</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span>
+<span class="w">   </span>{
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">frameBufferImage</span>.<span class="nv">Dispose</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">frameBufferImage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">   </span>}
+}
+</pre></div>
+
+<p>And all is good, <strong>except you can do better</strong>!</p>
+<hr>
+<p>What if the person <strong>forgot</strong> to call <code>Dispose()</code> on your object? Then they
+would leak some <strong>unmanaged</strong> resources!</p>
+<blockquote>
+<p><strong>Note:</strong> They won't leak <strong>managed</strong> resources, because eventually the
+garbage collector is going to run, on a background thread, and free the
+memory associated with any unused objects. This will include your object,
+and any managed objects you use (e.g. the <code>Bitmap</code> and the <code>DbConnection</code>).</p>
+</blockquote>
+<p>If the person forgot to call <code>Dispose()</code>, we can <em>still</em> save their bacon! We
+still have a way to call it <em>for</em> them: when the garbage collector finally
+gets around to freeing (i.e. finalizing) our object.</p>
+<blockquote>
+<p><strong>Note:</strong> The garbage collector will eventually free all managed objects.
+When it does, it calls the <strong><code>Finalize</code></strong> method on the object. The GC
+doesn't know, or care, about <em>your</em> <strong>Dispose</strong> method. That was just a name
+we chose for a method we call when we want to get rid of unmanaged stuff.</p>
+</blockquote>
+<p>The destruction of our object by the Garbage collector is the <em>perfect</em> time
+to free those pesky unmanaged resources. We do this by overriding the
+<code>Finalize()</code> method.</p>
+<blockquote>
+<p><strong>Note:</strong> In C#, you don't explicitly override the <code>Finalize()</code> method. You
+write a method that <em>looks like</em> a <strong>C++ destructor</strong> , and the compiler
+takes that to be your implementation of the <code>Finalize()</code> method:</p>
+</blockquote>
+<div class="code"><pre class="code literal-block">~MyObject()
+{
+    //we're being finalized (i.e. destroyed), call Dispose in case the user forgot to
+    Dispose(); //&lt;--Warning: subtle bug! Keep reading!
+}
+</pre></div>
+
+<p>But there's a bug in that code. You see, the garbage collector runs on a
+<strong>background thread</strong> ; you don't know the order in which two objects are
+destroyed. It is entirely possible that in your <code>Dispose()</code> code, the
+<strong>managed</strong> object you're trying to get rid of (because you wanted to be
+helpful) is no longer there:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">Dispose</span><span class="ss">()</span>
+{
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">unmanaged</span><span class="w"> </span><span class="nv">resources</span>
+<span class="w">   </span><span class="nv">Win32</span>.<span class="nv">DestroyHandle</span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">gdiCursorBitmapStreamFileHandle</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">managed</span><span class="w"> </span><span class="nv">resources</span><span class="w"> </span><span class="nv">too</span>
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">databaseConnection</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span>
+<span class="w">   </span>{
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">databaseConnection</span>.<span class="nv">Dispose</span><span class="ss">()</span><span class="c1">; //&lt;-- crash, GC already destroyed it</span>
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">databaseConnection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">   </span>}
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">frameBufferImage</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span>
+<span class="w">   </span>{
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">frameBufferImage</span>.<span class="nv">Dispose</span><span class="ss">()</span><span class="c1">; //&lt;-- crash, GC already destroyed it</span>
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">frameBufferImage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">   </span>}
+}
+</pre></div>
+
+<p>So what you need is a way for <code>Finalize()</code> to tell <code>Dispose()</code> that it should
+<strong>not touch any managed</strong> resources (because they <em>might not be there</em>
+anymore), while still freeing unmanaged resources.</p>
+<p>The standard pattern to do this is to have <code>Finalize()</code> and <code>Dispose()</code> both
+call a <strong>third</strong> (!) method; where you pass a Boolean saying if you're calling
+it from <code>Dispose()</code> (as opposed to <code>Finalize()</code>), meaning it's safe to free
+managed resources.</p>
+<p>This <em>internal</em> method <em>could</em> be given some arbitrary name like
+"CoreDispose", or "MyInternalDispose", but is tradition to call it
+<code>Dispose(Boolean)</code>:</p>
+<div class="code"><pre class="code literal-block">protected void Dispose(Boolean disposing)
+</pre></div>
+
+<p>But a more helpful parameter name might be:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">protected</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">Dispose</span><span class="ss">(</span><span class="nv">Boolean</span><span class="w"> </span><span class="nv">itIsSafeToAlsoFreeManagedObjects</span><span class="ss">)</span>
+{
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">unmanaged</span><span class="w"> </span><span class="nv">resources</span>
+<span class="w">   </span><span class="nv">Win32</span>.<span class="nv">DestroyHandle</span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">CursorFileBitmapIconServiceHandle</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">managed</span><span class="w"> </span><span class="nv">resources</span><span class="w"> </span><span class="nv">too</span>,<span class="w"> </span><span class="nv">but</span><span class="w"> </span><span class="nv">only</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">I</span><span class="err">'m being called from Dispose</span>
+<span class="w">   </span><span class="o">//</span><span class="ss">(</span><span class="k">If</span><span class="w"> </span><span class="nv">I</span><span class="err">'m being called from Finalize then the objects might not exist</span>
+<span class="err">   //anymore</span>
+<span class="err">   if (itIsSafeToAlsoFreeManagedObjects)  </span>
+<span class="err">   {    </span>
+<span class="err">      if (this.databaseConnection != null)</span>
+<span class="err">      {</span>
+<span class="err">         this.databaseConnection.Dispose();</span>
+<span class="err">         this.databaseConnection = null;</span>
+<span class="err">      }</span>
+<span class="err">      if (this.frameBufferImage != null)</span>
+<span class="err">      {</span>
+<span class="err">         this.frameBufferImage.Dispose();</span>
+<span class="err">         this.frameBufferImage = null;</span>
+<span class="err">      }</span>
+<span class="err">   }</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>And you change your implementation of the <code>IDisposable.Dispose()</code> method to:</p>
+<div class="code"><pre class="code literal-block">public void Dispose()
+{
+   Dispose(true); //I am calling you from Dispose, it's safe
+}
+</pre></div>
+
+<p>and your finalizer to:</p>
+<div class="code"><pre class="code literal-block">~MyObject()
+{
+   Dispose(false); //I am *not* calling you from Dispose, it's *not* safe
+}
+</pre></div>
+
+<blockquote>
+<p><strong>Note</strong> : If your object descends from an object that implements <code>Dispose</code>,
+then don't forget to call their <strong>base</strong> Dispose method when you override
+Dispose:</p>
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="nt">public</span><span class="w"> </span><span class="nt">override</span><span class="w"> </span><span class="nt">void</span><span class="w"> </span><span class="nt">Dispose</span><span class="o">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="err">try</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="err">Dispose(true)</span><span class="p">;</span><span class="w"> </span><span class="err">//</span><span class="n">true</span><span class="p">:</span><span class="w"> </span><span class="n">safe</span><span class="w"> </span><span class="kc">to</span><span class="w"> </span><span class="n">free</span><span class="w"> </span><span class="n">managed</span><span class="w"> </span><span class="n">resources</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">finally</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="err">base.Dispose()</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>And all is good, <strong>except you can do better</strong>!</p>
+<hr>
+<p>If the user calls <code>Dispose()</code> on your object, then everything has been cleaned
+up. Later on, when the garbage collector comes along and calls Finalize, it
+will then call <code>Dispose</code> again.</p>
+<p>Not only is this wasteful, but if your object has junk references to objects
+you already disposed of from the <strong>last</strong> call to <code>Dispose()</code>, you'll try to
+dispose them again!</p>
+<p>You'll notice in my code I was careful to remove references to objects that
+I've disposed, so I don't try to call <code>Dispose</code> on a junk object reference.
+But that didn't stop a subtle bug from creeping in.</p>
+<p>When the user calls <code>Dispose()</code>: the handle
+<strong>CursorFileBitmapIconServiceHandle</strong> is destroyed. Later when the garbage
+collector runs, it will try to destroy the same handle again.</p>
+<div class="code"><pre class="code literal-block">protected void Dispose(Boolean iAmBeingCalledFromDisposeAndNotFinalize)
+{
+   //Free unmanaged resources
+   Win32.DestroyHandle(this.CursorFileBitmapIconServiceHandle); //&lt;--double destroy 
+   ...
+}
+</pre></div>
+
+<p>The way you fix this is tell the garbage collector that it doesn't need to
+bother finalizing the object – its resources have already been cleaned up, and
+no more work is needed. You do this by calling <code>GC.SuppressFinalize()</code> in the
+<code>Dispose()</code> method:</p>
+<div class="code"><pre class="code literal-block">public void Dispose()
+{
+   Dispose(true); //I am calling you from Dispose, it's safe
+   GC.SuppressFinalize(this); //Hey, GC: don't bother calling finalize later
+}
+</pre></div>
+
+<p>Now that the user has called <code>Dispose()</code>, we have:</p>
+<ul>
+<li>freed unmanaged resources</li>
+<li>freed managed resources</li>
+</ul>
+<p>There's no point in the GC running the finalizer – everything's taken care of.</p>
+<h3>Couldn't I use Finalize to cleanup unmanaged resources?</h3>
+<p>The documentation for <code>Object.Finalize</code> says:</p>
+<blockquote>
+<p>The Finalize method is used to perform cleanup operations on unmanaged
+resources held by the current object before the object is destroyed.</p>
+</blockquote>
+<p>But the MSDN documentation also says, for <code>IDisposable.Dispose</code>:</p>
+<blockquote>
+<p>Performs application-defined tasks associated with freeing, releasing, or
+resetting unmanaged resources.</p>
+</blockquote>
+<p>So which is it? Which one is the place for me to cleanup unmanaged resources?
+The answer is:</p>
+<blockquote>
+<p>It's your choice! But choose <code>Dispose</code>.</p>
+</blockquote>
+<p>You certainly could place your unmanaged cleanup in the finalizer:</p>
+<div class="code"><pre class="code literal-block">~MyObject()
+{
+   //Free unmanaged resources
+   Win32.DestroyHandle(this.CursorFileBitmapIconServiceHandle);
+
+   //A C# destructor automatically calls the destructor of its base class.
+}
+</pre></div>
+
+<p>The problem with that is you have no idea when the garbage collector will get
+around to finalizing your object. Your un-managed, un-needed, un-used native
+resources will stick around until the garbage collector <em>eventually</em> runs.
+Then it will call your finalizer method; cleaning up unmanaged resources. The
+documentation of <strong>Object.Finalize</strong> points this out:</p>
+<blockquote>
+<p>The exact time when the finalizer executes is undefined. To ensure
+deterministic release of resources for instances of your class, implement a
+<strong>Close</strong> method or provide a <code>IDisposable.Dispose</code> implementation.</p>
+</blockquote>
+<p>This is the virtue of using <code>Dispose</code> to cleanup unmanaged resources; you get
+to know, and control, when unmanaged resource are cleaned up. Their
+destruction is <em>"deterministic"</em>.</p>
+<hr>
+<p>To answer your original question: Why not release memory now, rather than for
+when the GC decides to do it? I have a facial recognition software that
+<em>needs</em> to get rid of 530 MB of internal images <strong>now</strong> , since they're no
+longer needed. When we don't: the machine grinds to a swapping halt.</p>
+<h3>Bonus Reading</h3>
+<p>For anyone who likes the style of this answer (explaining the <em>why</em> , so the
+<em>how</em> becomes obvious), I suggest you read Chapter One of Don Box's Essential
+COM:</p>
+<ul>
+<li>Direct link: Chapter 1 sample by Pearson Publishing</li>
+<li>magnet: 84bf0b960936d677190a2be355858e80ef7542c0</li>
+</ul>
+<p>In 35 pages he explains the problems of using binary objects, and invents COM
+before your eyes. Once you realize the <em>why</em> of COM, the remaining 300 pages
+are obvious, and just detail Microsoft's implementation.</p>
+<p>I think every programmer who has ever dealt with objects or COM should, at the
+very least, read the first chapter. It is the best explanation of anything
+ever.</p>
+<h3>Extra Bonus Reading</h3>
+<p>When everything you know is wrong archiveby Eric Lippert</p>
+<blockquote>
+<p>It is therefore very difficult indeed to write a correct finalizer, and
+<strong>the best advice I can give you is to not try</strong>.</p>
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<p><code>IDisposable</code> is often used to exploit the <code>using</code> statement and take
+advantage of an easy way to do deterministic cleanup of managed objects.</p>
+<div class="code"><pre class="code literal-block">public class LoggingContext : IDisposable {
+    public Finicky(string name) {
+        Log.Write("Entering Log Context {0}", name);
+        Log.Indent();
+    }
+    public void Dispose() {
+        Log.Outdent();
+    }
+
+    public static void Main() {
+        Log.Write("Some initial stuff.");
+        try {
+            using(new LoggingContext()) {
+                Log.Write("Some stuff inside the context.");
+                throw new Exception();
+            }
+        } catch {
+            Log.Write("Man, that was a heavy exception caught from inside a child logging context!");
+        } finally {
+            Log.Write("Some final stuff.");
+        }
+    }
+}
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/net/" rel="tag">.net</a></li>
+            <li><a class="tag p-category" href="../../categories/net-c/" rel="tag">.net-c#</a></li>
+            <li><a class="tag p-category" href="../../categories/garbage-collection/" rel="tag">garbage-collection</a></li>
+            <li><a class="tag p-category" href="../../categories/idisposable/" rel="tag">idisposable</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-convert-decimal-to-hexadecimal-in-javascript/" rel="prev" title="How to convert decimal to hexadecimal in JavaScript">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../button-vs-input-type-button-which-to-use/" rel="next" title='&lt;button&gt; vs. &lt;input type="button" /&gt;. Which to use?'>Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

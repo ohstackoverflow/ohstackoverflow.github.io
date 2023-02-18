@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is it better to call ToList() or ToArray() in LINQ queries? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/is-it-better-to-call-tolist-or-toarray-in-linq-queries/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../using-jquery-to-test-if-an-input-has-focus/" title="Using jQuery to test if an input has focus" type="text/html">
+<link rel="next" href="../how-do-i-make-a-comment-in-a-dockerfile/" title="How do I make a comment in a Dockerfile?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Is it better to call ToList() or ToArray() in LINQ queries?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/is-it-better-to-call-tolist-or-toarray-in-linq-queries/">
+<meta property="og:description" content="I often run into the case where I want to eval a query right where I declare
+it. This is usually because I need to iterate over it multiple times and it
+is expensive to compute. For example:
+string ra">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-18T01:02:23+08:00">
+<meta property="article:tag" content=".net">
+<meta property="article:tag" content="linq">
+<meta property="article:tag" content="performance">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Is it better to call ToList() or ToArray() in LINQ queries?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T01:02:23+08:00" itemprop="datePublished" title="2023-02-18 01:02">2023-02-18 01:02</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I often run into the case where I want to eval a query right where I declare
+it. This is usually because I need to iterate over it multiple times <em>and</em> it
+is expensive to compute. For example:</p>
+<div class="code"><pre class="code literal-block"><span class="n">string</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"..."</span><span class="p">;</span>
+<span class="k">var</span><span class="w"> </span><span class="n">lines</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">from</span><span class="w"> </span><span class="n">l</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">raw</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+<span class="w">             </span><span class="n">let</span><span class="w"> </span><span class="n">ll</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">l</span><span class="o">.</span><span class="n">Trim</span><span class="p">()</span>
+<span class="w">             </span><span class="n">where</span><span class="w"> </span><span class="o">!</span><span class="n">string</span><span class="o">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">ll</span><span class="p">)</span>
+<span class="w">             </span><span class="n">select</span><span class="w"> </span><span class="n">ll</span><span class="p">)</span><span class="o">.</span><span class="n">ToList</span><span class="p">();</span>
+</pre></div>
+
+<p>This works fine. <strong>But</strong> if I am not going to modify the result, then I might
+as well call <code>ToArray()</code> instead of <code>ToList()</code>.</p>
+<p>I wonder however whether <code>ToArray()</code> is implemented by first calling
+<code>ToList()</code> and is therefore less memory efficient than just calling
+<code>ToList()</code>.</p>
+<p>Am I crazy? Should I just call <code>ToArray()</code> - safe and secure in the knowledge
+that the memory won't be allocated twice?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Unless you simply need an array to meet other constraints you should use
+<code>ToList</code>. In the majority of scenarios <code>ToArray</code> will allocate more memory
+than <code>ToList</code>.</p>
+<p>Both use arrays for storage, but <code>ToList</code> has a more flexible constraint. It
+needs the array to be at least as large as the number of elements in the
+collection. If the array is larger, that is not a problem. However <code>ToArray</code>
+needs the array to be sized exactly to the number of elements.</p>
+<p>To meet this constraint <code>ToArray</code> often does one more allocation than
+<code>ToList</code>. Once it has an array that is big enough it allocates an array which
+is exactly the correct size and copies the elements back into that array. The
+only time it can avoid this is when the grow algorithm for the array just
+happens to coincide with the number of elements needing to be stored
+(definitely in the minority).</p>
+<p><strong>EDIT</strong></p>
+<p>A couple of people have asked me about the consequence of having the extra
+unused memory in the <code>List&lt;T&gt;</code> value.</p>
+<p>This is a valid concern. If the created collection is long lived, is never
+modified after being created and has a high chance of landing in the Gen2 heap
+then you may be better off taking the extra allocation of <code>ToArray</code> up front.</p>
+<p>In general though I find this to be the rarer case. It's much more common to
+see a lot of <code>ToArray</code> calls which are immediately passed to other short lived
+uses of memory in which case <code>ToList</code> is demonstrably better.</p>
+<p>The key here is to profile, profile and then profile some more.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>The performance difference will be insignificant, since <code>List&lt;T&gt;</code> is
+implemented as a dynamically sized array. Calling either <code>ToArray()</code> (which
+uses an internal <code>Buffer&lt;T&gt;</code> class to grow the array) or <code>ToList()</code> (which
+calls the <code>List&lt;T&gt;(IEnumerable&lt;T&gt;)</code> constructor) will end up being a matter of
+putting them into an array and growing the array until it fits them all.</p>
+<p>If you desire concrete confirmation of this fact, check out the implementation
+of the methods in question in Reflector -- you'll see they boil down to almost
+identical code.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/net/" rel="tag">.net</a></li>
+            <li><a class="tag p-category" href="../../categories/linq/" rel="tag">linq</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../using-jquery-to-test-if-an-input-has-focus/" rel="prev" title="Using jQuery to test if an input has focus">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-do-i-make-a-comment-in-a-dockerfile/" rel="next" title="How do I make a comment in a Dockerfile?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is the "N+1 selects problem" in ORM (Object-Relational Mapping)? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/what-is-the-n-1-selects-problem-in-orm-object-relational-mapping/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../remove-file-from-latest-commit/" title="Remove file from latest commit" type="text/html">
+<link rel="next" href="../what-s-the-difference-between-a-method-and-a-function/" title="What's the difference between a method and a function?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content='What is the "N+1 selects problem" in ORM (Object-Relational Mapping)?'>
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/what-is-the-n-1-selects-problem-in-orm-object-relational-mapping/">
+<meta property="og:description" content='The "N+1 selects problem" is generally stated as a problem in Object-
+Relational mapping (ORM) discussions, and I understand that it has something
+to do with having to make a lot of database queries f'>
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-16T22:37:08+08:00">
+<meta property="article:tag" content="database">
+<meta property="article:tag" content="orm">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">What is the "N+1 selects problem" in ORM (Object-Relational Mapping)?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T22:37:08+08:00" itemprop="datePublished" title="2023-02-16 22:37">2023-02-16 22:37</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>The "N+1 selects problem" is generally stated as a problem in Object-
+Relational mapping (ORM) discussions, and I understand that it has something
+to do with having to make a lot of database queries for something that seems
+simple in the object world.</p>
+<p>Does anybody have a more detailed explanation of the problem?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Let's say you have a collection of <code>Car</code> objects (database rows), and each
+<code>Car</code> has a collection of <code>Wheel</code> objects (also rows). In other words, <code>Car</code> →
+<code>Wheel</code> is a 1-to-many relationship.</p>
+<p>Now, let's say you need to iterate through all the cars, and for each one,
+print out a list of the wheels. The naive O/R implementation would do the
+following:</p>
+<div class="code"><pre class="code literal-block">SELECT * FROM Cars;
+</pre></div>
+
+<p>And then <strong>for each<code>Car</code>:</strong></p>
+<div class="code"><pre class="code literal-block">SELECT * FROM Wheel WHERE CarId = ?
+</pre></div>
+
+<p>In other words, you have one select for the Cars, and then N additional
+selects, where N is the total number of cars.</p>
+<p>Alternatively, one could get all wheels and perform the lookups in memory:</p>
+<div class="code"><pre class="code literal-block">SELECT * FROM Wheel;
+</pre></div>
+
+<p>This reduces the number of round-trips to the database from N+1 to 2. Most ORM
+tools give you several ways to prevent N+1 selects.</p>
+<p>Reference: <em>Java Persistence with Hibernate</em> , chapter 13.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h3>What is the N+1 query problem</h3>
+<p>The N+1 query problem happens when the data access framework executed N
+additional SQL statements to fetch the same data that could have been
+retrieved when executing the primary SQL query.</p>
+<p>The larger the value of N, the more queries will be executed, the larger the
+performance impact. And, unlike the slow query log that can help you find slow
+running queries, the N+1 issue won’t be spot because each individual
+additional query runs sufficiently fast to not trigger the slow query log.</p>
+<p>The problem is executing a large number of additional queries that, overall,
+take sufficient time to slow down response time.</p>
+<p>Let’s consider we have the following post and post_comments database tables
+which form a one-to-many table relationship:</p>
+<p><img alt="The post and post_comments tables" src="../../images/T1uWG.png"></p>
+<p>We are going to create the following 4 <code>post</code> rows:</p>
+<div class="code"><pre class="code literal-block">INSERT INTO post (title, id)
+VALUES ('High-Performance Java Persistence - Part 1', 1)
+
+INSERT INTO post (title, id)
+VALUES ('High-Performance Java Persistence - Part 2', 2)
+
+INSERT INTO post (title, id)
+VALUES ('High-Performance Java Persistence - Part 3', 3)
+
+INSERT INTO post (title, id)
+VALUES ('High-Performance Java Persistence - Part 4', 4)
+</pre></div>
+
+<p>And, we will also create 4 <code>post_comment</code> child records:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">INSERT</span><span class="w"> </span><span class="nv">INTO</span><span class="w"> </span><span class="nv">post_comment</span><span class="w"> </span><span class="ss">(</span><span class="nv">post_id</span>,<span class="w"> </span><span class="nv">review</span>,<span class="w"> </span><span class="nv">id</span><span class="ss">)</span>
+<span class="nv">VALUES</span><span class="w"> </span><span class="ss">(</span><span class="mi">1</span>,<span class="w"> </span><span class="s1">'Excellent book to understand Java Persistence'</span>,<span class="w"> </span><span class="mi">1</span><span class="ss">)</span>
+
+<span class="nv">INSERT</span><span class="w"> </span><span class="nv">INTO</span><span class="w"> </span><span class="nv">post_comment</span><span class="w"> </span><span class="ss">(</span><span class="nv">post_id</span>,<span class="w"> </span><span class="nv">review</span>,<span class="w"> </span><span class="nv">id</span><span class="ss">)</span>
+<span class="nv">VALUES</span><span class="w"> </span><span class="ss">(</span><span class="mi">2</span>,<span class="w"> </span><span class="s1">'Must-read for Java developers'</span>,<span class="w"> </span><span class="mi">2</span><span class="ss">)</span>
+
+<span class="nv">INSERT</span><span class="w"> </span><span class="nv">INTO</span><span class="w"> </span><span class="nv">post_comment</span><span class="w"> </span><span class="ss">(</span><span class="nv">post_id</span>,<span class="w"> </span><span class="nv">review</span>,<span class="w"> </span><span class="nv">id</span><span class="ss">)</span>
+<span class="nv">VALUES</span><span class="w"> </span><span class="ss">(</span><span class="mi">3</span>,<span class="w"> </span><span class="s1">'Five Stars'</span>,<span class="w"> </span><span class="mi">3</span><span class="ss">)</span>
+
+<span class="nv">INSERT</span><span class="w"> </span><span class="nv">INTO</span><span class="w"> </span><span class="nv">post_comment</span><span class="w"> </span><span class="ss">(</span><span class="nv">post_id</span>,<span class="w"> </span><span class="nv">review</span>,<span class="w"> </span><span class="nv">id</span><span class="ss">)</span>
+<span class="nv">VALUES</span><span class="w"> </span><span class="ss">(</span><span class="mi">4</span>,<span class="w"> </span><span class="s1">'A great reference book'</span>,<span class="w"> </span><span class="mi">4</span><span class="ss">)</span>
+</pre></div>
+
+<h3>N+1 query problem with plain SQL</h3>
+<p>If you select the <code>post_comments</code> using this SQL query:</p>
+<div class="code"><pre class="code literal-block"><span class="nf">List</span><span class="err">&lt;</span><span class="no">Tuple</span><span class="err">&gt;</span><span class="w"> </span><span class="no">comments</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="no">entityManager.createNativeQuery</span><span class="p">(</span><span class="err">"""</span>
+<span class="w">    </span><span class="nf">SELECT</span>
+<span class="w">        </span><span class="nf">pc.id</span><span class="w"> </span><span class="no">AS</span><span class="w"> </span><span class="no">id</span><span class="p">,</span>
+<span class="w">        </span><span class="nf">pc.review</span><span class="w"> </span><span class="no">AS</span><span class="w"> </span><span class="no">review</span><span class="p">,</span>
+<span class="w">        </span><span class="nf">pc.post_id</span><span class="w"> </span><span class="no">AS</span><span class="w"> </span><span class="no">postId</span>
+<span class="w">    </span><span class="nf">FROM</span><span class="w"> </span><span class="no">post_comment</span><span class="w"> </span><span class="no">pc</span>
+<span class="w">    </span><span class="err">""",</span><span class="w"> </span><span class="nf">Tuple.class</span><span class="p">)</span>
+<span class="na">.getResultList</span><span class="p">()</span><span class="c1">;</span>
+</pre></div>
+
+<p>And, later, you decide to fetch the associated <code>post</code> <code>title</code> for each
+<code>post_comment</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">Tuple</span><span class="w"> </span><span class="nv">comment</span><span class="w"> </span>:<span class="w"> </span><span class="nv">comments</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">String</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">String</span><span class="ss">)</span><span class="w"> </span><span class="nv">comment</span>.<span class="nv">get</span><span class="ss">(</span><span class="s2">"review"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">Long</span><span class="w"> </span><span class="nv">postId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">((</span><span class="nv">Number</span><span class="ss">)</span><span class="w"> </span><span class="nv">comment</span>.<span class="nv">get</span><span class="ss">(</span><span class="s2">"postId"</span><span class="ss">))</span>.<span class="nv">longValue</span><span class="ss">()</span><span class="c1">;</span>
+
+<span class="w">    </span><span class="nv">String</span><span class="w"> </span><span class="nv">postTitle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">String</span><span class="ss">)</span><span class="w"> </span><span class="nv">entityManager</span>.<span class="nv">createNativeQuery</span><span class="ss">(</span><span class="s2">""</span><span class="err">"</span>
+<span class="err">        SELECT</span>
+<span class="err">            p.title</span>
+<span class="err">        FROM post p</span>
+<span class="err">        WHERE p.id = :postId</span>
+<span class="w">        </span><span class="s2">""</span><span class="err">")</span>
+<span class="w">    </span>.<span class="nv">setParameter</span><span class="ss">(</span><span class="s2">"postId"</span>,<span class="w"> </span><span class="nv">postId</span><span class="ss">)</span>
+<span class="w">    </span>.<span class="nv">getSingleResult</span><span class="ss">()</span><span class="c1">;</span>
+
+<span class="w">    </span><span class="nv">LOGGER</span>.<span class="nv">info</span><span class="ss">(</span>
+<span class="w">        </span><span class="s2">"The Post '{}' got this review '{}'"</span>,
+<span class="w">        </span><span class="nv">postTitle</span>,
+<span class="w">        </span><span class="nv">review</span>
+<span class="w">    </span><span class="ss">)</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>You are going to trigger the N+1 query issue because, instead of one SQL
+query, you executed 5 (1 + 4):</p>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span>
+<span class="w">    </span><span class="nv">pc</span>.<span class="nv">id</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">id</span>,
+<span class="w">    </span><span class="nv">pc</span>.<span class="nv">review</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">review</span>,
+<span class="w">    </span><span class="nv">pc</span>.<span class="nv">post_id</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">postId</span>
+<span class="nv">FROM</span><span class="w"> </span><span class="nv">post_comment</span><span class="w"> </span><span class="nv">pc</span>
+
+<span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 1'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Excellent book to understand Java Persistence'</span>
+
+<span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 2'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Must-read for Java developers'</span>
+
+<span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 3'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Five Stars'</span>
+
+<span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 4'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'A great reference book'</span>
+</pre></div>
+
+<p>Fixing the N+1 query issue is very easy. All you need to do is extract all the
+data you need in the original SQL query, like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nf">List</span><span class="err">&lt;</span><span class="no">Tuple</span><span class="err">&gt;</span><span class="w"> </span><span class="no">comments</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="no">entityManager.createNativeQuery</span><span class="p">(</span><span class="err">"""</span>
+<span class="w">    </span><span class="nf">SELECT</span>
+<span class="w">        </span><span class="nf">pc.id</span><span class="w"> </span><span class="no">AS</span><span class="w"> </span><span class="no">id</span><span class="p">,</span>
+<span class="w">        </span><span class="nf">pc.review</span><span class="w"> </span><span class="no">AS</span><span class="w"> </span><span class="no">review</span><span class="p">,</span>
+<span class="w">        </span><span class="nf">p.title</span><span class="w"> </span><span class="no">AS</span><span class="w"> </span><span class="no">postTitle</span>
+<span class="w">    </span><span class="nf">FROM</span><span class="w"> </span><span class="no">post_comment</span><span class="w"> </span><span class="no">pc</span>
+<span class="w">    </span><span class="nf">JOIN</span><span class="w"> </span><span class="no">post</span><span class="w"> </span><span class="no">p</span><span class="w"> </span><span class="no">ON</span><span class="w"> </span><span class="no">pc.post_id</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="no">p.id</span>
+<span class="w">    </span><span class="err">""",</span><span class="w"> </span><span class="nf">Tuple.class</span><span class="p">)</span>
+<span class="na">.getResultList</span><span class="p">()</span><span class="c1">;</span>
+
+<span class="nf">for</span><span class="w"> </span><span class="p">(</span><span class="no">Tuple</span><span class="w"> </span><span class="no">comment</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="no">comments</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nf">String</span><span class="w"> </span><span class="no">review</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="p">(</span><span class="no">String</span><span class="p">)</span><span class="w"> </span><span class="no">comment.get</span><span class="p">(</span><span class="err">"</span><span class="no">review</span><span class="err">"</span><span class="p">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nf">String</span><span class="w"> </span><span class="no">postTitle</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="p">(</span><span class="no">String</span><span class="p">)</span><span class="w"> </span><span class="no">comment.get</span><span class="p">(</span><span class="err">"</span><span class="no">postTitle</span><span class="err">"</span><span class="p">)</span><span class="c1">;</span>
+
+<span class="w">    </span><span class="nf">LOGGER.info</span><span class="p">(</span>
+<span class="w">        </span><span class="err">"</span><span class="nf">The</span><span class="w"> </span><span class="no">Post</span><span class="w"> </span><span class="err">'</span><span class="p">{}</span><span class="err">'</span><span class="w"> </span><span class="no">got</span><span class="w"> </span><span class="no">this</span><span class="w"> </span><span class="no">review</span><span class="w"> </span><span class="err">'</span><span class="p">{}</span><span class="err">'"</span><span class="p">,</span>
+<span class="w">        </span><span class="nf">postTitle</span><span class="p">,</span>
+<span class="w">        </span><span class="nf">review</span>
+<span class="w">    </span><span class="err">)</span><span class="c1">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>This time, only one SQL query is executed to fetch all the data we are further
+interested in using.</p>
+<h3>N+1 query problem with JPA and Hibernate</h3>
+<p>When using JPA and Hibernate, there are several ways you can trigger the N+1
+query issue, so it’s very important to know how you can avoid these
+situations.</p>
+<p>For the next examples, consider we are mapping the <code>post</code> and <code>post_comments</code>
+tables to the following entities:</p>
+<p><img alt="Post and PostComment entities" src="../../images/rZJne.png"></p>
+<p>The JPA mappings look like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Entity</span><span class="p">(</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"Post"</span><span class="p">)</span>
+<span class="nv">@Table</span><span class="p">(</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"post"</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">Post</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="nv">@Id</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">Long</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">title</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="n">Getters</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">setters</span><span class="w"> </span><span class="n">omitted</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">brevity</span>
+<span class="err">}</span>
+
+<span class="nv">@Entity</span><span class="p">(</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"PostComment"</span><span class="p">)</span>
+<span class="nv">@Table</span><span class="p">(</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"post_comment"</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">PostComment</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="nv">@Id</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">Long</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+
+<span class="w">    </span><span class="nv">@ManyToOne</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">Post</span><span class="w"> </span><span class="n">post</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">review</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="n">Getters</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">setters</span><span class="w"> </span><span class="n">omitted</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">brevity</span>
+<span class="err">}</span>
+</pre></div>
+
+<h3><code>FetchType.EAGER</code></h3>
+<p>Using <code>FetchType.EAGER</code> either implicitly or explicitly for your JPA
+associations is a bad idea because you are going to fetch way more data that
+you need. More, the <code>FetchType.EAGER</code> strategy is also prone to N+1 query
+issues.</p>
+<p>Unfortunately, the <code>@ManyToOne</code> and <code>@OneToOne</code> associations use
+<code>FetchType.EAGER</code> by default, so if your mappings look like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@ManyToOne</span>
+<span class="n">private</span><span class="w"> </span><span class="n">Post</span><span class="w"> </span><span class="n">post</span><span class="p">;</span>
+</pre></div>
+
+<p>You are using the <code>FetchType.EAGER</code> strategy, and, every time you forget to
+use <code>JOIN FETCH</code> when loading some <code>PostComment</code> entities with a JPQL or
+Criteria API query:</p>
+<div class="code"><pre class="code literal-block"><span class="nf">List</span><span class="err">&lt;</span><span class="no">PostComment</span><span class="err">&gt;</span><span class="w"> </span><span class="no">comments</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="no">entityManager</span>
+<span class="na">.createQuery</span><span class="p">(</span><span class="s">"""</span>
+<span class="s">    select pc</span>
+<span class="s">    from PostComment pc</span>
+<span class="s">    """</span><span class="p">,</span><span class="w"> </span><span class="no">PostComment.class</span><span class="p">)</span>
+<span class="na">.getResultList</span><span class="p">()</span><span class="c1">;</span>
+</pre></div>
+
+<p>You are going to trigger the N+1 query issue:</p>
+<div class="code"><pre class="code literal-block">SELECT 
+    pc.id AS id1_1_, 
+    pc.post_id AS post_id3_1_, 
+    pc.review AS review2_1_ 
+FROM 
+    post_comment pc
+
+SELECT p.id AS id1_0_0_, p.title AS title2_0_0_ FROM post p WHERE p.id = 1
+SELECT p.id AS id1_0_0_, p.title AS title2_0_0_ FROM post p WHERE p.id = 2
+SELECT p.id AS id1_0_0_, p.title AS title2_0_0_ FROM post p WHERE p.id = 3
+SELECT p.id AS id1_0_0_, p.title AS title2_0_0_ FROM post p WHERE p.id = 4
+</pre></div>
+
+<p>Notice the additional SELECT statements that are executed because the <code>post</code>
+association has to be fetched prior to returning the <code>List</code> of <code>PostComment</code>
+entities.</p>
+<p>Unlike the default fetch plan, which you are using when calling the <code>find</code>
+method of the <code>EntityManager</code>, a JPQL or Criteria API query defines an
+explicit plan that Hibernate cannot change by injecting a JOIN FETCH
+automatically. So, you need to do it manually.</p>
+<p>If you didn't need the <code>post</code> association at all, you are out of luck when
+using <code>FetchType.EAGER</code> because there is no way to avoid fetching it. That's
+why it's better to use <code>FetchType.LAZY</code> by default.</p>
+<p>But, if you wanted to use <code>post</code> association, then you can use <code>JOIN FETCH</code> to
+avoid the N+1 query problem:</p>
+<div class="code"><pre class="code literal-block"><span class="nf">List</span><span class="err">&lt;</span><span class="no">PostComment</span><span class="err">&gt;</span><span class="w"> </span><span class="no">comments</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="no">entityManager.createQuery</span><span class="p">(</span><span class="err">"""</span>
+<span class="w">    </span><span class="nf">select</span><span class="w"> </span><span class="no">pc</span>
+<span class="w">    </span><span class="nf">from</span><span class="w"> </span><span class="no">PostComment</span><span class="w"> </span><span class="no">pc</span>
+<span class="w">    </span><span class="nf">join</span><span class="w"> </span><span class="no">fetch</span><span class="w"> </span><span class="no">pc.post</span><span class="w"> </span><span class="no">p</span>
+<span class="w">    </span><span class="err">""",</span><span class="w"> </span><span class="nf">PostComment.class</span><span class="p">)</span>
+<span class="na">.getResultList</span><span class="p">()</span><span class="c1">;</span>
+
+<span class="nf">for</span><span class="p">(</span><span class="no">PostComment</span><span class="w"> </span><span class="no">comment</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="no">comments</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nf">LOGGER.info</span><span class="p">(</span>
+<span class="w">        </span><span class="err">"</span><span class="nf">The</span><span class="w"> </span><span class="no">Post</span><span class="w"> </span><span class="err">'</span><span class="p">{}</span><span class="err">'</span><span class="w"> </span><span class="no">got</span><span class="w"> </span><span class="no">this</span><span class="w"> </span><span class="no">review</span><span class="w"> </span><span class="err">'</span><span class="p">{}</span><span class="err">'"</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="no">comment.getPost</span><span class="p">().</span><span class="no">getTitle</span><span class="p">(),</span><span class="w"> </span>
+<span class="w">        </span><span class="no">comment.getReview</span><span class="p">()</span>
+<span class="w">    </span><span class="err">)</span><span class="c1">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>This time, Hibernate will execute a single SQL statement:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span>
+<span class="w">    </span><span class="nv">pc</span>.<span class="nv">id</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">id1_1_0_</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">pc</span>.<span class="nv">post_id</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">post_id3_1_0_</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">pc</span>.<span class="nv">review</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">review2_1_0_</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">id1_0_1_</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">title2_0_1_</span><span class="w"> </span>
+<span class="nv">FROM</span><span class="w"> </span>
+<span class="w">    </span><span class="nv">post_comment</span><span class="w"> </span><span class="nv">pc</span><span class="w"> </span>
+<span class="nv">INNER</span><span class="w"> </span><span class="nv">JOIN</span><span class="w"> </span>
+<span class="w">    </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">ON</span><span class="w"> </span><span class="nv">pc</span>.<span class="nv">post_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span>
+
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 1'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Excellent book to understand Java Persistence'</span>
+
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 2'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Must-read for Java developers'</span>
+
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 3'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Five Stars'</span>
+
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 4'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'A great reference book'</span>
+</pre></div>
+
+<h3><code>FetchType.LAZY</code></h3>
+<p>Even if you switch to using <code>FetchType.LAZY</code> explicitly for all associations,
+you can still bump into the N+1 issue.</p>
+<p>This time, the <code>post</code> association is mapped like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@ManyToOne</span><span class="p">(</span><span class="k">fetch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FetchType</span><span class="p">.</span><span class="n">LAZY</span><span class="p">)</span>
+<span class="n">private</span><span class="w"> </span><span class="n">Post</span><span class="w"> </span><span class="n">post</span><span class="p">;</span>
+</pre></div>
+
+<p>Now, when you fetch the <code>PostComment</code> entities:</p>
+<div class="code"><pre class="code literal-block"><span class="nf">List</span><span class="err">&lt;</span><span class="no">PostComment</span><span class="err">&gt;</span><span class="w"> </span><span class="no">comments</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="no">entityManager</span>
+<span class="na">.createQuery</span><span class="p">(</span><span class="s">"""</span>
+<span class="s">    select pc</span>
+<span class="s">    from PostComment pc</span>
+<span class="s">    """</span><span class="p">,</span><span class="w"> </span><span class="no">PostComment.class</span><span class="p">)</span>
+<span class="na">.getResultList</span><span class="p">()</span><span class="c1">;</span>
+</pre></div>
+
+<p>Hibernate will execute a single SQL statement:</p>
+<div class="code"><pre class="code literal-block">SELECT 
+    pc.id AS id1_1_, 
+    pc.post_id AS post_id3_1_, 
+    pc.review AS review2_1_ 
+FROM 
+    post_comment pc
+</pre></div>
+
+<p>But, if afterward, you are going to reference the lazy-loaded <code>post</code>
+association:</p>
+<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="ss">(</span><span class="nv">PostComment</span><span class="w"> </span><span class="nv">comment</span><span class="w"> </span>:<span class="w"> </span><span class="nv">comments</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">LOGGER</span>.<span class="nv">info</span><span class="ss">(</span>
+<span class="w">        </span><span class="s2">"The Post '{}' got this review '{}'"</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">comment</span>.<span class="nv">getPost</span><span class="ss">()</span>.<span class="k">getTitle</span><span class="ss">()</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">comment</span>.<span class="nv">getReview</span><span class="ss">()</span>
+<span class="w">    </span><span class="ss">)</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>You will get the N+1 query issue:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">id1_0_0_</span>,<span class="w"> </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">title2_0_0_</span><span class="w"> </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 1'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Excellent book to understand Java Persistence'</span>
+
+<span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">id1_0_0_</span>,<span class="w"> </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">title2_0_0_</span><span class="w"> </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 2'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Must-read for Java developers'</span>
+
+<span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">id1_0_0_</span>,<span class="w"> </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">title2_0_0_</span><span class="w"> </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 3'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'Five Stars'</span>
+
+<span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">id1_0_0_</span>,<span class="w"> </span><span class="nv">p</span>.<span class="nv">title</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">title2_0_0_</span><span class="w"> </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">post</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+<span class="o">--</span><span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">Post</span><span class="w"> </span><span class="s1">'High-Performance Java Persistence - Part 4'</span><span class="w"> </span><span class="nv">got</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">review</span><span class="w"> </span>
+<span class="o">--</span><span class="w"> </span><span class="s1">'A great reference book'</span>
+</pre></div>
+
+<p>Because the <code>post</code> association is fetched lazily, a secondary SQL statement
+will be executed when accessing the lazy association in order to build the log
+message.</p>
+<p>Again, the fix consists in adding a <code>JOIN FETCH</code> clause to the JPQL query:</p>
+<div class="code"><pre class="code literal-block"><span class="nf">List</span><span class="err">&lt;</span><span class="no">PostComment</span><span class="err">&gt;</span><span class="w"> </span><span class="no">comments</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="no">entityManager.createQuery</span><span class="p">(</span><span class="err">"""</span>
+<span class="w">    </span><span class="nf">select</span><span class="w"> </span><span class="no">pc</span>
+<span class="w">    </span><span class="nf">from</span><span class="w"> </span><span class="no">PostComment</span><span class="w"> </span><span class="no">pc</span>
+<span class="w">    </span><span class="nf">join</span><span class="w"> </span><span class="no">fetch</span><span class="w"> </span><span class="no">pc.post</span><span class="w"> </span><span class="no">p</span>
+<span class="w">    </span><span class="err">""",</span><span class="w"> </span><span class="nf">PostComment.class</span><span class="p">)</span>
+<span class="na">.getResultList</span><span class="p">()</span><span class="c1">;</span>
+
+<span class="nf">for</span><span class="p">(</span><span class="no">PostComment</span><span class="w"> </span><span class="no">comment</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="no">comments</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nf">LOGGER.info</span><span class="p">(</span>
+<span class="w">        </span><span class="err">"</span><span class="nf">The</span><span class="w"> </span><span class="no">Post</span><span class="w"> </span><span class="err">'</span><span class="p">{}</span><span class="err">'</span><span class="w"> </span><span class="no">got</span><span class="w"> </span><span class="no">this</span><span class="w"> </span><span class="no">review</span><span class="w"> </span><span class="err">'</span><span class="p">{}</span><span class="err">'"</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="no">comment.getPost</span><span class="p">().</span><span class="no">getTitle</span><span class="p">(),</span><span class="w"> </span>
+<span class="w">        </span><span class="no">comment.getReview</span><span class="p">()</span>
+<span class="w">    </span><span class="err">)</span><span class="c1">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>And, just like in the <code>FetchType.EAGER</code> example, this JPQL query will generate
+a single SQL statement.</p>
+<blockquote>
+<p>Even if you are using <code>FetchType.LAZY</code> and don't reference the child
+association of a bidirectional <code>@OneToOne</code> JPA relationship, you can still
+trigger the N+1 query issue.</p>
+</blockquote>
+<h3>How to automatically detect the N+1 query issue</h3>
+<p>If you want to automatically detect N+1 query issue in your data access layer,
+you can use the <code>db-util</code> open-source project.</p>
+<p>First, you need to add the following Maven dependency:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;dependency&gt;</span>
+<span class="w">    </span><span class="nt">&lt;groupId&gt;</span>com.vladmihalcea<span class="nt">&lt;/groupId&gt;</span>
+<span class="w">    </span><span class="nt">&lt;artifactId&gt;</span>db-util<span class="nt">&lt;/artifactId&gt;</span>
+<span class="w">    </span><span class="nt">&lt;version&gt;</span><span class="cp">${</span><span class="n">db</span><span class="o">-</span><span class="n">util</span><span class="o">.</span><span class="n">version</span><span class="cp">}</span><span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre></div>
+
+<p>Afterward, you just have to use <code>SQLStatementCountValidator</code> utility to assert
+the underlying SQL statements that get generated:</p>
+<div class="code"><pre class="code literal-block"><span class="nf">SQLStatementCountValidator.reset</span><span class="p">()</span><span class="c1">;</span>
+
+<span class="nf">List</span><span class="err">&lt;</span><span class="no">PostComment</span><span class="err">&gt;</span><span class="w"> </span><span class="no">comments</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="no">entityManager.createQuery</span><span class="p">(</span><span class="err">"""</span>
+<span class="w">    </span><span class="nf">select</span><span class="w"> </span><span class="no">pc</span>
+<span class="w">    </span><span class="nf">from</span><span class="w"> </span><span class="no">PostComment</span><span class="w"> </span><span class="no">pc</span>
+<span class="w">    </span><span class="err">""",</span><span class="w"> </span><span class="nf">PostComment.class</span><span class="p">)</span>
+<span class="na">.getResultList</span><span class="p">()</span><span class="c1">;</span>
+
+<span class="nf">SQLStatementCountValidator.assertSelectCount</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="c1">;</span>
+</pre></div>
+
+<p>In case you are using <code>FetchType.EAGER</code> and run the above test case, you will
+get the following test case failure:</p>
+<div class="code"><pre class="code literal-block">SELECT 
+    pc.id as id1_1_, 
+    pc.post_id as post_id3_1_, 
+    pc.review as review2_1_ 
+FROM 
+    post_comment pc
+
+SELECT p.id as id1_0_0_, p.title as title2_0_0_ FROM post p WHERE p.id = 1
+
+SELECT p.id as id1_0_0_, p.title as title2_0_0_ FROM post p WHERE p.id = 2
+
+
+-- SQLStatementCountMismatchException: Expected 1 statement(s) but recorded 3 instead!
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/database/" rel="tag">database</a></li>
+            <li><a class="tag p-category" href="../../categories/orm/" rel="tag">orm</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../remove-file-from-latest-commit/" rel="prev" title="Remove file from latest commit">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-s-the-difference-between-a-method-and-a-function/" rel="next" title="What's the difference between a method and a function?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

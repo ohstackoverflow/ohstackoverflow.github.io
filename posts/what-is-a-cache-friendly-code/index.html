@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is a "cache-friendly" code? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/what-is-a-cache-friendly-code/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../all-possible-array-initialization-syntaxes/" title="All possible array initialization syntaxes" type="text/html">
+<link rel="next" href="../are-git-forks-actually-git-clones/" title="Are Git forks actually Git clones?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content='What is a "cache-friendly" code?'>
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/what-is-a-cache-friendly-code/">
+<meta property="og:description" content='What is the difference between " cache unfriendly code " and the " cache
+friendly " code?
+How can I make sure I write cache-efficient code?
+
+Answer
+Preliminaries
+On modern computers, only the lowest l'>
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T11:09:55+08:00">
+<meta property="article:tag" content="c++">
+<meta property="article:tag" content="caching">
+<meta property="article:tag" content="cpu-cache">
+<meta property="article:tag" content="memory">
+<meta property="article:tag" content="performance">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">What is a "cache-friendly" code?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T11:09:55+08:00" itemprop="datePublished" title="2023-02-17 11:09">2023-02-17 11:09</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>What is the difference between " <strong>cache unfriendly code</strong> " and the " <strong>cache
+friendly</strong> " code?</p>
+<p>How can I make sure I write cache-efficient code?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>Preliminaries</h3>
+<p>On modern computers, only the lowest level memory structures (the
+<strong>registers</strong> ) can move data around in single clock cycles. However,
+registers are very expensive and most computer cores have less than a few
+dozen registers. At the other end of the memory spectrum ( <strong>DRAM</strong> ), the
+memory is very cheap (i.e. literally <em>millions of times cheaper</em> ) but takes
+hundreds of cycles after a request to receive the data. To bridge this gap
+between super fast and expensive and super slow and cheap are the <strong>cache
+memories</strong> , named L1, L2, L3 in decreasing speed and cost. The idea is that
+most of the executing code will be hitting a small set of variables often, and
+the rest (a much larger set of variables) infrequently. If the processor can't
+find the data in L1 cache, then it looks in L2 cache. If not there, then L3
+cache, and if not there, main memory. Each of these "misses" is expensive in
+time.</p>
+<p>(The analogy is cache memory is to system memory, as system memory is to hard
+disk storage. Hard disk storage is super cheap but very slow).</p>
+<p>Caching is one of the main methods to reduce the impact of <em>latency</em>. To
+paraphrase Herb Sutter (cfr. links below): <strong>increasing bandwidth is easy, but
+we can't buy our way out of latency</strong>.</p>
+<p>Data is always retrieved through the memory hierarchy (smallest == fastest to
+slowest). A <em>cache hit/miss</em> usually refers to a hit/miss in the highest level
+of cache in the CPU -- by highest level I mean the largest == slowest. The
+cache hit rate is crucial for performance since every cache miss results in
+fetching data from RAM (or worse ...) which takes <em><strong>a lot</strong></em> of time
+(hundreds of cycles for RAM, tens of millions of cycles for HDD). In
+comparison, reading data from the (highest level) cache typically takes only a
+handful of cycles.</p>
+<p>In modern computer architectures, the performance bottleneck is leaving the
+CPU die (e.g. accessing RAM or higher). This will only get worse over time.
+The increase in processor frequency is currently no longer relevant to
+increase performance. <strong>The problem is memory access.</strong> Hardware design
+efforts in CPUs therefore currently focus heavily on optimizing caches,
+prefetching, pipelines and concurrency. For instance, modern CPUs spend around
+85% of die on caches and up to 99% for storing/moving data!</p>
+<p>There is quite a lot to be said on the subject. Here are a few great
+references about caches, memory hierarchies and proper programming:</p>
+<ul>
+<li>Agner Fog's page. In his excellent documents, you can find detailed examples covering languages ranging from assembly to C++.</li>
+<li>If you are into videos, I strongly recommend to have a look at Herb Sutter's talk on machine architecture (youtube) (specifically check 12:00 and onwards!).</li>
+<li>Slides about memory optimization by Christer Ericson (director of technology @ Sony)</li>
+<li>LWN.net's article " <em>What every programmer should know about memory</em> "</li>
+</ul>
+<h3>Main concepts for cache-friendly code</h3>
+<p>A very important aspect of cache-friendly code is all about <strong>the principle of
+locality</strong> , the goal of which is to place related data close in memory to
+allow efficient caching. In terms of the CPU cache, it's important to be aware
+of cache lines to understand how this works: How do cache lines work?</p>
+<p>The following particular aspects are of high importance to optimize caching:</p>
+<ol>
+<li>
+<strong>Temporal locality</strong> : when a given memory location was accessed, it is likely that the same location is accessed again in the near future. Ideally, this information will still be cached at that point.</li>
+<li>
+<strong>Spatial locality</strong> : this refers to placing related data close to each other. Caching happens on many levels, not just in the CPU. For example, when you read from RAM, typically a larger chunk of memory is fetched than what was specifically asked for because very often the program will require that data soon. HDD caches follow the same line of thought. Specifically for CPU caches, the notion of <em>cache lines</em> is important.</li>
+</ol>
+<p><strong>Use appropriate c++ containers</strong></p>
+<p>A simple example of cache-friendly versus cache-unfriendly is c++'s
+<code>std::vector</code> versus <code>std::list</code>. Elements of a <code>std::vector</code> are stored in
+contiguous memory, and as such accessing them is <em>much</em> more cache-friendly
+than accessing elements in a <code>std::list</code>, which stores its content all over
+the place. This is due to spatial locality.</p>
+<p>A very nice illustration of this is given by Bjarne Stroustrup in this youtube
+clip (thanks to @Mohammad Ali Baydoun for the link!).</p>
+<p><strong>Don't neglect the cache in data structure and algorithm design</strong></p>
+<p>Whenever possible, try to adapt your data structures and order of computations
+in a way that allows maximum use of the cache. A common technique in this
+regard is cache blocking (Archive.org version), which is of extreme importance
+in high-performance computing (cfr. for example ATLAS).</p>
+<p><strong>Know and exploit the implicit structure of data</strong></p>
+<p>Another simple example, which many people in the field sometimes forget is
+column-major (ex. fortran,matlab) vs. row-major ordering (ex. c,c++) for
+storing two dimensional arrays. For example, consider the following matrix:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">1</span><span class="w"> </span><span class="mf">2</span>
+<span class="mf">3</span><span class="w"> </span><span class="mf">4</span>
+</pre></div>
+
+<p>In row-major ordering, this is stored in memory as <code>1 2 3 4</code>; in column-major
+ordering, this would be stored as <code>1 3 2 4</code>. It is easy to see that
+implementations which do not exploit this ordering will quickly run into
+(easily avoidable!) cache issues. Unfortunately, I see stuff like this <em>very</em>
+often in my domain (machine learning). @MatteoItalia showed this example in
+more detail in his answer.</p>
+<p>When fetching a certain element of a matrix from memory, elements near it will
+be fetched as well and stored in a cache line. If the ordering is exploited,
+this will result in fewer memory accesses (because the next few values which
+are needed for subsequent computations are already in a cache line).</p>
+<p>For simplicity, assume the cache comprises a single cache line which can
+contain 2 matrix elements and that when a given element is fetched from
+memory, the next one is too. Say we want to take the sum over all elements in
+the example 2x2 matrix above (lets call it <code>M</code>):</p>
+<p>Exploiting the ordering (e.g. changing column index first in c++):</p>
+<div class="code"><pre class="code literal-block"><span class="n">M</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="n">memory</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">M</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="n">cached</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">M</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="n">memory</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">M</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="n">cached</span><span class="p">)</span>
+<span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span>
+<span class="o">--&gt;</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="n">accesses</span>
+</pre></div>
+
+<p>Not exploiting the ordering (e.g. changing row index first in c++):</p>
+<div class="code"><pre class="code literal-block"><span class="n">M</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="n">memory</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">M</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="n">memory</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">M</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="n">memory</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">M</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="n">memory</span><span class="p">)</span>
+<span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span>
+<span class="o">--&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="n">accesses</span>
+</pre></div>
+
+<p>In this simple example, exploiting the ordering approximately doubles
+execution speed (since memory access requires much more cycles than computing
+the sums). In practice, the performance difference can be <em>much</em> larger.</p>
+<p><strong>Avoid unpredictable branches</strong></p>
+<p>Modern architectures feature pipelines and compilers are becoming very good at
+reordering code to minimize delays due to memory access. When your critical
+code contains (unpredictable) branches, it is hard or impossible to prefetch
+data. This will indirectly lead to more cache misses.</p>
+<p>This is explained <em>very</em> well here (thanks to @0x90 for the link): Why is
+processing a sorted array faster than processing an unsorted array?</p>
+<p><strong>Avoid virtual functions</strong></p>
+<p>In the context of c++, <code>virtual</code> methods represent a controversial issue with
+regard to cache misses (a general consensus exists that they should be avoided
+when possible in terms of performance). Virtual functions can induce cache
+misses during look up, but this only happens <em>if</em> the specific function is not
+called often (otherwise it would likely be cached), so this is regarded as a
+non-issue by some. For reference about this issue, check out: What is the
+performance cost of having a virtual method in a C++ class?</p>
+<h3>Common problems</h3>
+<p>A common problem in modern architectures with multiprocessor caches is called
+false sharing. This occurs when each individual processor is attempting to use
+data in another memory region and attempts to store it in the same <em>cache
+line</em>. This causes the cache line -- which contains data another processor can
+use -- to be overwritten again and again. Effectively, different threads make
+each other wait by inducing cache misses in this situation. See also (thanks
+to @Matt for the link): How and when to align to cache line size?</p>
+<p>An extreme symptom of poor caching in RAM memory (which is probably not what
+you mean in this context) is so-called thrashing. This occurs when the process
+continuously generates page faults (e.g. accesses memory which is not in the
+current page) which require disk access.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>In addition to @Marc Claesen's answer, I think that an instructive classic
+example of cache-unfriendly code is code that scans a C bidimensional array
+(e.g. a bitmap image) column-wise instead of row-wise.</p>
+<p>Elements that are adjacent in a row are also adjacent in memory, thus
+accessing them in sequence means accessing them in ascending memory order;
+this is cache-friendly, since the cache tends to prefetch contiguous blocks of
+memory.</p>
+<p>Instead, accessing such elements column-wise is cache-unfriendly, since
+elements on the same column are distant in memory from each other (in
+particular, their distance is equal to the size of the row), so when you use
+this access pattern you are jumping around in memory, potentially wasting the
+effort of the cache of retrieving the elements nearby in memory.</p>
+<p>And all that it takes to ruin the performance is to go from</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Cache</span><span class="o">-</span><span class="n">friendly</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">processes</span><span class="w"> </span><span class="n">pixels</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="k">are</span><span class="w"> </span><span class="n">adjacent</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">memory</span>
+<span class="k">for</span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">y</span><span class="o">&lt;</span><span class="n">height</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">y</span><span class="p">)</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="k">for</span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">x</span><span class="o">&lt;</span><span class="n">width</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">x</span><span class="p">)</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="p">...</span><span class="w"> </span><span class="nc">image</span><span class="o">[</span><span class="n">y</span><span class="o">][</span><span class="n">x</span><span class="o">]</span><span class="w"> </span><span class="p">...</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>to</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Cache</span><span class="o">-</span><span class="n">unfriendly</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">jumps</span><span class="w"> </span><span class="n">around</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">no</span><span class="w"> </span><span class="n">good</span><span class="w"> </span><span class="n">reason</span>
+<span class="k">for</span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">x</span><span class="o">&lt;</span><span class="n">width</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">x</span><span class="p">)</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="k">for</span><span class="p">(</span><span class="n">unsigned</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">y</span><span class="o">&lt;</span><span class="n">height</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">y</span><span class="p">)</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="p">...</span><span class="w"> </span><span class="nc">image</span><span class="o">[</span><span class="n">y</span><span class="o">][</span><span class="n">x</span><span class="o">]</span><span class="w"> </span><span class="p">...</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>This effect can be quite dramatic (several order of magnitudes in speed) in
+systems with small caches and/or working with big arrays (e.g. 10+ megapixels
+24 bpp images on current machines); for this reason, if you have to do many
+vertical scans, often it's better to rotate the image of 90 degrees first and
+perform the various analysis later, limiting the cache-unfriendly code just to
+the rotation.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/c%2B%2B/" rel="tag">c++</a></li>
+            <li><a class="tag p-category" href="../../categories/caching/" rel="tag">caching</a></li>
+            <li><a class="tag p-category" href="../../categories/cpu-cache/" rel="tag">cpu-cache</a></li>
+            <li><a class="tag p-category" href="../../categories/memory/" rel="tag">memory</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../all-possible-array-initialization-syntaxes/" rel="prev" title="All possible array initialization syntaxes">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../are-git-forks-actually-git-clones/" rel="next" title="Are Git forks actually Git clones?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

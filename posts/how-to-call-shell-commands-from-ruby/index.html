@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to call shell commands from Ruby | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-to-call-shell-commands-from-ruby/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-make-twitter-bootstrap-menu-dropdown-on-hover-rather-than-click/" title="How to make Twitter Bootstrap menu dropdown on hover rather than click" type="text/html">
+<link rel="next" href="../what-is-a-correct-mime-type-for-docx-pptx-etc/" title="What is a correct MIME type for .docx, .pptx, etc.?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How to call shell commands from Ruby">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-to-call-shell-commands-from-ruby/">
+<meta property="og:description" content="How do I call shell commands from inside of a Ruby program? How do I then get
+output from these commands back into Ruby?
+
+Answer
+This explanation is based on a commented Ruby script from a friend of m">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T04:12:58+08:00">
+<meta property="article:tag" content="interop">
+<meta property="article:tag" content="ruby">
+<meta property="article:tag" content="shell">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How to call shell commands from Ruby</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:12:58+08:00" itemprop="datePublished" title="2023-02-17 04:12">2023-02-17 04:12</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>How do I call shell commands from inside of a Ruby program? How do I then get
+output from these commands back into Ruby?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>This explanation is based on a commented Ruby script from a friend of mine. If
+you want to improve the script, feel free to update it at the link.</p>
+<p>First, note that when Ruby calls out to a shell, it typically calls <code>/bin/sh</code>,
+<em>not</em> Bash. Some Bash syntax is not supported by <code>/bin/sh</code> on all systems.</p>
+<p>Here are ways to execute a shell script:</p>
+<div class="code"><pre class="code literal-block">cmd = "echo 'hi'" # Sample string that can be used
+</pre></div>
+
+<ol>
+<li>`Kernel#<code>, commonly called backticks –</code>cmd``</li>
+</ol>
+<p>This is like many other languages, including Bash, PHP, and Perl.</p>
+<p>Returns the result (i.e. standard output) of the shell command.</p>
+<p>Docs: http://ruby-doc.org/core/Kernel.html#method-i-60</p>
+<div class="code"><pre class="code literal-block">    value = `echo 'hi'`
+value = `#{cmd}`
+</pre></div>
+
+<ol>
+<li>Built-in syntax, <code>%x( cmd )</code>
+</li>
+</ol>
+<p>Following the <code>x</code> character is a delimiter, which can be any character. If the
+delimiter is one of the characters <code>(</code>, <code>[</code>, <code>{</code>, or <code>&lt;</code>, the literal consists
+of the characters up to the matching closing delimiter, taking account of
+nested delimiter pairs. For all other delimiters, the literal comprises the
+characters up to the next occurrence of the delimiter character. String
+interpolation <code>#{ ... }</code> is allowed.</p>
+<p>Returns the result (i.e. standard output) of the shell command, just like the
+backticks.</p>
+<p>Docs: https://docs.ruby-lang.org/en/master/syntax/literals_rdoc.html#label-
+Percent+Strings</p>
+<div class="code"><pre class="code literal-block">    value = %x( echo 'hi' )
+value = %x[ #{cmd} ]
+</pre></div>
+
+<ol>
+<li><code>Kernel#system</code></li>
+</ol>
+<p>Executes the given command in a subshell.</p>
+<p>Returns <code>true</code> if the command was found and run successfully, <code>false</code>
+otherwise.</p>
+<p>Docs: http://ruby-doc.org/core/Kernel.html#method-i-system</p>
+<div class="code"><pre class="code literal-block">    wasGood = system( "echo 'hi'" )
+wasGood = system( cmd )
+</pre></div>
+
+<ol>
+<li><code>Kernel#exec</code></li>
+</ol>
+<p>Replaces the current process by running the given external command.</p>
+<p>Returns none, the current process is replaced and never continues.</p>
+<p>Docs: http://ruby-doc.org/core/Kernel.html#method-i-exec</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="k">exec</span><span class="ss">(</span><span class="w"> </span><span class="s2">"echo 'hi'"</span><span class="w"> </span><span class="ss">)</span>
+<span class="k">exec</span><span class="ss">(</span><span class="w"> </span><span class="nv">cmd</span><span class="w"> </span><span class="ss">)</span><span class="w"> </span>#<span class="w"> </span><span class="nv">Note</span>:<span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">will</span><span class="w"> </span><span class="nv">never</span><span class="w"> </span><span class="nv">be</span><span class="w"> </span><span class="nv">reached</span><span class="w"> </span><span class="nv">because</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">line</span><span class="w"> </span><span class="nv">above</span>
+</pre></div>
+
+<p>Here's some extra advice: <code>$?</code>, which is the same as <code>$CHILD_STATUS</code>, accesses
+the status of the last system executed command if you use the backticks,
+<code>system()</code> or <code>%x{}</code>. You can then access the <code>exitstatus</code> and <code>pid</code>
+properties:</p>
+<div class="code"><pre class="code literal-block">$?.exitstatus
+</pre></div>
+
+<p>For more reading see:</p>
+<ul>
+<li>http://www.elctech.com/blog/i-m-in-ur-commandline-executin-ma-commands</li>
+<li>http://blog.jayfields.com/2006/06/ruby-kernel-system-exec-and-x.html</li>
+<li>http://tech.natemurray.com/2007/03/ruby-shell-commands.html</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Here's a flowchart based on "When to use each method of launching a subprocess
+in Ruby". See also, "Trick an application into thinking its stdout is a
+terminal, not a pipe".</p>
+<p><img alt="enter image description here" src="../../images/1Vuvp.png"></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/interop/" rel="tag">interop</a></li>
+            <li><a class="tag p-category" href="../../categories/ruby/" rel="tag">ruby</a></li>
+            <li><a class="tag p-category" href="../../categories/shell/" rel="tag">shell</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-make-twitter-bootstrap-menu-dropdown-on-hover-rather-than-click/" rel="prev" title="How to make Twitter Bootstrap menu dropdown on hover rather than click">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-is-a-correct-mime-type-for-docx-pptx-etc/" rel="next" title="What is a correct MIME type for .docx, .pptx, etc.?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

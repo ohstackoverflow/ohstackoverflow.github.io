@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How do servlets work? Instantiation, sessions, shared variables and multithreading | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-do-servlets-work-instantiation-sessions-shared-variables-and-multithreading/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../http-response-code-for-post-when-resource-already-exists/" title="HTTP response code for POST when resource already exists" type="text/html">
+<link rel="next" href="../how-to-make-twitter-bootstrap-menu-dropdown-on-hover-rather-than-click/" title="How to make Twitter Bootstrap menu dropdown on hover rather than click" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How do servlets work? Instantiation, sessions, shared variables and mu">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-do-servlets-work-instantiation-sessions-shared-variables-and-multithreading/">
+<meta property="og:description" content="Suppose, I have a webserver which holds numerous servlets. For information
+passing among those servlets I am setting session and instance variables.
+Now, if 2 or more users send request to this server">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T04:11:59+08:00">
+<meta property="article:tag" content="instance-variables">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="multithreading">
+<meta property="article:tag" content="servlets">
+<meta property="article:tag" content="session-variables">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How do servlets work? Instantiation, sessions, shared variables and multithreading</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:11:59+08:00" itemprop="datePublished" title="2023-02-17 04:11">2023-02-17 04:11</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Suppose, I have a webserver which holds numerous servlets. For information
+passing among those servlets I am setting session and instance variables.</p>
+<p>Now, if 2 or more users send request to this server then what happens to the
+session variables?<br>
+Will they all be common for all the users or they will be different for each
+user?<br>
+If they are different, then how was the server able to differentiate between
+different users?</p>
+<p>One more similar question, if there are <code>n</code> users accessing a particular
+servlet, then this servlet gets instantiated only the first time the first
+user accessed it or does it get instantiated for all the users separately?<br>
+In other words, what happens to the instance variables?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3><code>ServletContext</code></h3>
+<p>When the servlet container (like Apache Tomcat) starts up, it will deploy and
+load all its web applications. When a web application is loaded, the servlet
+container creates the <code>ServletContext</code> once and keeps it in the server's
+memory. The web app's <code>web.xml</code> and all of included <code>web-fragment.xml</code> files
+is parsed, and each <code>&lt;servlet&gt;</code>, <code>&lt;filter&gt;</code> and <code>&lt;listener&gt;</code> found (or each
+class annotated with <code>@WebServlet</code>, <code>@WebFilter</code> and <code>@WebListener</code>
+respectively) will be instantiated once and be kept in the server's memory as
+well, registred via the <code>ServletContext</code>. For each instantiated filter, its
+<code>init()</code> method is invoked with a new <code>FilterConfig</code> argument which in turn
+contains the involved <code>ServletContext</code>.</p>
+<p>When a <code>Servlet</code> has a <code>&lt;servlet&gt;&lt;load-on-startup&gt;</code> or
+<code>@WebServlet(loadOnStartup)</code> value greater than <code>0</code>, then its <code>init()</code> method
+is also invoked during startup with a new <code>ServletConfig</code> argument which in
+turn contains the involved <code>ServletContext</code>. Those servlets are initialized in
+the same order specified by that value (<code>1</code> is 1st, <code>2</code> is 2nd, etc). If the
+same value is specified for more than one servlet, then each of those servlets
+is loaded in the same order as they appear in the <code>web.xml</code>, <code>web-
+fragment.xml</code>, or <code>@WebServlet</code> classloading. In the event the "load-on-
+startup" value is absent, the <code>init()</code> method will be invoked whenever the
+HTTP request hits that servlet for the very first time.</p>
+<p>When the servlet container is finished with all of the above described
+initialization steps, then the <code>ServletContextListener#contextInitialized()</code>
+will be invoked with a <code>ServletContextEvent</code> argument which in turn contains
+the involved <code>ServletContext</code>. This will allow the developer the opportunity
+to programmatically register yet another <code>Servlet</code>, <code>Filter</code> or <code>Listener</code>.</p>
+<p>When the servlet container shuts down, it unloads all web applications,
+invokes the <code>destroy()</code> method of all its initialized servlets and filters,
+and all <code>Servlet</code>, <code>Filter</code> and <code>Listener</code> instances registered via the
+<code>ServletContext</code> are trashed. Finally the
+<code>ServletContextListener#contextDestroyed()</code> will be invoked and the
+<code>ServletContext</code> itself will be trashed.</p>
+<h3>
+<code>HttpServletRequest</code> and <code>HttpServletResponse</code>
+</h3>
+<p>The servlet container is attached to a web server that listens for HTTP
+requests on a certain port number (port 8080 is usually used during
+development and port 80 in production). When a client (e.g. user with a web
+browser, or programmatically using <code>URLConnection</code>) sends an HTTP request, the
+servlet container creates new <code>HttpServletRequest</code> and <code>HttpServletResponse</code>
+objects and passes them through any defined <code>Filter</code> in the chain and,
+eventually, the <code>Servlet</code> instance.</p>
+<p>In the case of filters, the <code>doFilter()</code> method is invoked. When the servlet
+container's code calls <code>chain.doFilter(request, response)</code>, the request and
+response continue on to the next filter, or hit the servlet if there are no
+remaining filters.</p>
+<p>In the case of servlets, the <code>service()</code> method is invoked. By default, this
+method determines which one of the <code>doXxx()</code> methods to invoke based off of
+<code>request.getMethod()</code>. If the determined method is absent from the servlet,
+then an HTTP 405 error is returned in the response.</p>
+<p>The request object provides access to all of the information about the HTTP
+request, such as its URL, headers, query string and body. The response object
+provides the ability to control and send the HTTP response the way you want
+by, for instance, allowing you to set the headers and the body (usually with
+generated HTML content from a JSP file). When the HTTP response is committed
+and finished, both the request and response objects are recycled and made
+available for reuse.</p>
+<h3><code>HttpSession</code></h3>
+<p>When a client visits the webapp for the first time and/or the <code>HttpSession</code> is
+obtained for the first time via <code>request.getSession()</code>, the servlet container
+creates a new <code>HttpSession</code> object, generates a long and unique ID (which you
+can get by <code>session.getId()</code>), and stores it in the server's memory. The
+servlet container also sets a <code>Cookie</code> in the <code>Set-Cookie</code> header of the HTTP
+response with <code>JSESSIONID</code> as its name and the unique session ID as its value.</p>
+<p>As per the HTTP cookie specification (a contract any decent web browser and
+web server must adhere to), the client (the web browser) is required to send
+this cookie back in subsequent requests in the <code>Cookie</code> header for as long as
+the cookie is valid (i.e. the unique ID must refer to an unexpired session and
+the domain and path are correct). Using your browser's built-in HTTP traffic
+monitor, you can verify that the cookie is valid (press F12 in Chrome /
+Firefox 23+ / IE9+, and check the <em>Net/Network</em> tab). The servlet container
+will check the <code>Cookie</code> header of every incoming HTTP request for the presence
+of the cookie with the name <code>JSESSIONID</code> and use its value (the session ID) to
+get the associated <code>HttpSession</code> from server's memory.</p>
+<p>The <code>HttpSession</code> stays alive until it has been idle (i.e. not used in a
+request) for more than the timeout value specified in <code>&lt;session-timeout&gt;</code>, a
+setting in <code>web.xml</code>. The timeout value defaults to 30 minutes. So, when the
+client doesn't visit the web app for longer than the time specified, the
+servlet container trashes the session. Every subsequent request, even with the
+cookie specified, will not have access to the same session anymore; the
+servlet container will create a new session.</p>
+<p>On the client side, the session cookie stays alive for as long as the browser
+instance is running. So, if the client closes the browser instance (all
+tabs/windows), then the session is trashed on the client's side. In a new
+browser instance, the cookie associated with the session wouldn't exist, so it
+would no longer be sent. This causes an entirely new <code>HttpSession</code> to be
+created, with an entirely new session cookie being used.</p>
+<h3>In a nutshell</h3>
+<ul>
+<li>The <code>ServletContext</code> lives for as long as the web app lives. It is shared among <em>all</em> requests in <em>all</em> sessions.</li>
+<li>The <code>HttpSession</code> lives for as long as the client is interacting with the web app with the same browser instance, and the session hasn't timed out at the server side. It is shared among <em>all</em> requests in the <em>same</em> session.</li>
+<li>The <code>HttpServletRequest</code> and <code>HttpServletResponse</code> live from the time the servlet receives an HTTP request from the client, until the complete response (the web page) has arrived. It is <em>not</em> shared elsewhere.</li>
+<li>All <code>Servlet</code>, <code>Filter</code> and <code>Listener</code> instances live as long as the web app lives. They are shared among <em>all</em> requests in <em>all</em> sessions.</li>
+<li>Any <code>attribute</code> that is defined in <code>ServletContext</code>, <code>HttpServletRequest</code> and <code>HttpSession</code> will live as long as the object in question lives. The object itself represents the "scope" in bean management frameworks such as JSF, CDI, Spring, etc. Those frameworks store their scoped beans as an <code>attribute</code> of its closest matching scope.</li>
+</ul>
+<h3>Thread Safety</h3>
+<p>That said, your major concern is possibly <em>thread safety</em>. You should now know
+that servlets and filters are shared among all requests. That's the nice thing
+about Java, it's multithreaded and different threads (read: HTTP requests) can
+make use of the same instance. It would otherwise be too expensive to
+recreate, <code>init()</code> and <code>destroy()</code> them for every single request.</p>
+<p>You should also realize that you should <strong>never</strong> assign any request or
+session scoped data as an <em>instance</em> variable of a servlet or filter. It will
+be shared among all other requests in other sessions. That's <strong>not</strong> thread-
+safe! The below example illustrates this:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ExampleServlet</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">HttpServlet</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="nb nb-Type">Object</span><span class="w"> </span><span class="n">thisIsNOTThreadSafe</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">doGet</span><span class="p">(</span><span class="n">HttpServletRequest</span><span class="w"> </span><span class="n">request</span><span class="p">,</span><span class="w"> </span><span class="n">HttpServletResponse</span><span class="w"> </span><span class="n">response</span><span class="p">)</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="n">ServletException</span><span class="p">,</span><span class="w"> </span><span class="n">IOException</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb nb-Type">Object</span><span class="w"> </span><span class="n">thisIsThreadSafe</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">thisIsNOTThreadSafe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">request</span><span class="o">.</span><span class="n">getParameter</span><span class="p">(</span><span class="s2">"foo"</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">BAD</span><span class="o">!!</span><span class="w"> </span><span class="n">Shared</span><span class="w"> </span><span class="n">among</span><span class="w"> </span><span class="n">all</span><span class="w"> </span><span class="n">requests</span><span class="o">!</span>
+<span class="w">        </span><span class="n">thisIsThreadSafe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">request</span><span class="o">.</span><span class="n">getParameter</span><span class="p">(</span><span class="s2">"foo"</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">OK</span><span class="p">,</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">thread</span><span class="w"> </span><span class="n">safe</span><span class="o">.</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span>
+<span class="p">}</span>
+</pre></div>
+
+<h4>See also:</h4>
+<ul>
+<li>What is the difference between JSF, Servlet and JSP?</li>
+<li>Best option for Session management in Java</li>
+<li>Difference between / and /* in servlet mapping url pattern</li>
+<li>doGet and doPost in Servlets</li>
+<li>Servlet seems to handle multiple concurrent browser requests synchronously</li>
+<li>Why Servlets are not thread Safe?</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<h3>Sessions</h3>
+<p><img alt="enter image description here" src="../../images/ABDSX.png"><img alt="enter image description
+here" src="../../images/IWAF3.png"></p>
+<p>In short: the web server issues a unique identifier to <em>each visitor</em> on his
+<em>first</em> visit. The visitor must bring back that ID for him to be recognised
+next time around. This identifier also allows the server to properly segregate
+objects owned by one session against that of another.</p>
+<h3>Servlet Instantiation</h3>
+<p>If <strong>load-on-startup</strong> is <strong>false</strong> :</p>
+<p><img alt="enter image description here" src="../../images/Jjvcb.png"><img alt="enter image description
+here" src="../../images/7Bw3x.png"></p>
+<p>If <strong>load-on-startup</strong> is <strong>true</strong> :</p>
+<p><img alt="enter image description here" src="../../images/t33bd.png"><img alt="enter image description
+here" src="../../images/e7BB7.png"></p>
+<p>Once he's on the service mode and on the groove, the <em>same</em> servlet will work
+on the requests from all other clients.</p>
+<p><img alt="enter image description here" src="../../images/gqoR4.png"></p>
+<p>Why isn't it a good idea to have one instance per client? Think about this:
+Will you hire one pizza guy for every order that came? Do that and you'd be
+out of business in no time.</p>
+<p>It comes with a small risk though. Remember: this single guy holds all the
+order information in his pocket: so if you're not cautious about thread safety
+on servlets, he may end up giving the wrong order to a certain client.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/instance-variables/" rel="tag">instance-variables</a></li>
+            <li><a class="tag p-category" href="../../categories/java/" rel="tag">java</a></li>
+            <li><a class="tag p-category" href="../../categories/multithreading/" rel="tag">multithreading</a></li>
+            <li><a class="tag p-category" href="../../categories/servlets/" rel="tag">servlets</a></li>
+            <li><a class="tag p-category" href="../../categories/session-variables/" rel="tag">session-variables</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../http-response-code-for-post-when-resource-already-exists/" rel="prev" title="HTTP response code for POST when resource already exists">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-to-make-twitter-bootstrap-menu-dropdown-on-hover-rather-than-click/" rel="next" title="How to make Twitter Bootstrap menu dropdown on hover rather than click">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

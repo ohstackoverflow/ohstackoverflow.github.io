@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why is setTimeout(fn, 0) sometimes useful? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/why-is-settimeout-fn-0-sometimes-useful/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../difference-between-cr-lf-lf-and-cr-line-break-types/" title="Difference between CR LF, LF and CR line break types?" type="text/html">
+<link rel="next" href="../what-is-the-meaning-of-posix/" title='What is the meaning of "POSIX"?' type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Why is setTimeout(fn, 0) sometimes useful?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/why-is-settimeout-fn-0-sometimes-useful/">
+<meta property="og:description" content="I've recently run into a rather nasty bug, wherein the code was loading a
+&lt;select&gt; dynamically via JavaScript. This dynamically loaded &lt;select&gt; had
+a pre-selected value. In IE6, we already had code to">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T06:37:29+08:00">
+<meta property="article:tag" content="dom">
+<meta property="article:tag" content="event-loop">
+<meta property="article:tag" content="javascript">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Why is setTimeout(fn, 0) sometimes useful?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T06:37:29+08:00" itemprop="datePublished" title="2023-02-17 06:37">2023-02-17 06:37</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I've recently run into a rather nasty bug, wherein the code was loading a
+<code>&lt;select&gt;</code> dynamically via JavaScript. This dynamically loaded <code>&lt;select&gt;</code> had
+a pre-selected value. In IE6, we already had code to fix the selected
+<code>&lt;option&gt;</code>, because sometimes the <code>&lt;select&gt;</code>'s <code>selectedIndex</code> value would be
+out of sync with the selected <code>&lt;option&gt;</code>'s <code>index</code> attribute, as below:</p>
+<div class="code"><pre class="code literal-block">field.selectedIndex = element.index;
+</pre></div>
+
+<p>However, this code wasn't working. Even though the field's <code>selectedIndex</code> was
+being set correctly, the wrong index would end up being selected. However, if
+I stuck an <code>alert()</code> statement in at the right time, the correct option would
+be selected. Thinking this might be some sort of timing issue, I tried
+something random that I'd seen in code before:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">wrapFn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">myField</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">field</span><span class="p">;</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">myElement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">element</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">myField</span><span class="o">.</span><span class="n">selectedIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">myElement</span><span class="o">.</span><span class="n">index</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">})();</span>
+<span class="n">setTimeout</span><span class="p">(</span><span class="n">wrapFn</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+</pre></div>
+
+<p>And this worked!</p>
+<p>I've got a solution for my problem, but I'm uneasy that I don't know exactly
+why this fixes my problem. Does anyone have an official explanation? What
+browser issue am I avoiding by calling my function "later" using
+<code>setTimeout()</code>?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>In the question, there existed a race condition between:</p>
+<ol>
+<li>The browser's attempt to initialize the drop-down list, ready to have its selected index updated, and</li>
+<li>Your code to set the selected index</li>
+</ol>
+<p>Your code was consistently winning this race and attempting to set drop-down
+selection before the browser was ready, meaning that the bug would appear.</p>
+<p>This race existed because JavaScript has a single thread of execution that is
+shared with page rendering. In effect, running JavaScript blocks the updating
+of the DOM.</p>
+<p>Your workaround was:</p>
+<div class="code"><pre class="code literal-block">setTimeout(callback, 0)
+</pre></div>
+
+<p>Invoking <code>setTimeout</code> with a callback, and zero as the second argument will
+schedule the callback to be run <strong>asynchronously</strong> , after the shortest
+possible delay - which will be around 10ms when the tab has focus and the
+JavaScript thread of execution is not busy.</p>
+<p>The OP's solution, therefore was to delay by about 10ms, the setting of the
+selected index. This gave the browser an opportunity to initialize the DOM,
+fixing the bug.</p>
+<p>Every version of Internet Explorer exhibited quirky behaviors and this kind of
+workaround was necessary at times. Alternatively it might have been a genuine
+bug in the OP's codebase.</p>
+<hr>
+<p>See Philip Roberts talk "What the heck is the event loop?" for more thorough
+explanation.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong><em>Preface:</em></strong></p>
+<p>Some of the other answers are correct but don't actually illustrate what the
+problem being solved is, so I created this answer to present that detailed
+illustration.</p>
+<p>As such, I am posting a <strong>detailed walk-through of what the browser does and
+how using<code>setTimeout()</code> helps</strong>. It looks longish but is actually very simple
+and straightforward - I just made it very detailed.</p>
+<p><strong>UPDATE:</strong> I have made a JSFiddle to live-demonstrate the explanation below:
+http://jsfiddle.net/C2YBE/31/ . Many <strong>thanks</strong> to @ThangChung for helping to
+kickstart it.</p>
+<p><strong>UPDATE2:</strong> Just in case JSFiddle web site dies, or deletes the code, I added
+the code to this answer at the very end.</p>
+<hr>
+<p><strong>DETAILS</strong> :</p>
+<p>Imagine a web app with a "do something" button and a result div.</p>
+<p>The <code>onClick</code> handler for "do something" button calls a function "LongCalc()",
+which does 2 things:</p>
+<ol>
+<li>
+<p>Makes a very long calculation (say takes 3 min)</p>
+</li>
+<li>
+<p>Prints the results of calculation into the result div.</p>
+</li>
+</ol>
+<p>Now, your users start testing this, click "do something" button, and the page
+sits there doing seemingly nothing for 3 minutes, they get restless, click the
+button again, wait 1 min, nothing happens, click button again...</p>
+<p>The problem is obvious - you want a "Status" DIV, which shows what's going on.
+Let's see how that works.</p>
+<hr>
+<p>So you add a "Status" DIV (initially empty), and modify the <code>onclick</code> handler
+(function <code>LongCalc()</code>) to do 4 things:</p>
+<ol>
+<li>
+<p>Populate the status "Calculating... may take ~3 minutes" into status DIV</p>
+</li>
+<li>
+<p>Makes a very long calculation (say takes 3 min)</p>
+</li>
+<li>
+<p>Prints the results of calculation into the result div.</p>
+</li>
+<li>
+<p>Populate the status "Calculation done" into status DIV</p>
+</li>
+</ol>
+<p>And, you happily give the app to users to re-test.</p>
+<p>They come back to you looking very angry. And explain that when they clicked
+the button, <strong>the Status DIV never got updated with "Calculating..."
+status!!!</strong></p>
+<hr>
+<p>You scratch your head, ask around on StackOverflow (or read docs or google),
+and realize the problem:</p>
+<p>The browser places all its "TODO" tasks (both UI tasks and JavaScript
+commands) resulting from events into a <strong>single queue</strong>. And unfortunately,
+re-drawing the "Status" DIV with the new "Calculating..." value is a separate
+TODO which goes to the end of the queue!</p>
+<p>Here's a breakdown of the events during your user's test, contents of the
+queue after each event:</p>
+<ul>
+<li>Queue: <code>[Empty]</code>
+</li>
+<li>Event: Click the button. Queue after event: <code>[Execute OnClick handler(lines 1-4)]</code>
+</li>
+<li>Event: Execute first line in OnClick handler (e.g. change Status DIV value). Queue after event: <code>[Execute OnClick handler(lines 2-4), re-draw Status DIV with new "Calculating" value]</code>. <strong>Please note that while the DOM changes happen instantaneously, to re-draw the corresponding DOM element you need a new event, triggered by the DOM change, that went at the end of the queue</strong>.</li>
+<li>
+<strong>PROBLEM!!!</strong> <strong>PROBLEM!!!</strong> Details explained below.</li>
+<li>Event: Execute second line in handler (calculation). Queue after: <code>[Execute OnClick handler(lines 3-4), re-draw Status DIV with "Calculating" value]</code>.</li>
+<li>Event: Execute 3rd line in handler (populate result DIV). Queue after: <code>[Execute OnClick handler(line 4), re-draw Status DIV with "Calculating" value, re-draw result DIV with result]</code>.</li>
+<li>Event: Execute 4th line in handler (populate status DIV with "DONE"). Queue: <code>[Execute OnClick handler, re-draw Status DIV with "Calculating" value, re-draw result DIV with result; re-draw Status DIV with "DONE" value]</code>.</li>
+<li>Event: execute implied <code>return</code> from <code>onclick</code> handler sub. We take the "Execute OnClick handler" off the queue and start executing next item on the queue.</li>
+<li>NOTE: Since we already finished the calculation, 3 minutes already passed for the user. <strong>The re-draw event didn't happen yet!!!</strong>
+</li>
+<li>Event: re-draw Status DIV with "Calculating" value. We do the re-draw and take that off the queue.</li>
+<li>Event: re-draw Result DIV with result value. We do the re-draw and take that off the queue.</li>
+<li>Event: re-draw Status DIV with "Done" value. We do the re-draw and take that off the queue. Sharp-eyed viewers might even notice "Status DIV with "Calculating" value flashing for fraction of a microsecond - <strong>AFTER THE CALCULATION FINISHED</strong>
+</li>
+</ul>
+<p>So, the underlying problem is that the re-draw event for "Status" DIV is
+placed on the queue at the end, AFTER the "execute line 2" event which takes 3
+minutes, so the actual re-draw doesn't happen until AFTER the calculation is
+done.</p>
+<hr>
+<p>To the rescue comes the <code>setTimeout()</code>. How does it help? Because by calling
+long-executing code via <code>setTimeout</code>, you actually create 2 events:
+<code>setTimeout</code> execution itself, and (due to 0 timeout), separate queue entry
+for the code being executed.</p>
+<p>So, to fix your problem, you modify your <code>onClick</code> handler to be TWO
+statements (in a new function or just a block within <code>onClick</code>):</p>
+<ol>
+<li>
+<p>Populate the status "Calculating... may take ~3 minutes" into status DIV</p>
+</li>
+<li>
+<p><strong>Execute<code>setTimeout()</code> with 0 timeout and a call to <code>LongCalc()</code> function</strong>. </p>
+</li>
+</ol>
+<p><code>LongCalc()</code> function is almost the same as last time but obviously doesn't
+have "Calculating..." status DIV update as first step; and instead starts the
+calculation right away.</p>
+<p>So, what does the event sequence and the queue look like now?</p>
+<ul>
+<li>Queue: <code>[Empty]</code>
+</li>
+<li>Event: Click the button. Queue after event: <code>[Execute OnClick handler(status update, setTimeout() call)]</code>
+</li>
+<li>Event: Execute first line in OnClick handler (e.g. change Status DIV value). Queue after event: <code>[Execute OnClick handler(which is a setTimeout call), re-draw Status DIV with new "Calculating" value]</code>. </li>
+<li>Event: Execute second line in handler (setTimeout call). Queue after: <code>[re-draw Status DIV with "Calculating" value]</code>. The queue has nothing new in it for 0 more seconds.</li>
+<li>Event: Alarm from the timeout goes off, 0 seconds later. Queue after: <code>[re-draw Status DIV with "Calculating" value, execute LongCalc (lines 1-3)]</code>. </li>
+<li>Event: <strong>re-draw Status DIV with "Calculating" value</strong>. Queue after: <code>[execute LongCalc (lines 1-3)]</code>. Please note that this re-draw event might actually happen BEFORE the alarm goes off, which works just as well.</li>
+<li>...</li>
+</ul>
+<p>Hooray! The Status DIV just got updated to "Calculating..." before the
+calculation started!!!</p>
+<hr>
+<hr>
+<p>Below is the sample code from the JSFiddle illustrating these examples:
+http://jsfiddle.net/C2YBE/31/ :</p>
+<p><strong>HTML code:</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;table</span><span class="w"> </span><span class="na">border=</span><span class="s">1</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;tr&gt;&lt;td&gt;&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">'do'</span><span class="nt">&gt;</span>Do<span class="w"> </span>long<span class="w"> </span>calc<span class="w"> </span>-<span class="w"> </span>bad<span class="w"> </span>status!<span class="nt">&lt;/button&gt;&lt;/td&gt;</span>
+<span class="w">        </span><span class="nt">&lt;td&gt;&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">'status'</span><span class="nt">&gt;</span>Not<span class="w"> </span>Calculating<span class="w"> </span>yet.<span class="nt">&lt;/div&gt;&lt;/td&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/tr&gt;</span>
+<span class="w">    </span><span class="nt">&lt;tr&gt;&lt;td&gt;&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">'do_ok'</span><span class="nt">&gt;</span>Do<span class="w"> </span>long<span class="w"> </span>calc<span class="w"> </span>-<span class="w"> </span>good<span class="w"> </span>status!<span class="nt">&lt;/button&gt;&lt;/td&gt;</span>
+<span class="w">        </span><span class="nt">&lt;td&gt;&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">'status_ok'</span><span class="nt">&gt;</span>Not<span class="w"> </span>Calculating<span class="w"> </span>yet.<span class="nt">&lt;/div&gt;&lt;/td&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/tr&gt;</span>
+<span class="nt">&lt;/table&gt;</span>
+</pre></div>
+
+<p><strong>JavaScript code: (Executed on<code>onDomReady</code> and may require jQuery 1.9)</strong></p>
+<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">long_running</span><span class="p">(</span><span class="n">status_div</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Use</span><span class="w"> </span><span class="mi">1000</span><span class="o">/</span><span class="mi">700</span><span class="o">/</span><span class="mi">300</span><span class="w"> </span><span class="n">limits</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">Chrome</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="o">//</span><span class="w">    </span><span class="mi">300</span><span class="o">/</span><span class="mi">100</span><span class="o">/</span><span class="mi">100</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">IE8</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="o">//</span><span class="w">    </span><span class="mi">1000</span><span class="o">/</span><span class="mi">500</span><span class="o">/</span><span class="mi">200</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">FireFox</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">idea</span><span class="w"> </span><span class="n">why</span><span class="w"> </span><span class="n">identical</span><span class="w"> </span><span class="n">runtimes</span><span class="w"> </span><span class="n">fail</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="n">browsers</span><span class="o">.</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">var</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">var</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">700</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">var</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">300</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">k</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">$</span><span class="p">(</span><span class="n">status_div</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">'calculation done'</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Assign</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">buttons</span>
+<span class="o">$</span><span class="p">(</span><span class="s1">'#do'</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">'click'</span><span class="p">,</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="p">(</span><span class="s1">'#status'</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">'calculating....'</span><span class="p">);</span>
+<span class="w">    </span><span class="n">long_running</span><span class="p">(</span><span class="s1">'#status'</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="o">$</span><span class="p">(</span><span class="s1">'#do_ok'</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">'click'</span><span class="p">,</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="p">(</span><span class="s1">'#status_ok'</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">'calculating....'</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="n">works</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">IE8</span><span class="o">.</span><span class="w"> </span><span class="n">Works</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">Chrome</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Does</span><span class="w"> </span><span class="n">NOT</span><span class="w"> </span><span class="n">work</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">FireFox</span><span class="w"> </span><span class="mi">25</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">timeout</span><span class="w"> </span><span class="o">=</span><span class="mi">0</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="o">=</span><span class="mi">1</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">DOES</span><span class="w"> </span><span class="n">work</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">FF</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="n">timeout</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="mi">500</span>
+<span class="w">    </span><span class="n">window</span><span class="o">.</span><span class="n">setTimeout</span><span class="p">(</span><span class="n">function</span><span class="w"> </span><span class="p">(){</span><span class="w"> </span><span class="n">long_running</span><span class="p">(</span><span class="s1">'#status_ok'</span><span class="p">)</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/dom/" rel="tag">dom</a></li>
+            <li><a class="tag p-category" href="../../categories/event-loop/" rel="tag">event-loop</a></li>
+            <li><a class="tag p-category" href="../../categories/javascript/" rel="tag">javascript</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../difference-between-cr-lf-lf-and-cr-line-break-types/" rel="prev" title="Difference between CR LF, LF and CR line break types?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-is-the-meaning-of-posix/" rel="next" title='What is the meaning of "POSIX"?'>Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

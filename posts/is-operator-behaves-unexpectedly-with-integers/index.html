@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>"is" operator behaves unexpectedly with integers | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/is-operator-behaves-unexpectedly-with-integers/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../stop-excel-from-automatically-converting-certain-text-values-to-dates/" title="Stop Excel from automatically converting certain text values to dates" type="text/html">
+<link rel="next" href="../giving-uiview-rounded-corners/" title="Giving UIView rounded corners" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content='"is" operator behaves unexpectedly with integers'>
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/is-operator-behaves-unexpectedly-with-integers/">
+<meta property="og:description" content="Why does the following behave unexpectedly in Python?
+&gt;&gt;&gt; a = 256
+&gt;&gt;&gt; b = 256
+&gt;&gt;&gt; a is b
+True           # This is an expected result
+&gt;&gt;&gt; a = 257
+&gt;&gt;&gt; b = 257
+&gt;&gt;&gt; a is b
+False          # What happened h">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-18T00:22:39+08:00">
+<meta property="article:tag" content="identity">
+<meta property="article:tag" content="int">
+<meta property="article:tag" content="operators">
+<meta property="article:tag" content="python">
+<meta property="article:tag" content="python-internals">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">"is" operator behaves unexpectedly with integers</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:22:39+08:00" itemprop="datePublished" title="2023-02-18 00:22">2023-02-18 00:22</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Why does the following behave unexpectedly in Python?</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a = 256
+&gt;&gt;&gt; b = 256
+&gt;&gt;&gt; a is b
+True           # This is an expected result
+&gt;&gt;&gt; a = 257
+&gt;&gt;&gt; b = 257
+&gt;&gt;&gt; a is b
+False          # What happened here? Why is this False?
+&gt;&gt;&gt; 257 is 257
+True           # Yet the literal numbers compare properly
+</pre></div>
+
+<p>I am using Python 2.5.2. Trying some different versions of Python, it appears
+that Python 2.3.3 shows the above behaviour between 99 and 100.</p>
+<p>Based on the above, I can hypothesize that Python is internally implemented
+such that "small" integers are stored in a different way than larger integers
+and the <code>is</code> operator can tell the difference. Why the leaky abstraction? What
+is a better way of comparing two arbitrary objects to see whether they are the
+same when I don't know in advance whether they are numbers or not?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Take a look at this:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a = 256
+&gt;&gt;&gt; b = 256
+&gt;&gt;&gt; id(a) == id(b)
+True
+&gt;&gt;&gt; a = 257
+&gt;&gt;&gt; b = 257
+&gt;&gt;&gt; id(a) == id(b)
+False
+</pre></div>
+
+<p>Here's what I found in the documentation for "Plain Integer Objects":</p>
+<blockquote>
+<p>The current implementation keeps an array of integer objects for all
+integers between <code>-5</code> and <code>256</code>. When you create an int in that range you
+actually just get back a reference to the existing object.</p>
+</blockquote>
+<p>So, integers 256 are identical, but 257 are not. This is a CPython
+implementation detail, and not guaranteed for other Python implementations.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<blockquote>
+<h2>Python's “is” operator behaves unexpectedly with integers?</h2>
+</blockquote>
+<p>In summary - let me emphasize: <strong><em>Do not use<code>is</code> to compare integers.</em></strong></p>
+<p>This isn't behavior you should have any expectations about.</p>
+<p>Instead, use <code>==</code> and <code>!=</code> to compare for equality and inequality,
+respectively. For example:</p>
+<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span>
+<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1000</span><span class="w">       </span><span class="c1"># Test integers like this,</span>
+<span class="no">True</span>
+<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">5000</span><span class="w">       </span><span class="c1"># or this!</span>
+<span class="no">True</span>
+<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="mi">1000</span><span class="w">       </span><span class="c1"># Don't do this! - Don't use `is` to test integers!!</span>
+<span class="no">False</span>
+</pre></div>
+
+<h3>Explanation</h3>
+<p>To know this, you need to know the following.</p>
+<p>First, what does <code>is</code> do? It is a comparison operator. From the documentation:</p>
+<blockquote>
+<p>The operators <code>is</code> and <code>is not</code> test for object identity: <code>x is y</code> is true
+if and only if x and y are the same object. <code>x is not y</code> yields the inverse
+truth value.</p>
+</blockquote>
+<p>And so the following are equivalent.</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a is b
+&gt;&gt;&gt; id(a) == id(b)
+</pre></div>
+
+<p>From the documentation:</p>
+<blockquote>
+<p><strong><code>id</code></strong> Return the “identity” of an object. This is an integer (or long
+integer) which is guaranteed to be unique and constant for this object
+during its lifetime. Two objects with non-overlapping lifetimes may have the
+same <code>id()</code> value.</p>
+</blockquote>
+<p>Note that the fact that the id of an object in CPython (the reference
+implementation of Python) is the location in memory is an implementation
+detail. Other implementations of Python (such as Jython or IronPython) could
+easily have a different implementation for <code>id</code>.</p>
+<p>So what is the use-case for <code>is</code>? PEP8 describes:</p>
+<blockquote>
+<p>Comparisons to singletons like <code>None</code> should always be done with <code>is</code> or <code>is
+not</code>, never the equality operators.</p>
+</blockquote>
+<h3>The Question</h3>
+<p>You ask, and state, the following question (with code):</p>
+<blockquote>
+<p><strong>Why does the following behave unexpectedly in Python?</strong></p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a = 256
+&gt;&gt;&gt; b = 256
+&gt;&gt;&gt; a is b
+True           # This is an expected result
+</pre></div>
+
+</blockquote>
+<p>It is <em>not</em> an expected result. Why is it expected? It only means that the
+integers valued at <code>256</code> referenced by both <code>a</code> and <code>b</code> are the same instance
+of integer. Integers are immutable in Python, thus they cannot change. This
+should have no impact on any code. It should not be expected. It is merely an
+implementation detail.</p>
+<p>But perhaps we should be glad that there is not a new separate instance in
+memory every time we state a value equals 256.</p>
+<blockquote>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a = 257
+&gt;&gt;&gt; b = 257
+&gt;&gt;&gt; a is b
+False          # What happened here? Why is this False?
+</pre></div>
+
+</blockquote>
+<p>Looks like we now have two separate instances of integers with the value of
+<code>257</code> in memory. Since integers are immutable, this wastes memory. Let's hope
+we're not wasting a lot of it. We're probably not. But this behavior is not
+guaranteed.</p>
+<blockquote>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; 257 is 257
+True           # Yet the literal numbers compare properly
+</pre></div>
+
+</blockquote>
+<p>Well, this looks like your particular implementation of Python is trying to be
+smart and not creating redundantly valued integers in memory unless it has to.
+You seem to indicate you are using the referent implementation of Python,
+which is CPython. Good for CPython.</p>
+<p>It might be even better if CPython could do this globally, if it could do so
+cheaply (as there would a cost in the lookup), perhaps another implementation
+might.</p>
+<p>But as for impact on code, you should not care if an integer is a particular
+instance of an integer. You should only care what the value of that instance
+is, and you would use the normal comparison operators for that, i.e. <code>==</code>.</p>
+<h3>What <code>is</code> does</h3>
+<p><code>is</code> checks that the <code>id</code> of two objects are the same. In CPython, the <code>id</code> is
+the location in memory, but it could be some other uniquely identifying number
+in another implementation. To restate this with code:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; a is b
+</pre></div>
+
+<p>is the same as</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; id(a) == id(b)
+</pre></div>
+
+<h3>Why would we want to use <code>is</code> then?</h3>
+<p>This can be a very fast check relative to say, checking if two very long
+strings are equal in value. But since it applies to the uniqueness of the
+object, we thus have limited use-cases for it. In fact, we mostly want to use
+it to check for <code>None</code>, which is a singleton (a sole instance existing in one
+place in memory). We might create other singletons if there is potential to
+conflate them, which we might check with <code>is</code>, but these are relatively rare.
+Here's an example (will work in Python 2 and 3) e.g.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">SENTINEL_SINGLETON</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">object</span><span class="ss">()</span><span class="w"> </span>#<span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">will</span><span class="w"> </span><span class="nv">only</span><span class="w"> </span><span class="nv">be</span><span class="w"> </span><span class="nv">created</span><span class="w"> </span><span class="nv">one</span><span class="w"> </span><span class="nv">time</span>.
+
+<span class="nv">def</span><span class="w"> </span><span class="nv">foo</span><span class="ss">(</span><span class="nv">keyword_argument</span><span class="o">=</span><span class="nv">None</span><span class="ss">)</span>:
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nv">keyword_argument</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">None</span>:
+<span class="w">        </span><span class="nv">print</span><span class="ss">(</span><span class="s1">'no argument given to foo'</span><span class="ss">)</span>
+<span class="w">    </span><span class="nv">bar</span><span class="ss">()</span>
+<span class="w">    </span><span class="nv">bar</span><span class="ss">(</span><span class="nv">keyword_argument</span><span class="ss">)</span>
+<span class="w">    </span><span class="nv">bar</span><span class="ss">(</span><span class="s1">'baz'</span><span class="ss">)</span>
+
+<span class="nv">def</span><span class="w"> </span><span class="nv">bar</span><span class="ss">(</span><span class="nv">keyword_argument</span><span class="o">=</span><span class="nv">SENTINEL_SINGLETON</span><span class="ss">)</span>:
+<span class="w">    </span>#<span class="w"> </span><span class="nv">SENTINEL_SINGLETON</span><span class="w"> </span><span class="nv">tells</span><span class="w"> </span><span class="nv">us</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">we</span><span class="w"> </span><span class="nv">were</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">passed</span><span class="w"> </span><span class="nv">anything</span>
+<span class="w">    </span>#<span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">None</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">legitimate</span><span class="w"> </span><span class="nv">potential</span><span class="w"> </span><span class="nv">argument</span><span class="w"> </span><span class="nv">we</span><span class="w"> </span><span class="nv">could</span><span class="w"> </span><span class="nv">get</span>.
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nv">keyword_argument</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">SENTINEL_SINGLETON</span>:
+<span class="w">        </span><span class="nv">print</span><span class="ss">(</span><span class="s1">'no argument given to bar'</span><span class="ss">)</span>
+<span class="w">    </span><span class="k">else</span>:
+<span class="w">        </span><span class="nv">print</span><span class="ss">(</span><span class="s1">'argument to bar: {0}'</span>.<span class="nv">format</span><span class="ss">(</span><span class="nv">keyword_argument</span><span class="ss">))</span>
+
+<span class="nv">foo</span><span class="ss">()</span>
+</pre></div>
+
+<p>Which prints:</p>
+<div class="code"><pre class="code literal-block">no argument given to foo
+no argument given to bar
+argument to bar: None
+argument to bar: baz
+</pre></div>
+
+<p>And so we see, with <code>is</code> and a sentinel, we are able to differentiate between
+when <code>bar</code> is called with no arguments and when it is called with <code>None</code>.
+These are the primary use-cases for <code>is</code> - do <em>not</em> use it to test for
+equality of integers, strings, tuples, or other things like these.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/identity/" rel="tag">identity</a></li>
+            <li><a class="tag p-category" href="../../categories/int/" rel="tag">int</a></li>
+            <li><a class="tag p-category" href="../../categories/operators/" rel="tag">operators</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+            <li><a class="tag p-category" href="../../categories/python-internals/" rel="tag">python-internals</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../stop-excel-from-automatically-converting-certain-text-values-to-dates/" rel="prev" title="Stop Excel from automatically converting certain text values to dates">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../giving-uiview-rounded-corners/" rel="next" title="Giving UIView rounded corners">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>
