@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>跨线程操作无效：从创建它的线程以外的线程访问控制 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/kua-xian-cheng-cao-zuo-wu-xiao-cong-chuang-jian-ta-de-xian-cheng-yi-wai-de-xian-cheng-fang-wen-kong-zhi/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../re-search-he-re-match-you-shi-yao-qu-bie/" title="re.search 和 re.match 有什么区别？" type="text/html">
+<link rel="next" href="../wei-suo-you-fu-wu-qi-duan-dai-ma-diao-yong-configureawait-de-zui-jia-shi-jian/" title="为所有服务器端代码调用 ConfigureAwait 的最佳实践" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="跨线程操作无效：从创建它的线程以外的线程访问控制">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/kua-xian-cheng-cao-zuo-wu-xiao-cong-chuang-jian-ta-de-xian-cheng-yi-wai-de-xian-cheng-fang-wen-kong-zhi/">
+<meta property="og:description" content="我有一个场景。（Windows 窗体、C#、.NET）
+
+有一个托管一些用户控件的主窗体。
+用户控件执行一些繁重的数据操作，这样如果我直接调用该UserControl_Load方法，UI 在加载方法执行期间变得无响应。
+为了克服这个问题，我在不同的线程上加载数据（尝试尽可能少地更改现有代码）
+我使用了一个后台工作线程来加载数据，完成后会通知应用程序它已完成工作。
+现在来了一个真正的问题。所有 UI">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T19:40:24+08:00">
+<meta property="article:tag" content="cSharp">
+<meta property="article:tag" content="invoke">
+<meta property="article:tag" content="multithreading">
+<meta property="article:tag" content="winforms">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">跨线程操作无效：从创建它的线程以外的线程访问控制</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T19:40:24+08:00" itemprop="datePublished" title="2023-02-17 19:40">2023-02-17 19:40</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我有一个场景。（Windows 窗体、C#、.NET）</p>
+<ol>
+<li>有一个托管一些用户控件的主窗体。</li>
+<li>用户控件执行一些繁重的数据操作，这样如果我直接调用该<code>UserControl_Load</code>方法，UI 在加载方法执行期间变得无响应。</li>
+<li>为了克服这个问题，我在不同的线程上加载数据（尝试尽可能少地更改现有代码）</li>
+<li>我使用了一个后台工作线程来加载数据，完成后会通知应用程序它已完成工作。</li>
+<li>现在来了一个真正的问题。所有 UI（主窗体及其子用户控件）都是在主要主线程上创建的。在 usercontrol 的 LOAD 方法中，我根据 userControl 上某些控件（如文本框）的值获取数据。</li>
+</ol>
+<p>伪代码如下所示：</p>
+<p><strong>代码 1</strong></p>
+<div class="code"><pre class="code literal-block"><span class="n">UserContrl1_LoadDataMethod</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">textbox1</span><span class="o">.</span><span class="n">text</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"MyName"</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="n">gives</span><span class="w"> </span><span class="n">exception</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="o">//</span><span class="n">Load</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="n">corresponding</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="s2">"MyName"</span><span class="o">.</span>
+<span class="w">        </span><span class="o">//</span><span class="n">Populate</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">globale</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">binded</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">grid</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">later</span><span class="w"> </span><span class="n">stage</span><span class="o">.</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>它给出的例外是</p>
+<blockquote>
+<p>跨线程操作无效：控制从创建它的线程以外的线程访问。</p>
+</blockquote>
+<p>为了了解更多相关信息，我进行了一些谷歌搜索，并提出了一个建议，例如使用以下代码</p>
+<p><strong>代码 2</strong></p>
+<div class="code"><pre class="code literal-block"><span class="n">UserContrl1_LoadDataMethod</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">InvokeRequired</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Line</span><span class="w"> </span><span class="c1">#1</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">this</span><span class="o">.</span><span class="n">Invoke</span><span class="p">(</span><span class="n">new</span><span class="w"> </span><span class="n">MethodInvoker</span><span class="p">(</span><span class="n">UserContrl1_LoadDataMethod</span><span class="p">));</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">textbox1</span><span class="o">.</span><span class="n">text</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"MyName"</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Now</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">won</span><span class="s1">'t give an exception</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="n">Load</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="n">correspondin</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="s2">"MyName"</span>
+<span class="w">        </span><span class="o">//</span><span class="n">Populate</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">globale</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">binded</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">grid</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">later</span><span class="w"> </span><span class="n">stage</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>但似乎我又回到了原点。应用程序再次变得无响应。这似乎是由于第 1 行 if 条件的执行。加载任务再次由父线程完成，而不是我生成的第三个线程。</p>
+<p>我不知道我的看法是对还是错。</p>
+<p>我该如何解决这个问题以及执行 Line#1 if block 的效果是什么？</p>
+<p><strong>情况是这样的</strong> ：我想根据控件的值将数据加载到全局变量中。我不想从子线程更改控件的值。我永远不会从子线程中执行此操作。</p>
+<p>所以只有访问该值才能从数据库中获取相应的数据。</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>根据Prera​​k K 的更新评论（已删除）：</p>
+<blockquote>
+<p>我想我没有正确提出问题。</p>
+<p>情况是这样的：我想根据控件的值将数据加载到全局变量中。我不想从子线程更改控件的值。我永远不会从子线程中执行此操作。</p>
+<p>所以只访问值，以便可以从数据库中获取相应的数据。</p>
+</blockquote>
+<p>你想要的解决方案应该是这样的：</p>
+<div class="code"><pre class="code literal-block"><span class="nv">UserContrl1_LOadDataMethod</span><span class="ss">()</span>
+{
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">""</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">if</span><span class="ss">(</span><span class="nv">textbox1</span>.<span class="nv">InvokeRequired</span><span class="ss">)</span>
+<span class="w">    </span>{
+<span class="w">        </span><span class="nv">textbox1</span>.<span class="nv">Invoke</span><span class="ss">(</span><span class="nv">new</span><span class="w"> </span><span class="nv">MethodInvoker</span><span class="ss">(</span><span class="nv">delegate</span><span class="w"> </span>{<span class="w"> </span><span class="nv">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">textbox1</span>.<span class="nv">text</span><span class="c1">; }));</span>
+<span class="w">    </span>}
+<span class="w">    </span><span class="k">if</span><span class="ss">(</span><span class="nv">name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"MyName"</span><span class="ss">)</span>
+<span class="w">    </span>{
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">whatever</span>
+<span class="w">    </span>}
+}
+</pre></div>
+
+<p>在尝试切换回控件的线程 <em>之前，</em> 请在单独的线程中进行认真的处理。例如：</p>
+<div class="code"><pre class="code literal-block"><span class="n">UserContrl1_LOadDataMethod</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="n">textbox1</span><span class="o">.</span><span class="n">text</span><span class="o">==</span><span class="s2">"MyName"</span><span class="p">)</span><span class="w"> </span><span class="o">//&lt;&lt;======</span><span class="n">Now</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">wont</span><span class="w"> </span><span class="n">give</span><span class="w"> </span><span class="n">exception</span><span class="o">**</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="o">//</span><span class="n">Load</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="n">correspondin</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="s2">"MyName"</span>
+<span class="w">        </span><span class="o">//</span><span class="n">Populate</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">globale</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">be</span>
+<span class="w">        </span><span class="o">//</span><span class="n">bound</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">grid</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">later</span><span class="w"> </span><span class="n">stage</span>
+<span class="w">        </span><span class="k">if</span><span class="p">(</span><span class="n">InvokeRequired</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">after</span><span class="w"> </span><span class="n">we</span><span class="s1">'ve done all the processing, </span>
+<span class="w">            </span><span class="n">this</span><span class="o">.</span><span class="n">Invoke</span><span class="p">(</span><span class="n">new</span><span class="w"> </span><span class="n">MethodInvoker</span><span class="p">(</span><span class="n">delegate</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="nb">load</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">control</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">appropriate</span><span class="w"> </span><span class="n">data</span>
+<span class="w">            </span><span class="p">}));</span>
+<span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br></p>
+<h3>更多建议</h3>
+<h2>UI 中的线程模型</h2>
+<p>请阅读UI 应用程序中的 <em>线程模型</em> （此处为旧 VB 链接）以了解基本概念。该链接导航到描述 WPF 线程模型的页面。然而，Windows
+窗体利用了相同的想法。</p>
+<h3>用户界面线程</h3>
+<ul>
+<li>只有一个线程（UI 线程）允许访问System.Windows.Forms.Control及其子类成员。</li>
+<li>尝试从不同于 UI 线程的线程访问System.Windows.Forms.Control的成员将导致跨线程异常。</li>
+<li>由于只有一个线程，所有 UI 操作都作为工作项排队进入该线程：</li>
+</ul>
+<p><img alt="在此处输入图像描述" src="../../images/6MtB3.png"></p>
+<ul>
+<li>如果 UI 线程没有工作，那么就会有空闲间隙可供与 UI 无关的计算使用。</li>
+<li>为了使用提到的差距使用System.Windows.Forms.Control.Invoke或System.Windows.Forms.Control.BeginInvoke方法：</li>
+</ul>
+<p><img alt="在此处输入图像描述" src="../../images/WQPOJ.png"></p>
+<h3>BeginInvoke 和 Invoke 方法</h3>
+<ul>
+<li>被调用方法的计算开销应该和事件处理程序方法的计算开销一样小，因为那里使用了 UI 线程——负责处理用户输入的线程。无论这是System.Windows.Forms.Control.Invoke还是System.Windows.Forms.Control.BeginInvoke。</li>
+<li>要执行计算昂贵的操作，请始终使用单独的线程。由于 .NET 2.0 BackgroundWorker专门用于在 Windows 窗体中执行计算昂贵的操作。但是，在新的解决方案中，您应该使用此处描述的异步等待模式。</li>
+<li>仅使用System.Windows.Forms.Control.Invoke或System.Windows.Forms.Control.BeginInvoke方法来更新用户界面。如果您将它们用于繁重的计算，您的应用程序将阻塞：</li>
+</ul>
+<p><img alt="在此处输入图像描述" src="../../images/UfBqr.png"></p>
+<h4>调用</h4>
+<ul>
+<li>System.Windows.Forms.Control.Invoke导致单独的线程等待调用的方法完成：</li>
+</ul>
+<p><img alt="在此处输入图像描述" src="../../images/XmFJu.png"></p>
+<h4>开始调用</h4>
+<ul>
+<li>System.Windows.Forms.Control.BeginInvoke不会导致单独的线程等待调用的方法完成：</li>
+</ul>
+<p><img alt="在此处输入图像描述" src="../../images/8k5kn.png"></p>
+<h3>代码解决方案</h3>
+<p>阅读问题如何从 C# 中的另一个线程更新 GUI？. 对于 C# 5.0 和 .NET 4.5，推荐的解决方案位于此处。</p>
+<p><br><br><a href="../cross-thread-operation-not-valid-control-accessed-from-a-thread-other-than-the-thread-it-was-created-on/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/csharp/" rel="tag">cSharp</a></li>
+            <li><a class="tag p-category" href="../../categories/invoke/" rel="tag">invoke</a></li>
+            <li><a class="tag p-category" href="../../categories/multithreading/" rel="tag">multithreading</a></li>
+            <li><a class="tag p-category" href="../../categories/winforms/" rel="tag">winforms</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../re-search-he-re-match-you-shi-yao-qu-bie/" rel="prev" title="re.search 和 re.match 有什么区别？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../wei-suo-you-fu-wu-qi-duan-dai-ma-diao-yong-configureawait-de-zui-jia-shi-jian/" rel="next" title="为所有服务器端代码调用 ConfigureAwait 的最佳实践">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

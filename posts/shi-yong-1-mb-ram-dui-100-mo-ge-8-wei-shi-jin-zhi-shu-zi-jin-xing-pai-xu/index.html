@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>使用 1 MB RAM 对 100 万个 8 位十进制数字进行排序 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/shi-yong-1-mb-ram-dui-100-mo-ge-8-wei-shi-jin-zhi-shu-zi-jin-xing-pai-xu/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../php-jie-xi-yu-fa-cuo-wu-yi-ji-ru-he-jie-jue-ta-men/" title="PHP 解析/语法错误；以及如何解决它们" type="text/html">
+<link rel="next" href="../nvm-zai-xin-de-zhong-duan-hui-hua-zhong-bao-chi-wang-ji-jie-dian/" title="nvm 在新的终端会话中保持“忘记”节点" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="使用 1 MB RAM 对 100 万个 8 位十进制数字进行排序">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/shi-yong-1-mb-ram-dui-100-mo-ge-8-wei-shi-jin-zhi-shu-zi-jin-xing-pai-xu/">
+<meta property="og:description" content="我有一台 1 MB RAM 的计算机，没有其他本地存储。我必须使用它通过 TCP 连接接受 100 万个 8 位十进制数，对它们进行排序，然后通过另一个
+TCP 连接发送排序后的列表。
+数字列表可能包含重复项，我不能丢弃它们。代码将放在 ROM 中，所以我不需要从 1 MB 中减去代码的大小。我已经有了驱动以太网端口和处理 TCP/IP
+连接的代码，它需要 2 KB 的状态数据，包括一个 1 KB">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T14:54:44+08:00">
+<meta property="article:tag" content="algorithm">
+<meta property="article:tag" content="embedded">
+<meta property="article:tag" content="ram">
+<meta property="article:tag" content="sorting">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">使用 1 MB RAM 对 100 万个 8 位十进制数字进行排序</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T14:54:44+08:00" itemprop="datePublished" title="2023-02-17 14:54">2023-02-17 14:54</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我有一台 1 MB RAM 的计算机，没有其他本地存储。我必须使用它通过 TCP 连接接受 100 万个 8 位十进制数，对它们进行排序，然后通过另一个
+TCP 连接发送排序后的列表。</p>
+<p>数字列表可能包含重复项，我不能丢弃它们。代码将放在 ROM 中，所以我不需要从 1 MB 中减去代码的大小。我已经有了驱动以太网端口和处理 TCP/IP
+连接的代码，它需要 2 KB 的状态数据，包括一个 1 KB 的缓冲区，代码将通过它读取和写入数据。这个问题有解决办法吗？</p>
+<p><strong>问答来源：</strong></p>
+<p>斜杠网</p>
+<p>清洁网</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>A solution is possible only because of the difference between 1 megabyte and 1
+million bytes. There are about 2 to the power 8093729.5 different ways to
+choose 1 million 8-digit numbers with duplicates allowed and order
+unimportant, so a machine with only 1 million bytes of RAM doesn't have enough
+states to represent all the possibilities. But 1M (less 2k for TCP/IP) is
+1022<em>1024</em>8 = 8372224 bits, so a solution is possible.</p>
+<p><strong>Part 1, initial solution</strong></p>
+<p>This approach needs a little more than 1M, I'll refine it to fit into 1M
+later.</p>
+<p>I'll store a compact sorted list of numbers in the range 0 to 99999999 as a
+sequence of sublists of 7-bit numbers. The first sublist holds numbers from 0
+to 127, the second sublist holds numbers from 128 to 255, etc. 100000000/128
+is exactly 781250, so 781250 such sublists will be needed.</p>
+<p>Each sublist consists of a 2-bit sublist header followed by a sublist body.
+The sublist body takes up 7 bits per sublist entry. The sublists are all
+concatenated together, and the format makes it possible to tell where one
+sublist ends and the next begins. The total storage required for a fully
+populated list is 2<em>781250 + 7</em>1000000 = 8562500 bits, which is about 1.021
+M-bytes.</p>
+<p>The 4 possible sublist header values are:</p>
+<p><strong>00</strong> Empty sublist, nothing follows.</p>
+<p><strong>01</strong> Singleton, there is only one entry in the sublist and and next 7 bits
+hold it.</p>
+<p><strong>10</strong> The sublist holds at least 2 distinct numbers. The entries are stored
+in non-decreasing order, except that the last entry is less than or equal to
+the first. This allows the end of the sublist to be identified. For example,
+the numbers 2,4,6 would be stored as (4,6,2). The numbers 2,2,3,4,4 would be
+stored as (2,3,4,4,2).</p>
+<p><strong>11</strong> The sublist holds 2 or more repetitions of a single number. The next 7
+bits give the number. Then come zero or more 7-bit entries with the value 1,
+followed by a 7-bit entry with the value 0. The length of the sublist body
+dictates the number of repetitions. For example, the numbers 12,12 would be
+stored as (12,0), the numbers 12,12,12 would be stored as (12,1,0),
+12,12,12,12 would be (12,1,1,0) and so on.</p>
+<p>I start off with an empty list, read a bunch of numbers in and store them as
+32 bit integers, sort the new numbers in place (using heapsort, probably) and
+then merge them into a new compact sorted list. Repeat until there are no more
+numbers to read, then walk the compact list once more to generate the output.</p>
+<p>The line below represents memory just before the start of the list merge
+operation. The "O"s are the region that hold the sorted 32-bit integers. The
+"X"s are the region that hold the old compact list. The "=" signs are the
+expansion room for the compact list, 7 bits for each integer in the "O"s. The
+"Z"s are other random overhead.</p>
+<div class="code"><pre class="code literal-block">ZZZOOOOOOOOOOOOOOOOOOOOOOOOOO==========XXXXXXXXXXXXXXXXXXXXXXXXXX
+</pre></div>
+
+<p>The merge routine starts reading at the leftmost "O" and at the leftmost "X",
+and starts writing at the leftmost "=". The write pointer doesn't catch the
+compact list read pointer until all of the new integers are merged, because
+both pointers advance 2 bits for each sublist and 7 bits for each entry in the
+old compact list, and there is enough extra room for the 7-bit entries for the
+new numbers.</p>
+<p><strong>Part 2, cramming it into 1M</strong></p>
+<p>To Squeeze the solution above into 1M, I need to make the compact list format
+a bit more compact. I'll get rid of one of the sublist types, so that there
+will be just 3 different possible sublist header values. Then I can use "00",
+"01" and "1" as the sublist header values and save a few bits. The sublist
+types are:</p>
+<p>A Empty sublist, nothing follows.</p>
+<p>B Singleton, there is only one entry in the sublist and and next 7 bits hold
+it.</p>
+<p>C The sublist holds at least 2 distinct numbers. The entries are stored in
+non-decreasing order, except that the last entry is less than or equal to the
+first. This allows the end of the sublist to be identified. For example, the
+numbers 2,4,6 would be stored as (4,6,2). The numbers 2,2,3,4,4 would be
+stored as (2,3,4,4,2).</p>
+<p>D The sublist consists of 2 or more repetitions of a single number.</p>
+<p>My 3 sublist header values will be "A", "B" and "C", so I need a way to
+represent D-type sublists.</p>
+<p>Suppose I have the C-type sublist header followed by 3 entries, such as
+"C[17][101][58]". This can't be part of a valid C-type sublist as described
+above, since the third entry is less than the second but more than the first.
+I can use this type of construct to represent a D-type sublist. In bit terms,
+anywhere I have "C{00?????}{1??????}{01?????}" is an impossible C-type
+sublist. I'll use this to represent a sublist consisting of 3 or more
+repetitions of a single number. The first two 7-bit words encode the number
+(the "N" bits below) and are followed by zero or more {0100001} words followed
+by a {0100000} word.</p>
+<div class="code"><pre class="code literal-block"><span class="k">For</span><span class="w"> </span><span class="nv">example</span>,<span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="nv">repetitions</span>:<span class="w"> </span><span class="s2">"C{00NNNNN}{1NN0000}{0100000}"</span>,<span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="nv">repetitions</span>:<span class="w"> </span><span class="s2">"C{00NNNNN}{1NN0000}{0100001}{0100000}"</span>,<span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">so</span><span class="w"> </span><span class="nv">on</span>.
+</pre></div>
+
+<p>That just leaves lists that hold exactly 2 repetitions of a single number.
+I'll represent those with another impossible C-type sublist pattern:
+"C{0??????}{11?????}{10?????}". There's plenty of room for the 7 bits of the
+number in the first 2 words, but this pattern is longer than the sublist that
+it represents, which makes things a bit more complex. The five question-marks
+at the end can be considered not part of the pattern, so I have:
+"C{0NNNNNN}{11N????}10" as my pattern, with the number to be repeated stored
+in the "N"s. That's 2 bits too long.</p>
+<p>I'll have to borrow 2 bits and pay them back from the 4 unused bits in this
+pattern. When reading, on encountering "C{0NNNNNN}{11N00AB}10", output 2
+instances of the number in the "N"s, overwrite the "10" at the end with bits A
+and B, and rewind the read pointer by 2 bits. Destructive reads are ok for
+this algorithm, since each compact list gets walked only once.</p>
+<p>When writing a sublist of 2 repetitions of a single number, write
+"C{0NNNNNN}11N00" and set the borrowed bits counter to 2. At every write where
+the borrowed bits counter is non-zero, it is decremented for each bit written
+and "10" is written when the counter hits zero. So the next 2 bits written
+will go into slots A and B, and then the "10" will get dropped onto the end.</p>
+<p>With 3 sublist header values represented by "00", "01" and "1", I can assign
+"1" to the most popular sublist type. I'll need a small table to map sublist
+header values to sublist types, and I'll need an occurrence counter for each
+sublist type so that I know what the best sublist header mapping is.</p>
+<p>The worst case minimal representation of a fully populated compact list occurs
+when all the sublist types are equally popular. In that case I save 1 bit for
+every 3 sublist headers, so the list size is 2<em>781250 + 7</em>1000000 - 781250/3 =
+8302083.3 bits. Rounding up to a 32 bit word boundary, thats 8302112 bits, or
+1037764 bytes.</p>
+<p>1M minus the 2k for TCP/IP state and buffers is 1022*1024 = 1046528 bytes,
+leaving me 8764 bytes to play with.</p>
+<p>But what about the process of changing the sublist header mapping ? In the
+memory map below, "Z" is random overhead, "=" is free space, "X" is the
+compact list.</p>
+<div class="code"><pre class="code literal-block">ZZZ=====XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+</pre></div>
+
+<p>Start reading at the leftmost "X" and start writing at the leftmost "=" and
+work right. When it's done the compact list will be a little shorter and it
+will be at the wrong end of memory:</p>
+<div class="code"><pre class="code literal-block">ZZZXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=======
+</pre></div>
+
+<p>So then I'll need to shunt it to the right:</p>
+<div class="code"><pre class="code literal-block">ZZZ=======XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+</pre></div>
+
+<p>In the header mapping change process, up to 1/3 of the sublist headers will be
+changing from 1-bit to 2-bit. In the worst case these will all be at the head
+of the list, so I'll need at least 781250/3 bits of free storage before I
+start, which takes me back to the memory requirements of the previous version
+of the compact list :(</p>
+<p>To get around that, I'll split the 781250 sublists into 10 sublist groups of
+78125 sublists each. Each group has its own independent sublist header
+mapping. Using the letters A to J for the groups:</p>
+<div class="code"><pre class="code literal-block">ZZZ=====AAAAAABBCCCCDDDDDEEEFFFGGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+</pre></div>
+
+<p>Each sublist group shrinks or stays the same during a sublist header mapping
+change:</p>
+<div class="code"><pre class="code literal-block">ZZZ=====AAAAAABBCCCCDDDDDEEEFFFGGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAA=====BBCCCCDDDDDEEEFFFGGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABB=====CCCCDDDDDEEEFFFGGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABBCCC======DDDDDEEEFFFGGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABBCCCDDDDD======EEEFFFGGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABBCCCDDDDDEEE======FFFGGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABBCCCDDDDDEEEFFF======GGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABBCCCDDDDDEEEFFFGGGGGGGGGG=======HHIJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABBCCCDDDDDEEEFFFGGGGGGGGGGHH=======IJJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABBCCCDDDDDEEEFFFGGGGGGGGGGHHI=======JJJJJJJJJJJJJJJJJJJJ
+ZZZAAAAAABBCCCDDDDDEEEFFFGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ=======
+ZZZ=======AAAAAABBCCCDDDDDEEEFFFGGGGGGGGGGHHIJJJJJJJJJJJJJJJJJJJJ
+</pre></div>
+
+<p>The worst case temporary expansion of a sublist group during a mapping change
+is 78125/3 = 26042 bits, under 4k. If I allow 4k plus the 1037764 bytes for a
+fully populated compact list, that leaves me 8764 - 4096 = 4668 bytes for the
+"Z"s in the memory map.</p>
+<p>That should be plenty for the 10 sublist header mapping tables, 30 sublist
+header occurrence counts and the other few counters, pointers and small
+buffers I'll need, and space I've used without noticing, like stack space for
+function call return addresses and local variables.</p>
+<p><strong>Part 3, how long would it take to run?</strong></p>
+<p>With an empty compact list the 1-bit list header will be used for an empty
+sublist, and the starting size of the list will be 781250 bits. In the worst
+case the list grows 8 bits for each number added, so 32 + 8 = 40 bits of free
+space are needed for each of the 32-bit numbers to be placed at the top of the
+list buffer and then sorted and merged. In the worst case, changing the
+sublist header mapping results in a space usage of 2<em>781250 + 7</em>entries -
+781250/3 bits.</p>
+<p>With a policy of changing the sublist header mapping after every fifth merge
+once there are at least 800000 numbers in the list, a worst case run would
+involve a total of about 30M of compact list reading and writing activity.</p>
+<p><strong>Source:</strong></p>
+<p><strong>http://nick.cleaton.net/ramsortsol.html</strong></p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>这是一些解决问题的有效 C++ 代码。</p>
+<p><del>满足内存约束的证明：</del></p>
+<p><strong>编者：</strong>
+无论是在这篇文章还是在他的博客中，都没有证明作者提供的最大内存要求。由于编码一个值所需的位数取决于先前编码的值，因此这样的证明可能很重要。作者指出，他根据经验偶然发现的最大编码大小是<code>1011732</code>，并任意选择了缓冲区大小<code>1013000</code>。</p>
+<div class="code"><pre class="code literal-block"><span class="n">typedef</span><span class="w"> </span><span class="n">unsigned</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">u32</span><span class="p">;</span>
+
+<span class="n">namespace</span><span class="w"> </span><span class="n">WorkArea</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">const</span><span class="w"> </span><span class="n">u32</span><span class="w"> </span><span class="n">circularSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">253250</span><span class="p">;</span>
+<span class="w">    </span><span class="n">u32</span><span class="w"> </span><span class="n">circular</span><span class="o">[</span><span class="n">circularSize</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">}</span><span class="p">;</span><span class="w">         </span><span class="o">//</span><span class="w"> </span><span class="n">consumes</span><span class="w"> </span><span class="mi">1013000</span><span class="w"> </span><span class="n">bytes</span>
+
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">const</span><span class="w"> </span><span class="n">u32</span><span class="w"> </span><span class="n">stageSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8000</span><span class="p">;</span>
+<span class="w">    </span><span class="n">u32</span><span class="w"> </span><span class="n">stage</span><span class="o">[</span><span class="n">stageSize</span><span class="o">]</span><span class="p">;</span><span class="w">                       </span><span class="o">//</span><span class="w"> </span><span class="n">consumes</span><span class="w"> </span><span class="mi">32000</span><span class="w"> </span><span class="n">bytes</span>
+
+<span class="w">    </span><span class="p">...</span>
+</pre></div>
+
+<p>这两个数组一起占用 1045000 字节的存储空间。剩下 1048576 - 1045000 - 2×1024 = 1528 字节用于剩余变量和堆栈空间。</p>
+<p>它在我的 Xeon W3520 上运行大约 23 秒。您可以使用以下 Python 脚本验证该程序是否正常工作，假设程序名称为<code>sort1mb.exe</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="n">sequence</span> <span class="o">=</span> <span class="p">[</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">99999999</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">1000000</span><span class="p">)]</span>
+
+<span class="n">sorter</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">(</span><span class="s1">'sort1mb.exe'</span><span class="p">,</span> <span class="n">stdin</span><span class="o">=</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">sequence</span><span class="p">:</span>
+    <span class="n">sorter</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">'</span><span class="si">%08d</span><span class="se">\n</span><span class="s1">'</span> <span class="o">%</span> <span class="n">value</span><span class="p">)</span>
+<span class="n">sorter</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sorter</span><span class="o">.</span><span class="n">stdout</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'OK!'</span> <span class="k">if</span> <span class="n">result</span> <span class="o">==</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">sequence</span><span class="p">)</span> <span class="k">else</span> <span class="s1">'Error!'</span><span class="p">)</span>
+</pre></div>
+
+<p>该算法的详细解释可以在以下系列帖子中找到：</p>
+<ul>
+<li>1MB 排序说明</li>
+<li>算术编码和 1MB 排序问题</li>
+<li>使用定点数学的算术编码</li>
+</ul>
+<p><br><br><a href="../sorting-1-million-8-decimal-digit-numbers-with-1-mb-of-ram/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/algorithm/" rel="tag">algorithm</a></li>
+            <li><a class="tag p-category" href="../../categories/embedded/" rel="tag">embedded</a></li>
+            <li><a class="tag p-category" href="../../categories/ram/" rel="tag">ram</a></li>
+            <li><a class="tag p-category" href="../../categories/sorting/" rel="tag">sorting</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../php-jie-xi-yu-fa-cuo-wu-yi-ji-ru-he-jie-jue-ta-men/" rel="prev" title="PHP 解析/语法错误；以及如何解决它们">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../nvm-zai-xin-de-zhong-duan-hui-hua-zhong-bao-chi-wang-ji-jie-dian/" rel="next" title="nvm 在新的终端会话中保持“忘记”节点">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

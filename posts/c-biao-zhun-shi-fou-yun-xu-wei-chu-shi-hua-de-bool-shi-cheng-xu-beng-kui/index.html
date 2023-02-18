@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C++ 标准是否允许未初始化的 bool 使程序崩溃？ | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/c-biao-zhun-shi-fou-yun-xu-wei-chu-shi-hua-de-bool-shi-cheng-xu-beng-kui/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ru-he-jiang-yi-ge-liu-de-nei-rong-fu-zhi-dao-ling-yi-ge-liu/" title="如何将一个流的内容复制到另一个流？" type="text/html">
+<link rel="next" href="../ld-jing-gao-zhao-bu-dao-xuan-xiang-de-mu-lu/" title="'ld：警告：找不到选项的目录'" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="C++ 标准是否允许未初始化的 bool 使程序崩溃？">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/c-biao-zhun-shi-fou-yun-xu-wei-chu-shi-hua-de-bool-shi-cheng-xu-beng-kui/">
+<meta property="og:description" content="我知道C++ 中的 “未定义行为” 几乎可以让编译器做任何它想做的事情。但是，我遇到了让我感到惊讶的崩溃，因为我认为代码足够安全。
+在这种情况下，真正的问题只发生在使用特定编译器的特定平台上，并且只有在启用了优化的情况下。
+为了重现问题并将其简化到最大程度，我尝试了几种方法。下面是一个名为 的函数的摘录Serialize，该函数采用 bool
+参数，并将字符串true或复制false到现有的目标缓">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-18T04:12:42+08:00">
+<meta property="article:tag" content="abi">
+<meta property="article:tag" content="cPlusPlus">
+<meta property="article:tag" content="llvm">
+<meta property="article:tag" content="llvm-codegen">
+<meta property="article:tag" content="undefined-behavior">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">C++ 标准是否允许未初始化的 bool 使程序崩溃？</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T04:12:42+08:00" itemprop="datePublished" title="2023-02-18 04:12">2023-02-18 04:12</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我知道C++ 中的 <em>“未定义行为”</em> 几乎可以让编译器做任何它想做的事情。但是，我遇到了让我感到惊讶的崩溃，因为我认为代码足够安全。</p>
+<p>在这种情况下，真正的问题只发生在使用特定编译器的特定平台上，并且只有在启用了优化的情况下。</p>
+<p>为了重现问题并将其简化到最大程度，我尝试了几种方法。下面是一个名为 的函数的摘录<code>Serialize</code>，该函数采用 bool
+参数，并将字符串<code>true</code>或复制<code>false</code>到现有的目标缓冲区。</p>
+<p>如果 bool 参数是未初始化的值，这个函数是否会在代码审查中，没有办法告诉它实际上会崩溃吗？</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Zero</span><span class="o">-</span><span class="n">filled</span><span class="w"> </span><span class="n">global</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="mi">16</span><span class="w"> </span><span class="n">characters</span>
+<span class="nb">char</span><span class="w"> </span><span class="n">destBuffer</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+
+<span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Serialize</span><span class="p">(</span><span class="nb nb-Type">bool</span><span class="w"> </span><span class="n">boolValue</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Determine</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="nb">print</span><span class="w"> </span><span class="n">based</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">boolValue</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">whichString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">boolValue</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="s2">"true"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"false"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Compute</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">length</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">selected</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">size_t</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">whichString</span><span class="p">);</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Copy</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">into</span><span class="w"> </span><span class="n">destination</span><span class="w"> </span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">zero</span><span class="o">-</span><span class="n">filled</span><span class="w"> </span><span class="p">(</span><span class="n">thus</span><span class="w"> </span><span class="n">already</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="o">-</span><span class="n">terminated</span><span class="p">)</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">destBuffer</span><span class="p">,</span><span class="w"> </span><span class="n">whichString</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>如果使用 clang 5.0.0 + 优化执行此代码，它将/可能会崩溃。</p>
+<p>预期的三元运算符<code>boolValue ? "true" :
+"false"</code>对我来说看起来足够安全，我假设，“无论垃圾值是什么都<code>boolValue</code>无关紧要，因为它无论如何都会评估为真或假。”</p>
+<p>我已经设置了一个编译器资源管理器示例，它显示了反汇编中的问题，这里是完整的示例。 <em>注意：为了重现该问题，我发现有效的组合是使用 Clang 5.0.0 和
+-O2 优化。</em></p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;cstring&gt;</span>
+
+<span class="c1">// Simple struct, with an empty constructor that doesn't initialize anything</span>
+<span class="kr">struct</span><span class="w"> </span><span class="nc">FStruct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kr">bool</span><span class="w"> </span><span class="n">uninitializedBool</span><span class="p">;</span>
+
+<span class="w">   </span><span class="n">__attribute__</span><span class="w"> </span><span class="p">((</span><span class="n">noinline</span><span class="p">))</span><span class="w">  </span><span class="c1">// Note: the constructor must be declared noinline to trigger the problem</span>
+<span class="w">   </span><span class="n">FStruct</span><span class="p">()</span><span class="w"> </span><span class="p">{};</span>
+<span class="p">};</span>
+
+<span class="kr">char</span><span class="w"> </span><span class="n">destBuffer</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+
+<span class="c1">// Small utility function that allocates and returns a string "true" or "false" depending on the value of the parameter</span>
+<span class="kr">void</span><span class="w"> </span><span class="nf">Serialize</span><span class="p">(</span><span class="kr">bool</span><span class="w"> </span><span class="n">boolValue</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Determine which string to print depending if 'boolValue' is evaluated as true or false</span>
+<span class="w">    </span><span class="kr">const</span><span class="w"> </span><span class="kr">char</span><span class="o">*</span><span class="w"> </span><span class="n">whichString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">boolValue</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s">"</span><span class="kr">true</span><span class="s">"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s">"</span><span class="kr">false</span><span class="s">"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Compute the length of the string we selected</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">whichString</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">destBuffer</span><span class="p">,</span><span class="w"> </span><span class="n">whichString</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Locally construct an instance of our struct here on the stack. The bool member uninitializedBool is uninitialized.</span>
+<span class="w">    </span><span class="n">FStruct</span><span class="w"> </span><span class="n">structInstance</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Output "true" or "false" to stdout</span>
+<span class="w">    </span><span class="n">Serialize</span><span class="p">(</span><span class="n">structInstance</span><span class="p">.</span><span class="n">uninitializedBool</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>问题的出现是因为优化器：它足够聪明地推断出字符串“true”和“false”的长度仅相差 1。因此它没有真正计算长度，而是使用 bool 本身的值，这
+<em>应该</em> 技术上是 0 或 1，并且是这样的：</p>
+<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">size_t</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">whichString</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">original</span><span class="w"> </span><span class="n">code</span>
+<span class="k">const</span><span class="w"> </span><span class="n">size_t</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">boolValue</span><span class="p">;</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">clang</span><span class="w"> </span><span class="n">clever</span><span class="w"> </span><span class="n">optimization</span>
+</pre></div>
+
+<p>虽然这很“聪明”，但可以这么说，我的问题是： <strong>C++ 标准是否允许编译器假定 bool 只能具有“0”或“1”的内部数字表示并以这种方式使用它？</strong></p>
+<p>或者这是实现定义的情况，在这种情况下，实现假设它的所有布尔值只包含 0 或 1，而任何其他值都是未定义的行为领域？</p>
+<p><br><br></p>
+<h2>解答</h2>
+<h4>是的，ISO C++ 允许（但不要求）实现做出这种选择。</h4>
+<p>但还要注意，如果程序遇到 UB，ISO C++ 允许编译器发出故意崩溃的代码（例如，使用非法指令），例如作为一种帮助您查找错误的方法。（或者因为它是
+DeathStation 9000。严格遵守不足以使 C++ 实现对任何实际用途有用）。 <strong>所以 ISO C++ 将允许编译器使 asm
+崩溃（出于完全不同的原因），即使是在读取未初始化的<code>uint32_t</code>. </strong>即使这需要是没有陷阱表示的固定布局类型。（请注意，C 与 C++
+有不同的规则；未初始化的变量在 C 中具有 <em>不确定的</em> 值，这可能是陷阱表示，但在 C++ 中读取一个完全是 UB. 不确定 C11
+是否有额外的规则<code>_Bool</code>可以允许与 C++ 相同的崩溃行为。）</p>
+<p>这是一个关于实际实现如何工作的有趣问题，但请记住，即使答案不同，您的代码仍然不安全，因为现代 C++ 不是汇编语言的可移植版本。</p>
+<hr>
+<p><strong>您正在为 x86-64 System V ABI进行编译，它指定 a<code>bool</code>作为寄存器中的函数 arg
+由位模式<code>false=0</code>和<code>true=1</code></strong>寄存器1的低 8 位表示。在内存中，<code>bool</code>是一个 1 字节类型，同样必须具有 0 或 1 的整数值。</p>
+<p>（ABI 是同一平台的编译器同意的一组实现选择，因此它们可以编写调用彼此函数的代码，包括类型大小、结构布局规则和调用约定。）</p>
+<p><strong>ISO C++ 没有指定它，但这个 ABI 决定很普遍，因为它使 bool- &gt;int 转换便宜（只是零扩展）</strong>。我不知道有任何 ABI
+不允许编译器为<code>bool</code>任何体系结构（不仅仅是 x86）假设 0 或 1。它允许优化，例如<code>!mybool</code>翻转<code>xor
+eax,1</code>低位：任何可能的代码，可以在单个 CPU 指令中翻转 0 和 1
+之间的位/整数/布尔值。或者编译<code>a&amp;&amp;b</code>为<code>bool</code>类型的按位与。一些编译器确实在编译器中将布尔值用作8 位。对它们的操作效率低下吗？.</p>
+<p><strong>通常，as-if 规则允许编译器利用 <em>目标平台上为 编译</em></strong> 的真实情况，因为最终结果将是实现与 C++
+源代码相同的外部可见行为的可执行代码。（由于未定义行为对实际上“外部可见”的内容施加了所有限制：不是通过调试器，而是来自格式良好/合法的 C++
+程序中的另一个线程。）</p>
+<p><strong>绝对允许编译器在其代码生成中充分利用 ABI 保证，并使代码像您发现的那样优化<code>strlen(whichString)</code>到<br><code>5U - boolValue</code>. </strong>（顺便说一句，这种优化有点聪明，但与分支和内联<code>memcpy</code>作为即时数据2的存储相比可能是短视的。）</p>
+<p>或者编译器可以创建一个指针表并用 的整数值对其进行索引<code>bool</code>，再次假设它是 0 或 1。（这种可能性是 @Barmar 的回答所建议的。）</p>
+<hr>
+<p>启用<code>__attribute((noinline))</code>优化的构造函数导致 clang 仅从堆栈加载一个字节以用作<code>uninitializedBool</code>.
+<code>main</code>它为with中的对象腾出了空间<code>push rax</code>（with 更小并且由于各种原因与 一样高效<code>sub rsp, 8</code>），所以无论 AL
+中的垃圾是什么，<code>main</code>它都是它用于<code>uninitializedBool</code>. 这就是为什么您实际上获得的价值不仅仅是<code>0</code>.</p>
+<p><code>5U - random garbage</code>可以很容易地包装成一个大的无符号值，导致 memcpy
+进入未映射的内存。目的地在静态存储中，而不是堆栈中，因此您不会覆盖返回地址或其他内容。</p>
+<hr>
+<p><strong>其他实现可以做出不同的选择，例如<code>false=0</code>和<code>true=any non-zero value</code>。然后 clang 可能不会为 <em>这个</em> 特定的
+UB 实例生成崩溃的代码。（但如果它愿意，它仍然会被允许。）</strong>我不知道有任何实现选择 x86-64 所做的任何事情<code>bool</code>，但 C++
+标准允许许多没有人做甚至不想做的事情类似于当前 CPU 的硬件。</p>
+<p><strong>ISO C++ 未指定您在检查或修改<code>bool</code></strong>. （例如，通过<code>memcpy</code>输入<code>bool</code>into <code>unsigned
+char</code>，您可以这样做，因为<code>char*</code>可以为任何东西起别名。并且<code>unsigned char</code>保证没有填充位，因此 C++
+标准确实正式允许您在没有任何 UB 的情况下对对象表示形式进行 hexdump。指针转换以复制对象<code>char foo =
+my_bool</code>当然，表示与分配不同，因此不会发生布尔化为 0 或 1 的情况，您将获得原始对象表示。）</p>
+<p><strong>您 <em>已经</em> 使用<code>noinline</code></strong>. 但是，即使它不内联，过程间优化仍然可以生成依赖于另一个函数定义的函数版本。（首先，clang
+正在制作可执行文件，而不是可以进行符号插入的 Unix
+共享库。其次，定义在定义内部，<code>class{}</code>因此所有翻译单元必须具有相同的定义。就像关键字一样<code>inline</code>。）</p>
+<p><strong>因此，编译器可以只发出<code>ret</code>or <code>ud2</code>（非法指令）作为
+的定义<code>main</code>，因为从顶部开始的执行路径<code>main</code>不可避免地会遇到未定义的行为。</strong>（如果编译器决定遵循通过非内联构造函数的路径，它可以在编译时看到。）</p>
+<p>任何遇到 UB 的程序在其整个存在中都是完全未定义的。但是 UB
+在一个从未真正运行过的函数或<code>if()</code>分支中并不会破坏程序的其余部分。在实践中，这意味着编译器可以决定发出非法指令或<code>ret</code>，或者不发出任何东西并落入下一个块/函数，对于可以在编译时证明包含或导致
+UB 的整个基本块。</p>
+<p><strong>实际上，GCC 和 Clang 有时确实 <em>会</em><code>ud2</code>在 UB
+上发出，而不是尝试为没有意义的执行路径生成代码。</strong>或者对于像从非函数末尾掉下来这样的情况<code>void</code>，gcc
+有时会省略一条<code>ret</code>指令。如果您认为“我的函数将返回 RAX 中的任何垃圾”，那您就大错特错了。 <strong>现代 C++
+编译器不再将这种语言视为可移植的汇编语言。 您的程序确实必须是有效的 C++，而无需假设函数的独立非内联版本在 asm 中的外观。</strong></p>
+<p>另一个有趣的例子是为什么对 mmap 内存的未对齐访问有时会在 AMD64 上出现段错误？. x86
+不会对未对齐的整数出错，对吧？那么为什么错位会<code>uint16_t*</code>成为问题呢？因为<code>alignof(uint16_t) ==
+2</code>，并且违反该假设会导致在使用 SSE2 进行自动矢量化时出现段错误。</p>
+<p><strong>另请参阅</strong> What Every C Programmer Should Know About Undefined Behavior #1/3，一篇由
+clang 开发人员撰写的文章。</p>
+<h3>关键点：如果编译器在编译时注意到 UB，它 <em>可能会</em> “破坏”（发出令人惊讶的 asm）导致 UB 的代码路径，即使目标是</h3>
+<p>ABI，其中任何位模式都是<code>bool</code>.</p>
+<p>预计程序员对许多错误的完全敌意，尤其是现代编译器警告的事情。这就是您应该使用<code>-Wall</code>和修复警告的原因。C++ 不是一种用户友好的语言，C++
+中的某些内容可能是不安全的，即使它在您正在编译的目标上的 asm 中是安全的。（例如，带符号的溢出在 C++ 中是 UB，编译器会假定它不会发生，即使在针对
+2 的补码 x86 进行编译时也是如此，除非您使用<code>clang/gcc -fwrapv</code>.）</p>
+<p>编译时可见的 UB 总是危险的，并且很难确定（通过链接时优化）你真的从编译器中隐藏了 UB，因此可以推断它将生成什么样的 asm。</p>
+<p>不要过于戏剧化；编译器通常会让您摆脱某些事情并发出您期望的代码，即使某些东西是
+UB。但是，如果编译器开发人员实施一些优化以获取有关值范围的更多信息（例如，变量是非负的，可能允许它优化符号扩展以在 x86
+上释放零扩展，那么将来可能会出现问题- 64). 例如，在当前的 gcc 和 clang 中，doing<code>tmp =
+a+INT_MIN</code>不会优化<code>a&lt;0</code>为 always-false，只是它<code>tmp</code>总是负的。（因为<code>INT_MIN</code>+<code>a=INT_MAX</code>在这个 2
+的补码目标上是负数，<code>a</code>不能比那个高。）</p>
+<p>因此，gcc/clang 当前不回溯以推导计算输入的范围信息，仅基于基于无符号溢出假设的结果：Godbolt
+上的示例。我不知道这是不是以用户友好性的名义故意“遗漏”了优化。</p>
+<p>另请注意， <strong>允许实现（又名编译器）定义 ISO C++ 未定义的行为</strong> 。例如，所有支持 Intel
+内在函数（如<code>_mm_add_ps(__m128, __m128)</code>手动 SIMD 向量化）的编译器都必须允许形成未对齐的指针，这在 C++ 中是
+UB，即使您 <em>不</em> 取消引用它们也是如此。<code>__m128i _mm_loadu_si128(const __m128i
+*)</code>通过采用未对齐的<code>__m128i*</code>arg 而不是<code>void*</code>or来执行未对齐的加载<code>char*</code>。硬件 SIMD
+向量指针和相应类型之间的“reinterpret_cast”是否为未定义行为？</p>
+<p>GNU C/C++ 还定义了左移负符号数（即使没有<code>-fwrapv</code>）的行为，与正常的符号溢出 UB 规则分开。（这是 ISO C++ 中的
+UB，而带符号数的右移是实现定义的（逻辑与算术）；高质量的实现选择具有算术右移的 HW 上的算术，但 ISO C++ 未指定）。这记录在GCC 手册的
+Integer section中，同时定义了 C 标准要求实现以一种或另一种方式定义的实现定义的行为。</p>
+<p>肯定有编译器开发人员关心的实现质量问题；他们通常不会 <em>试图</em> 制造故意敌对的编译器，但利用 C++ 中的所有 UB
+坑洞（除了他们选择定义的坑洞）来更好地优化有时几乎无法区分。</p>
+<hr>
+<p><strong>脚注 1</strong> ：高 56 位可能是被调用者必须忽略的垃圾，通常对于比寄存器窄的类型。</p>
+<p>（ <strong>其他 ABI <em>确实</em> 在这里做出了不同的选择。有些确实需要窄整数类型在传递给函数或从函数返回时进行零扩展或符号扩展以填充寄存器，例如 MIPS64
+和 PowerPC64。请参阅</strong>此 x86-64 答案的最后一部分与那些早期的 ISA 进行比较。）</p>
+<p>例如，调用者可能在<code>a &amp; 0x01010101</code>调用<code>bool_func(a&amp;1)</code>. 调用者可以优化掉 ，<code>&amp;1</code>因为它已经将低字节作为
+的一部分进行了优化<code>and edi, 0x01010101</code>，并且它知道被调用者需要忽略高字节。</p>
+<p>或者，如果将 bool 作为第三个 arg 传递，也许调用者优化代码大小加载它而不是<code>mov dl, [mem]</code>，<code>movzx edx,
+[mem]</code>以错误依赖 RDX 的旧值（或其他部分寄存器效果，取决于在 CPU 型号上）。或者对于第一个 arg，<code>mov dil, byte
+[r10]</code>而不是<code>movzx edi, byte [r10]</code>，因为两者都需要 REX 前缀。</p>
+<p>这就是为什么 clang<code>movzx eax, dil</code>在<code>Serialize</code>, 而不是<code>sub eax, edi</code>. （对于整数 args，clang
+违反了此 ABI 规则，而是取决于 gcc 的未记录行为，并且 clang 将窄整数零或符号扩展到 32 位。将 32
+位偏移量添加到指针时是否需要符号或零扩展x86-64 ABI？所以我很想知道它对 . 没有做同样的事情<code>bool</code>。）</p>
+<hr>
+<p><strong>脚注 2：</strong> 分支后，您只有一个 4 字节的<code>mov</code>立即数，或一个 4 字节 + 1 字节的存储。长度隐含在存储宽度+偏移量中。</p>
+<p>OTOH，glibc memcpy 将执行两个 4 字节的加载/存储，重叠取决于长度，所以这确实最终使整个事情没有布尔条件分支。请参阅glibc 的
+memcpy/memmove 中的<code>L(between_4_7):</code>块。或者至少，对 memcpy 的分支中的任一布尔值采用相同的方式来选择块大小。</p>
+<p>如果内联，您可以使用 2x <code>mov</code>-immediate +<code>cmov</code>和一个条件偏移量，或者您可以将字符串数据保留在内存中。</p>
+<p>或者，如果针对 Intel Ice Lake（具有 Fast Short REP MOV 功能）进行调整，则实际<code>rep
+movsb</code>可能是最佳的。glibc<code>memcpy</code>可能会开始<code>rep movsb</code>在具有该功能的 CPU 上使用小尺寸，从而节省大量分支。</p>
+<hr>
+<h2>用于检测 UB 和使用未初始化值的工具</h2>
+<p>In gcc and clang, you can compile with <code>-fsanitize=undefined</code> to add run-time
+instrumentation that will warn or error out on UB that happens at runtime.
+That won't catch unitialized variables, though. (Because it doesn't increase
+type sizes to make room for an "uninitialized" bit).</p>
+<p>See https://developers.redhat.com/blog/2014/10/16/gcc-undefined-behavior-
+sanitizer-ubsan/</p>
+<p><strong>To find usage of uninitialized data, there's Address Sanitizer and Memory
+Sanitizer in clang/LLVM.</strong>
+https://github.com/google/sanitizers/wiki/MemorySanitizer shows examples of
+<code>clang -fsanitize=memory -fPIE -pie</code> detecting uninitialized memory reads. It
+might work best if you compile <em>without</em> optimization, so all reads of
+variables end up actually loading from memory in the asm. They show it being
+used at <code>-O2</code> in a case where the load wouldn't optimize away. I haven't tried
+it myself. (In some cases, e.g. not initializing an accumulator before summing
+an array, clang -O3 will emit code that sums into a vector register that it
+never initialized. So with optimization, you can have a case where there's no
+memory read associated with the UB. But <code>-fsanitize=memory</code> changes the
+generated asm, and might result in a check for this.)</p>
+<blockquote>
+<p>It will tolerate copying of uninitialized memory, and also simple logic and
+arithmetic operations with it. In general, MemorySanitizer silently tracks
+the spread of uninitialized data in memory, and reports a warning when a
+code branch is taken (or not taken) depending on an uninitialized value.</p>
+<p>MemorySanitizer implements a subset of functionality found in Valgrind
+(Memcheck tool).</p>
+</blockquote>
+<p>It should work for this case because the call to glibc <code>memcpy</code> with a
+<code>length</code> calculated from uninitialized memory will (inside the library) result
+in a branch based on <code>length</code>. If it had inlined a fully branchless version
+that just used <code>cmov</code>, indexing, and two stores, it might not have worked.</p>
+<p>Valgrind's <code>memcheck</code> will also look for this kind of problem, again not
+complaining if the program simply copies around uninitialized data. But it
+says it will detect when a "Conditional jump or move depends on uninitialised
+value(s)", to try to catch any externally-visible behaviour that depends on
+uninitialized data.</p>
+<p>Perhaps the idea behind not flagging just a load is that structs can have
+padding, and copying the whole struct (including padding) with a wide vector
+load/store is not an error even if the individual members were only written
+one at a time. At the asm level, the information about what was padding and
+what is actually part of the value has been lost.</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>允许编译器假定作为参数传递的布尔值是有效的布尔值（即已初始化或转换为<code>true</code>or 的值<code>false</code>）。该<code>true</code>值不必与整数 1
+相同——实际上，可以有各种表示和<code>true</code>——<code>false</code>但参数必须是这两个值之一的某种有效表示，其中“有效表示”是实现-定义。</p>
+<p>因此，如果您无法初始化 a
+<code>bool</code>，或者如果您成功地通过一些不同类型的指针覆盖它，那么编译器的假设将是错误的，并且随之而来的是未定义的行为。你被警告过：</p>
+<blockquote>
+<p>50) 以本国际标准描述为“未定义”的方式使用 bool 值，例如通过检查未初始化的自动对象的值，可能会导致它的行为就好像它既不是真也不是假。
+<em>（§6.9.1 第 6 段的脚注，基本类型）</em></p>
+</blockquote>
+<p><br><br><a href="../does-the-c-standard-allow-for-an-uninitialized-bool-to-crash-a-program/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/abi/" rel="tag">abi</a></li>
+            <li><a class="tag p-category" href="../../categories/cplusplus/" rel="tag">cPlusPlus</a></li>
+            <li><a class="tag p-category" href="../../categories/llvm/" rel="tag">llvm</a></li>
+            <li><a class="tag p-category" href="../../categories/llvm-codegen/" rel="tag">llvm-codegen</a></li>
+            <li><a class="tag p-category" href="../../categories/undefined-behavior/" rel="tag">undefined-behavior</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ru-he-jiang-yi-ge-liu-de-nei-rong-fu-zhi-dao-ling-yi-ge-liu/" rel="prev" title="如何将一个流的内容复制到另一个流？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../ld-jing-gao-zhao-bu-dao-xuan-xiang-de-mu-lu/" rel="next" title="'ld：警告：找不到选项的目录'">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

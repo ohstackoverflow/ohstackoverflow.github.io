@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拉取后将已提交（但未推送）的更改移动到新分支 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/la-qu-hou-jiang-yi-ti-jiao-dan-wei-tui-song-de-geng-gai-yi-dong-dao-xin-fen-zhi/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ke-yi-zai-typescript-zhong-kuo-zhan-lei-xing-ma/" title="可以在 Typescript 中扩展类型吗？" type="text/html">
+<link rel="next" href="../svn-zhong-de-gong-zuo-fu-ben-xxx-yi-suo-ding-qie-qing-li-shi-bai/" title="SVN 中的工作副本 XXX 已锁定且清理失败" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="拉取后将已提交（但未推送）的更改移动到新分支">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/la-qu-hou-jiang-yi-ti-jiao-dan-wei-tui-song-de-geng-gai-yi-dong-dao-xin-fen-zhi/">
+<meta property="og:description" content="我做了很多工作（“你的分支比‘origin/master’领先 37 次提交。”）这真的应该进入它自己的分支而不是进入master.
+这些提交只存在于我的本地机器上，并没有被推送到origin，但情况有点复杂，因为其他开发人员一直在推送origin/master，而我已经取消了这些更改。
+如何将我的 37 个本地提交追溯移动到新分支？根据文档，似乎git rebase --onto my-new-">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-18T01:05:48+08:00">
+<meta property="article:tag" content="git">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">拉取后将已提交（但未推送）的更改移动到新分支</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T01:05:48+08:00" itemprop="datePublished" title="2023-02-18 01:05">2023-02-18 01:05</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我做了很多工作（“你的分支比‘origin/master’领先 37 次提交。”）这真的应该进入它自己的分支而不是进入<code>master</code>.
+这些提交只存在于我的本地机器上，并没有被推送到<code>origin</code>，但情况有点复杂，因为其他开发人员一直在推送<code>origin/master</code>，而我已经取消了这些更改。</p>
+<p>如何将我的 37 个本地提交追溯移动到新分支？根据文档，似乎<code>git rebase --onto my-new-branch
+master</code>应该<code>...origin/master</code>这样做，但两者都给我错误“致命：需要一次修订”。<code>man git-
+rebase</code>没有说要提供修订<code>rebase</code>，它的例子也没有这样做，所以我不知道如何解决这个错误。</p>
+<p>（请注意，这不是 <strong>Move</strong> existing , uncommitted work to a new branch in Git或How to
+merge my local uncommitted changes into another Git
+branch?因为这些问题处理本地工作树中未提交的更改，而不是更改已在当地提交。）</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>这应该没问题，因为您还没有将提交推送到其他任何地方，并且您可以自由地重写分支的历史记录<code>origin/master</code>。首先，我会运行一个<code>git fetch
+origin</code>以确保它<code>origin/master</code>是最新的。假设您目前正在使用<code>master</code>，您应该能够：</p>
+<div class="code"><pre class="code literal-block">git rebase origin/master
+</pre></div>
+
+<p>...这将重播您所有不在其中的<code>origin/master</code>提交<code>origin/master</code>。rebase 的默认操作是忽略合并提交（例如，你<code>git
+pull</code>可能引入的那些），它只会尝试将你的每个提交引入的补丁应用到<code>origin/master</code>.
+（您可能需要在此过程中解决一些冲突。）然后您可以根据结果创建新分支：</p>
+<div class="code"><pre class="code literal-block">git branch new-work
+</pre></div>
+
+<p>...然后将您的<code>master</code>背部重置为<code>origin/master</code>：</p>
+<div class="code"><pre class="code literal-block"># Use with care - make sure "git status" is clean and you're still on master:
+git reset --hard origin/master
+</pre></div>
+
+<p>当使用<code>git branch</code>、等进行这种操作分支时，我发现经常使用 或类似工具<code>git
+reset</code>查看提交图很有用，只是为了检查我是否理解所有不同的引用指向的位置。<code>gitk --all</code></p>
+<p>或者，您可以首先根据您的 master 所在的位置 ( <code>git branch new-work-including-merges</code>)
+创建一个主题分支，然后<code>master</code>如上所述进行重置。但是，由于您的主题分支将包含来自的合并<code>origin/master</code>，并且您还没有推送您的更改，我建议您进行变基以使历史更整洁。（另外，当你最终将你的主题分支合并回
+master 时，变化会更加明显。）</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>如果您的提交数量很少，并且您不关心这些是否合并为一个大型提交，那么这很有效并且不像这样做那么可怕<code>git rebase</code>：</p>
+<p>取消暂存文件（将 1 替换为提交数）</p>
+<div class="code"><pre class="code literal-block">git reset --soft HEAD~1
+</pre></div>
+
+<p>创建一个新分支</p>
+<div class="code"><pre class="code literal-block">git checkout -b NewBranchName
+</pre></div>
+
+<p>添加更改</p>
+<div class="code"><pre class="code literal-block">git add -A
+</pre></div>
+
+<p>做出承诺</p>
+<div class="code"><pre class="code literal-block">git commit -m "Whatever"
+</pre></div>
+
+<p><br><br><a href="../moving-committed-but-not-pushed-changes-to-a-new-branch-after-pull/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/git/" rel="tag">git</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ke-yi-zai-typescript-zhong-kuo-zhan-lei-xing-ma/" rel="prev" title="可以在 Typescript 中扩展类型吗？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../svn-zhong-de-gong-zuo-fu-ben-xxx-yi-suo-ding-qie-qing-li-shi-bai/" rel="next" title="SVN 中的工作副本 XXX 已锁定且清理失败">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

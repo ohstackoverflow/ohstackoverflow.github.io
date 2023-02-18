@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Angular/RxJS 我什么时候应该取消订阅 `Subscription` | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/angular-rxjs-wo-shi-yao-shi-hou-ying-gai-qu-xiao-ding-yue-subscription/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../behaviorsubject-yu-observable/" title="BehaviorSubject 与 Observable？" type="text/html">
+<link rel="next" href="../ru-he-shi-yong-glob-di-gui-cha-zhao-wen-jian/" title="如何使用 glob() 递归查找文件？" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Angular/RxJS 我什么时候应该取消订阅 `Subscription`">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/angular-rxjs-wo-shi-yao-shi-hou-ying-gai-qu-xiao-ding-yue-subscription/">
+<meta property="og:description" content="我应该在生命周期中什么时候存储Subscription实例和调用，什么时候可以简单地忽略它们？unsubscribe()``ngOnDestroy
+保存所有订阅会给组件代码带来很多混乱。
+HTTP 客户端指南忽略这样的订阅：
+getHeroes() {
+  this.heroService.getHeroes()
+                  .subscribe(
+            ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T08:05:17+08:00">
+<meta property="article:tag" content="angular">
+<meta property="article:tag" content="angular-component-life-cycle">
+<meta property="article:tag" content="observable">
+<meta property="article:tag" content="rxjs">
+<meta property="article:tag" content="subscription">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Angular/RxJS 我什么时候应该取消订阅 `Subscription`</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T08:05:17+08:00" itemprop="datePublished" title="2023-02-17 08:05">2023-02-17 08:05</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我应该在生命周期中什么时候存储<code>Subscription</code>实例和调用，什么时候可以简单地忽略它们？<code>unsubscribe()``ngOnDestroy</code></p>
+<p>保存所有订阅会给组件代码带来很多混乱。</p>
+<p>HTTP 客户端指南忽略这样的订阅：</p>
+<div class="code"><pre class="code literal-block">getHeroes() {
+  this.heroService.getHeroes()
+                  .subscribe(
+                     heroes =&gt; this.heroes = heroes,
+                     error =&gt;  this.errorMessage = &lt;any&gt;error);
+}
+</pre></div>
+
+<p>同时Route &amp; Navigation Guide说：</p>
+<blockquote>
+<p>最终，我们将导航到其他地方。路由器将从 DOM 中删除该组件并销毁它。我们需要在发生这种情况之前清理自己。具体来说，我们必须在 Angular
+销毁组件之前取消订阅。不这样做可能会造成内存泄漏。</p>
+<p>我们取消订阅我们的<code>Observable</code>方法<code>ngOnDestroy</code>。</p>
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="nt">private</span><span class="w"> </span><span class="nt">sub</span><span class="o">:</span><span class="w"> </span><span class="nt">any</span><span class="o">;</span>
+
+<span class="nt">ngOnInit</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">this.sub</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">this.route.params.subscribe(params</span><span class="w"> </span><span class="err">=&gt;</span><span class="w"> </span><span class="err">{</span>
+<span class="w">     </span><span class="err">let</span><span class="w"> </span><span class="err">id</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">+params</span><span class="cp">[</span><span class="s1">'id'</span><span class="cp">]</span><span class="p">;</span><span class="w"> </span><span class="err">//</span><span class="w"> </span><span class="err">(+)</span><span class="w"> </span><span class="err">converts</span><span class="w"> </span><span class="err">string</span><span class="w"> </span><span class="err">'id'</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">number</span>
+<span class="w">     </span><span class="err">this.service.getHero(id).then(hero</span><span class="w"> </span><span class="err">=&gt;</span><span class="w"> </span><span class="err">this.hero</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">hero)</span><span class="p">;</span>
+<span class="w">   </span><span class="p">}</span><span class="o">);</span>
+<span class="err">}</span>
+
+<span class="nt">ngOnDestroy</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">this.sub.unsubscribe()</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>解答</h2>
+<p><strong>长话短说</strong></p>
+<p>对于这个问题，有两种 Observables—— <strong>有限</strong> 值和 <strong>无限</strong> 值。</p>
+<p><code>http</code>Observable 产生 <strong>有限</strong> (1) 值，而像 DOM 事件监听器 Observable 之类的东西产生 <strong>无限</strong> 值。</p>
+<p>如果你手动调用<code>subscribe</code>（不使用异步管道），那么<code>unsubscribe</code>来自 <strong>无限的</strong> Observables。</p>
+<p>不要担心 <strong>有限</strong> 的，RxJs 会处理它们。</p>
+<hr>
+<p>资料来源：</p>
+<ol>
+<li>我在这里找到了 Angular 的 Gitter 中 Rob Wormald 的回答。</li>
+</ol>
+<p>他说（为清楚起见，我重新组织并强调了我的重点）：</p>
+<blockquote>
+<p>如果它是 <strong>单值序列</strong> （如 http 请求），则 <strong>无需手动清理</strong> （假设您手动在控制器中订阅）</p>
+<p>我应该说“如果它是一个 <strong>完成的序列</strong> ”（其中一个单值序列，一个 la http，是一个）</p>
+<p><strong>如果它是一个无限序列</strong> ， <strong>你应该取消订阅</strong> 异步管道为你做的事情</p>
+</blockquote>
+<p>他还在这个关于 Observables 的 YouTube 视频中提到，在完成 <em>的</em> Observables 的上下文中 <em>“他们自己清理......”</em>
+承诺确保他们清理 XHR 事件监听器，对吧？） __</p>
+<ol>
+<li>同样在Angular 2 的 Rangle 指南中，它读取</li>
+</ol>
+<blockquote>
+<p>在大多数情况下，我们不需要显式调用该<code>unsubscribe</code>方法，除非我们想提前取消或者我们的<code>Observable</code>订阅寿命比我们的订阅更长。操作员的默认行为是在消息发布<code>Observable</code>后立即处理订阅。请记住，RxJS
+被设计为在大多数情况下以“即发即忘”的方式使用。<code>.complete()``.error()</code></p>
+</blockquote>
+<p>_“我们的<code>Observable</code>生命周期比我们的订阅更长”_这句话何时适用？</p>
+<p>它适用于在 Observable 完成之前（或不是“很久”之前）销毁的组件内创建订阅的情况。</p>
+<p>我认为这意味着如果我们订阅了一个<code>http</code>发出 10 个值的请求或一个 Observable，并且我们的组件在该<code>http</code>请求返回或发出 10
+个值之前被销毁，我们仍然可以！</p>
+<p>当请求确实返回或最终发出第 10 个值时，Observable 将完成并且所有资源将被清理。</p>
+<ol>
+<li>如果我们从同一个 Rangle 指南中查看这个示例，我们可以看到订阅确实<code>route.params</code>需要一个<code>unsubscribe()</code>，因为我们不知道它们何时<code>params</code>会停止更改（发出新值）。</li>
+</ol>
+<p>该组件可能会通过导航而被销毁，在这种情况下，路由参数可能仍会发生变化（它们在技术上可能会发生变化，直到应用程序结束）并且订阅中分配的资源仍将被分配，因为还没有
+<em>completion</em> 。</p>
+<ol>
+<li>
+<p>在NgEurope 的这段视频中，Rob Wormald 还说你不需要取消订阅 Router Observables。他还在2016 年 11 月的这段视频中提到了这项<code>http</code>服务。<code>ActivatedRoute.params</code></p>
+</li>
+<li>
+<p>Angular 教程的路由章节现在说明如下：</p>
+</li>
+</ol>
+<blockquote>
+<p>管理<code>Router</code>它提供的可观察对象并本地化订阅。当组件被销毁时订阅被清理，防止内存泄漏，所以我们不需要取消订阅路由<code>params</code>
+<code>Observable</code>。</p>
+</blockquote>
+<p>这是有关路由器可观察对象的 Angular 文档的 GitHub 问题的讨论，其中 Ward Bell 提到正在对所有这些进行澄清。</p>
+<hr>
+<p>我在 NGConf 上与 Ward Bell 讨论了这个问题（我什至向他展示了这个答案，他说这是正确的）但他告诉我 Angular
+的文档团队有一个未发布的解决方案（尽管他们正在努力获得批准） ). 他还告诉我，我可以用即将发布的官方推荐来更新我的 SO 答案。</p>
+<p>我们以后都应该使用的解决方案是为所有在其类代码中调用 Observables 的<code>private ngUnsubscribe = new
+Subject&lt;void&gt;();</code>组件添加一个字段。<code>.subscribe()</code></p>
+<p>然后我们调用<code>this.ngUnsubscribe.next();
+this.ngUnsubscribe.complete();</code>我们的<code>ngOnDestroy()</code>方法。</p>
+<p>秘诀（正如@metamaker<code>takeUntil(this.ngUnsubscribe)</code>已经指出的那样）是在我们每次调用之前调用<code>.subscribe()</code>，这将保证在组件被销毁时清除所有订阅。</p>
+<p>例子：</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="p">{</span> <span class="n">Component</span><span class="p">,</span> <span class="n">OnDestroy</span><span class="p">,</span> <span class="n">OnInit</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'@angular/core'</span><span class="p">;</span>
+<span class="o">//</span> <span class="n">RxJs</span> <span class="mf">6.</span><span class="n">x</span><span class="o">+</span> <span class="kn">import</span> <span class="nn">paths</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="nb">filter</span><span class="p">,</span> <span class="n">startWith</span><span class="p">,</span> <span class="n">takeUntil</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'rxjs/operators'</span><span class="p">;</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="n">Subject</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'rxjs'</span><span class="p">;</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="n">BookService</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'../books.service'</span><span class="p">;</span>
+
+<span class="nd">@Component</span><span class="p">({</span>
+    <span class="n">selector</span><span class="p">:</span> <span class="s1">'app-books'</span><span class="p">,</span>
+    <span class="n">templateUrl</span><span class="p">:</span> <span class="s1">'./books.component.html'</span>
+<span class="p">})</span>
+<span class="n">export</span> <span class="k">class</span> <span class="nc">BooksComponent</span> <span class="n">implements</span> <span class="n">OnDestroy</span><span class="p">,</span> <span class="n">OnInit</span> <span class="p">{</span>
+    <span class="n">private</span> <span class="n">ngUnsubscribe</span> <span class="o">=</span> <span class="n">new</span> <span class="n">Subject</span><span class="o">&lt;</span><span class="n">void</span><span class="o">&gt;</span><span class="p">();</span>
+
+    <span class="n">constructor</span><span class="p">(</span><span class="n">private</span> <span class="n">booksService</span><span class="p">:</span> <span class="n">BookService</span><span class="p">)</span> <span class="p">{</span> <span class="p">}</span>
+
+    <span class="n">ngOnInit</span><span class="p">()</span> <span class="p">{</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">booksService</span><span class="o">.</span><span class="n">getBooks</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">pipe</span><span class="p">(</span>
+               <span class="n">startWith</span><span class="p">([]),</span>
+               <span class="nb">filter</span><span class="p">(</span><span class="n">books</span> <span class="o">=&gt;</span> <span class="n">books</span><span class="o">.</span><span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span>
+               <span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">ngUnsubscribe</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">books</span> <span class="o">=&gt;</span> <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">books</span><span class="p">));</span>
+
+        <span class="n">this</span><span class="o">.</span><span class="n">booksService</span><span class="o">.</span><span class="n">getArchivedBooks</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">ngUnsubscribe</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">archivedBooks</span> <span class="o">=&gt;</span> <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">archivedBooks</span><span class="p">));</span>
+    <span class="p">}</span>
+
+    <span class="n">ngOnDestroy</span><span class="p">()</span> <span class="p">{</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">ngUnsubscribe</span><span class="o">.</span><span class="n">next</span><span class="p">();</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">ngUnsubscribe</span><span class="o">.</span><span class="n">complete</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>注意：</strong><code>takeUntil</code>将运算符添加到最后一个很重要，以防止运算符链中的中间 Observables 泄漏。</p>
+<hr>
+<p>最近，在Adventures in Angular的一集中，Ben Lesh 和 Ward Bell 讨论了有关如何/何时取消订阅组件的问题。讨论大约在
+1:05:30 开始。</p>
+<p>Ward 提到 <em>“现在有一个糟糕的 takeUntil 舞蹈需要大量的机器”</em> ，Shai Reznik 提到 <em>“Angular 处理一些订阅，比如
+http 和路由”</em> 。</p>
+<p>作为回应，Ben 提到现在正在讨论允许 Observables 挂钩到 Angular 组件生命周期事件中，而 Ward 建议组件可以订阅生命周期事件的
+Observable，作为了解何时完成作为组件内部状态维护的 Observables 的一种方式。</p>
+<p>也就是说，我们现在最需要的是解决方案，所以这里有一些其他资源。</p>
+<ol>
+<li>
+<p>来自 RxJs 核心团队成员 Nicholas Jamieson 的模式建议<code>takeUntil()</code>和有助于实施它的 TSLint 规则： https: //ncjamieson.com/avoiding-takeuntil-leaks/</p>
+</li>
+<li>
+<p>轻量级 npm 包，它公开一个 Observable 运算符，该运算符将组件实例 ( <code>this</code>) 作为参数并在期间自动取消订阅<code>ngOnDestroy</code>： https: //github.com/NetanelBasal/ngx-take-until-destroy</p>
+</li>
+<li>
+<p>如果您不进行 AOT 构建（但我们现在都应该进行 AOT），则上述的另一种变体具有稍微更好的人体工程学：https://github.com/smnbbrv/ngx-rx-collector</p>
+</li>
+<li>
+<p><code>*ngSubscribe</code>像异步管道一样工作的自定义指令，但在您的模板中创建一个嵌入式视图，因此您可以在整个模板中引用“展开”值：https: //netbasal.com/diy-subscription-handling-directive-in-angular-c8f6e762697f</p>
+</li>
+</ol>
+<p>我在对 Nicholas 博客的评论中提到，过度使用<code>takeUntil()</code>可能表明您的组件试图做太多事情，并且应该考虑将您现有的组件分为 <strong>功能</strong>
+组件和 <strong>展示组件。</strong> 然后，您可以将<code>| async</code>Feature 组件中的 Observable 放入<code>Input</code>Presentational
+组件中，这意味着任何地方都不需要订阅。在此处阅读有关此方法的更多信息。</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>您不需要大量订阅并手动取消订阅。使用Subject和takeUntil组合来像老板一样处理订阅：</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="p">{</span> <span class="n">Subject</span> <span class="p">}</span> <span class="kn">from</span> <span class="s2">"rxjs"</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="n">takeUntil</span> <span class="p">}</span> <span class="kn">from</span> <span class="s2">"rxjs/operators"</span>
+
+<span class="nd">@Component</span><span class="p">({</span>
+  <span class="n">moduleId</span><span class="p">:</span> <span class="n">__moduleName</span><span class="p">,</span>
+  <span class="n">selector</span><span class="p">:</span> <span class="s2">"my-view"</span><span class="p">,</span>
+  <span class="n">templateUrl</span><span class="p">:</span> <span class="s2">"../views/view-route.view.html"</span>
+<span class="p">})</span>
+<span class="n">export</span> <span class="k">class</span> <span class="nc">ViewRouteComponent</span> <span class="n">implements</span> <span class="n">OnInit</span><span class="p">,</span> <span class="n">OnDestroy</span> <span class="p">{</span>
+  <span class="n">componentDestroyed</span><span class="err">$</span><span class="p">:</span> <span class="n">Subject</span><span class="o">&lt;</span><span class="n">boolean</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">new</span> <span class="n">Subject</span><span class="p">()</span>
+
+  <span class="n">constructor</span><span class="p">(</span><span class="n">private</span> <span class="n">titleService</span><span class="p">:</span> <span class="n">TitleService</span><span class="p">)</span> <span class="p">{}</span>
+
+  <span class="n">ngOnInit</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitter1</span><span class="err">$</span>
+      <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="p">))</span>
+      <span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span> <span class="nb">any</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="o">/*</span> <span class="o">...</span> <span class="n">do</span> <span class="n">something</span> <span class="mi">1</span> <span class="o">*/</span> <span class="p">})</span>
+
+    <span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitter2</span><span class="err">$</span>
+      <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="p">))</span>
+      <span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span> <span class="nb">any</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="o">/*</span> <span class="o">...</span> <span class="n">do</span> <span class="n">something</span> <span class="mi">2</span> <span class="o">*/</span> <span class="p">})</span>
+
+    <span class="o">//...</span>
+
+    <span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitterN</span><span class="err">$</span>
+      <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="p">))</span>
+      <span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span> <span class="nb">any</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="o">/*</span> <span class="o">...</span> <span class="n">do</span> <span class="n">something</span> <span class="n">N</span> <span class="o">*/</span> <span class="p">})</span>
+  <span class="p">}</span>
+
+  <span class="n">ngOnDestroy</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="o">.</span><span class="n">next</span><span class="p">(</span><span class="n">true</span><span class="p">)</span>
+    <span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="o">.</span><span class="n">complete</span><span class="p">()</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<hr>
+<p><strong><em>*@acumartini 在评论中 提出的 </em>*替代方法</strong> 使用takeWhile而不是takeUntil。您可能更喜欢它，但请注意，这样您的
+Observable 执行不会在组件的 ngDestroy 上被取消（例如，当您进行耗时的计算或等待来自服务器的数据时）。基于takeUntil
+的方法没有这个缺点，会导致立即取消请求。感谢@AlexChe 在评论中的详细解释。</p>
+<p>所以这是代码：</p>
+<div class="code"><pre class="code literal-block"><span class="err">@</span><span class="n">Component</span><span class="p">({</span>
+<span class="w">  </span><span class="n">moduleId</span><span class="p">:</span><span class="w"> </span><span class="n">__moduleName</span><span class="p">,</span>
+<span class="w">  </span><span class="n">selector</span><span class="p">:</span><span class="w"> </span><span class="s2">"my-view"</span><span class="p">,</span>
+<span class="w">  </span><span class="n">templateUrl</span><span class="p">:</span><span class="w"> </span><span class="s2">"../views/view-route.view.html"</span>
+<span class="p">})</span>
+<span class="k">export</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ViewRouteComponent</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">OnInit</span><span class="p">,</span><span class="w"> </span><span class="n">OnDestroy</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">alive</span><span class="p">:</span><span class="w"> </span><span class="n">boolean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">true</span>
+
+<span class="w">  </span><span class="n">constructor</span><span class="p">(</span><span class="n">private</span><span class="w"> </span><span class="n">titleService</span><span class="p">:</span><span class="w"> </span><span class="n">TitleService</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+
+<span class="w">  </span><span class="n">ngOnInit</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitter1</span><span class="o">$</span>
+<span class="w">      </span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeWhile</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">alive</span><span class="p">))</span>
+<span class="w">      </span><span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">/*</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">*/</span><span class="w"> </span><span class="p">})</span>
+
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitter2</span><span class="o">$</span>
+<span class="w">      </span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeWhile</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">alive</span><span class="p">))</span>
+<span class="w">      </span><span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">/*</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*/</span><span class="w"> </span><span class="p">})</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="o">...</span>
+
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitterN</span><span class="o">$</span>
+<span class="w">      </span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeWhile</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">alive</span><span class="p">))</span>
+<span class="w">      </span><span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">/*</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">*/</span><span class="w"> </span><span class="p">})</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">ngOnDestroy</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">alive</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">false</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br><br><a href="../angular-rxjs-when-should-i-unsubscribe-from-subscription/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/angular/" rel="tag">angular</a></li>
+            <li><a class="tag p-category" href="../../categories/angular-component-life-cycle/" rel="tag">angular-component-life-cycle</a></li>
+            <li><a class="tag p-category" href="../../categories/observable/" rel="tag">observable</a></li>
+            <li><a class="tag p-category" href="../../categories/rxjs/" rel="tag">rxjs</a></li>
+            <li><a class="tag p-category" href="../../categories/subscription/" rel="tag">subscription</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../behaviorsubject-yu-observable/" rel="prev" title="BehaviorSubject 与 Observable？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../ru-he-shi-yong-glob-di-gui-cha-zhao-wen-jian/" rel="next" title="如何使用 glob() 递归查找文件？">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

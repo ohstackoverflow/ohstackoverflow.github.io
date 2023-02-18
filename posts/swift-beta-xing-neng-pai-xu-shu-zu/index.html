@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swift Beta 性能：排序数组 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/swift-beta-xing-neng-pai-xu-shu-zu/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../jslint-tu-ran-bao-cuo-shi-yong-use-strict-de-han-shu-xing-shi/" title="JSLint 突然报错：使用“use strict”的函数形式" type="text/html">
+<link rel="next" href="../ru-he-cong-zi-fu-chuan-sheng-cheng-liu/" title="如何从字符串生成流？" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Swift Beta 性能：排序数组">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/swift-beta-xing-neng-pai-xu-shu-zu/">
+<meta property="og:description" content="我在 Swift Beta 中实现了一个算法，发现性能很差。深入挖掘后，我意识到其中一个瓶颈就像排序数组一样简单。相关部分在这里：
+let n = 1000000
+var x =  [Int](repeating: 0, count: n)
+for i in 0..&lt;n {
+    x[i] = random()
+}
+// start clock here
+let y = sort(x)
+// s">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T08:16:21+08:00">
+<meta property="article:tag" content="compiler-optimization">
+<meta property="article:tag" content="performance">
+<meta property="article:tag" content="sorting">
+<meta property="article:tag" content="swift">
+<meta property="article:tag" content="xcode6">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Swift Beta 性能：排序数组</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T08:16:21+08:00" itemprop="datePublished" title="2023-02-17 08:16">2023-02-17 08:16</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我在 Swift Beta 中实现了一个算法，发现性能很差。深入挖掘后，我意识到其中一个瓶颈就像排序数组一样简单。相关部分在这里：</p>
+<div class="code"><pre class="code literal-block"><span class="n">let</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000000</span>
+<span class="nf">var</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w">  </span><span class="o">[</span><span class="n">Int</span><span class="o">]</span><span class="p">(</span><span class="nl">repeating</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nf">count</span><span class="err">:</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="mf">0.</span><span class="p">.</span><span class="o">&lt;</span><span class="n">n</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">x</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">random</span><span class="p">()</span>
+<span class="err">}</span>
+<span class="o">//</span><span class="w"> </span><span class="k">start</span><span class="w"> </span><span class="n">clock</span><span class="w"> </span><span class="n">here</span>
+<span class="n">let</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sort</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="o">//</span><span class="w"> </span><span class="n">stop</span><span class="w"> </span><span class="n">clock</span><span class="w"> </span><span class="n">here</span>
+</pre></div>
+
+<p>在 C++ 中，类似的操作在我的计算机上需要 <strong>0.06 秒</strong> 。</p>
+<p>在 Python 中，它需要 <strong>0.6 秒</strong> （没有技巧，只是 y = sorted(x) 用于整数列表）。</p>
+<p>在 Swift 中，如果我使用以下命令编译它需要 <strong>6 秒：</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">xcrun</span><span class="w"> </span><span class="nv">swift</span><span class="w"> </span><span class="o">-</span><span class="nv">O3</span><span class="w"> </span><span class="o">-</span><span class="nv">sdk</span><span class="w"> </span>`<span class="nv">xcrun</span><span class="w"> </span><span class="o">--</span><span class="k">show</span><span class="o">-</span><span class="nv">sdk</span><span class="o">-</span><span class="nv">path</span><span class="w"> </span><span class="o">--</span><span class="nv">sdk</span><span class="w"> </span><span class="nv">macosx</span>`
+</pre></div>
+
+<p>如果我使用以下命令编译它，它需要多达 <strong>88 秒的时间：</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">xcrun</span><span class="w"> </span><span class="nv">swift</span><span class="w"> </span><span class="o">-</span><span class="nv">O0</span><span class="w"> </span><span class="o">-</span><span class="nv">sdk</span><span class="w"> </span>`<span class="nv">xcrun</span><span class="w"> </span><span class="o">--</span><span class="k">show</span><span class="o">-</span><span class="nv">sdk</span><span class="o">-</span><span class="nv">path</span><span class="w"> </span><span class="o">--</span><span class="nv">sdk</span><span class="w"> </span><span class="nv">macosx</span>`
+</pre></div>
+
+<p>Xcode 中“发布”与“调试”构建的时间是相似的。</p>
+<p>这里有什么问题？与 C++ 相比，我可以理解一些性能损失，但与纯 Python 相比，速度不会降低 10 倍。</p>
+<hr>
+<p><strong>编辑：</strong> weather 注意到更改<code>-O3</code>为<code>-Ofast</code>使此代码运行速度几乎与 C++
+版本一样快！但是，<code>-Ofast</code>它极大地改变了语言的语义——在我的测试中，它 <strong>禁用了对整数溢出和数组索引溢出的检查</strong>
+。例如，使用<code>-Ofast</code>以下 Swift 代码静默运行而不会崩溃（并打印出一些垃圾）：</p>
+<div class="code"><pre class="code literal-block"><span class="n">let</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10000000</span>
+<span class="k">print</span><span class="p">(</span><span class="n">n</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="n">n</span><span class="p">)</span>
+<span class="n">let</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w">  </span><span class="o">[</span><span class="n">Int</span><span class="o">]</span><span class="p">(</span><span class="nl">repeating</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nf">count</span><span class="err">:</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">x</span><span class="o">[</span><span class="n">n</span><span class="o">]</span><span class="p">)</span>
+</pre></div>
+
+<p>所以<code>-Ofast</code>不是我们想要的；Swift 的全部意义在于我们拥有安全网。当然，安全网对性能有一些影响，但它们不应该使程序慢 100
+倍。请记住，Java 已经检查了数组边界，并且在典型情况下，减速比 2 小得多。在 Clang 和 GCC
+中，我们已经<code>-ftrapv</code>检查（有符号）整数溢出，而且速度也不是那么慢。</p>
+<p>因此问题来了：我们如何才能在不失去安全网的情况下在 Swift 中获得合理的性能？</p>
+<hr>
+<p><strong>编辑 2：</strong> 我做了一些更多的基准测试，沿着非常简单的循环</p>
+<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="mf">0.</span><span class="p">.</span><span class="o">&lt;</span><span class="n">n</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">x</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="mi">12345678</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>（这里的异或操作只是为了让我可以更容易地在汇编代码中找到相关循环。我试图选择一个易于发现但又“无害”的操作，因为它不需要任何相关检查到整数溢出。）</p>
+<p><code>-O3</code>同样，和之间的性能存在巨大差异<code>-Ofast</code>。所以我看了一下汇编代码：</p>
+<ul>
+<li>
+<p><code>-Ofast</code>我几乎得到了我所期望的。相关部分是一个包含 5 条机器语言指令的循环。</p>
+</li>
+<li>
+<p>我得到<code>-O3</code>了超出我最疯狂想象的东西。内部循环跨越 88 行汇编代码。我并没有试图理解所有这些，但最可疑的部分是“callq _swift_retain”的 13 次调用和另外 13 次“callq _swift_release”的调用。即 <strong>在内循环中调用了26个子程序</strong> ！</p>
+</li>
+</ul>
+<hr>
+<p><strong>编辑 3：</strong> 在评论中，Ferruccio 要求基准测试在不依赖内置函数（例如排序）的意义上是公平的。我认为下面的程序是一个很好的例子：</p>
+<div class="code"><pre class="code literal-block"><span class="n">let</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10000</span>
+<span class="nf">var</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">[</span><span class="n">Int</span><span class="o">]</span><span class="p">(</span><span class="nl">repeating</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nf">count</span><span class="err">:</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="mf">0.</span><span class="p">.</span><span class="o">&lt;</span><span class="n">n</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="mf">0.</span><span class="p">.</span><span class="o">&lt;</span><span class="n">n</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">x</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="o">[</span><span class="n">j</span><span class="o">]</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>没有算术，所以我们不用担心整数溢出。我们唯一要做的就是大量的数组引用。结果在这里——Swift -O3 与 -Ofast 相比损失了将近 500 倍：</p>
+<ul>
+<li>C++ -O3： <strong>0.05 秒</strong>
+</li>
+<li>C++ -O0：0.4 秒</li>
+<li>Java： <strong>0.2 秒</strong>
+</li>
+<li>Python 与 PyPy：0.5 秒</li>
+<li>蟒蛇： <strong>12 秒</strong>
+</li>
+<li>斯威夫特-Ofast：0.05秒</li>
+<li>斯威夫特 -O3： <strong>23 秒</strong>
+</li>
+<li>斯威夫特 -O0：443 秒</li>
+</ul>
+<p>（如果您担心编译器可能会完全优化无意义的循环，您可以将其更改为 eg <code>x[i] ^= x[j]</code>，并添加一个输出 print
+语句<code>x[0]</code>。这不会改变任何东西；时间将非常相似。）</p>
+<p>是的，这里的 Python 实现是一个愚蠢的纯 Python 实现，带有一个整数列表和嵌套的 for 循环。它应该比未优化的 Swift 慢 <strong>得多。</strong>
+Swift 和数组索引似乎严重破坏了某些东西。</p>
+<hr>
+<p><strong>编辑 4：</strong> 这些问题（以及其他一些性能问题）似乎已在 Xcode 6 beta 5 中得到修复。</p>
+<p>对于排序，我现在有以下时间安排：</p>
+<ul>
+<li>铛++ -O3：0.06秒</li>
+<li>swiftc -Ofast：0.1 秒</li>
+<li>swiftc -O: 0.1 秒</li>
+<li>快速：4秒</li>
+</ul>
+<p>对于嵌套循环：</p>
+<ul>
+<li>铛++ -O3：0.06秒</li>
+<li>swiftc -Ofast：0.3 秒</li>
+<li>swiftc -O: 0.4 秒</li>
+<li>swiftc: 540 秒</li>
+</ul>
+<p>似乎没有理由再使用不安全的<code>-Ofast</code>（又名<code>-Ounchecked</code>）；plain<code>-O</code>产生同样好的代码。</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>tl;dr Swift 1.0 现在使用默认发布优化级别 [-O] 通过此基准测试与 C 一样快。</p>
+<hr>
+<p>这是 Swift Beta 中的就地快速排序：</p>
+<div class="code"><pre class="code literal-block"><span class="k">func</span><span class="w"> </span><span class="n">quicksort_swift</span><span class="p">(</span><span class="n">inout</span><span class="w"> </span><span class="n">a</span><span class="p">:</span><span class="n">CInt</span><span class="p">[],</span><span class="w"> </span><span class="n">start</span><span class="p">:</span><span class="n">Int</span><span class="p">,</span><span class="w"> </span><span class="n">end</span><span class="p">:</span><span class="n">Int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">){</span>
+<span class="w">        </span><span class="k">return</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">start</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="n">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">]</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">l</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">r</span><span class="p">){</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">l</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">p</span><span class="p">){</span>
+<span class="w">            </span><span class="n">l</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">            </span><span class="k">continue</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">r</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">p</span><span class="p">){</span>
+<span class="w">            </span><span class="n">r</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">            </span><span class="k">continue</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">l</span><span class="p">]</span>
+<span class="w">        </span><span class="n">a</span><span class="p">[</span><span class="n">l</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">r</span><span class="p">]</span>
+<span class="w">        </span><span class="n">a</span><span class="p">[</span><span class="n">r</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span>
+<span class="w">        </span><span class="n">l</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">        </span><span class="n">r</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">quicksort_swift</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="w">    </span><span class="n">quicksort_swift</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">end</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>在 C 中也一样：</p>
+<div class="code"><pre class="code literal-block"><span class="nv">void</span><span class="w"> </span><span class="nv">quicksort_c</span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="o">*</span><span class="nv">a</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">n</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="ss">)</span>
+<span class="w">        </span><span class="k">return</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">int</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">a</span>[<span class="nv">n</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span>]<span class="c1">;</span>
+<span class="w">    </span><span class="nv">int</span><span class="w"> </span><span class="o">*</span><span class="nv">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">a</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">int</span><span class="w"> </span><span class="o">*</span><span class="nv">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">n</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="ss">(</span><span class="nv">l</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="nv">r</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="o">*</span><span class="nv">l</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nv">p</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">            </span><span class="nv">l</span><span class="o">++</span><span class="c1">;</span>
+<span class="w">            </span><span class="k">continue</span><span class="c1">;</span>
+<span class="w">        </span>}
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="o">*</span><span class="nv">r</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">p</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">            </span><span class="nv">r</span><span class="o">--</span><span class="c1">;</span>
+<span class="w">            </span><span class="k">continue</span><span class="c1">;</span>
+<span class="w">        </span>}
+<span class="w">        </span><span class="nv">int</span><span class="w"> </span><span class="nv">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="nv">l</span><span class="c1">;</span>
+<span class="w">        </span><span class="o">*</span><span class="nv">l</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="nv">r</span><span class="c1">;</span>
+<span class="w">        </span><span class="o">*</span><span class="nv">r</span><span class="o">--</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">t</span><span class="c1">;</span>
+<span class="w">    </span>}
+<span class="w">    </span><span class="nv">quicksort_c</span><span class="ss">(</span><span class="nv">a</span>,<span class="w"> </span><span class="nv">r</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">quicksort_c</span><span class="ss">(</span><span class="nv">l</span>,<span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">n</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">l</span><span class="ss">)</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>两者都有效：</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">a_swift</span><span class="p">:</span><span class="n">CInt</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">1234</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span>
+<span class="k">var</span><span class="w"> </span><span class="n">a_c</span><span class="p">:</span><span class="n">CInt</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">1234</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span>
+
+<span class="n">quicksort_swift</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a_swift</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">a_swift</span><span class="o">.</span><span class="n">count</span><span class="p">)</span>
+<span class="n">quicksort_c</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a_c</span><span class="p">,</span><span class="w"> </span><span class="n">CInt</span><span class="p">(</span><span class="n">a_c</span><span class="o">.</span><span class="n">count</span><span class="p">))</span>
+
+<span class="o">//</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p">]</span>
+<span class="o">//</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p">]</span>
+</pre></div>
+
+<p>两者都在编写的同一程序中调用。</p>
+<div class="code"><pre class="code literal-block"><span class="nf">var</span><span class="w"> </span><span class="n">x_swift</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CInt</span><span class="err">[]</span><span class="p">(</span><span class="nf">count</span><span class="err">:</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="nl">repeatedValue</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="nf">var</span><span class="w"> </span><span class="n">x_c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CInt</span><span class="err">[]</span><span class="p">(</span><span class="nf">count</span><span class="err">:</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="nl">repeatedValue</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="k">for</span><span class="w"> </span><span class="nf">var</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">x_swift</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CInt</span><span class="p">(</span><span class="n">random</span><span class="p">())</span>
+<span class="w">    </span><span class="n">x_c</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CInt</span><span class="p">(</span><span class="n">random</span><span class="p">())</span>
+<span class="err">}</span>
+
+<span class="n">let</span><span class="w"> </span><span class="nl">swift_start</span><span class="p">:</span><span class="n">UInt64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mach_absolute_time</span><span class="p">();</span>
+<span class="n">quicksort_swift</span><span class="p">(</span><span class="o">&amp;</span><span class="n">x_swift</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">x_swift</span><span class="p">.</span><span class="nf">count</span><span class="p">)</span>
+<span class="n">let</span><span class="w"> </span><span class="nl">swift_stop</span><span class="p">:</span><span class="n">UInt64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mach_absolute_time</span><span class="p">();</span>
+
+<span class="n">let</span><span class="w"> </span><span class="nl">c_start</span><span class="p">:</span><span class="n">UInt64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mach_absolute_time</span><span class="p">();</span>
+<span class="n">quicksort_c</span><span class="p">(</span><span class="o">&amp;</span><span class="n">x_c</span><span class="p">,</span><span class="w"> </span><span class="n">CInt</span><span class="p">(</span><span class="n">x_c</span><span class="p">.</span><span class="nf">count</span><span class="p">))</span>
+<span class="n">let</span><span class="w"> </span><span class="nl">c_stop</span><span class="p">:</span><span class="n">UInt64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mach_absolute_time</span><span class="p">();</span>
+</pre></div>
+
+<p>这会将绝对时间转换为秒：</p>
+<div class="code"><pre class="code literal-block"><span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">NANOS_PER_USEC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="n">ULL</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">NANOS_PER_MSEC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="n">ULL</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">NANOS_PER_USEC</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">uint64_t</span><span class="w"> </span><span class="n">NANOS_PER_SEC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="n">ULL</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">NANOS_PER_MSEC</span><span class="p">;</span>
+
+<span class="n">mach_timebase_info_data_t</span><span class="w"> </span><span class="n">timebase_info</span><span class="p">;</span>
+
+<span class="n">uint64_t</span><span class="w"> </span><span class="n">abs_to_nanos</span><span class="p">(</span><span class="n">uint64_t</span><span class="w"> </span><span class="nb">abs</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">timebase_info</span><span class="o">.</span><span class="n">denom</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="p">(</span><span class="nb nb-Type">void</span><span class="p">)</span><span class="n">mach_timebase_info</span><span class="p">(</span><span class="o">&amp;</span><span class="n">timebase_info</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">abs</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">timebase_info</span><span class="o">.</span><span class="n">numer</span><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="n">timebase_info</span><span class="o">.</span><span class="n">denom</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">double</span><span class="w"> </span><span class="n">abs_to_seconds</span><span class="p">(</span><span class="n">uint64_t</span><span class="w"> </span><span class="nb">abs</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">abs_to_nanos</span><span class="p">(</span><span class="nb">abs</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">double</span><span class="p">)</span><span class="n">NANOS_PER_SEC</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>以下是编译器优化级别的摘要：</p>
+<div class="code"><pre class="code literal-block">[<span class="o">-</span><span class="nv">Onone</span>]<span class="w"> </span><span class="nv">no</span><span class="w"> </span><span class="nv">optimizations</span>,<span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">default</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">debug</span>.
+[<span class="o">-</span><span class="nv">O</span>]<span class="w">     </span><span class="nv">perform</span><span class="w"> </span><span class="nv">optimizations</span>,<span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">default</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">release</span>.
+[<span class="o">-</span><span class="nv">Ofast</span>]<span class="w"> </span><span class="nv">perform</span><span class="w"> </span><span class="nv">optimizations</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">disable</span><span class="w"> </span><span class="nv">runtime</span><span class="w"> </span><span class="nv">overflow</span><span class="w"> </span><span class="nv">checks</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">runtime</span><span class="w"> </span><span class="nv">type</span><span class="w"> </span><span class="nv">checks</span>.
+</pre></div>
+
+<p><strong>n=10_000</strong> 的 <strong>[-Onone]</strong> 时间（以秒为单位）： ****</p>
+<div class="code"><pre class="code literal-block"> Swift:            0.895296452
+C:                0.001223848
+</pre></div>
+
+<p>这是 Swift 的内置 sort() for <strong>n=10_000</strong> ：</p>
+<div class="code"><pre class="code literal-block"><span class="n">Swift_builtin</span><span class="o">:</span><span class="w">    </span><span class="mf">0.77865783</span>
+</pre></div>
+
+<p>这是 <strong>n=10_000</strong> 的 <strong>[-O]</strong> ： ****</p>
+<div class="code"><pre class="code literal-block"> Swift:            0.045478346
+C:                0.000784666
+Swift_builtin:    0.032513488
+</pre></div>
+
+<p>如您所见，Swift 的性能提高了 20 倍。</p>
+<p>根据mweathers 的回答，设置 <strong>[-Ofast]</strong> 会产生真正的不同，导致 <strong>n=10_000</strong> 的这些时间：</p>
+<div class="code"><pre class="code literal-block"><span class="n">Swift</span><span class="o">:</span><span class="w">            </span><span class="mf">0.000706745</span>
+<span class="n">C</span><span class="o">:</span><span class="w">                </span><span class="mf">0.000742374</span>
+<span class="n">Swift_builtin</span><span class="o">:</span><span class="w">    </span><span class="mf">0.000603576</span>
+</pre></div>
+
+<p>对于 <strong>n=1_000_000</strong> ：</p>
+<div class="code"><pre class="code literal-block"><span class="n">Swift</span><span class="o">:</span><span class="w">            </span><span class="mf">0.107111846</span>
+<span class="n">C</span><span class="o">:</span><span class="w">                </span><span class="mf">0.114957179</span>
+<span class="n">Swift_sort</span><span class="o">:</span><span class="w">       </span><span class="mf">0.092688548</span>
+</pre></div>
+
+<p>为了比较，这是 <strong>n=1_000_000</strong> 的 <strong>[-Onone]</strong> ： ****</p>
+<div class="code"><pre class="code literal-block"> Swift:            142.659763258
+C:                0.162065333
+Swift_sort:       114.095478272
+</pre></div>
+
+<p>因此，在这个开发阶段，没有优化的 Swift 在这个基准测试中几乎比 C 慢 1000 倍。另一方面，在两个编译器都设置为 [-Ofast]
+的情况下，Swift 实际上的表现至少与 C 一样好，如果不是略好的话。</p>
+<p>已经指出 [-Ofast] 改变了语言的语义，使其具有潜在的不安全性。这是 Apple 在 Xcode 5.0 发行说明中所说的：</p>
+<blockquote>
+<p>LLVM 中提供的新优化级别 -Ofast 支持积极的优化。-Ofast
+放宽了一些保守的限制，主要是针对浮点运算，这对大多数代码都是安全的。它可以从编译器中获得显着的高性能优势。</p>
+</blockquote>
+<p>他们都提倡它。我不能说这是否明智，但据我所知，如果您不进行高精度浮点运算并且您确信没有整数或您的程序中可能存在数组溢出。如果您确实需要高性能 <em>和</em>
+溢出检查/精确算术，那么现在就选择另一种语言。</p>
+<p>测试版 3 更新：</p>
+<p><strong>n=10_000</strong> 与 <strong>[-O]</strong> ：</p>
+<div class="code"><pre class="code literal-block"><span class="n">Swift</span><span class="o">:</span><span class="w">            </span><span class="mf">0.019697268</span>
+<span class="n">C</span><span class="o">:</span><span class="w">                </span><span class="mf">0.000718064</span>
+<span class="n">Swift_sort</span><span class="o">:</span><span class="w">       </span><span class="mf">0.002094721</span>
+</pre></div>
+
+<p>Swift 总的来说要快一点，而且看起来 Swift 的内置排序已经发生了相当大的变化。</p>
+<p><strong>最后更新：</strong></p>
+<p><strong>[-Onone]</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="n">Swift</span><span class="o">:</span><span class="w">   </span><span class="mf">0.678056695</span>
+<span class="n">C</span><span class="o">:</span><span class="w">       </span><span class="mf">0.000973914</span>
+</pre></div>
+
+<p><strong>[-O]</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="n">Swift</span><span class="o">:</span><span class="w">   </span><span class="mf">0.001158492</span>
+<span class="n">C</span><span class="o">:</span><span class="w">       </span><span class="mf">0.001192406</span>
+</pre></div>
+
+<p><strong>[-未选中]</strong> ：</p>
+<div class="code"><pre class="code literal-block"><span class="n">Swift</span><span class="o">:</span><span class="w">   </span><span class="mf">0.000827764</span>
+<span class="n">C</span><span class="o">:</span><span class="w">       </span><span class="mf">0.001078914</span>
+</pre></div>
+
+<p><br></p>
+<h3>更多建议</h3>
+<p><strong>TL;DR ：是的，</strong> <em>目前</em> 唯一的 Swift
+语言实现很慢。如果您需要快速的数字（和其他类型的代码，大概）代码，只需使用另一个。将来，您应该重新评估您的选择。不过，对于大多数在更高级别编写的应用程序代码来说，它可能已经足够好了。</p>
+<p>从我在 SIL 和 LLVM IR 中看到的情况来看，它们似乎需要大量优化来删除保留和释放，这可能在Clang（对于
+Objective-C）中实现，但它们尚未移植。这就是我要遵循的理论（现在……我仍然需要确认 Clang
+对此做了一些事情），因为分析器在这个问题的最后一个测试用例上运行会产生这个“漂亮”的结果：</p>
+<p><img alt="-O3 上的时间分析" src="https://i.imgur.com/ujaJ4aA.png"><img alt="-Ofast
+上的时间分析" src="https://i.imgur.com/t0s6DsZ.png"></p>
+<p>正如许多其他人所说，<code>-Ofast</code>完全不安全并且会改变语言语义。对我来说，它处于“如果你要使用它，就使用另一种语言”的阶段。如果它发生变化，我稍后会重新评估该选择。</p>
+<p><code>-O3``swift_retain</code>给我们带来了一堆<code>swift_release</code>，老实说，看起来他们不应该出现在这个例子中。优化器应该已经删除了（大部分）它们
+AFAICT，因为它知道关于数组的大部分信息，并且知道它（至少）对它有一个强引用。</p>
+<p>当它甚至不调用可能释放对象的函数时，它不应该发出更多的保留。我不认为数组构造函数可以返回一个比要求的数组小的数组，这意味着发出的许多检查都是无用的。它还知道整数永远不会超过
+10k，因此 <em>可以</em> 优化溢出检查（不是因为<code>-Ofast</code>奇怪，而是因为语言的语义（没有其他改变 var 也不能访问它，并且加起来达到 10k对于
+type 是安全的<code>Int</code>）。</p>
+<p>但是，编译器可能无法拆箱数组或数组元素，因为它们被传递给<code>sort()</code>，这是一个外部函数，必须获得它期望的参数。这将使我们不得不<code>Int</code>间接使用这些值，这会使它变慢一点。如果<code>sort()</code>泛型函数（不是以多方法方式）可用于编译器并被内联，这可能会改变。</p>
+<p>这是一种非常新的（公开的）语言，我认为它正在经历很多变化，因为有人（大量）参与 Swift 语言寻求反馈，他们都说语言尚未完成并且 <em>将会</em> 改变。</p>
+<p>使用的代码：</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">Cocoa</span>
+
+<span class="n">let</span> <span class="n">swift_start</span> <span class="o">=</span> <span class="n">NSDate</span><span class="o">.</span><span class="n">timeIntervalSinceReferenceDate</span><span class="p">();</span>
+<span class="n">let</span> <span class="n">n</span><span class="p">:</span> <span class="n">Int</span> <span class="o">=</span> <span class="mi">10000</span>
+<span class="n">let</span> <span class="n">x</span> <span class="o">=</span> <span class="n">Int</span><span class="p">[](</span><span class="n">count</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span> <span class="n">repeatedValue</span><span class="p">:</span> <span class="mi">1</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="mf">0.</span><span class="o">.</span><span class="n">n</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="mf">0.</span><span class="o">.</span><span class="n">n</span> <span class="p">{</span>
+        <span class="n">let</span> <span class="n">tmp</span><span class="p">:</span> <span class="n">Int</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">tmp</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">let</span> <span class="n">y</span><span class="p">:</span> <span class="n">Int</span><span class="p">[]</span> <span class="o">=</span> <span class="n">sort</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="n">let</span> <span class="n">swift_stop</span> <span class="o">=</span> <span class="n">NSDate</span><span class="o">.</span><span class="n">timeIntervalSinceReferenceDate</span><span class="p">();</span>
+
+<span class="n">println</span><span class="p">(</span><span class="s2">"\(swift_stop - swift_start)s"</span><span class="p">)</span>
+</pre></div>
+
+<p>P.S: I'm not an expert on Objective-C nor all the facilities from Cocoa,
+Objective-C, or the Swift runtimes. I might also be assuming some things that
+I didn't write.</p>
+<p><br><br><a href="../swift-beta-performance-sorting-arrays/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/compiler-optimization/" rel="tag">compiler-optimization</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+            <li><a class="tag p-category" href="../../categories/sorting/" rel="tag">sorting</a></li>
+            <li><a class="tag p-category" href="../../categories/swift/" rel="tag">swift</a></li>
+            <li><a class="tag p-category" href="../../categories/xcode6/" rel="tag">xcode6</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../jslint-tu-ran-bao-cuo-shi-yong-use-strict-de-han-shu-xing-shi/" rel="prev" title="JSLint 突然报错：使用“use strict”的函数形式">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../ru-he-cong-zi-fu-chuan-sheng-cheng-liu/" rel="next" title="如何从字符串生成流？">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

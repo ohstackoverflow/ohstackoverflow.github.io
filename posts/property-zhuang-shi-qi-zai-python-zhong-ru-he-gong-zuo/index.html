@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@property 装饰器在 Python 中如何工作？ | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/property-zhuang-shi-qi-zai-python-zhong-ru-he-gong-zuo/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../jiang-ming-ling-xing-can-shu-fa-song-dao-npm-jiao-ben/" title="将命令行参数发送到 npm 脚本" type="text/html">
+<link rel="next" href="../ru-he-zai-bu-ting-zhi-tui-chu-cheng-xu-de-qing-kuang-xia-bu-huo-bing-da-yin-wan-zheng-de-yi-chang-hui-su/" title="如何在不停止/退出程序的情况下捕获并打印完整的异常回溯？" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="@property 装饰器在 Python 中如何工作？">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/property-zhuang-shi-qi-zai-python-zhong-ru-he-gong-zuo/">
+<meta property="og:description" content="我想了解内置函数的property工作原理。让我困惑的是property也可以用作装饰器，但它只在用作内置函数时才接受参数，而不是用作装饰器时。
+此示例来自文档：
+class C:
+    def __init__(self):
+        self._x = None
+
+    def getx(self):
+        return self._x
+    def setx(self,">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T03:35:47+08:00">
+<meta property="article:tag" content="decorator">
+<meta property="article:tag" content="properties">
+<meta property="article:tag" content="python">
+<meta property="article:tag" content="python-decorators">
+<meta property="article:tag" content="python-internals">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">@property 装饰器在 Python 中如何工作？</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:35:47+08:00" itemprop="datePublished" title="2023-02-17 03:35">2023-02-17 03:35</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我想了解内置函数的<code>property</code>工作原理。让我困惑的是<code>property</code>也可以用作装饰器，但它只在用作内置函数时才接受参数，而不是用作装饰器时。</p>
+<p>此示例来自文档：</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">C:</span>
+    <span class="n">def</span> <span class="n">__init__</span>(<span class="nb">self</span>):
+        <span class="nb">self</span>.<span class="n">_x</span> = <span class="n">None</span>
+
+    <span class="n">def</span> <span class="n">getx</span>(<span class="nb">self</span>):
+        <span class="k">return</span> <span class="nb">self</span>.<span class="n">_x</span>
+    <span class="n">def</span> <span class="n">setx</span>(<span class="nb">self</span>, <span class="nb">value</span>):
+        <span class="nb">self</span>.<span class="n">_x</span> = <span class="nb">value</span>
+    <span class="n">def</span> <span class="n">delx</span>(<span class="nb">self</span>):
+        <span class="n">del</span> <span class="nb">self</span>.<span class="n">_x</span>
+    <span class="nb">x</span> = <span class="n">property</span>(<span class="n">getx</span>, <span class="n">setx</span>, <span class="n">delx</span>, <span class="s">"I'm the 'x' property."</span>)
+</pre></div>
+
+<p><code>property</code>的参数是<code>getx</code>, <code>setx</code>,<code>delx</code>和一个文档字符串。</p>
+<p>在下面的代码中<code>property</code>用作装饰器。它的对象是函数<code>x</code>，但在上面的代码中，参数中没有对象函数的位置。</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="nl">C</span><span class="p">:</span>
+<span class="w">    </span><span class="n">def</span><span class="w"> </span><span class="n">__init__</span><span class="p">(</span><span class="n">self</span><span class="p">)</span><span class="err">:</span>
+<span class="w">        </span><span class="n">self</span><span class="p">.</span><span class="n">_x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">None</span>
+
+<span class="w">    </span><span class="nv">@property</span>
+<span class="w">    </span><span class="n">def</span><span class="w"> </span><span class="n">x</span><span class="p">(</span><span class="n">self</span><span class="p">)</span><span class="err">:</span>
+<span class="w">        </span><span class="ss">"""I'm the 'x' property."""</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">_x</span>
+
+<span class="w">    </span><span class="nv">@x</span><span class="p">.</span><span class="n">setter</span>
+<span class="w">    </span><span class="n">def</span><span class="w"> </span><span class="n">x</span><span class="p">(</span><span class="n">self</span><span class="p">,</span><span class="w"> </span><span class="k">value</span><span class="p">)</span><span class="err">:</span>
+<span class="w">        </span><span class="n">self</span><span class="p">.</span><span class="n">_x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span>
+
+<span class="w">    </span><span class="nv">@x</span><span class="p">.</span><span class="n">deleter</span>
+<span class="w">    </span><span class="n">def</span><span class="w"> </span><span class="n">x</span><span class="p">(</span><span class="n">self</span><span class="p">)</span><span class="err">:</span>
+<span class="w">        </span><span class="n">del</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">_x</span>
+</pre></div>
+
+<p><code>x.setter</code>在这种情况下，装饰器和装饰器是如何<code>x.deleter</code>创建的？</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>该<code>property()</code>函数返回一个特殊的描述符对象：</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; property()
+&lt;property object at 0x10ff07940&gt;
+</pre></div>
+
+<p>这个对象有 <em>额外的</em> 方法：</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; property().getter
+&lt;built-in method getter of property object at 0x10ff07998&gt;
+&gt;&gt;&gt; property().setter
+&lt;built-in method setter of property object at 0x10ff07940&gt;
+&gt;&gt;&gt; property().deleter
+&lt;built-in method deleter of property object at 0x10ff07998&gt;
+</pre></div>
+
+<p>这些 <em>也充当</em> 装饰器。他们返回一个新的属性对象：</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; property().getter(None)
+&lt;property object at 0x10ff079f0&gt;
+</pre></div>
+
+<p>那是旧对象的副本，但替换了其中一个功能。</p>
+<p>请记住，<code>@decorator</code>语法只是语法糖；语法：</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@property</span>
+<span class="n">def</span><span class="w"> </span><span class="n">foo</span><span class="p">(</span><span class="n">self</span><span class="p">)</span><span class="err">:</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">_foo</span>
+</pre></div>
+
+<p>真的意味着同样的事情</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">foo</span><span class="ss">(</span><span class="nv">self</span><span class="ss">)</span>:<span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nv">self</span>.<span class="nv">_foo</span>
+<span class="nv">foo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">property</span><span class="ss">(</span><span class="nv">foo</span><span class="ss">)</span>
+</pre></div>
+
+<p>所以<code>foo</code>函数被替换为<code>property(foo)</code>，我们在上面看到的是一个特殊的对象。然后，当您使用
+时<code>@foo.setter()</code>，您正在做的是调用<code>property().setter</code>我在上面向您展示的那个方法，它返回属性的一个新副本，但这次用装饰方法替换了
+setter 函数。</p>
+<p>以下序列还通过使用这些装饰器方法创建了一个完整的属性。</p>
+<p>首先我们创建一些函数和一个<code>property</code>只有 getter 的对象：</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; def getter(self): print('Get!')
+... 
+&gt;&gt;&gt; def setter(self, value): print('Set to {!r}!'.format(value))
+... 
+&gt;&gt;&gt; def deleter(self): print('Delete!')
+... 
+&gt;&gt;&gt; prop = property(getter)
+&gt;&gt;&gt; prop.fget is getter
+True
+&gt;&gt;&gt; prop.fset is None
+True
+&gt;&gt;&gt; prop.fdel is None
+True
+</pre></div>
+
+<p>接下来我们使用<code>.setter()</code>方法添加一个setter：</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; prop = prop.setter(setter)
+&gt;&gt;&gt; prop.fget is getter
+True
+&gt;&gt;&gt; prop.fset is setter
+True
+&gt;&gt;&gt; prop.fdel is None
+True
+</pre></div>
+
+<p>最后我们使用<code>.deleter()</code>方法添加一个删除器：</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; prop = prop.deleter(deleter)
+&gt;&gt;&gt; prop.fget is getter
+True
+&gt;&gt;&gt; prop.fset is setter
+True
+&gt;&gt;&gt; prop.fdel is deleter
+True
+</pre></div>
+
+<p>最后但并非最不重要的一点是，该<code>property</code>对象充当描述符对象，因此它具有<code>.__get__()</code>和挂钩实例属性获取、设置和删除的方法：<code>.__set__()``.__delete__()</code></p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; class Foo: pass
+... 
+&gt;&gt;&gt; prop.__get__(Foo(), Foo)
+Get!
+&gt;&gt;&gt; prop.__set__(Foo(), 'bar')
+Set to 'bar'!
+&gt;&gt;&gt; prop.__delete__(Foo())
+Delete!
+</pre></div>
+
+<p>Descriptor Howto 包含该类型的纯 Python 示例实现<code>property()</code>：</p>
+<blockquote>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Property:</span>
+    <span class="s">"Emulate PyProperty_Type() in Objects/descrobject.c"</span>
+
+    <span class="n">def</span> <span class="n">__init__</span>(<span class="nb">self</span>, <span class="n">fget</span>=<span class="n">None</span>, <span class="n">fset</span>=<span class="n">None</span>, <span class="n">fdel</span>=<span class="n">None</span>, <span class="n">doc</span>=<span class="n">None</span>):
+        <span class="nb">self</span>.<span class="n">fget</span> = <span class="n">fget</span>
+        <span class="nb">self</span>.<span class="n">fset</span> = <span class="n">fset</span>
+        <span class="nb">self</span>.<span class="n">fdel</span> = <span class="n">fdel</span>
+        <span class="k">if</span> <span class="n">doc</span> <span class="k">is</span> <span class="n">None</span> <span class="o">and</span> <span class="n">fget</span> <span class="k">is</span> <span class="nb">not</span> <span class="n">None:</span>
+            <span class="n">doc</span> = <span class="n">fget</span>.<span class="n">__doc__</span>
+        <span class="nb">self</span>.<span class="n">__doc__</span> = <span class="n">doc</span>
+
+    <span class="n">def</span> <span class="n">__get__</span>(<span class="nb">self</span>, <span class="n">obj</span>, <span class="n">objtype</span>=<span class="n">None</span>):
+        <span class="k">if</span> <span class="n">obj</span> <span class="k">is</span> <span class="n">None:</span>
+            <span class="k">return</span> <span class="nb">self</span>
+        <span class="k">if</span> <span class="nb">self</span>.<span class="n">fget</span> <span class="k">is</span> <span class="n">None:</span>
+            <span class="n">raise</span> <span class="n">AttributeError</span>(<span class="s">"unreadable attribute"</span>)
+        <span class="k">return</span> <span class="nb">self</span>.<span class="n">fget</span>(<span class="n">obj</span>)
+
+    <span class="n">def</span> <span class="n">__set__</span>(<span class="nb">self</span>, <span class="n">obj</span>, <span class="nb">value</span>):
+        <span class="k">if</span> <span class="nb">self</span>.<span class="n">fset</span> <span class="k">is</span> <span class="n">None:</span>
+            <span class="n">raise</span> <span class="n">AttributeError</span>(<span class="s">"can't set attribute"</span>)
+        <span class="nb">self</span>.<span class="n">fset</span>(<span class="n">obj</span>, <span class="nb">value</span>)
+
+    <span class="n">def</span> <span class="n">__delete__</span>(<span class="nb">self</span>, <span class="n">obj</span>):
+        <span class="k">if</span> <span class="nb">self</span>.<span class="n">fdel</span> <span class="k">is</span> <span class="n">None:</span>
+            <span class="n">raise</span> <span class="n">AttributeError</span>(<span class="s">"can't delete attribute"</span>)
+        <span class="nb">self</span>.<span class="n">fdel</span>(<span class="n">obj</span>)
+
+    <span class="n">def</span> <span class="n">getter</span>(<span class="nb">self</span>, <span class="n">fget</span>):
+        <span class="k">return</span> <span class="nb">type</span>(<span class="nb">self</span>)(<span class="n">fget</span>, <span class="nb">self</span>.<span class="n">fset</span>, <span class="nb">self</span>.<span class="n">fdel</span>, <span class="nb">self</span>.<span class="n">__doc__</span>)
+
+    <span class="n">def</span> <span class="n">setter</span>(<span class="nb">self</span>, <span class="n">fset</span>):
+        <span class="k">return</span> <span class="nb">type</span>(<span class="nb">self</span>)(<span class="nb">self</span>.<span class="n">fget</span>, <span class="n">fset</span>, <span class="nb">self</span>.<span class="n">fdel</span>, <span class="nb">self</span>.<span class="n">__doc__</span>)
+
+    <span class="n">def</span> <span class="n">deleter</span>(<span class="nb">self</span>, <span class="n">fdel</span>):
+        <span class="k">return</span> <span class="nb">type</span>(<span class="nb">self</span>)(<span class="nb">self</span>.<span class="n">fget</span>, <span class="nb">self</span>.<span class="n">fset</span>, <span class="n">fdel</span>, <span class="nb">self</span>.<span class="n">__doc__</span>)
+</pre></div>
+
+</blockquote>
+<p><br></p>
+<h3>更多建议</h3>
+<p>文档说它只是创建只读属性的快捷方式。所以</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@property</span>
+<span class="n">def</span><span class="w"> </span><span class="n">x</span><span class="p">(</span><span class="n">self</span><span class="p">)</span><span class="err">:</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">_x</span>
+</pre></div>
+
+<p>相当于</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">getx</span><span class="ss">(</span><span class="nv">self</span><span class="ss">)</span>:
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">self</span>.<span class="nv">_x</span>
+<span class="nv">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">property</span><span class="ss">(</span><span class="nv">getx</span><span class="ss">)</span>
+</pre></div>
+
+<p><br><br><a href="../how-does-the-property-decorator-work-in-python/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/decorator/" rel="tag">decorator</a></li>
+            <li><a class="tag p-category" href="../../categories/properties/" rel="tag">properties</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+            <li><a class="tag p-category" href="../../categories/python-decorators/" rel="tag">python-decorators</a></li>
+            <li><a class="tag p-category" href="../../categories/python-internals/" rel="tag">python-internals</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../jiang-ming-ling-xing-can-shu-fa-song-dao-npm-jiao-ben/" rel="prev" title="将命令行参数发送到 npm 脚本">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../ru-he-zai-bu-ting-zhi-tui-chu-cheng-xu-de-qing-kuang-xia-bu-huo-bing-da-yin-wan-zheng-de-yi-chang-hui-su/" rel="next" title="如何在不停止/退出程序的情况下捕获并打印完整的异常回溯？">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

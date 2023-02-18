@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>如何在 MYSQL 中选择具有 MAX（列值）、PARTITION 的行？ | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/ru-he-zai-mysql-zhong-xuan-ze-ju-you-max-lie-zhi-partition-de-xing/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../xcode-cuo-wu-zhao-bu-dao-kai-fa-ren-yuan-ci-pan-ying-xiang/" title="Xcode 错误“找不到开发人员磁盘映像”" type="text/html">
+<link rel="next" href="../lie-biao-geng-gai-yi-wai-fan-ying-zai-zi-lie-biao-zhong/" title="列表更改意外反映在子列表中" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="如何在 MYSQL 中选择具有 MAX（列值）、PARTITION 的行？">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/ru-he-zai-mysql-zhong-xuan-ze-ju-you-max-lie-zhi-partition-de-xing/">
+<meta property="og:description" content="我有一张球员表现表：
+CREATE TABLE TopTen (
+  id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  home INT UNSIGNED NOT NULL,
+  `datetime`DATETIME NOT NULL,
+  player VARCHAR(6) NOT NULL,
+  resource INT NOT NULL
+);
+
+
+h">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T10:03:47+08:00">
+<meta property="article:tag" content="distinct">
+<meta property="article:tag" content="greatest-n-per-group">
+<meta property="article:tag" content="max">
+<meta property="article:tag" content="mysql">
+<meta property="article:tag" content="sql">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">如何在 MYSQL 中选择具有 MAX（列值）、PARTITION 的行？</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T10:03:47+08:00" itemprop="datePublished" title="2023-02-17 10:03">2023-02-17 10:03</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我有一张球员表现表：</p>
+<div class="code"><pre class="code literal-block"><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">TopTen</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="kt">INT</span><span class="w"> </span><span class="k">UNSIGNED</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">AUTO_INCREMENT</span><span class="p">,</span>
+<span class="w">  </span><span class="n">home</span><span class="w"> </span><span class="kt">INT</span><span class="w"> </span><span class="k">UNSIGNED</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n n-Quoted">`datetime`</span><span class="kt">DATETIME</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n">player</span><span class="w"> </span><span class="kt">VARCHAR</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="k">resource</span><span class="w"> </span><span class="kt">INT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="no">NULL</span>
+<span class="p">);</span>
+</pre></div>
+
+<p><code>home</code>什么查询将返回每个不同的保持其最大值的行<code>datetime</code>？换句话说，我怎样才能按最大值过滤<code>datetime</code>（按
+分组）并在结果中<code>home</code>仍然包含其他非分组、非聚合列（例如）？<code>player</code></p>
+<p>对于此示例数据：</p>
+<div class="code"><pre class="code literal-block"><span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">TopTen</span>
+<span class="w">  </span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">home</span><span class="p">,</span><span class="w"> </span><span class="n n-Quoted">`datetime`</span><span class="p">,</span><span class="w"> </span><span class="n">player</span><span class="p">,</span><span class="w"> </span><span class="k">resource</span><span class="p">)</span>
+<span class="k">VALUES</span>
+<span class="w">  </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="s1">'04/03/2009'</span><span class="p">,</span><span class="w"> </span><span class="s1">'john'</span><span class="p">,</span><span class="w"> </span><span class="mi">399</span><span class="p">),</span>
+<span class="w">  </span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="s1">'04/03/2009'</span><span class="p">,</span><span class="w"> </span><span class="s1">'juliet'</span><span class="p">,</span><span class="w"> </span><span class="mi">244</span><span class="p">),</span>
+<span class="w">  </span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="s1">'04/03/2009'</span><span class="p">,</span><span class="w"> </span><span class="s1">'borat'</span><span class="p">,</span><span class="w"> </span><span class="mi">555</span><span class="p">),</span>
+<span class="w">  </span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="s1">'03/03/2009'</span><span class="p">,</span><span class="w"> </span><span class="s1">'john'</span><span class="p">,</span><span class="w"> </span><span class="mi">300</span><span class="p">),</span>
+<span class="w">  </span><span class="p">(</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="s1">'03/03/2009'</span><span class="p">,</span><span class="w"> </span><span class="s1">'juliet'</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">),</span>
+<span class="w">  </span><span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="s1">'03/03/2009'</span><span class="p">,</span><span class="w"> </span><span class="s1">'borat'</span><span class="p">,</span><span class="w"> </span><span class="mi">500</span><span class="p">),</span>
+<span class="w">  </span><span class="p">(</span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">13</span><span class="p">,</span><span class="w"> </span><span class="s1">'24/12/2008'</span><span class="p">,</span><span class="w"> </span><span class="s1">'borat'</span><span class="p">,</span><span class="w"> </span><span class="mi">600</span><span class="p">),</span>
+<span class="w">  </span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">13</span><span class="p">,</span><span class="w"> </span><span class="s1">'01/01/2009'</span><span class="p">,</span><span class="w"> </span><span class="s1">'borat'</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">)</span>
+<span class="p">;</span>
+</pre></div>
+
+<p>结果应该是：</p>
+<table>
+<thead><tr>
+<th>ID</th>
+<th>家</th>
+<th>约会时间</th>
+<th>玩家</th>
+<th>资源</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>1个</td>
+<td>10</td>
+<td>04/03/2009</td>
+<td>约翰</td>
+<td>399</td>
+</tr>
+<tr>
+<td>2个</td>
+<td>11</td>
+<td>04/03/2009</td>
+<td>朱丽叶</td>
+<td>244</td>
+</tr>
+<tr>
+<td>5个</td>
+<td>12</td>
+<td>04/03/2009</td>
+<td>波拉特</td>
+<td>555</td>
+</tr>
+<tr>
+<td>8个</td>
+<td>13</td>
+<td>01/01/2009</td>
+<td>波拉特</td>
+<td>700</td>
+</tr>
+</tbody>
+</table>
+<p><code>datetime</code>我尝试了一个子查询获取每个的最大值<code>home</code>：</p>
+<div class="code"><pre class="code literal-block"><span class="c1">-- 1 ..by the MySQL manual:</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="k">DISTINCT</span>
+<span class="w">  </span><span class="n">home</span><span class="p">,</span>
+<span class="w">  </span><span class="n">id</span><span class="p">,</span>
+<span class="w">  </span><span class="kt">datetime</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">dt</span><span class="p">,</span>
+<span class="w">  </span><span class="n">player</span><span class="p">,</span>
+<span class="w">  </span><span class="k">resource</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">TopTen</span><span class="w"> </span><span class="n">t1</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n n-Quoted">`datetime`</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">SELECT</span>
+<span class="w">  </span><span class="nf">MAX</span><span class="p">(</span><span class="n">t2</span><span class="p">.</span><span class="kt">datetime</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">TopTen</span><span class="w"> </span><span class="n">t2</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">home</span><span class="p">)</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n n-Quoted">`datetime`</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n n-Quoted">`datetime`</span><span class="w"> </span><span class="k">DESC</span>
+</pre></div>
+
+<p>结果集有 130 行，而数据库有 187 行，表明结果包括一些重复的<code>home</code>.</p>
+<p><code>datetime</code>然后我尝试加入一个子查询，该子查询获取每一行的最大值<code>id</code>：</p>
+<div class="code"><pre class="code literal-block"><span class="c1">-- 2 ..join</span>
+
+<span class="k">SELECT</span>
+<span class="w">  </span><span class="n">s1</span><span class="p">.</span><span class="n">id</span><span class="p">,</span>
+<span class="w">  </span><span class="n">s1</span><span class="p">.</span><span class="n">home</span><span class="p">,</span>
+<span class="w">  </span><span class="n">s1</span><span class="p">.</span><span class="kt">datetime</span><span class="p">,</span>
+<span class="w">  </span><span class="n">s1</span><span class="p">.</span><span class="n">player</span><span class="p">,</span>
+<span class="w">  </span><span class="n">s1</span><span class="p">.</span><span class="k">resource</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">TopTen</span><span class="w"> </span><span class="n">s1</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="p">(</span><span class="k">SELECT</span>
+<span class="w">  </span><span class="n">id</span><span class="p">,</span>
+<span class="w">  </span><span class="nf">MAX</span><span class="p">(</span><span class="n n-Quoted">`datetime`</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">dt</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">TopTen</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">s2</span>
+<span class="w">  </span><span class="k">ON</span><span class="w"> </span><span class="n">s1</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s2</span><span class="p">.</span><span class="n">id</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n n-Quoted">`datetime`</span>
+</pre></div>
+
+<p>没有。给出所有记录。</p>
+<p>我尝试了各种异国情调的查询，每个查询都有不同的结果，但都没有让我更接近于解决这个问题。</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>你是如此接近！您需要做的就是同时选择家庭及其最大日期时间，然后<code>topten</code>在两个字段上加入表格：</p>
+<div class="code"><pre class="code literal-block">SELECT tt.*
+FROM topten tt
+INNER JOIN
+    (SELECT home, MAX(datetime) AS MaxDateTime
+    FROM topten
+    GROUP BY home) groupedtt 
+ON tt.home = groupedtt.home 
+AND tt.datetime = groupedtt.MaxDateTime
+</pre></div>
+
+<p><br></p>
+<h3>更多建议</h3>
+<p>最快的<code>MySQL</code>解决方案，没有内部查询，也没有<code>GROUP BY</code>：</p>
+<div class="code"><pre class="code literal-block"><span class="k">SELECT</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="o">*</span><span class="w">                    </span><span class="c1">-- get the row that contains the max value</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">topten</span><span class="w"> </span><span class="n">m</span><span class="w">                 </span><span class="c1">-- "m" from "max"</span>
+<span class="w">    </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">topten</span><span class="w"> </span><span class="n">b</span><span class="w">        </span><span class="c1">-- "b" from "bigger"</span>
+<span class="w">        </span><span class="k">ON</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="n">home</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">home</span><span class="w">    </span><span class="c1">-- match "max" row with "bigger" row by `home`</span>
+<span class="w">        </span><span class="k">AND</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="kt">datetime</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="kt">datetime</span><span class="w">           </span><span class="c1">-- want "bigger" than "max"</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="kt">datetime</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="no">NULL</span><span class="w">      </span><span class="c1">-- keep only if there is no bigger than max</span>
+</pre></div>
+
+<p><strong>解释</strong> ：</p>
+<p>使用列将表与自身连接起来<code>home</code>。使用<code>LEFT JOIN</code>确保表中的所有行都<code>m</code>出现在结果集中。那些在表中没有匹配项的列<code>b</code>将有s
+。<code>NULL``b</code></p>
+<p>上的另一个条件<code>JOIN</code>要求仅匹配列中的<code>b</code>值大于<code>datetime</code>列中的行的行<code>m</code>。</p>
+<p>使用问题中发布的数据，<code>LEFT JOIN</code>将生成以下对：</p>
+<div class="code"><pre class="code literal-block"><span class="nb">+------------------------------------------+--------------------------------+</span>
+<span class="c">|              the row from `m`            |    the matching row from `b`   |</span>
+<span class="c">|</span><span class="nb">------------------------------------------</span><span class="c">|</span><span class="nb">--------------------------------</span><span class="c">|</span>
+<span class="c">| id  home  datetime     player   resource | id    home   datetime      </span><span class="nt">...</span><span class="c"> |</span>
+<span class="c">|</span><span class="nb">----</span><span class="c">|</span><span class="nb">-----</span><span class="c">|</span><span class="nb">------------</span><span class="c">|</span><span class="nb">--------</span><span class="c">|</span><span class="nb">---------</span><span class="c">|</span><span class="nb">------</span><span class="c">|</span><span class="nb">------</span><span class="c">|</span><span class="nb">------------</span><span class="c">|</span><span class="nb">-----</span><span class="c">|</span>
+<span class="c">| 1  | 10  | 04/03/2009 | john   | 399     | NULL | NULL | NULL       | </span><span class="nt">...</span><span class="c"> | *</span>
+<span class="c">| 2  | 11  | 04/03/2009 | juliet | 244     | NULL | NULL | NULL       | </span><span class="nt">...</span><span class="c"> | *</span>
+<span class="c">| 5  | 12  | 04/03/2009 | borat  | 555     | NULL | NULL | NULL       | </span><span class="nt">...</span><span class="c"> | *</span>
+<span class="c">| 3  | 10  | 03/03/2009 | john   | 300     | 1    | 10   | 04/03/2009 | </span><span class="nt">...</span><span class="c"> |</span>
+<span class="c">| 4  | 11  | 03/03/2009 | juliet | 200     | 2    | 11   | 04/03/2009 | </span><span class="nt">...</span><span class="c"> |</span>
+<span class="c">| 6  | 12  | 03/03/2009 | borat  | 500     | 5    | 12   | 04/03/2009 | </span><span class="nt">...</span><span class="c"> |</span>
+<span class="c">| 7  | 13  | 24/12/2008 | borat  | 600     | 8    | 13   | 01/01/2009 | </span><span class="nt">...</span><span class="c"> |</span>
+<span class="c">| 8  | 13  | 01/01/2009 | borat  | 700     | NULL | NULL | NULL       | </span><span class="nt">...</span><span class="c"> | *</span>
+<span class="nb">+------------------------------------------+--------------------------------+</span>
+</pre></div>
+
+<p>最后，该子句仅保留在列中<code>WHERE</code>具有 s
+的对（它们在上表中标记为）；这意味着，由于子句中的第二个条件，从中选择的行在列中具有最大值。<code>NULL``b``*``JOIN``m``datetime</code></p>
+<p>阅读SQL Antipatterns: Avoiding the Pitfalls of Database Programming一书，了解其他 SQL
+技巧。</p>
+<p><br><br><a href="../how-can-i-select-rows-with-max-column-value-partition-by-another-column-in-mysql/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/distinct/" rel="tag">distinct</a></li>
+            <li><a class="tag p-category" href="../../categories/greatest-n-per-group/" rel="tag">greatest-n-per-group</a></li>
+            <li><a class="tag p-category" href="../../categories/max/" rel="tag">max</a></li>
+            <li><a class="tag p-category" href="../../categories/mysql/" rel="tag">mysql</a></li>
+            <li><a class="tag p-category" href="../../categories/sql/" rel="tag">sql</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../xcode-cuo-wu-zhao-bu-dao-kai-fa-ren-yuan-ci-pan-ying-xiang/" rel="prev" title="Xcode 错误“找不到开发人员磁盘映像”">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../lie-biao-geng-gai-yi-wai-fan-ying-zai-zi-lie-biao-zhong/" rel="next" title="列表更改意外反映在子列表中">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

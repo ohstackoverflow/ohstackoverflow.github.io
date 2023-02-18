@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>聚簇索引和非聚簇索引究竟是什么意思？ | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/ju-cu-suo-yin-he-fei-ju-cu-suo-yin-jiu-jing-shi-shi-yao-yi-si/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ru-he-sheng-cheng-sui-ji-zi-mu-shu-zi-zi-fu-chuan/" title="如何生成随机字母数字字符串？" type="text/html">
+<link rel="next" href="../ru-he-zai-python-zhong-lian-jie-di-huo-qu-da-wen-jian-de-xing-shu/" title="如何在 Python 中廉价地获取大文件的行数？" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="聚簇索引和非聚簇索引究竟是什么意思？">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/ju-cu-suo-yin-he-fei-ju-cu-suo-yin-jiu-jing-shi-shi-yao-yi-si/">
+<meta property="og:description" content="我对 DB 的了解有限，并且只将 DB 作为应用程序程序员使用过。我想知道关于Clustered和Non clustered
+indexes。我用谷歌搜索，发现的是：
+
+聚簇索引是一种特殊类型的索引，它重新排序表中记录的物理存储方式。
+因此表只能有一个聚簇索引。聚集索引的叶节点包含数据页。非聚集索引是一种特殊类型的索引，其中索引的逻辑顺序与磁盘上行的物理存储顺序不匹配。非聚集索引的叶节点不包含数据">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T04:02:03+08:00">
+<meta property="article:tag" content="clustered-index">
+<meta property="article:tag" content="indexing">
+<meta property="article:tag" content="non-clustered-index">
+<meta property="article:tag" content="performance">
+<meta property="article:tag" content="sql-server">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">聚簇索引和非聚簇索引究竟是什么意思？</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:02:03+08:00" itemprop="datePublished" title="2023-02-17 04:02">2023-02-17 04:02</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我对 DB 的了解有限，并且只将 DB 作为应用程序程序员使用过。我想知道关于<code>Clustered</code>和<code>Non clustered
+indexes</code>。我用谷歌搜索，发现的是：</p>
+<blockquote>
+<p><em>聚簇索引是一种特殊类型的索引，它重新排序表中记录的物理存储方式。
+因此表只能有一个聚簇索引。聚集索引的叶节点包含数据页。非聚集索引是一种特殊类型的索引，其中索引的逻辑顺序与磁盘上行的物理存储顺序不匹配。非聚集索引的叶节点不包含数据页。相反，叶节点包含索引行。</em></p>
+</blockquote>
+<p>我在 SO 中发现的是聚集索引和非聚集索引之间有什么区别？.</p>
+<p>有人可以用简单的英语解释一下吗？</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>使用聚簇索引，行以与索引相同的顺序物理存储在磁盘上。因此，只能有一个聚簇索引。</p>
+<p>对于非聚集索引，还有第二个列表，其中包含指向物理行的指针。您可以有许多非聚簇索引，尽管每个新索引都会增加写入新记录所需的时间。</p>
+<p>如果您想取回所有列，从聚集索引读取通常更快。您不必先访问索引再访问表。</p>
+<p>如果需要重新排列数据，写入具有聚集索引的表可能会更慢。</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>聚簇索引意味着您告诉数据库在磁盘上存储实际上彼此接近的接近值。这有利于快速扫描/检索落入某些聚簇索引值范围内的记录。</p>
+<p>例如，您有两个表，Customer 和 Order：</p>
+<div class="code"><pre class="code literal-block">Customer
+----------
+ID
+Name
+Address
+
+Order
+----------
+ID
+CustomerID
+Price
+</pre></div>
+
+<p>如果您希望快速检索某个特定客户的所有订单，您可能希望在 Order 表的“CustomerID”列上创建一个聚集索引。这样，具有相同 CustomerID
+的记录将在物理上彼此靠近地存储在磁盘上（集群），从而加快了它们的检索速度。</p>
+<p>PS CustomerID 上的索引显然不是唯一的，因此您要么需要添加第二个字段来“唯一化”索引，要么让数据库为您处理，但这是另一回事了。</p>
+<p>关于多指标。每个表只能有一个聚簇索引，因为这定义了数据的物理排列方式。如果您想打个比方，请想象一个有很多桌子的大房间。您可以将这些桌子排成几排，也可以将它们放在一起形成一张大会议桌，但不能同时采用两种方式。一个表可以有其他索引，然后它们将指向聚集索引中的条目，而聚集索引又将最终说明在哪里可以找到实际数据。</p>
+<p><br><br><a href="../what-do-clustered-and-non-clustered-index-actually-mean/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/clustered-index/" rel="tag">clustered-index</a></li>
+            <li><a class="tag p-category" href="../../categories/indexing/" rel="tag">indexing</a></li>
+            <li><a class="tag p-category" href="../../categories/non-clustered-index/" rel="tag">non-clustered-index</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+            <li><a class="tag p-category" href="../../categories/sql-server/" rel="tag">sql-server</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ru-he-sheng-cheng-sui-ji-zi-mu-shu-zi-zi-fu-chuan/" rel="prev" title="如何生成随机字母数字字符串？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../ru-he-zai-python-zhong-lian-jie-di-huo-qu-da-wen-jian-de-xing-shu/" rel="next" title="如何在 Python 中廉价地获取大文件的行数？">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

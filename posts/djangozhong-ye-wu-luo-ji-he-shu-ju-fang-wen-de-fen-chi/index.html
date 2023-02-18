@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>django中业务逻辑和数据访问的分离 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/djangozhong-ye-wu-luo-ji-he-shu-ju-fang-wen-de-fen-chi/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ru-he-ti-huan-zi-fu-chuan-zhong-suo-you-chu-xian-de-zi-fu/" title="如何替换字符串中所有出现的字符？" type="text/html">
+<link rel="next" href="../python-zhong-subprocess-pipe-de-fei-zu-sai-du-qu/" title="Python 中 subprocess.PIPE 的非阻塞读取" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="django中业务逻辑和数据访问的分离">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/djangozhong-ye-wu-luo-ji-he-shu-ju-fang-wen-de-fen-chi/">
+<meta property="og:description" content="我正在用 Django 编写一个项目，我看到 80% 的代码都在文件models.py. 这段代码令人困惑，一段时间后，我不再理解到底发生了什么。
+这是困扰我的事情：
+
+我发现我的模型级别（应该只负责处理数据库中的数据）也发送电子邮件、走 API 到其他服务等很丑陋。
+另外，我觉得将业务逻辑放在视图中是不可接受的，因为这样会变得难以控制。例如，在我的应用程序中，至少有三种创建新实例的方法User，">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-18T00:48:39+08:00">
+<meta property="article:tag" content="business-logic-layer">
+<meta property="article:tag" content="data-access-layer">
+<meta property="article:tag" content="django">
+<meta property="article:tag" content="model-view-controller">
+<meta property="article:tag" content="python">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">django中业务逻辑和数据访问的分离</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:48:39+08:00" itemprop="datePublished" title="2023-02-18 00:48">2023-02-18 00:48</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我正在用 Django 编写一个项目，我看到 80% 的代码都在文件<code>models.py</code>. 这段代码令人困惑，一段时间后，我不再理解到底发生了什么。</p>
+<p>这是困扰我的事情：</p>
+<ol>
+<li>我发现我的模型级别（应该只负责处理数据库中的数据）也发送电子邮件、走 API 到其他服务等很丑陋。</li>
+<li>另外，我觉得将业务逻辑放在视图中是不可接受的，因为这样会变得难以控制。例如，在我的应用程序中，至少有三种创建新实例的方法<code>User</code>，但从技术上讲，它应该统一创建它们。</li>
+<li>我并不总是注意到我的模型的方法和属性何时变得不确定以及何时产生副作用。</li>
+</ol>
+<p>这是一个简单的例子。一开始，<code>User</code>模型是这样的：</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">User</span>(<span class="n">db</span>.<span class="n">Models</span>):
+
+    <span class="n">def</span> <span class="n">get_present_name</span>(<span class="nb">self</span>):
+        <span class="k">return</span> <span class="nb">self</span>.<span class="nb">name</span> <span class="o">or</span> <span class="s">'Anonymous'</span>
+
+    <span class="n">def</span> <span class="n">activate</span>(<span class="nb">self</span>):
+        <span class="nb">self</span>.<span class="nb">status</span> = <span class="s">'activated'</span>
+        <span class="nb">self</span>.<span class="n">save</span>()
+</pre></div>
+
+<p>久而久之，就变成了这样：</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">User</span>(<span class="n">db</span>.<span class="n">Models</span>):
+
+    <span class="n">def</span> <span class="n">get_present_name</span>(<span class="nb">self</span>): 
+        <span class="c1"># property became non-deterministic in terms of database</span>
+        <span class="c1"># data is taken from another service by api</span>
+        <span class="k">return</span> <span class="n">remote_api</span>.<span class="n">request_user_name</span>(<span class="nb">self</span>.<span class="n">uid</span>) <span class="o">or</span> <span class="s">'Anonymous'</span>
+
+    <span class="n">def</span> <span class="n">activate</span>(<span class="nb">self</span>):
+        <span class="c1"># method now has a side effect (send message to user)</span>
+        <span class="nb">self</span>.<span class="nb">status</span> = <span class="s">'activated'</span>
+        <span class="nb">self</span>.<span class="n">save</span>()
+        <span class="n">send_mail</span>(<span class="s">'Your account is activated!'</span>, <span class="s">'…'</span>, [<span class="nb">self</span>.<span class="n">email</span>])
+</pre></div>
+
+<p>我想要的是在我的代码中分离实体：</p>
+<ol>
+<li><strong>数据库级实体，即数据库级逻辑：我的应用程序存储什么样的数据？</strong></li>
+<li><strong>应用程序级实体，即业务级逻辑：我的应用程序做什么？</strong></li>
+</ol>
+<p>实施这种可以在 Django 中应用的方法的良好做法是什么？</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>您似乎在询问 <em>数据模型</em> 和 <em>域模型</em> 之间的区别——后者是您可以找到最终用户所感知的业务逻辑和实体的地方，前者是您实际存储数据的地方。</p>
+<p>此外，我将您问题的第三部分解释为：如何注意到未能将这些模型分开。</p>
+<p>这是两个截然不同的概念，总是很难将它们分开。但是，有一些通用模式和工具可用于此目的。</p>
+<h3>关于领域模型</h3>
+<p>您需要认识到的第一件事是您的领域模型并不是真正关于数据的；它是关于数据的。它是关于诸如“激活此用户”、“停用此用户”、“当前激活了哪些用户？”和“此用户的姓名是什么？”等操作
+<em>和</em> 问题 <em>。</em> 用经典的话来说：它是关于 <em>查询</em> 和 <em>命令</em> 的。</p>
+<h3>在命令中思考</h3>
+<p>让我们首先查看示例中的命令：“激活此用户”和“停用此用户”。命令的好处在于它们可以很容易地用小的 given-when-then 场景来表达：</p>
+<blockquote>
+<p><strong><em>*当管理员激活该用户<br></em>*时</strong> <strong>给定</strong> 一个非活动用户<br><strong>然后</strong> 用户变为活动用户<br><strong>并向</strong> 用户发送确认电子邮件<br><strong>并将</strong> 条目添加到系统日志<br>
+（等等）</p>
+</blockquote>
+<p>此类场景有助于了解您的基础设施的不同部分如何受单个命令的影响——在本例中是您的数据库（某种“活动”标志）、您的邮件服务器、您的系统日志等。</p>
+<p>这种情况也确实可以帮助您设置测试驱动开发环境。</p>
+<p>最后，用命令思考确实可以帮助您创建面向任务的应用程序。您的用户会很感激 :-)</p>
+<h3>表达命令</h3>
+<p>Django 提供了两种简单的命令表达方式；它们都是有效的选择，混合使用这两种方法并不罕见。</p>
+<h4>服务层</h4>
+<p>@Hedde已经描述了服务 <em>模块</em> 。您在这里定义了一个单独的模块，每个命令都表示为一个函数。</p>
+<p><strong>服务.py</strong></p>
+<div class="code"><pre class="code literal-block">def activate_user(user_id):
+    user = User.objects.get(pk=user_id)
+
+    # set active flag
+    user.active = True
+    user.save()
+
+    # mail user
+    send_mail(...)
+
+    # etc etc
+</pre></div>
+
+<h4>使用表格</h4>
+<p>另一种方法是为每个命令使用一个 Django 表单。我更喜欢这种方法，因为它结合了多个密切相关的方面：</p>
+<ul>
+<li>命令的执行（它做什么？）</li>
+<li>命令参数的验证（它能做到这一点吗？）</li>
+<li>命令的介绍（我该怎么做？）</li>
+</ul>
+<p><strong>表单.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nt">class</span><span class="w"> </span><span class="nt">ActivateUserForm</span><span class="o">(</span><span class="nt">forms</span><span class="p">.</span><span class="nc">Form</span><span class="o">):</span>
+
+<span class="w">    </span><span class="nt">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">IntegerField</span><span class="o">(</span><span class="nt">widget</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">UsernameSelectWidget</span><span class="o">,</span><span class="w"> </span><span class="nt">verbose_name</span><span class="o">=</span><span class="s2">"Select a user to activate"</span><span class="o">)</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">username</span><span class="w"> </span><span class="nt">select</span><span class="w"> </span><span class="nt">widget</span><span class="w"> </span><span class="nt">is</span><span class="w"> </span><span class="nt">not</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="nt">standard</span><span class="w"> </span><span class="nt">Django</span><span class="w"> </span><span class="nt">widget</span><span class="o">,</span><span class="w"> </span><span class="nt">I</span><span class="w"> </span><span class="nt">just</span><span class="w"> </span><span class="nt">made</span><span class="w"> </span><span class="nt">it</span><span class="w"> </span><span class="nt">up</span>
+
+<span class="w">    </span><span class="nt">def</span><span class="w"> </span><span class="nt">clean_user_id</span><span class="o">(</span><span class="nt">self</span><span class="o">):</span>
+<span class="w">        </span><span class="nt">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">self</span><span class="p">.</span><span class="nc">cleaned_data</span><span class="cp">[</span><span class="s1">'user_id'</span><span class="cp">]</span>
+<span class="w">        </span><span class="nt">if</span><span class="w"> </span><span class="nt">User</span><span class="p">.</span><span class="nc">objects</span><span class="p">.</span><span class="nc">get</span><span class="o">(</span><span class="nt">pk</span><span class="o">=</span><span class="nt">user_id</span><span class="o">)</span><span class="p">.</span><span class="nc">active</span><span class="o">:</span>
+<span class="w">            </span><span class="nt">raise</span><span class="w"> </span><span class="nt">ValidationError</span><span class="o">(</span><span class="s2">"This user cannot be activated"</span><span class="o">)</span>
+<span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">you</span><span class="w"> </span><span class="nt">can</span><span class="w"> </span><span class="nt">also</span><span class="w"> </span><span class="nt">check</span><span class="w"> </span><span class="nt">authorizations</span><span class="w"> </span><span class="nt">etc</span><span class="o">.</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">return</span><span class="w"> </span><span class="nt">user_id</span>
+
+<span class="w">    </span><span class="nt">def</span><span class="w"> </span><span class="nt">execute</span><span class="o">(</span><span class="nt">self</span><span class="o">):</span>
+<span class="w">        </span><span class="s2">"""</span>
+<span class="s2">        This is not a standard method in the forms API; it is intended to replace the </span>
+<span class="s2">        'extract-data-from-form-in-view-and-do-stuff' pattern by a more testable pattern. </span>
+<span class="s2">        """</span>
+<span class="w">        </span><span class="nt">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">self</span><span class="p">.</span><span class="nc">cleaned_data</span><span class="cp">[</span><span class="s1">'user_id'</span><span class="cp">]</span>
+
+<span class="w">        </span><span class="nt">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">User</span><span class="p">.</span><span class="nc">objects</span><span class="p">.</span><span class="nc">get</span><span class="o">(</span><span class="nt">pk</span><span class="o">=</span><span class="nt">user_id</span><span class="o">)</span>
+
+<span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">set</span><span class="w"> </span><span class="nt">active</span><span class="w"> </span><span class="nt">flag</span>
+<span class="w">        </span><span class="nt">user</span><span class="p">.</span><span class="nc">active</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">True</span>
+<span class="w">        </span><span class="nt">user</span><span class="p">.</span><span class="nc">save</span><span class="o">()</span>
+
+<span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">mail</span><span class="w"> </span><span class="nt">user</span>
+<span class="w">        </span><span class="nt">send_mail</span><span class="o">(...)</span>
+
+<span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">etc</span><span class="w"> </span><span class="nt">etc</span>
+</pre></div>
+
+<h3>在查询中思考</h3>
+<p>您的示例不包含任何查询，因此我冒昧地提出了一些有用的查询。我更喜欢使用术语“问题”，但查询是经典术语。有趣的查询是：“这个用户的名字是什么？”、“这个用户可以登录吗？”、“显示停用用户列表”和“停用用户的地理分布是什么？”</p>
+<p>在着手回答这些问题之前，您应该始终问自己这个问题，是这样的：</p>
+<ul>
+<li>仅针对我的模板的 <em>演示</em> 查询，和/或</li>
+<li>与执行我的命令相关的 <em>业务逻辑</em> 查询，和/或</li>
+<li>报告 <em>查询</em> 。</li>
+</ul>
+<p>演示查询仅用于改进用户界面。业务逻辑查询的答案直接影响命令的执行。报告查询仅用于分析目的，并且具有更宽松的时间限制。这些类别并不相互排斥。</p>
+<p>另一个问题是：“我能完全控制答案吗？” 例如，当查询用户名（在此上下文中）时，我们无法控制结果，因为我们依赖于外部 API。</p>
+<h3>进行查询</h3>
+<p>Django 中最基本的查询是使用 Manager 对象：</p>
+<div class="code"><pre class="code literal-block">User.objects.filter(active=True)
+</pre></div>
+
+<p>当然，这只有在数据实际表示在您的数据模型中时才有效。这并非总是如此。在这些情况下，您可以考虑以下选项。</p>
+<h4>自定义标签和过滤器</h4>
+<p>第一种选择对于仅表示形式的查询很有用：自定义标记和模板过滤器。</p>
+<p><strong>模板.html</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;h1&gt;</span>Welcome,<span class="w"> </span><span class="cp">{{</span> <span class="nv">user</span><span class="o">|</span><span class="nf">friendly_name</span> <span class="cp">}}</span><span class="nt">&lt;/h1&gt;</span>
+</pre></div>
+
+<p><strong>模板标签.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">@register</span><span class="p">.</span><span class="k">filter</span>
+<span class="n">def</span><span class="w"> </span><span class="n">friendly_name</span><span class="p">(</span><span class="k">user</span><span class="p">)</span><span class="err">:</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">remote_api</span><span class="p">.</span><span class="n">get_cached_name</span><span class="p">(</span><span class="k">user</span><span class="p">.</span><span class="n">id</span><span class="p">)</span>
+</pre></div>
+
+<h4>查询方法</h4>
+<p>如果您的查询不仅仅是表示性的，您可以将查询添加到您的 <strong>services.py</strong> （如果您正在使用它），或者引入一个 <strong>queries.py</strong>
+模块：</p>
+<p><strong>查询.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">inactive_users</span><span class="ss">()</span>:
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">User</span>.<span class="nv">objects</span>.<span class="nv">filter</span><span class="ss">(</span><span class="nv">active</span><span class="o">=</span><span class="nv">False</span><span class="ss">)</span>
+
+
+<span class="nv">def</span><span class="w"> </span><span class="nv">users_called_publysher</span><span class="ss">()</span>:
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nv">user</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">User</span>.<span class="nv">objects</span>.<span class="nv">all</span><span class="ss">()</span>:
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nv">remote_api</span>.<span class="nv">get_cached_name</span><span class="ss">(</span><span class="nv">user</span>.<span class="nv">id</span><span class="ss">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"publysher"</span>:
+<span class="w">            </span><span class="nv">yield</span><span class="w"> </span><span class="nv">user</span>
+</pre></div>
+
+<h4>代理模型</h4>
+<p>代理模型在业务逻辑和报告的上下文中非常有用。您基本上定义了模型的增强子集。您可以通过重写该方法来重写 Manager 的基本 QuerySet
+<code>Manager.get_queryset()</code>。</p>
+<p><strong>模型.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">InactiveUserManager</span>(<span class="n">models</span>.<span class="n">Manager</span>):
+    <span class="n">def</span> <span class="n">get_queryset</span>(<span class="nb">self</span>):
+        <span class="n">query_set</span> = <span class="n">super</span>(<span class="n">InactiveUserManager</span>, <span class="nb">self</span>).<span class="n">get_queryset</span>()
+        <span class="k">return</span> <span class="n">query_set</span>.<span class="n">filter</span>(<span class="n">active</span>=<span class="nb">False</span>)
+
+<span class="k">class</span> <span class="n">InactiveUser</span>(<span class="n">User</span>):
+    <span class="s">"""</span>
+<span class="s">    &gt;&gt;&gt; for user in InactiveUser.objects.all():</span>
+<span class="s">    …        assert user.active is False </span>
+<span class="s">    """</span>
+
+    <span class="n">objects</span> = <span class="n">InactiveUserManager</span>()
+    <span class="k">class</span> <span class="n">Meta:</span>
+        <span class="n">proxy</span> = <span class="nb">True</span>
+</pre></div>
+
+<h4>查询机型</h4>
+<p>对于本质上复杂但经常执行的查询，可以使用查询模型。查询模型是一种非规范化形式，其中单个查询的相关数据存储在单独的模型中。诀窍当然是让非规范化模型与主要模型保持同步。仅当更改完全在您的控制之下时，才能使用查询模型。</p>
+<p><strong>模型.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">InactiveUserDistribution</span>(<span class="n">models</span>.<span class="n">Model</span>):
+    <span class="n">country</span> = <span class="n">CharField</span>(<span class="n">max_length</span>=<span class="mi">200</span>)
+    <span class="n">inactive_user_count</span> = <span class="n">IntegerField</span>(<span class="k">default</span>=<span class="mi">0</span>)
+</pre></div>
+
+<p>第一个选项是在您的命令中更新这些模型。如果这些模型仅由一个或两个命令更改，这将非常有用。</p>
+<p><strong>表单.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">ActivateUserForm</span>(<span class="n">forms</span>.<span class="n">Form</span>):
+    <span class="c1"># see above</span>
+
+    <span class="n">def</span> <span class="n">execute</span>(<span class="nb">self</span>):
+        <span class="c1"># see above</span>
+        <span class="n">query_model</span> = <span class="n">InactiveUserDistribution</span>.<span class="n">objects</span>.<span class="n">get_or_create</span>(<span class="n">country</span>=<span class="n">user</span>.<span class="n">country</span>)
+        <span class="n">query_model</span>.<span class="n">inactive_user_count</span> -= <span class="mi">1</span>
+        <span class="n">query_model</span>.<span class="n">save</span>()
+</pre></div>
+
+<p>更好的选择是使用自定义信号。这些信号当然是由您的命令发出的。信号的优势在于您可以使多个查询模型与原始模型保持同步。此外，可以使用 Celery
+或类似框架将信号处理卸载到后台任务。</p>
+<p><strong>信号.py</strong></p>
+<div class="code"><pre class="code literal-block">user_activated = Signal(providing_args = ['user'])
+user_deactivated = Signal(providing_args = ['user'])
+</pre></div>
+
+<p><strong>表单.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">ActivateUserForm</span>(<span class="n">forms</span>.<span class="n">Form</span>):
+    <span class="c1"># see above</span>
+
+    <span class="n">def</span> <span class="n">execute</span>(<span class="nb">self</span>):
+        <span class="c1"># see above</span>
+        <span class="n">user_activated</span>.<span class="n">send_robust</span>(<span class="n">sender</span>=<span class="nb">self</span>, <span class="n">user</span>=<span class="n">user</span>)
+</pre></div>
+
+<p><strong>模型.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">InactiveUserDistribution</span><span class="p">(</span><span class="n">models</span><span class="p">.</span><span class="n">Model</span><span class="p">)</span><span class="err">:</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="n">above</span>
+
+<span class="nv">@receiver</span><span class="p">(</span><span class="n">user_activated</span><span class="p">)</span>
+<span class="n">def</span><span class="w"> </span><span class="n">on_user_activated</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="err">:</span>
+<span class="w">        </span><span class="k">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kwargs</span><span class="o">[</span><span class="n">'user'</span><span class="o">]</span>
+<span class="w">        </span><span class="n">query_model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">InactiveUserDistribution</span><span class="p">.</span><span class="n">objects</span><span class="p">.</span><span class="n">get_or_create</span><span class="p">(</span><span class="n">country</span><span class="o">=</span><span class="k">user</span><span class="p">.</span><span class="n">country</span><span class="p">)</span>
+<span class="w">        </span><span class="n">query_model</span><span class="p">.</span><span class="n">inactive_user_count</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">        </span><span class="n">query_model</span><span class="p">.</span><span class="k">save</span><span class="p">()</span>
+</pre></div>
+
+<h3>Keeping it clean</h3>
+<p>When using this approach, it becomes ridiculously easy to determine if your
+code stays clean. Just follow these guidelines:</p>
+<ul>
+<li>Does my model contain methods that do more than managing database state? You should extract a command.</li>
+<li>Does my model contain properties that do not map to database fields? You should extract a query.</li>
+<li>Does my model reference infrastructure that is not my database (such as mail)? You should extract a command.</li>
+</ul>
+<p>The same goes for views (because views often suffer from the same problem).</p>
+<ul>
+<li>Does my view actively manage database models? You should extract a command.</li>
+</ul>
+<h3>Some References</h3>
+<p>Django documentation: proxy models</p>
+<p>Django documentation: signals</p>
+<p>Architecture: Domain Driven Design</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>我通常在视图和模型之间实现一个服务层。这就像您的项目的 API 一样，让您可以清楚地了解正在发生的事情。我从我的一位同事那里继承了这种做法，他在 Java
+项目 (JSF) 中大量使用这种分层技术，例如：</p>
+<p><strong>模型.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Book:</span>
+   <span class="n">author</span> = <span class="n">models</span>.<span class="n">ForeignKey</span>(<span class="n">User</span>)
+   <span class="n">title</span> = <span class="n">models</span>.<span class="n">CharField</span>(<span class="n">max_length</span>=<span class="mi">125</span>)
+
+   <span class="k">class</span> <span class="n">Meta:</span>
+       <span class="n">app_label</span> = <span class="s">"library"</span>
+</pre></div>
+
+<p><strong>服务.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">library.models</span> <span class="kn">import</span> <span class="n">Book</span>
+
+<span class="k">def</span> <span class="nf">get_books</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">filters</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">""" simple service function for retrieving books can be widely extended """</span>
+    <span class="k">return</span> <span class="n">Book</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="o">**</span><span class="n">filters</span><span class="p">)[:</span><span class="n">limit</span><span class="p">]</span>  <span class="c1"># list[:None] will return the entire list</span>
+</pre></div>
+
+<p><strong>视图.py</strong></p>
+<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">library.services</span> <span class="kn">import</span> <span class="n">get_books</span>
+
+<span class="k">class</span> <span class="nc">BookListView</span><span class="p">(</span><span class="n">ListView</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">""" simple view, e.g. implement a _build and _apply filters function """</span>
+    <span class="n">queryset</span> <span class="o">=</span> <span class="n">get_books</span><span class="p">()</span>
+</pre></div>
+
+<blockquote>
+<p>请注意，我通常将模型、视图和服务置于模块级别，并根据项目的大小进一步分离</p>
+</blockquote>
+<p><br><br><a href="../separation-of-business-logic-and-data-access-in-django/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/business-logic-layer/" rel="tag">business-logic-layer</a></li>
+            <li><a class="tag p-category" href="../../categories/data-access-layer/" rel="tag">data-access-layer</a></li>
+            <li><a class="tag p-category" href="../../categories/django/" rel="tag">django</a></li>
+            <li><a class="tag p-category" href="../../categories/model-view-controller/" rel="tag">model-view-controller</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ru-he-ti-huan-zi-fu-chuan-zhong-suo-you-chu-xian-de-zi-fu/" rel="prev" title="如何替换字符串中所有出现的字符？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../python-zhong-subprocess-pipe-de-fei-zu-sai-du-qu/" rel="next" title="Python 中 subprocess.PIPE 的非阻塞读取">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

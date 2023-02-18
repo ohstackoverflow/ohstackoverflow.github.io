@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>什么是长轮询、Websockets、服务器发送事件 (SSE) 和 Comet？ | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/shi-yao-shi-chang-lun-xun-websockets-fu-wu-qi-fa-song-shi-jian-sse-he-comet/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../save-he-save-dev-you-shi-yao-qu-bie/" title="--save 和 --save-dev 有什么区别？" type="text/html">
+<link rel="next" href="../wo-ying-gai-fang-shebang-zai-python-jiao-ben-zhong-ta-ying-gai-cai-yong-shi-yao-xing-shi/" title="我应该放#! (shebang) 在 Python 脚本中，它应该采用什么形式？" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="什么是长轮询、Websockets、服务器发送事件 (SSE) 和 Comet？">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/shi-yao-shi-chang-lun-xun-websockets-fu-wu-qi-fa-song-shi-jian-sse-he-comet/">
+<meta property="og:description" content="我试过阅读一些文章，但我对这些概念还不是很清楚。
+有人愿意尝试向我解释一下这些技术是什么吗：
+
+长轮询
+服务器发送的事件
+网络套接字
+彗星
+
+我每次遇到的一件事是，服务器保持连接打开并将数据推送到客户端。连接是如何保持打开的，客户端又是如何获取推送的数据的？（客户端如何使用数据，也许一些代码可能有帮助？）
+现在，我应该将其中的哪一个用于实时应用程序。我听说过很多关于 websockets（通过 s">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T04:58:45+08:00">
+<meta property="article:tag" content="comet">
+<meta property="article:tag" content="long-polling">
+<meta property="article:tag" content="php">
+<meta property="article:tag" content="server-sent-events">
+<meta property="article:tag" content="websocket">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">什么是长轮询、Websockets、服务器发送事件 (SSE) 和 Comet？</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:58:45+08:00" itemprop="datePublished" title="2023-02-17 04:58">2023-02-17 04:58</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我试过阅读一些文章，但我对这些概念还不是很清楚。</p>
+<p>有人愿意尝试向我解释一下这些技术是什么吗：</p>
+<ol>
+<li>长轮询</li>
+<li>服务器发送的事件</li>
+<li>网络套接字</li>
+<li>彗星</li>
+</ol>
+<p>我每次遇到的一件事是，服务器保持连接打开并将数据推送到客户端。连接是如何保持打开的，客户端又是如何获取推送的数据的？（客户端如何使用数据，也许一些代码可能有帮助？）</p>
+<p>现在，我应该将其中的哪一个用于实时应用程序。我听说过很多关于 websockets（通过 socket.io [一个 node.js
+库]）的信息，但为什么不是 PHP？</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p><em>在下面的示例中，客户端是浏览器，服务器是托管网站的网络服务器。</em></p>
+<p>在了解这些技术之前，您必须先了解 <em>经典的</em> HTTP Web 流量。</p>
+<h3>常规 HTTP：</h3>
+<ol>
+<li>客户端向服务器请求网页。</li>
+<li>服务器计算响应</li>
+<li>服务器将响应发送给客户端。</li>
+</ol>
+<p><img alt="HTTP" src="../../images/TK1ZG.png"></p>
+<h3>阿贾克斯轮询：</h3>
+<ol>
+<li>客户端使用常规 HTTP（请参阅上面的 HTTP）从服务器请求网页。</li>
+<li>客户端接收到请求的网页，并在页面上执行JavaScript，每隔一定时间（例如0.5秒）向服务器请求一个文件。</li>
+<li>服务器计算每个响应并将其发回，就像正常的 HTTP 流量一样。</li>
+</ol>
+<p><img alt="阿贾克斯轮询" src="../../images/qlMEU.png"></p>
+<h3>Ajax 长轮询：</h3>
+<ol>
+<li>客户端使用常规 HTTP（请参阅上面的 HTTP）从服务器请求网页。</li>
+<li>客户端接收请求的网页并在向服务器请求文件的页面上执行 JavaScript。</li>
+<li>服务器不会立即响应所请求的信息，而是等待直到有可用的 <strong>新</strong> 信息。</li>
+<li>当有可用的新信息时，服务器会用新信息进行响应。</li>
+<li>客户端收到新信息并立即向服务器发送另一个请求，重新启动该过程。</li>
+</ol>
+<p><img alt="Ajax 长轮询" src="../../images/zLnOU.png"></p>
+<h3>HTML5 服务器发送事件 (SSE) / EventSource：</h3>
+<ol>
+<li>客户端使用常规 HTTP（请参阅上面的 HTTP）从服务器请求网页。</li>
+<li>客户端接收请求的网页并在打开与服务器的连接的页面上执行 JavaScript。</li>
+<li>
+<p>当有可用的新信息时，服务器会向客户端发送一个事件。</p>
+<ul>
+<li>从服务器到客户端的实时流量，主要是您需要的</li>
+<li>您需要使用具有事件循环的服务器</li>
+<li>只有正确的 CORS 设置才能与其他域的服务器连接</li>
+<li>如果你想阅读更多，我发现这些非常有用：(article) , (article) , (article) , (tutorial)。</li>
+</ul>
+</li>
+</ol>
+<p><img alt="HTML5 上证" src="../../images/ziR5h.png"></p>
+<h3>HTML5 网络套接字：</h3>
+<ol>
+<li>客户端使用常规 http 从服务器请求网页（请参阅上面的 HTTP）。</li>
+<li>客户端接收请求的网页并在打开与服务器的连接的页面上执行 JavaScript。</li>
+<li>
+<p>当新数据（在任何一方）可用时，服务器和客户端现在可以相互发送消息。</p>
+<ul>
+<li>
+<strong>从服务器到客户端和</strong> 从客户端到服务器的实时流量</li>
+<li>您需要使用具有事件循环的服务器</li>
+<li>使用 WebSockets 可以连接来自另一个域的服务器。</li>
+<li>也可以使用第三方托管的 websocket 服务器，例如Pusher或其他。这样你只需要实现客户端，非常简单！</li>
+<li>如果你想阅读更多，我发现这些非常有用：（文章），（文章）（教程）。</li>
+</ul>
+</li>
+</ol>
+<p><img alt="HTML5 WebSockets" src="../../images/CgDlc.png"></p>
+<h3>彗星：</h3>
+<p>Comet 是 HTML5 之前的技术集合，它使用流和长轮询来实现实时应用程序。在维基百科或这篇文章中阅读更多内容。</p>
+<hr>
+<blockquote>
+<p>Now, which one of them should I use for a realtime app (that I need to
+code). I have been hearing a lot about websockets (with socket.io [a node.js
+library]) but why not PHP ?</p>
+</blockquote>
+<p>You can use PHP with WebSockets, check out Ratchet.</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>Tieme 为他的出色回答付出了很多努力，但我认为 OP 问题的核心是这些技术如何与 PHP 相关，而不是每种技术如何工作。</p>
+<p>除了明显的客户端 HTML、CSS 和 Javascript 之外，PHP 是 Web 开发中最常用的语言。然而，当谈到实时应用程序时，PHP
+有两个主要问题：</p>
+<ol>
+<li>PHP 最初是一个非常基本的 CGI。PHP 自其早期阶段以来已经取得了长足的进步，但它是小步前进的。当 PHP 成为今天这样的可嵌入和灵活的 C 库时，它已经拥有数百万用户，其中大多数用户依赖于其早期的执行模型，因此它还没有做出坚实的尝试来摆脱内部 CGI 模型。即使是命令行界面也会调用 PHP 库（<code>libphp5.so</code>在 Linux、<code>php5ts.dll</code>Windows 等上），就好像它仍然是一个处理 GET/POST 请求的 CGI。它仍然执行代码，就好像它只需要构建一个“页面”然后结束它的生命周期一样。因此，它对多线程或事件驱动编程（在 PHP 用户空间内）的支持非常少，这使得它目前对于实时、多用户应用程序不切实际。</li>
+</ol>
+<p>请注意，PHP 确实具有在 PHP
+用户空间中提供事件循环（例如<code>libevent</code>）和线程（例如<code>pthreads</code>）的扩展，但是非常非常少的应用程序使用这些。</p>
+<ol>
+<li>PHP 在垃圾回收方面仍然存在重大问题。尽管这些问题一直在不断改进（可能是结束生命周期的最大一步，如上所述），但即使是创建长期运行的 PHP 应用程序的最佳尝试也需要定期重新启动。这也使得它对于实时应用程序不切实际。</li>
+</ol>
+<p>PHP 7 也将是解决这些问题的重要一步，并且作为实时应用程序的平台似乎很有前途。</p>
+<p><br><br><a href="../what-are-long-polling-websockets-server-sent-events-sse-and-comet/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/comet/" rel="tag">comet</a></li>
+            <li><a class="tag p-category" href="../../categories/long-polling/" rel="tag">long-polling</a></li>
+            <li><a class="tag p-category" href="../../categories/php/" rel="tag">php</a></li>
+            <li><a class="tag p-category" href="../../categories/server-sent-events/" rel="tag">server-sent-events</a></li>
+            <li><a class="tag p-category" href="../../categories/websocket/" rel="tag">websocket</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../save-he-save-dev-you-shi-yao-qu-bie/" rel="prev" title="--save 和 --save-dev 有什么区别？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../wo-ying-gai-fang-shebang-zai-python-jiao-ben-zhong-ta-ying-gai-cai-yong-shi-yao-xing-shi/" rel="next" title="我应该放#! (shebang) 在 Python 脚本中，它应该采用什么形式？">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

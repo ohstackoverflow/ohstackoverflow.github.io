@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我什么时候应该使用 CROSS APPLY 而不是 INNER JOIN？ | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/wo-shi-yao-shi-hou-ying-gai-shi-yong-cross-apply-er-bu-shi-inner-join/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../guid-he-uuid-zhi-jian-you-shi-yao-qu-bie-ma/" title="GUID 和 UUID 之间有什么区别吗？" type="text/html">
+<link rel="next" href="../push-back-yu-emplace-back/" title="push_back 与 emplace_back" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="我什么时候应该使用 CROSS APPLY 而不是 INNER JOIN？">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/wo-shi-yao-shi-hou-ying-gai-shi-yong-cross-apply-er-bu-shi-inner-join/">
+<meta property="og:description" content="使用CROSS APPLY的主要目的是什么？
+我已经阅读（通过互联网上的帖子模糊地），cross apply如果您正在分区，则在选择大型数据集时效率更高。（想到了分页）
+我也知道CROSS APPLY不需要 UDF 作为右表。
+在大多数INNER JOIN查询（一对多关系）中，我可以重写它们以使用CROSS APPLY，但它们总是给我等效的执行计划。
+任何人都可以给我一个很好的例子，说明什么时候C">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T05:58:34+08:00">
+<meta property="article:tag" content="cross-apply">
+<meta property="article:tag" content="performance">
+<meta property="article:tag" content="sql">
+<meta property="article:tag" content="sql-server">
+<meta property="article:tag" content="tsql">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">我什么时候应该使用 CROSS APPLY 而不是 INNER JOIN？</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T05:58:34+08:00" itemprop="datePublished" title="2023-02-17 05:58">2023-02-17 05:58</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>使用CROSS APPLY的主要目的是什么？</p>
+<p>我已经阅读（通过互联网上的帖子模糊地），<code>cross apply</code>如果您正在分区，则在选择大型数据集时效率更高。（想到了分页）</p>
+<p>我也知道<code>CROSS APPLY</code>不需要 UDF 作为右表。</p>
+<p>在大多数<code>INNER JOIN</code>查询（一对多关系）中，我可以重写它们以使用<code>CROSS APPLY</code>，但它们总是给我等效的执行计划。</p>
+<p>任何人都可以给我一个很好的例子，说明什么时候<code>CROSS APPLY</code>在那些情况下<code>INNER JOIN</code>也会起作用吗？</p>
+<hr>
+<p><strong>编辑：</strong></p>
+<p>这是一个简单的例子，执行计划完全相同。（告诉我它们的不同之处以及<code>cross apply</code>更快/更有效的地方）</p>
+<div class="code"><pre class="code literal-block"><span class="n">create</span><span class="w"> </span><span class="n">table</span><span class="w"> </span><span class="n">Company</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">companyId</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">identity</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+<span class="p">,</span><span class="w">   </span><span class="n">companyName</span><span class="w"> </span><span class="n">varchar</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="p">,</span><span class="w">   </span><span class="n">zipcode</span><span class="w"> </span><span class="n">varchar</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span>
+<span class="p">,</span><span class="w">   </span><span class="n">constraint</span><span class="w"> </span><span class="n">PK_Company</span><span class="w"> </span><span class="n">primary</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="p">(</span><span class="n">companyId</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">GO</span>
+
+<span class="n">create</span><span class="w"> </span><span class="n">table</span><span class="w"> </span><span class="n">Person</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">personId</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">identity</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+<span class="p">,</span><span class="w">   </span><span class="n">personName</span><span class="w"> </span><span class="n">varchar</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="p">,</span><span class="w">   </span><span class="n">companyId</span><span class="w"> </span><span class="nb nb-Type">int</span>
+<span class="p">,</span><span class="w">   </span><span class="n">constraint</span><span class="w"> </span><span class="n">FK_Person_CompanyId</span><span class="w"> </span><span class="n">foreign</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="p">(</span><span class="n">companyId</span><span class="p">)</span><span class="w"> </span><span class="n">references</span><span class="w"> </span><span class="n">dbo</span><span class="o">.</span><span class="n">Company</span><span class="p">(</span><span class="n">companyId</span><span class="p">)</span>
+<span class="p">,</span><span class="w">   </span><span class="n">constraint</span><span class="w"> </span><span class="n">PK_Person</span><span class="w"> </span><span class="n">primary</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="p">(</span><span class="n">personId</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">GO</span>
+
+<span class="n">insert</span><span class="w"> </span><span class="n">Company</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'ABC Company'</span><span class="p">,</span><span class="w"> </span><span class="s1">'19808'</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'XYZ Company'</span><span class="p">,</span><span class="w"> </span><span class="s1">'08534'</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'123 Company'</span><span class="p">,</span><span class="w"> </span><span class="s1">'10016'</span>
+
+
+<span class="n">insert</span><span class="w"> </span><span class="n">Person</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Alan'</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Bobby'</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Chris'</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Xavier'</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Yoshi'</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Zambrano'</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Player 1'</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Player 2'</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="n">union</span>
+<span class="n">select</span><span class="w"> </span><span class="s1">'Player 3'</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span>
+
+
+<span class="o">/*</span><span class="w"> </span><span class="n">using</span><span class="w"> </span><span class="n">CROSS</span><span class="w"> </span><span class="n">APPLY</span><span class="w"> </span><span class="o">*/</span>
+<span class="n">select</span><span class="w"> </span><span class="o">*</span>
+<span class="n">from</span><span class="w"> </span><span class="n">Person</span><span class="w"> </span><span class="n">p</span>
+<span class="n">cross</span><span class="w"> </span><span class="n">apply</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">select</span><span class="w"> </span><span class="o">*</span>
+<span class="w">    </span><span class="n">from</span><span class="w"> </span><span class="n">Company</span><span class="w"> </span><span class="n">c</span>
+<span class="w">    </span><span class="n">where</span><span class="w"> </span><span class="n">p</span><span class="o">.</span><span class="n">companyid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c</span><span class="o">.</span><span class="n">companyId</span>
+<span class="p">)</span><span class="w"> </span><span class="n">Czip</span>
+
+<span class="o">/*</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">equivalent</span><span class="w"> </span><span class="n">query</span><span class="w"> </span><span class="n">using</span><span class="w"> </span><span class="n">INNER</span><span class="w"> </span><span class="n">JOIN</span><span class="w"> </span><span class="o">*/</span>
+<span class="n">select</span><span class="w"> </span><span class="o">*</span>
+<span class="n">from</span><span class="w"> </span><span class="n">Person</span><span class="w"> </span><span class="n">p</span>
+<span class="n">inner</span><span class="w"> </span><span class="n">join</span><span class="w"> </span><span class="n">Company</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">p</span><span class="o">.</span><span class="n">companyid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c</span><span class="o">.</span><span class="n">companyId</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>解答</h2>
+<blockquote>
+<p>谁能给我一个很好的例子，说明 CROSS APPLY 何时会在 INNER JOIN 也可以工作的情况下产生影响？</p>
+</blockquote>
+<p>详细的性能对比见我博客中的文章：</p>
+<ul>
+<li><strong><code>INNER JOIN</code> 对比<code>CROSS APPLY</code></strong></li>
+</ul>
+<p><code>CROSS APPLY</code>在没有简单<code>JOIN</code>条件的事情上效果更好。</p>
+<p>这一个从以下位置为每条记录选择<code>3</code>最后一条记录：<code>t2``t1</code></p>
+<div class="code"><pre class="code literal-block">SELECT  t1.*, t2o.*
+FROM    t1
+CROSS APPLY
+        (
+        SELECT  TOP 3 *
+        FROM    t2
+        WHERE   t2.t1_id = t1.id
+        ORDER BY
+                t2.rank DESC
+        ) t2o
+</pre></div>
+
+<p>它不能轻易地用<code>INNER JOIN</code>条件来表述。</p>
+<p>您可能会使用<code>CTE</code>'s 和窗口函数来做类似的事情：</p>
+<div class="code"><pre class="code literal-block">WITH    t2o AS
+        (
+        SELECT  t2.*, ROW_NUMBER() OVER (PARTITION BY t1_id ORDER BY rank) AS rn
+        FROM    t2
+        )
+SELECT  t1.*, t2o.*
+FROM    t1
+INNER JOIN
+        t2o
+ON      t2o.t1_id = t1.id
+        AND t2o.rn &lt;= 3
+</pre></div>
+
+<p>，但这可读性较差，而且效率可能较低。</p>
+<p><strong>更新：</strong></p>
+<p>刚检查过。</p>
+<p><code>master``20,000,000</code>是带有<code>PRIMARY KEY</code>on的关于记录的表<code>id</code>。</p>
+<p>这个查询：</p>
+<div class="code"><pre class="code literal-block">WITH    q AS
+        (
+        SELECT  *, ROW_NUMBER() OVER (ORDER BY id) AS rn
+        FROM    master
+        ),
+        t AS 
+        (
+        SELECT  1 AS id
+        UNION ALL
+        SELECT  2
+        )
+SELECT  *
+FROM    t
+JOIN    q
+ON      q.rn &lt;= t.id
+</pre></div>
+
+<p>运行了将近几<code>30</code>秒钟，而这个：</p>
+<div class="code"><pre class="code literal-block">WITH    t AS 
+        (
+        SELECT  1 AS id
+        UNION ALL
+        SELECT  2
+        )
+SELECT  *
+FROM    t
+CROSS APPLY
+        (
+        SELECT  TOP (t.id) m.*
+        FROM    master m
+        ORDER BY
+                id
+        ) q
+</pre></div>
+
+<p>是即时的。</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>假设您有两张桌子。</p>
+<p><strong>主表</strong></p>
+<div class="code"><pre class="code literal-block"><span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">--------------------</span><span class="c">x</span>
+<span class="c">| Id   |        Name        |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">--------------------</span><span class="c">x</span>
+<span class="c">|  1   |          A         |</span>
+<span class="c">|  2   |          B         |</span>
+<span class="c">|  3   |          C         |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">--------------------</span><span class="c">x</span>
+</pre></div>
+
+<p><strong>明细表</strong></p>
+<div class="code"><pre class="code literal-block"><span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">--------------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+<span class="c">| Id   |      PERIOD        |   QTY |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">--------------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+<span class="c">|  1   |   2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">13       |   10  |</span>
+<span class="c">|  1   |   2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">11       |   15  |</span>
+<span class="c">|  1   |   2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">12       |   20  |</span>
+<span class="c">|  2   |   2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">06       |   30  |</span>
+<span class="c">|  2   |   2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">08       |   40  |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">--------------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+</pre></div>
+
+<p>有很多情况我们需要替换<code>INNER JOIN</code>为<code>CROSS APPLY</code>.</p>
+<p><strong>1.根据<code>TOP n</code>结果连接两个表</strong></p>
+<p>考虑一下我们是否需要为每个from选择<code>Id</code>and <code>Name</code>from<code>Master</code>和 last 两个日期。<code>Id``Details table</code></p>
+<div class="code"><pre class="code literal-block">SELECT M.ID,M.NAME,D.PERIOD,D.QTY
+FROM MASTER M
+INNER JOIN
+(
+    SELECT TOP 2 ID, PERIOD,QTY 
+    FROM DETAILS D      
+    ORDER BY CAST(PERIOD AS DATE)DESC
+)D
+ON M.ID=D.ID
+</pre></div>
+
+<ul>
+<li><strong>SQL 小提琴</strong></li>
+</ul>
+<p>上面的查询生成以下结果。</p>
+<div class="code"><pre class="code literal-block"><span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+<span class="c">|  Id  |   Name  |   PERIOD     |  QTY  |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+<span class="c">|   1  |   A     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">13   |  10   |</span>
+<span class="c">|   1  |   A     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">12   |  20   |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+</pre></div>
+
+<p>看，它用最后两个日期生成最后两个日期的结果<code>Id</code>，然后仅在 上的外部查询中加入这些记录<code>Id</code>，这是错误的。这应该同时返回<code>Ids</code>1 和 2 但它只返回
+1 因为 1 有最后两个日期。为此，我们需要使用<code>CROSS APPLY</code>.</p>
+<div class="code"><pre class="code literal-block">SELECT M.ID,M.NAME,D.PERIOD,D.QTY
+FROM MASTER M
+CROSS APPLY
+(
+    SELECT TOP 2 ID, PERIOD,QTY 
+    FROM DETAILS D  
+    WHERE M.ID=D.ID
+    ORDER BY CAST(PERIOD AS DATE)DESC
+)D
+</pre></div>
+
+<ul>
+<li><strong>SQL 小提琴</strong></li>
+</ul>
+<p>并形成如下结果。</p>
+<div class="code"><pre class="code literal-block"><span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+<span class="c">|  Id  |   Name  |   PERIOD     |  QTY  |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+<span class="c">|   1  |   A     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">13   |  10   |</span>
+<span class="c">|   1  |   A     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">12   |  20   |</span>
+<span class="c">|   2  |   B     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">08   |  40   |</span>
+<span class="c">|   2  |   B     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">06   |  30   |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+</pre></div>
+
+<p>这是它的工作原理。里面的查询<code>CROSS APPLY</code>可以引用外表，但<code>INNER
+JOIN</code>不能这样做（它会抛出编译错误）。查找最后两个日期时，加入是在内部完成的<code>CROSS APPLY</code>，即<code>WHERE M.ID=D.ID</code>.</p>
+<p><strong>2. 当我们需要<code>INNER JOIN</code>功能时使用函数。</strong></p>
+<p><code>CROSS APPLY</code>当我们需要从表和 a<code>INNER JOIN</code>中获取结果时，可以用作替代。<code>Master``function</code></p>
+<div class="code"><pre class="code literal-block">SELECT M.ID,M.NAME,C.PERIOD,C.QTY
+FROM MASTER M
+CROSS APPLY dbo.FnGetQty(M.ID) C
+</pre></div>
+
+<p>这是功能</p>
+<div class="code"><pre class="code literal-block"><span class="k">CREATE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="n">FnGetQty</span><span class="w"> </span>
+<span class="p">(</span><span class="w">   </span>
+<span class="w">    </span><span class="nv">@Id</span><span class="w"> </span><span class="nc">INT</span><span class="w"> </span>
+<span class="p">)</span>
+<span class="k">RETURNS</span><span class="w"> </span><span class="nc">TABLE</span><span class="w"> </span>
+<span class="k">AS</span>
+<span class="k">RETURN</span><span class="w"> </span>
+<span class="p">(</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="n">ID</span><span class="p">,</span><span class="n">PERIOD</span><span class="p">,</span><span class="n">QTY</span><span class="w"> </span>
+<span class="w">    </span><span class="k">FROM</span><span class="w"> </span><span class="n">DETAILS</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">ID</span><span class="o">=</span><span class="nv">@Id</span>
+<span class="p">)</span>
+</pre></div>
+
+<ul>
+<li><strong>SQL 小提琴</strong></li>
+</ul>
+<p>产生了以下结果</p>
+<div class="code"><pre class="code literal-block"><span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+<span class="c">|  Id  |   Name  |   PERIOD     |  QTY  |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+<span class="c">|   1  |   A     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">13   |  10   |</span>
+<span class="c">|   1  |   A     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">11   |  15   |</span>
+<span class="c">|   1  |   A     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">12   |  20   |</span>
+<span class="c">|   2  |   B     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">06   |  30   |</span>
+<span class="c">|   2  |   B     | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">08   |  40   |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">---------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span><span class="nb">-------</span><span class="c">x</span>
+</pre></div>
+
+<p><strong>交叉应用的额外优势</strong></p>
+<p><code>APPLY</code>可以用作<code>UNPIVOT</code>. Either <code>CROSS APPLY</code>or<code>OUTER APPLY</code>可以在这里使用，它们是可以互换的。</p>
+<p>假设您有下表（命名<code>MYTABLE</code>）。</p>
+<div class="code"><pre class="code literal-block"><span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">-------------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span>
+<span class="c">|  Id  |   FROMDATE  |   TODATE     |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">-------------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span>
+<span class="c">|   1  |  2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">11 | 2014</span><span class="nb">-</span><span class="c">01</span><span class="nb">-</span><span class="c">13   | </span>
+<span class="c">|   1  |  2014</span><span class="nb">-</span><span class="c">02</span><span class="nb">-</span><span class="c">23 | 2014</span><span class="nb">-</span><span class="c">02</span><span class="nb">-</span><span class="c">27   | </span>
+<span class="c">|   2  |  2014</span><span class="nb">-</span><span class="c">05</span><span class="nb">-</span><span class="c">06 | 2014</span><span class="nb">-</span><span class="c">05</span><span class="nb">-</span><span class="c">30   | </span>
+<span class="c">|   3  |     NULL    |    NULL      |</span>
+<span class="c">x</span><span class="nb">------</span><span class="c">x</span><span class="nb">-------------</span><span class="c">x</span><span class="nb">--------------</span><span class="c">x</span>
+</pre></div>
+
+<p>查询如下。</p>
+<div class="code"><pre class="code literal-block">SELECT DISTINCT ID,DATES
+FROM MYTABLE 
+CROSS APPLY(VALUES (FROMDATE),(TODATE))
+COLUMNNAMES(DATES)
+</pre></div>
+
+<ul>
+<li><strong>SQL 小提琴</strong></li>
+</ul>
+<p>这给你带来了结果</p>
+<div class="code"><pre class="code literal-block">  x------x-------------x
+  | Id   |    DATES    |
+  x------x-------------x
+  |  1   |  2014-01-11 |
+  |  1   |  2014-01-13 |
+  |  1   |  2014-02-23 |
+  |  1   |  2014-02-27 |
+  |  2   |  2014-05-06 |
+  |  2   |  2014-05-30 | 
+  |  3   |    NULL     | 
+  x------x-------------x
+</pre></div>
+
+<p><br><br><a href="../when-should-i-use-cross-apply-over-inner-join/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/cross-apply/" rel="tag">cross-apply</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+            <li><a class="tag p-category" href="../../categories/sql/" rel="tag">sql</a></li>
+            <li><a class="tag p-category" href="../../categories/sql-server/" rel="tag">sql-server</a></li>
+            <li><a class="tag p-category" href="../../categories/tsql/" rel="tag">tsql</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../guid-he-uuid-zhi-jian-you-shi-yao-qu-bie-ma/" rel="prev" title="GUID 和 UUID 之间有什么区别吗？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../push-back-yu-emplace-back/" rel="next" title="push_back 与 emplace_back">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

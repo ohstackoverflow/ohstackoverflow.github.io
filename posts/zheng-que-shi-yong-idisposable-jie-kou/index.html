@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>正确使用 IDisposable 接口 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/zheng-que-shi-yong-idisposable-jie-kou/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ru-he-zai-javascript-zhong-jiang-shi-jin-zhi-zhuan-huan-wei-shi-liu-jin-zhi/" title="如何在 JavaScript 中将十进制转换为十六进制" type="text/html">
+<link rel="next" href="../button-yu-input-type-button-shi-yong-na-ge/" title='&lt;button&gt; 与 &lt;input type="button" /&gt;。使用哪个？' type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="正确使用 IDisposable 接口">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/zheng-que-shi-yong-idisposable-jie-kou/">
+<meta property="og:description" content="通过阅读Microsoft 文档，我知道该IDisposable接口的“主要”用途是清理非托管资源。
+对我来说，“非托管”指的是数据库连接、套接字、窗口句柄等。但是，我看到了Dispose()实现该方法以释放 托管
+资源的代码，这对我来说似乎是多余的，因为垃圾收集器应该处理那是给你的。
+例如：
+public class MyCollection : IDisposable
+{
+    privat">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-16T23:57:09+08:00">
+<meta property="article:tag" content=".net">
+<meta property="article:tag" content="cSharp">
+<meta property="article:tag" content="garbage-collection">
+<meta property="article:tag" content="idisposable">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">正确使用 IDisposable 接口</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T23:57:09+08:00" itemprop="datePublished" title="2023-02-16 23:57">2023-02-16 23:57</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>通过阅读Microsoft 文档，我知道该<code>IDisposable</code>接口的“主要”用途是清理非托管资源。</p>
+<p>对我来说，“非托管”指的是数据库连接、套接字、窗口句柄等。但是，我看到了<code>Dispose()</code>实现该方法以释放 <em>托管</em>
+资源的代码，这对我来说似乎是多余的，因为垃圾收集器应该处理那是给你的。</p>
+<p>例如：</p>
+<div class="code"><pre class="code literal-block">public class MyCollection : IDisposable
+{
+    private List&lt;String&gt; _theList = new List&lt;String&gt;();
+    private Dictionary&lt;String, Point&gt; _theDict = new Dictionary&lt;String, Point&gt;();
+
+    // Die, clear it up! (free unmanaged resources)
+    public void Dispose()
+    {
+        _theList.clear();
+        _theDict.clear();
+        _theList = null;
+        _theDict = null;
+    }
+}
+</pre></div>
+
+<p>我的问题是，这是否会使垃圾收集器使用的空闲内存比<code>MyCollection</code>正常情况下更快？</p>
+<hr>
+<p><strong>编辑</strong>
+：到目前为止，人们已经发布了一些用于<code>IDisposable</code>清理非托管资源（如数据库连接和位图）的好例子。但是假设在上面的代码中包含一百万个字符串，你想
+<em>现在</em><code>_theList</code>就释放内存，而不是等待垃圾收集器。上面的代码能做到吗？ __</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>Dispose 的目的 <strong>是</strong> 释放非托管资源。它需要在某个时候完成，否则它们将永远不会被清理干净。垃圾收集器不知道 <strong>如何</strong>
+调用<code>DeleteHandle()</code>类型的变量<code>IntPtr</code>，它不知道 <strong>是否</strong> 需要调用<code>DeleteHandle()</code>。</p>
+<blockquote>
+<p><strong>注意</strong> ：什么是非 <em>托管资源</em> ？如果您在 Microsoft .NET Framework 中找到它：它是托管的。如果您自己浏览
+MSDN，就会发现它是不受管理的。您使用 P/Invoke 调用来脱离 .NET Framework
+中可用的一切的美好舒适世界的任何内容都是非托管的——您现在负责清理它。</p>
+</blockquote>
+<p>您创建的对象需要公开 <em>一些</em> 外部世界可以调用的方法，以便清理非托管资源。该方法可以随意命名：</p>
+<div class="code"><pre class="code literal-block">public void Cleanup()
+</pre></div>
+
+<p>或者</p>
+<div class="code"><pre class="code literal-block">public void Shutdown()
+</pre></div>
+
+<p>但是这个方法有一个标准化的名称：</p>
+<div class="code"><pre class="code literal-block">public void Dispose()
+</pre></div>
+
+<p>甚至创建了一个接口，<code>IDisposable</code>它只有一个方法：</p>
+<div class="code"><pre class="code literal-block">public interface IDisposable
+{
+   void Dispose()
+}
+</pre></div>
+
+<p>所以你让你的对象公开<code>IDisposable</code>接口，这样你就可以保证你已经编写了一个方法来清理你的非托管资源：</p>
+<div class="code"><pre class="code literal-block">public void Dispose()
+{
+   Win32.DestroyHandle(this.CursorFileBitmapIconServiceHandle);
+}
+</pre></div>
+
+<p>你完成了。 <strong>除了你可以做得更好。</strong></p>
+<hr>
+<p>如果您的对象分配了 250MB 的 <strong>System.Drawing.Bitmap</strong> （即 .NET 管理的 Bitmap
+类）作为某种帧缓冲区怎么办？当然，这是一个托管的 .NET 对象，垃圾收集器将释放它。但是你真的想把 250MB 的内存留在那里 - 等待垃圾收集器
+<em>最终</em> 出现并释放它吗？如果有一个打开的数据库连接怎么办？我们当然不希望连接处于打开状态，等待 GC 完成对象。</p>
+<p>如果用户已经调用<code>Dispose()</code>（意味着他们不再打算使用该对象），为什么不摆脱那些浪费的位图和数据库连接呢？</p>
+<p>所以现在我们将：</p>
+<ul>
+<li>摆脱非托管资源（因为我们必须这样做），以及</li>
+<li>摆脱托管资源（因为我们想提供帮助）</li>
+</ul>
+<p>因此，让我们更新我们的<code>Dispose()</code>方法以摆脱那些托管对象：</p>
+<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">Dispose</span><span class="ss">()</span>
+{
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">unmanaged</span><span class="w"> </span><span class="nv">resources</span>
+<span class="w">   </span><span class="nv">Win32</span>.<span class="nv">DestroyHandle</span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">CursorFileBitmapIconServiceHandle</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">managed</span><span class="w"> </span><span class="nv">resources</span><span class="w"> </span><span class="nv">too</span>
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">databaseConnection</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span>
+<span class="w">   </span>{
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">databaseConnection</span>.<span class="nv">Dispose</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">databaseConnection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">   </span>}
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">frameBufferImage</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span>
+<span class="w">   </span>{
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">frameBufferImage</span>.<span class="nv">Dispose</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">frameBufferImage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">   </span>}
+}
+</pre></div>
+
+<p>一切都很好， <strong>除了你可以做得更好</strong> ！</p>
+<hr>
+<p>如果这个人 <strong>忘记</strong> 拜访<code>Dispose()</code>你的对象怎么办？然后他们会泄露一些 <strong>非托管</strong> 资源！</p>
+<blockquote>
+<p><strong>注意：</strong> 它们不会泄漏 <strong>托管</strong>
+资源，因为最终垃圾收集器将在后台线程上运行，并释放与任何未使用对象关联的内存。这将包括您的对象，以及您使用的任何托管对象（例如 the<code>Bitmap</code>和
+the <code>DbConnection</code>）。</p>
+</blockquote>
+<p>如果那个人忘了打电话<code>Dispose()</code>，我们 <em>仍然</em> 可以节省他们的培根！ <em>我们仍然有办法为</em>
+他们调用它：当垃圾收集器最终开始释放（即终结）我们的对象时。</p>
+<blockquote>
+<p><strong>注意：</strong> 垃圾收集器最终会释放所有托管对象。当它这样做时，它调用 <strong><code>Finalize</code></strong> 对象上的方法。GC 不知道也不关心 <em>您的</em>
+<strong>Dispose</strong> 方法。这只是我们为我们想要摆脱非托管内容时调用的方法选择的名称。</p>
+</blockquote>
+<p>垃圾收集器销毁我们的对象是释放那些讨厌的非托管资源的 <em>最佳时机。</em> 我们通过覆盖方法来做到这一点<code>Finalize()</code>。</p>
+<blockquote>
+<p><strong>注意：</strong> 在 C# 中，您不会显式重写该<code>Finalize()</code>方法。 <em>您编写了一个看起来像</em> C <strong>++ 析构函数的</strong>
+方法，编译器将其视为您对该方法的实现<code>Finalize()</code>：</p>
+</blockquote>
+<div class="code"><pre class="code literal-block">~MyObject()
+{
+    //we're being finalized (i.e. destroyed), call Dispose in case the user forgot to
+    Dispose(); //&lt;--Warning: subtle bug! Keep reading!
+}
+</pre></div>
+
+<p>但是该代码中存在错误。你看，垃圾收集器在 <strong>后台线程</strong>
+上运行；你不知道两个对象被销毁的顺序。完全有可能在您的<code>Dispose()</code>代码中，您试图摆脱（因为您想要提供帮助）的 <strong>托管对象不再存在：</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">Dispose</span><span class="ss">()</span>
+{
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">unmanaged</span><span class="w"> </span><span class="nv">resources</span>
+<span class="w">   </span><span class="nv">Win32</span>.<span class="nv">DestroyHandle</span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">gdiCursorBitmapStreamFileHandle</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">managed</span><span class="w"> </span><span class="nv">resources</span><span class="w"> </span><span class="nv">too</span>
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">databaseConnection</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span>
+<span class="w">   </span>{
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">databaseConnection</span>.<span class="nv">Dispose</span><span class="ss">()</span><span class="c1">; //&lt;-- crash, GC already destroyed it</span>
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">databaseConnection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">   </span>}
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">frameBufferImage</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span>
+<span class="w">   </span>{
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">frameBufferImage</span>.<span class="nv">Dispose</span><span class="ss">()</span><span class="c1">; //&lt;-- crash, GC already destroyed it</span>
+<span class="w">      </span><span class="nv">this</span>.<span class="nv">frameBufferImage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">   </span>}
+}
+</pre></div>
+
+<p>所以你需要的是一种方法来<code>Finalize()</code>告诉<code>Dispose()</code>它 <strong>不应该接触任何托管</strong> 资源（因为它们 <em>可能不再存在</em>
+），同时仍然释放非托管资源。</p>
+<p>执行此操作的标准模式是同时调用<code>Finalize()</code>第三<code>Dispose()</code>个 <strong>（</strong>
+！）方法；<code>Dispose()</code>如果您从（而不是）调用它，则在其中传递布尔语句<code>Finalize()</code>，这意味着释放托管资源是安全的。</p>
+<p>这个 <em>内部</em> 方法 <em>可以</em>
+被赋予一些任意名称，如“CoreDispose”或“MyInternalDispose”，但传统上是这样称呼它的<code>Dispose(Boolean)</code>：</p>
+<div class="code"><pre class="code literal-block">protected void Dispose(Boolean disposing)
+</pre></div>
+
+<p>但更有用的参数名称可能是：</p>
+<div class="code"><pre class="code literal-block"><span class="nv">protected</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">Dispose</span><span class="ss">(</span><span class="nv">Boolean</span><span class="w"> </span><span class="nv">itIsSafeToAlsoFreeManagedObjects</span><span class="ss">)</span>
+{
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">unmanaged</span><span class="w"> </span><span class="nv">resources</span>
+<span class="w">   </span><span class="nv">Win32</span>.<span class="nv">DestroyHandle</span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">CursorFileBitmapIconServiceHandle</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">   </span><span class="o">//</span><span class="nv">Free</span><span class="w"> </span><span class="nv">managed</span><span class="w"> </span><span class="nv">resources</span><span class="w"> </span><span class="nv">too</span>,<span class="w"> </span><span class="nv">but</span><span class="w"> </span><span class="nv">only</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">I</span><span class="err">'m being called from Dispose</span>
+<span class="w">   </span><span class="o">//</span><span class="ss">(</span><span class="k">If</span><span class="w"> </span><span class="nv">I</span><span class="err">'m being called from Finalize then the objects might not exist</span>
+<span class="err">   //anymore</span>
+<span class="err">   if (itIsSafeToAlsoFreeManagedObjects)  </span>
+<span class="err">   {    </span>
+<span class="err">      if (this.databaseConnection != null)</span>
+<span class="err">      {</span>
+<span class="err">         this.databaseConnection.Dispose();</span>
+<span class="err">         this.databaseConnection = null;</span>
+<span class="err">      }</span>
+<span class="err">      if (this.frameBufferImage != null)</span>
+<span class="err">      {</span>
+<span class="err">         this.frameBufferImage.Dispose();</span>
+<span class="err">         this.frameBufferImage = null;</span>
+<span class="err">      }</span>
+<span class="err">   }</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>并且您将方法的实现更改<code>IDisposable.Dispose()</code>为：</p>
+<div class="code"><pre class="code literal-block">public void Dispose()
+{
+   Dispose(true); //I am calling you from Dispose, it's safe
+}
+</pre></div>
+
+<p>和你的终结者：</p>
+<div class="code"><pre class="code literal-block">~MyObject()
+{
+   Dispose(false); //I am *not* calling you from Dispose, it's *not* safe
+}
+</pre></div>
+
+<blockquote>
+<p><strong>注意</strong> ：如果您的对象派生自实现的对象，那么在重写 Dispose 时<code>Dispose</code>不要忘记调用它们的 <strong>基本Dispose 方法：</strong></p>
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="nt">public</span><span class="w"> </span><span class="nt">override</span><span class="w"> </span><span class="nt">void</span><span class="w"> </span><span class="nt">Dispose</span><span class="o">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="err">try</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="err">Dispose(true)</span><span class="p">;</span><span class="w"> </span><span class="err">//</span><span class="n">true</span><span class="p">:</span><span class="w"> </span><span class="n">safe</span><span class="w"> </span><span class="kc">to</span><span class="w"> </span><span class="n">free</span><span class="w"> </span><span class="n">managed</span><span class="w"> </span><span class="n">resources</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">finally</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="err">base.Dispose()</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>一切都很好， <strong>除了你可以做得更好</strong> ！</p>
+<hr>
+<p>如果用户调用<code>Dispose()</code>你的对象，那么一切都已经清理干净了。稍后，当垃圾收集器出现并调用 Finalize
+时，它​​会再次调用<code>Dispose</code>。</p>
+<p><strong>这不仅是一种浪费，而且如果您的对象对您在上次</strong> 调用 时已经处理掉的对象有垃圾引用<code>Dispose()</code>，您将再次尝试处理它们！</p>
+<p>您会注意到，在我的代码中，我小心翼翼地删除了对已处置对象的引用，因此我不会尝试调用<code>Dispose</code>垃圾对象引用。但这并没有阻止一个微妙的错误潜入。</p>
+<p>When the user calls <code>Dispose()</code>: the handle
+<strong>CursorFileBitmapIconServiceHandle</strong> is destroyed. Later when the garbage
+collector runs, it will try to destroy the same handle again.</p>
+<div class="code"><pre class="code literal-block">protected void Dispose(Boolean iAmBeingCalledFromDisposeAndNotFinalize)
+{
+   //Free unmanaged resources
+   Win32.DestroyHandle(this.CursorFileBitmapIconServiceHandle); //&lt;--double destroy 
+   ...
+}
+</pre></div>
+
+<p>The way you fix this is tell the garbage collector that it doesn't need to
+bother finalizing the object – its resources have already been cleaned up, and
+no more work is needed. You do this by calling <code>GC.SuppressFinalize()</code> in the
+<code>Dispose()</code> method:</p>
+<div class="code"><pre class="code literal-block">public void Dispose()
+{
+   Dispose(true); //I am calling you from Dispose, it's safe
+   GC.SuppressFinalize(this); //Hey, GC: don't bother calling finalize later
+}
+</pre></div>
+
+<p>Now that the user has called <code>Dispose()</code>, we have:</p>
+<ul>
+<li>freed unmanaged resources</li>
+<li>freed managed resources</li>
+</ul>
+<p>There's no point in the GC running the finalizer – everything's taken care of.</p>
+<h3>Couldn't I use Finalize to cleanup unmanaged resources?</h3>
+<p>The documentation for <code>Object.Finalize</code> says:</p>
+<blockquote>
+<p>The Finalize method is used to perform cleanup operations on unmanaged
+resources held by the current object before the object is destroyed.</p>
+</blockquote>
+<p>But the MSDN documentation also says, for <code>IDisposable.Dispose</code>:</p>
+<blockquote>
+<p>Performs application-defined tasks associated with freeing, releasing, or
+resetting unmanaged resources.</p>
+</blockquote>
+<p>So which is it? Which one is the place for me to cleanup unmanaged resources?
+The answer is:</p>
+<blockquote>
+<p>It's your choice! But choose <code>Dispose</code>.</p>
+</blockquote>
+<p>You certainly could place your unmanaged cleanup in the finalizer:</p>
+<div class="code"><pre class="code literal-block">~MyObject()
+{
+   //Free unmanaged resources
+   Win32.DestroyHandle(this.CursorFileBitmapIconServiceHandle);
+
+   //A C# destructor automatically calls the destructor of its base class.
+}
+</pre></div>
+
+<p>The problem with that is you have no idea when the garbage collector will get
+around to finalizing your object. Your un-managed, un-needed, un-used native
+resources will stick around until the garbage collector <em>eventually</em> runs.
+Then it will call your finalizer method; cleaning up unmanaged resources. The
+documentation of <strong>Object.Finalize</strong> points this out:</p>
+<blockquote>
+<p>The exact time when the finalizer executes is undefined. To ensure
+deterministic release of resources for instances of your class, implement a
+<strong>Close</strong> method or provide a <code>IDisposable.Dispose</code> implementation.</p>
+</blockquote>
+<p>This is the virtue of using <code>Dispose</code> to cleanup unmanaged resources; you get
+to know, and control, when unmanaged resource are cleaned up. Their
+destruction is <em>"deterministic"</em>.</p>
+<hr>
+<p>To answer your original question: Why not release memory now, rather than for
+when the GC decides to do it? I have a facial recognition software that
+<em>needs</em> to get rid of 530 MB of internal images <strong>now</strong> , since they're no
+longer needed. When we don't: the machine grinds to a swapping halt.</p>
+<h3>Bonus Reading</h3>
+<p>For anyone who likes the style of this answer (explaining the <em>why</em> , so the
+<em>how</em> becomes obvious), I suggest you read Chapter One of Don Box's Essential
+COM:</p>
+<ul>
+<li>Direct link: Chapter 1 sample by Pearson Publishing</li>
+<li>magnet: 84bf0b960936d677190a2be355858e80ef7542c0</li>
+</ul>
+<p>In 35 pages he explains the problems of using binary objects, and invents COM
+before your eyes. Once you realize the <em>why</em> of COM, the remaining 300 pages
+are obvious, and just detail Microsoft's implementation.</p>
+<p>I think every programmer who has ever dealt with objects or COM should, at the
+very least, read the first chapter. It is the best explanation of anything
+ever.</p>
+<h3>Extra Bonus Reading</h3>
+<p>When everything you know is wrong archiveby Eric Lippert</p>
+<blockquote>
+<p>It is therefore very difficult indeed to write a correct finalizer, and
+<strong>the best advice I can give you is to not try</strong>.</p>
+</blockquote>
+<p><br></p>
+<h3>更多建议</h3>
+<p><code>IDisposable</code>通常用于利用该<code>using</code>语句并利用一种简单的方法对托管对象进行确定性清理。</p>
+<div class="code"><pre class="code literal-block">public class LoggingContext : IDisposable {
+    public Finicky(string name) {
+        Log.Write("Entering Log Context {0}", name);
+        Log.Indent();
+    }
+    public void Dispose() {
+        Log.Outdent();
+    }
+
+    public static void Main() {
+        Log.Write("Some initial stuff.");
+        try {
+            using(new LoggingContext()) {
+                Log.Write("Some stuff inside the context.");
+                throw new Exception();
+            }
+        } catch {
+            Log.Write("Man, that was a heavy exception caught from inside a child logging context!");
+        } finally {
+            Log.Write("Some final stuff.");
+        }
+    }
+}
+</pre></div>
+
+<p><br><br><a href="../proper-use-of-the-idisposable-interface/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/net/" rel="tag">.net</a></li>
+            <li><a class="tag p-category" href="../../categories/csharp/" rel="tag">cSharp</a></li>
+            <li><a class="tag p-category" href="../../categories/garbage-collection/" rel="tag">garbage-collection</a></li>
+            <li><a class="tag p-category" href="../../categories/idisposable/" rel="tag">idisposable</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ru-he-zai-javascript-zhong-jiang-shi-jin-zhi-zhuan-huan-wei-shi-liu-jin-zhi/" rel="prev" title="如何在 JavaScript 中将十进制转换为十六进制">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../button-yu-input-type-button-shi-yong-na-ge/" rel="next" title='&lt;button&gt; 与 &lt;input type="button" /&gt;。使用哪个？'>Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

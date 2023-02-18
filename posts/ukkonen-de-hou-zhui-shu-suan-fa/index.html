@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ukkonen 的后缀树算法 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/ukkonen-de-hou-zhui-shu-suan-fa/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../bobby-tables-xkcd-man-hua-zhong-de-sql-zhu-ru-shi-ru-he-gong-zuo-de/" title="“Bobby Tables”XKCD 漫画中的 SQL 注入是如何工作的？" type="text/html">
+<link rel="next" href="../ru-he-jiang-huan-jing-bian-liang-chuan-di-gei-docker-rong-qi/" title="如何将环境变量传递给 Docker 容器？" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Ukkonen 的后缀树算法">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/ukkonen-de-hou-zhui-shu-suan-fa/">
+<meta property="og:description" content="此时我觉得有点厚。我花了好几天时间试图完全了解后缀树构造，但由于我没有数学背景，许多解释都让我难以理解，因为它们开始过度使用数学符号。我找到的最接近好的解释是
+Fast String Searching With Suffix Trees ，但他掩盖了各个要点，算法的某些方面仍不清楚。
+我敢肯定，在 Stack Overflow 上对这个算法的逐步解释对于除我之外的许多其他人来说都是无价的。
+作为">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T04:29:12+08:00">
+<meta property="article:tag" content="algorithm">
+<meta property="article:tag" content="data-structures">
+<meta property="article:tag" content="language-agnostic">
+<meta property="article:tag" content="string">
+<meta property="article:tag" content="suffix-tree">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Ukkonen 的后缀树算法</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:29:12+08:00" itemprop="datePublished" title="2023-02-17 04:29">2023-02-17 04:29</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>此时我觉得有点厚。我花了好几天时间试图完全了解后缀树构造，但由于我没有数学背景，许多解释都让我难以理解，因为它们开始过度使用数学符号。我找到的最接近好的解释是
+<em>Fast String Searching With Suffix Trees</em> ，但他掩盖了各个要点，算法的某些方面仍不清楚。</p>
+<p>我敢肯定，在 Stack Overflow 上对这个算法的逐步解释对于除我之外的许多其他人来说都是无价的。</p>
+<p>作为参考，这里是 Ukkonen
+关于该算法的论文：http://www.cs.helsinki.fi/u/ukkonen/SuffixT1withFigs.pdf</p>
+<p>到目前为止，我的基本理解是：</p>
+<ul>
+<li>我需要遍历给定字符串 T 的每个前缀 P</li>
+<li>我需要遍历前缀 P 中的每个后缀 S 并将其添加到树中</li>
+<li>要将后缀 S 添加到树中，我需要遍历 S 中的每个字符，迭代包括沿着以 S 中相同字符集 C 开头的现有分支走下去，并可能在我时将边拆分为后代节点在后缀中到达不同的字符，或者如果没有匹配的边可以向下走。当找不到为 C 向下走的匹配边时，为 C 创建一个新的叶边。</li>
+</ul>
+<p>基本算法似乎是 O(n 2 )，正如大多数解释中指出的那样，因为我们需要遍历所有前缀，然后我们需要遍历每个前缀的每个后缀。Ukkonen
+的算法显然是独一无二的，因为他使用了后缀指针技术，尽管我认为 <em>这</em> 是我难以理解的地方。</p>
+<p>我也无法理解：</p>
+<ul>
+<li>准确分配、使用和更改“活动点”的时间和方式</li>
+<li>算法的规范化方面发生了什么</li>
+<li>为什么我看到的实现需要“修复”他们正在使用的边界变量</li>
+</ul>
+<hr>
+<p>这是完整的 <strong>C#</strong> 源代码。它不仅可以正常工作，而且支持自动规范化并呈现出更好看的输出文本图。源代码和示例输出位于：</p>
+<blockquote>
+<p><strong>https://gist.github.com/2373868</strong></p>
+</blockquote>
+<hr>
+<p><strong>更新时间 2017-11-04</strong></p>
+<p>多年后，我发现了后缀树的新用途，并在 <strong>JavaScript</strong> 中实现了该算法。要点如下。它应该没有错误。从同一位置将其转储到一个 js 文件中<code>npm
+install chalk</code>，然后使用 node.js 运行以查看一些彩色输出。在同一个 Gist 中有一个精简版本，没有任何调试代码。</p>
+<blockquote>
+<p><strong>https://gist.github.com/axefrog/c347bf0f5e0723cbd09b1aaed6ec6fc6</strong></p>
+</blockquote>
+<p><br><br></p>
+<h2>解答</h2>
+<p>下面是对 Ukkonen 算法的一种尝试，首先展示当字符串很简单（即不包含任何重复字符）时它的作用，然后将其扩展到完整的算法。</p>
+<p><strong>首先，一些初步声明。</strong></p>
+<ol>
+<li>
+<p>我们正在构建的， <em>基本上</em> 就像一个搜索树。所以有一个根节点，从它出来的边通向新节点，还有从这些节点出来的更多边，等等</p>
+</li>
+<li>
+<p><strong>但是</strong> ：与搜索树不同，边缘标签不是单个字符。相反，每条边都使用一对整数标记<code>[from,to]</code>。这些是文本的指针。从这个意义上说，每条边都带有一个任意长度的字符串标签，但只占用 O(1) 空间（两个指针）。</p>
+</li>
+</ol>
+<h3>基本原则</h3>
+<p>我想首先演示如何创建一个特别简单的字符串的后缀树，一个没有重复字符的字符串：</p>
+<div class="code"><pre class="code literal-block">abc
+</pre></div>
+
+<p>该算法 <strong>从左到右按步骤工作</strong> 。 <strong>string 的每个字符</strong>
+都有一个步骤。每个步骤可能涉及多个单独的操作，但我们会看到（参见最后的最终观察结果）操作总数为 O(n)。</p>
+<p>所以，我们从左边开始 <em>，</em><code>a</code>首先通过创建从根节点（左边）到叶子的边来只插入单个字符，并将其标记为<code>[0,#]</code>，这意味着边表示从位置 0
+开始到结束的子字符串在 <em>当前结束</em> 。我使用 符号<code>#</code>表示 <em>当前 end</em> ，它位于位置 1（紧接在 之后<code>a</code>）。</p>
+<p>所以我们有一个初始树，它看起来像这样：</p>
+<p><img alt="" src="../../images/aOwIL.png"></p>
+<p>它的意思是：</p>
+<p><img alt="" src="../../images/SZH4k.png"></p>
+<p>现在我们前进到位置 2（紧随其后<code>b</code>）。 <strong>我们在每一步的目标</strong> 是将 <strong>所有后缀插入到当前位置</strong> 。我们这样做</p>
+<ul>
+<li>将现有的<code>a</code>-edge 扩展到<code>ab</code>
+</li>
+<li>插入一条新边<code>b</code>
+</li>
+</ul>
+<p>在我们的表示中，这看起来像</p>
+<p><img alt="在此处输入图像描述" src="../../images/onmqt.png"></p>
+<p>它的意思是：</p>
+<p><img alt="" src="../../images/tchAx.png"></p>
+<p><strong>我们观察到</strong> 两件事：</p>
+<ul>
+<li>的边表示 <strong>与</strong> 初始树中的相同<code>ab</code>：。它的含义已经自动改变，因为我们将当前位置从 1 更新为 2。 ****<code>[0,#]``#</code>
+</li>
+<li>每条边占用 O(1) 空间，因为它只包含两个指向文本的指针，而不管它代表多少个字符。</li>
+</ul>
+<p><code>c</code>接下来，我们再次增加位置并通过将 a 附加到每条现有边并为新后缀插入一条新边来更新树<code>c</code>。</p>
+<p>在我们的表示中，这看起来像</p>
+<p><img alt="" src="../../images/wCEdI.png"></p>
+<p>它的意思是：</p>
+<p><img alt="" src="../../images/UpUFw.png"></p>
+<p><strong>我们观察到：</strong></p>
+<ul>
+<li>树是每一步后 <em>到当前位置的正确后缀树</em>
+</li>
+<li>文中有多少字符就有多少步骤</li>
+<li>每一步的工作量为 O(1)，因为所有现有边都会通过递增 自动更新<code>#</code>，并且可以在 O(1) 时间内为最终字符插入一条新边。因此对于长度为 n 的字符串，只需要 O(n) 时间。</li>
+</ul>
+<h3>第一个扩展：简单重复</h3>
+<p>当然，这工作得很好只是因为我们的字符串不包含任何重复。我们现在来看一个更真实的字符串：</p>
+<div class="code"><pre class="code literal-block">abcabxabcd
+</pre></div>
+
+<p><code>abc</code>它以前面示例中的开头，然后<code>ab</code>重复并后跟<code>x</code>，然后<code>abc</code>重复后跟<code>d</code>。</p>
+<p><strong>步骤 1 到 3：</strong> 在前 3 个步骤之后，我们得到了上一个示例中的树：</p>
+<p><img alt="" src="../../images/AclCh.png"></p>
+<p><strong>第 4 步：</strong> 我们移动<code>#</code>到位置 4。这隐含地将所有现有边更新为：</p>
+<p><img alt="" src="../../images/xhVMY.png"></p>
+<p>我们需要<code>a</code>在根部插入当前步骤的最后一个后缀。</p>
+<p>在我们这样做之前，我们 <strong>再引入两个变量</strong> （除了<code>#</code>），这两个变量当然一直存在，但到目前为止我们还没有使用它们：</p>
+<ul>
+<li>活动 <strong>点</strong> ，这是一个三重<code>(active_node,active_edge,active_length)</code>
+</li>
+<li>,这<code>remainder</code>是一个整数，表示我们需要插入多少个新的后缀</li>
+</ul>
+<p>这两个的确切含义很快就会变得清晰，但现在我们只说：</p>
+<ul>
+<li>在简单<code>abc</code>示例中，活动点始终为<code>(root,'\0x',0)</code>，即为<code>active_node</code>根节点，<code>active_edge</code>指定为空字符<code>'\0x'</code>，并且<code>active_length</code>为零。这样做的效果是，我们在每一步中插入的一条新边作为新创建的边插入到根节点。我们很快就会看到为什么需要三元组来表示此信息。</li>
+<li>
+<code>remainder</code>在每个步骤开始时始终设置为 1 。这意味着我们必须在每一步结束时主动插入的后缀数量为 1（始终只是最后一个字符）。</li>
+</ul>
+<p>现在这将改变。<code>a</code>当我们在根部插入当前的最终字符时，我们注意到已经有一个以 开头的出边<code>a</code>，具体来说：<code>abca</code>。这是我们在这种情况下所做的：</p>
+<ul>
+<li>我们 <strong>不在</strong><code>[4,#]</code>根节点插入新边。相反，我们只是注意到后缀<code>a</code>已经在我们的树中。它在较长边缘的中间结束，但我们并不为此烦恼。我们只是让事情保持原样。</li>
+<li>我们 <strong>将活动点设置</strong> 为<code>(root,'a',1)</code>。这意味着活动点现在位于以 开头的根节点的传出边中间的某个位置<code>a</code>，具体来说，在该边上的位置 1 之后。我们注意到边缘仅由其第一个字符指定<code>a</code>。这就足够了，因为只能有 <em>一条</em> 边以任何特定字符开头（在阅读整个描述后确认这是真的）。</li>
+<li>我们还递增<code>remainder</code>，因此在下一步开始时它将为 2。</li>
+</ul>
+<p><strong>观察：</strong> 当发现我们需要插入的最后一个 <strong>后缀已经存在于树中时</strong> ，树本身根本 <strong>没有改变</strong> （我们只更新活动点 和<code>remainder</code>）。
+<em>该树不再是直到当前位置的</em> 后缀树的准确表示，但它 <strong>包含</strong> 所有后缀（因为最终后缀被
+<em>隐式</em><code>a</code>包含）。因此，除了更新变量（它们都是固定长度的，所以这是 O(1)）之外，这一步没有做 <strong>任何工作。</strong> __ ****</p>
+<p><strong>第 5 步：</strong> 我们将当前位置更新<code>#</code>为 5。这会自动将树更新为：</p>
+<p><img alt="" src="../../images/XL6bg.png"></p>
+<p>并且 <strong>因为<code>remainder</code>是 2</strong>，我们需要插入两个当前位置的最后后缀：<code>ab</code>和<code>b</code>。这主要是因为：</p>
+<ul>
+<li>
+<code>a</code>从未正确插入上一步的后缀。所以它 <em>保持不变</em> ，并且由于我们前进了一步，它现在已经从 增长<code>a</code>到<code>ab</code>。</li>
+<li>我们需要插入新的最终边缘<code>b</code>。</li>
+</ul>
+<p>实际上，这意味着我们转到活动点（指向<code>a</code>现在边缘的后面<code>abcab</code>），并插入当前的最终字符<code>b</code>。 <strong>但是：</strong>
+同样，事实证明<code>b</code>也已经存在于同一条边上。</p>
+<p>所以，再一次，我们不改变树。我们只是：</p>
+<ul>
+<li>将活动点更新为<code>(root,'a',2)</code>（与之前相同的节点和边，但现在我们指向后面<code>b</code>）</li>
+<li>将 增加到<code>remainder</code>3，因为我们仍然没有正确插入上一步的最后一条边，而且我们也没有插入当前的最后一条边。</li>
+</ul>
+<p>需要明确的是：我们必须在当前步骤中插入<code>ab</code>和，但是因为已经找到了，所以我们更新了活动点并且甚至没有尝试插入。为什么？因为 if在树中，它的
+<strong>每个后缀</strong> （包括）也必须在树中。也许只是 <em>隐含地</em> ，但它必须存在，因为我们到目前为止构建树的方式。<code>b``ab``b``ab</code> ****<code>b</code>
+__</p>
+<p>我们通过递增继续执行 <strong>步骤 6</strong><code>#</code>。树会自动更新为：</p>
+<p><img alt="" src="../../images/bLLT9.png"></p>
+<p>因为 <strong><code>remainder</code> 是
+3</strong>，我们必须插入<code>abx</code>,<code>bx</code>和<code>x</code>。活动点告诉我们在哪里<code>ab</code>结束，所以我们只需要跳到那里并插入<code>x</code>.
+事实上，<code>x</code>还没有，所以我们分割边<code>abcabx</code>并插入一个内部节点：</p>
+<p><img alt="" src="../../images/6HYtR.png"></p>
+<p>边缘表示仍然是指向文本的指针，因此可以在 O(1) 时间内完成拆分和插入内部节点。</p>
+<p>所以我们已经处理<code>abx</code>并递减<code>remainder</code>到
+2。现在我们需要插入下一个剩余的后缀，<code>bx</code>。但在我们这样做之前，我们需要更新活动点。在分割和插入一条边之后，此规则将在下面称为 <strong>规则 1</strong>
+，只要是根，它就适用<code>active_node</code>（我们将在下面进一步了解其他情况的规则 3）。这是规则 1：</p>
+<blockquote>
+<p>从根插入后，</p>
+<ul>
+<li>
+<code>active_node</code>仍然是根</li>
+<li>
+<code>active_edge</code>设置为我们需要插入的新后缀的第一个字符，即<code>b</code>
+</li>
+<li>
+<code>active_length</code>减少 1
+</li>
+</ul>
+</blockquote>
+<p>Hence, the new active-point triple <code>(root,'b',1)</code> indicates that the next
+insert has to be made at the <code>bcabx</code> edge, behind 1 character, i.e. behind
+<code>b</code>. We can identify the insertion point in O(1) time and check whether <code>x</code> is
+already present or not. If it was present, we would end the current step and
+leave everything the way it is. But <code>x</code> is not present, so we insert it by
+splitting the edge:</p>
+<p><img alt="" src="../../images/YVvbJ.png"></p>
+<p>Again, this took O(1) time and we update <code>remainder</code> to 1 and the active point
+to <code>(root,'x',0)</code> as rule 1 states.</p>
+<p>But there is one more thing we need to do. We'll call this <strong>Rule 2:</strong></p>
+<blockquote>
+<p>If we split an edge and insert a new node, and if that is <em>not the first
+node</em> created during the current step, we connect the previously inserted
+node and the new node through a special pointer, a <strong>suffix link</strong>. We will
+later see why that is useful. Here is what we get, the suffix link is
+represented as a dotted edge:</p>
+</blockquote>
+<p><img alt="" src="../../images/zL9yl.png"></p>
+<p>We still need to insert the final suffix of the current step, <code>x</code>. Since the
+<code>active_length</code> component of the active node has fallen to 0, the final insert
+is made at the root directly. Since there is no outgoing edge at the root node
+starting with <code>x</code>, we insert a new edge:</p>
+<p><img alt="" src="../../images/992gV.png"></p>
+<p>As we can see, in the current step all remaining inserts were made.</p>
+<p>We proceed to <strong>step 7</strong> by setting <code>#</code>=7, which automatically appends the
+next character, <code>a</code>, to all leaf edges, as always. Then we attempt to insert
+the new final character to the active point (the root), and find that it is
+there already. So we end the current step without inserting anything and
+update the active point to <code>(root,'a',1)</code>.</p>
+<p>In <strong>step 8</strong> , <code>#</code>=8, we append <code>b</code>, and as seen before, this only means we
+update the active point to <code>(root,'a',2)</code> and increment <code>remainder</code> without
+doing anything else, because <code>b</code> is already present. <strong>However,</strong> we notice
+(in O(1) time) that the active point is now at the end of an edge. We reflect
+this by re-setting it to <code>(node1,'\0x',0)</code>. Here, I use <code>node1</code> to refer to
+the internal node the <code>ab</code> edge ends at.</p>
+<p>Then, in <strong>step<code>#</code>=9</strong>, we need to insert 'c' and this will help us to
+understand the final trick:</p>
+<h3>Second extension: Using suffix links</h3>
+<p>As always, the <code>#</code> update appends <code>c</code> automatically to the leaf edges and we
+go to the active point to see if we can insert 'c'. It turns out 'c' exists
+already at that edge, so we set the active point to <code>(node1,'c',1)</code>, increment
+<code>remainder</code> and do nothing else.</p>
+<p>Now in <strong>step<code>#</code>=10</strong>, <code>remainder</code> is 4, and so we first need to insert <code>abcd</code>
+(which remains from 3 steps ago) by inserting <code>d</code> at the active point.</p>
+<p>Attempting to insert <code>d</code> at the active point causes an edge split in O(1)
+time:</p>
+<p><img alt="" src="../../images/Rkdzd.png"></p>
+<p>The <code>active_node</code>, from which the split was initiated, is marked in red above.
+Here is the final rule, <strong>Rule 3:</strong></p>
+<blockquote>
+<p>After splitting an edge from an <code>active_node</code> that is not the root node, we
+follow the suffix link going out of that node, if there is any, and reset
+the <code>active_node</code> to the node it points to. If there is no suffix link, we
+set the <code>active_node</code> to the root. <code>active_edge</code> and <code>active_length</code> remain
+unchanged.</p>
+</blockquote>
+<p>So the active point is now <code>(node2,'c',1)</code>, and <code>node2</code> is marked in red
+below:</p>
+<p><img alt="" src="../../images/0IS5C.png"></p>
+<p>Since the insertion of <code>abcd</code> is complete, we decrement <code>remainder</code> to 3 and
+consider the next remaining suffix of the current step, <code>bcd</code>. Rule 3 has set
+the active point to just the right node and edge so inserting <code>bcd</code> can be
+done by simply inserting its final character <code>d</code> at the active point.</p>
+<p>Doing this causes another edge split, and <strong>because of rule 2</strong> , we must
+create a suffix link from the previously inserted node to the new one:</p>
+<p><img alt="" src="../../images/DNVQO.png"></p>
+<p><strong>We observe:</strong> Suffix links enable us to reset the active point so we can
+make the next <em>remaining insert</em> at O(1) effort. Look at the graph above to
+confirm that indeed node at label <code>ab</code> is linked to the node at <code>b</code> (its
+suffix), and the node at <code>abc</code> is linked to <code>bc</code>.</p>
+<p>The current step is not finished yet. <code>remainder</code> is now 2, and we need to
+follow rule 3 to reset the active point again. Since the current <code>active_node</code>
+(red above) has no suffix link, we reset to root. The active point is now
+<code>(root,'c',1)</code>.</p>
+<p>Hence the next insert occurs at the one outgoing edge of the root node whose
+label starts with <code>c</code>: <code>cabxabcd</code>, behind the first character, i.e. behind
+<code>c</code>. This causes another split:</p>
+<p><img alt="" src="../../images/wZ7Bj.png"></p>
+<p>And since this involves the creation of a new internal node,we follow rule 2
+and set a new suffix link from the previously created internal node:</p>
+<p><img alt="" src="../../images/urgol.png"></p>
+<p>(I am using Graphviz Dot for these little graphs. The new suffix link caused
+dot to re-arrange the existing edges, so check carefully to confirm that the
+only thing that was inserted above is a new suffix link.)</p>
+<p>With this, <code>remainder</code> can be set to 1 and since the <code>active_node</code> is root, we
+use rule 1 to update the active point to <code>(root,'d',0)</code>. This means the final
+insert of the current step is to insert a single <code>d</code> at root:</p>
+<p><img alt="" src="../../images/TPxLe.png"></p>
+<p>That was the final step and we are done. There are number of <strong>final
+observations</strong> , though:</p>
+<ul>
+<li>
+<p>In each step we move <code>#</code> forward by 1 position. This automatically updates all leaf nodes in O(1) time.</p>
+</li>
+<li>
+<p>But it does not deal with a) any suffixes <em>remaining</em> from previous steps, and b) with the one final character of the current step.</p>
+</li>
+<li>
+<p><code>remainder</code> tells us how many additional inserts we need to make. These inserts correspond one-to-one to the final suffixes of the string that ends at the current position <code>#</code>. We consider one after the other and make the insert. <strong>Important:</strong> Each insert is done in O(1) time since the active point tells us exactly where to go, and we need to add only one single character at the active point. Why? Because the other characters are <em>contained implicitly</em> (otherwise the active point would not be where it is).</p>
+</li>
+<li>
+<p>After each such insert, we decrement <code>remainder</code> and follow the suffix link if there is any. If not we go to root (rule 3). If we are at root already, we modify the active point using rule 1. In any case, it takes only O(1) time.</p>
+</li>
+<li>
+<p>If, during one of these inserts, we find that the character we want to insert is already there, we don't do anything and end the current step, even if <code>remainder</code>&gt;0. The reason is that any inserts that remain will be suffixes of the one we just tried to make. Hence they are all <em>implicit</em> in the current tree. The fact that <code>remainder</code>&gt;0 makes sure we deal with the remaining suffixes later.</p>
+</li>
+<li>
+<p>What if at the end of the algorithm <code>remainder</code>&gt;0? This will be the case whenever the end of the text is a substring that occurred somewhere before. In that case we must append one extra character at the end of the string that has not occurred before. In the literature, usually the dollar sign <code>$</code> is used as a symbol for that. <strong>Why does that matter?</strong> --&gt; If later we use the completed suffix tree to search for suffixes, we must accept matches only if they <em>end at a leaf</em>. Otherwise we would get a lot of spurious matches, because there are <em>many</em> strings <em>implicitly</em> contained in the tree that are not actual suffixes of the main string. Forcing <code>remainder</code> to be 0 at the end is essentially a way to ensure that all suffixes end at a leaf node. <strong>However,</strong> if we want to use the tree to search for <em>general substrings</em> , not only <em>suffixes</em> of the main string, this final step is indeed not required, as suggested by the OP's comment below.</p>
+</li>
+<li>
+<p>So what is the complexity of the entire algorithm? If the text is n characters in length, there are obviously n steps (or n+1 if we add the dollar sign). In each step we either do nothing (other than updating the variables), or we make <code>remainder</code> inserts, each taking O(1) time. Since <code>remainder</code> indicates how many times we have done nothing in previous steps, and is decremented for every insert that we make now, the total number of times we do something is exactly n (or n+1). Hence, the total complexity is O(n).</p>
+</li>
+<li>
+<p>However, there is one small thing that I did not properly explain: It can happen that we follow a suffix link, update the active point, and then find that its <code>active_length</code> component does not work well with the new <code>active_node</code>. For example, consider a situation like this:</p>
+</li>
+</ul>
+<p><img alt="" src="../../images/7t0dg.png"></p>
+<p>(The dashed lines indicate the rest of the tree. The dotted line is a suffix
+link.)</p>
+<p>Now let the active point be <code>(red,'d',3)</code>, so it points to the place behind
+the <code>f</code> on the <code>defg</code> edge. Now assume we made the necessary updates and now
+follow the suffix link to update the active point according to rule 3. The new
+active point is <code>(green,'d',3)</code>. However, the <code>d</code>-edge going out of the green
+node is <code>de</code>, so it has only 2 characters. In order to find the correct active
+point, we obviously need to follow that edge to the blue node and reset to
+<code>(blue,'f',1)</code>.</p>
+<p>In a particularly bad case, the <code>active_length</code> could be as large as
+<code>remainder</code>, which can be as large as n. And it might very well happen that to
+find the correct active point, we need not only jump over one internal node,
+but perhaps many, up to n in the worst case. Does that mean the algorithm has
+a hidden O(n2) complexity, because in each step <code>remainder</code> is generally O(n),
+and the post-adjustments to the active node after following a suffix link
+could be O(n), too?</p>
+<p>No. The reason is that if indeed we have to adjust the active point (e.g. from
+green to blue as above), that brings us to a new node that has its own suffix
+link, and <code>active_length</code> will be reduced. As we follow down the chain of
+suffix links we make the remaining inserts, <code>active_length</code> can only decrease,
+and the number of active-point adjustments we can make on the way can't be
+larger than <code>active_length</code> at any given time. Since <code>active_length</code> can never
+be larger than <code>remainder</code>, and <code>remainder</code> is O(n) not only in every single
+step, but the total sum of increments ever made to <code>remainder</code> over the course
+of the entire process is O(n) too, the number of active point adjustments is
+also bounded by O(n).</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>我尝试使用 jogojapan
+的回答中给出的方法来实现后缀树，但由于规则中使用的措辞，它在某些情况下不起作用。此外，我已经提到没有人设法使用这种方法实现绝对正确的后缀树。下面我将对
+jogojapan 的答案进行“概述”，并对规则进行一些修改。 <strong> <em>我还将描述忘记创建重要</em></strong> 后缀链接的情况。</p>
+<p><strong>使用的附加变量</strong></p>
+<ol>
+<li>
+<strong>活动点</strong> - 三元组 (active_node; active_edge; active_length)，显示我们必须从哪里开始插入新后缀。</li>
+<li>
+<strong>remainder - 显示我们必须</strong> <em>显式</em> 添加的后缀数。例如，如果我们的单词是 'abcaabca'，并且余数 = 3，则意味着我们必须处理 3 个最后的后缀： <strong>bca</strong> 、 <strong>ca</strong> 和 <strong>a</strong> 。</li>
+</ol>
+<p><strong>让我们使用一个内部节点</strong> 的概念——所有的节点，除了 <em>根</em> 和 <em>叶子</em> 都是 <strong>内部节点</strong> 。</p>
+<p><strong>观察 1</strong></p>
+<p>当发现我们需要插入的最后一个后缀已经存在于树中时，树本身根本没有改变（我们只更新 和<code>active point</code>）<code>remainder</code>。</p>
+<p><strong>观察2</strong></p>
+<p>如果在某个点<code>active_length</code>大于或等于当前边的长度 ( <code>edge_length</code>)，我们<code>active
+point</code>向下移动直到<code>edge_length</code>严格大于<code>active_length</code>。</p>
+<p>现在，让我们重新定义规则：</p>
+<p><strong>规则1</strong></p>
+<blockquote>
+<p><em>如果从活动节点</em> = <em>root</em> 插入后， <em>活动长度</em> 大于 0，则：</p>
+<ol>
+<li>
+<em>活动节点</em> 没有改变</li>
+<li>
+<em>活动长度</em> 递减</li>
+<li>
+<em>活动边缘</em> 向右移动（到我们必须插入的下一个后缀的第一个字符）
+</li>
+</ol>
+</blockquote>
+<p><strong>规则 2</strong></p>
+<blockquote>
+<p>如果我们创建一个新的 <em>内部节点</em> <strong>或</strong> 从 <em>内部节点</em> 创建一个插入器，并且这不是当前步骤中的第一个 <strong>SUCH</strong> <em>内部节点</em>
+，那么我们通过 <em>后缀链接将前一个</em> <strong>SUCH</strong> 节点与 <strong>THIS</strong> 节点链接起来。 __</p>
+</blockquote>
+<p>这个定义<code>Rule 2</code>与 jogojapan' 不同，因为这里我们不仅考虑了 <em>新创建的</em> 内部节点，还考虑了我们从中进行插入的内部节点。</p>
+<p><strong>规则 3</strong></p>
+<blockquote>
+<p>从不是 <em>根节点的</em> <em>活动节点</em> 插入后，我们必须跟随后缀链接并将 <em>活动节点</em> 设置为它指向的节点。如果没有后缀链接，则将 <em>活动节点</em> 设置为
+<em>根节点</em> 。无论哪种方式， <em>活动边缘</em> 和 <em>活动长度</em> 都保持不变。 <strong> </strong> <strong> </strong> <strong> </strong></p>
+</blockquote>
+<p>在这个定义中，<code>Rule 3</code>我们还考虑了叶节点的插入（不仅是分裂节点）。</p>
+<p><strong>最后，观察 3：</strong></p>
+<p>当我们要添加到树中的符号已经在边缘时，我们根据 ，<code>Observation 1</code>仅更新<code>active point</code>和<code>remainder</code>，而树保持不变。
+<strong>但是</strong> 如果有一个 <em>内部节点</em> 标记为 <em>需要后缀链接</em><code>active node</code>，我们必须通过后缀链接将该节点与我们的当前节点连接起来。</p>
+<p><strong>让我们看一下cdddcdc</strong> 的后缀树示例，如果我们在这种情况下添加后缀链接，如果我们不这样做：</p>
+<ol>
+<li>
+<p>如果我们 <strong>不</strong> 通过后缀链接连接节点：</p>
+<ul>
+<li>在添加最后一个字母 <strong>c</strong> 之前：</li>
+</ul>
+</li>
+</ol>
+<p><img alt="" src="../../images/zPiF1.png"></p>
+<div class="code"><pre class="code literal-block">* 添加最后一个字母 **c** 后：
+</pre></div>
+
+<p><img alt="" src="../../images/5fsmd.png"></p>
+<ol>
+<li>
+<p>如果我们 <strong>确实</strong> 通过后缀链接连接节点：</p>
+<ul>
+<li>在添加最后一个字母 <strong>c</strong> 之前：</li>
+</ul>
+</li>
+</ol>
+<p><img alt="" src="../../images/lZrAF.png"></p>
+<div class="code"><pre class="code literal-block">* 添加最后一个字母 **c** 后：
+</pre></div>
+
+<p><img alt="" src="../../images/XUFjk.png"></p>
+<p>似乎没有显着差异：在第二种情况下，还有两个后缀链接。但是这些后缀链接是 <em>正确的</em> ，其中之一——从蓝色节点到红色节点——对我们使用
+<strong>活动点的方法非常</strong> <strong>重要</strong> 。问题是，如果我们不在此处放置后缀链接，稍后，当我们向树中添加一些新字母时，由于
+，我们可能会省略向树中添加一些节点，因为根据它，如果没有后缀链接，那么我们必须把. ****<code>Rule 3``active_node</code></p>
+<p>当我们将最后一个字母添加到树中时，红色节点在我们从蓝色节点（标记为 <strong>'c'</strong> 的边）进行插入之前 <strong>已经存在</strong>
+。由于有来自蓝色节点的插入，我们将其标记为 <em>需要后缀链接</em> 。然后，依靠 <strong>主动点</strong> 方法，将 设置为红色节点。但是我们不从红色节点插入，因为字母
+<strong>“c”</strong> 已经在边缘上了。是不是说蓝色节点一定要留下没有后缀链接？不，我们必须通过后缀链接将蓝色节点与红色节点连接起来。为什么是正确的？因为
+<strong>活跃点</strong> <strong><em>* __ </em></strong><em><code>active node</code> </em><strong><em> </em></strong><em>该方法保证我们到达正确的位置，即到达下一个我们必须处理 </em><em>更短</em>*
+后缀插入的位置。</p>
+<p>最后，这是我对后缀树的实现：</p>
+<ol>
+<li>爪哇</li>
+<li>C++</li>
+</ol>
+<p>希望这个“概述”与 jogojapan 的详细答案相结合将帮助某人实现他自己的后缀树。</p>
+<p><br><br><a href="../ukkonen-s-suffix-tree-algorithm-in-plain-english/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/algorithm/" rel="tag">algorithm</a></li>
+            <li><a class="tag p-category" href="../../categories/data-structures/" rel="tag">data-structures</a></li>
+            <li><a class="tag p-category" href="../../categories/language-agnostic/" rel="tag">language-agnostic</a></li>
+            <li><a class="tag p-category" href="../../categories/string/" rel="tag">string</a></li>
+            <li><a class="tag p-category" href="../../categories/suffix-tree/" rel="tag">suffix-tree</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../bobby-tables-xkcd-man-hua-zhong-de-sql-zhu-ru-shi-ru-he-gong-zuo-de/" rel="prev" title="“Bobby Tables”XKCD 漫画中的 SQL 注入是如何工作的？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../ru-he-jiang-huan-jing-bian-liang-chuan-di-gei-docker-rong-qi/" rel="next" title="如何将环境变量传递给 Docker 容器？">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

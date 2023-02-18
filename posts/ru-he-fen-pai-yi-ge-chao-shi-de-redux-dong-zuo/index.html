@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>如何分派一个超时的 Redux 动作？ | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/ru-he-fen-pai-yi-ge-chao-shi-de-redux-dong-zuo/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ru-he-jiang-yi-jing-yun-xing-de-jin-cheng-zhi-yu-nohup-xia/" title="如何将已经运行的进程置于 nohup 下？" type="text/html">
+<link rel="next" href="../shi-yao-shi-hou-ying-gai-shi-yong-git-pull-rebase/" title="什么时候应该使用 git pull --rebase？" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="如何分派一个超时的 Redux 动作？">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/ru-he-fen-pai-yi-ge-chao-shi-de-redux-dong-zuo/">
+<meta property="og:description" content="我有一个操作可以更新我的应用程序的通知状态。通常，此通知将是错误或某种信息。然后我需要在 5
+秒后发送另一个操作，将通知状态返回到初始状态，因此没有通知。这背后的主要原因是提供通知在 5 秒后自动消失的功能。
+我没有使用setTimeout和返回另一个动作的运气，也找不到在线完成的方式。所以欢迎任何建议。
+
+解答
+不要陷入认为图书馆应该规定如何做每件事的陷阱。如果你想在 JavaScript 中做">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T06:32:29+08:00">
+<meta property="article:tag" content="javascript">
+<meta property="article:tag" content="react-redux">
+<meta property="article:tag" content="redux">
+<meta property="article:tag" content="timeout">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">如何分派一个超时的 Redux 动作？</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T06:32:29+08:00" itemprop="datePublished" title="2023-02-17 06:32">2023-02-17 06:32</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>我有一个操作可以更新我的应用程序的通知状态。通常，此通知将是错误或某种信息。然后我需要在 5
+秒后发送另一个操作，将通知状态返回到初始状态，因此没有通知。这背后的主要原因是提供通知在 5 秒后自动消失的功能。</p>
+<p>我没有使用<code>setTimeout</code>和返回另一个动作的运气，也找不到在线完成的方式。所以欢迎任何建议。</p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>不要陷入认为图书馆应该规定如何做每件事的陷阱。如果你想在 JavaScript 中做一些超时的事情，你需要使用<code>setTimeout</code>. 没有理由认为
+Redux 操作应该有任何不同。</p>
+<p>Redux <em>确实</em>
+提供了一些处理异步内容的替代方法，但是只有当您意识到重复了太多代码时才应该使用这些方法。除非您有这个问题，否则请使用该语言提供的内容并寻求最简单的解决方案。</p>
+<h3>编写异步代码内联</h3>
+<p>这是迄今为止最简单的方法。这里没有什么特定于 Redux。</p>
+<div class="code"><pre class="code literal-block">store.dispatch({ type: 'SHOW_NOTIFICATION', text: 'You logged in.' })
+setTimeout(() =&gt; {
+  store.dispatch({ type: 'HIDE_NOTIFICATION' })
+}, 5000)
+</pre></div>
+
+<p>同样，从连接的组件内部：</p>
+<div class="code"><pre class="code literal-block">this.props.dispatch({ type: 'SHOW_NOTIFICATION', text: 'You logged in.' })
+setTimeout(() =&gt; {
+  this.props.dispatch({ type: 'HIDE_NOTIFICATION' })
+}, 5000)
+</pre></div>
+
+<p>唯一的区别是，在连接的组件中，您通常无法访问商店本身，而是将其中一个<code>dispatch()</code>或特定的动作创建者作为道具注入。然而，这对我们没有任何影响。</p>
+<p>如果您不喜欢在从不同组件分派相同的动作时出现拼写错误，您可能希望提取动作创建者而不是内联分派动作对象：</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span> <span class="n">actions</span><span class="o">.</span><span class="n">js</span>
+<span class="n">export</span> <span class="n">function</span> <span class="n">showNotification</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">{</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'SHOW_NOTIFICATION'</span><span class="p">,</span> <span class="n">text</span> <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">export</span> <span class="n">function</span> <span class="n">hideNotification</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">{</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'HIDE_NOTIFICATION'</span> <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="o">//</span> <span class="n">component</span><span class="o">.</span><span class="n">js</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="n">showNotification</span><span class="p">,</span> <span class="n">hideNotification</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'../actions'</span>
+
+<span class="n">this</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">showNotification</span><span class="p">(</span><span class="s1">'You just logged in.'</span><span class="p">))</span>
+<span class="n">setTimeout</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="n">this</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">hideNotification</span><span class="p">())</span>
+<span class="p">},</span> <span class="mi">5000</span><span class="p">)</span>
+</pre></div>
+
+<p>或者，如果您之前将它们绑定到<code>connect()</code>：</p>
+<div class="code"><pre class="code literal-block">this.props.showNotification('You just logged in.')
+setTimeout(() =&gt; {
+  this.props.hideNotification()
+}, 5000)
+</pre></div>
+
+<p>到目前为止，我们还没有使用任何中间件或其他高级概念。</p>
+<h3>提取 Async Action Creator</h3>
+<p>上面的方法在简单的情况下工作得很好，但你可能会发现它有几个问题：</p>
+<ul>
+<li>它迫使您在要显示通知的任何地方复制此逻辑。</li>
+<li>通知没有 ID，因此如果您足够快地显示两个通知，就会出现竞争条件。当第一个超时结束时，它会 dispatch <code>HIDE_NOTIFICATION</code>，错误地隐藏第二个通知，而不是在超时之后。</li>
+</ul>
+<p>要解决这些问题，您需要提取一个集中超时逻辑并分派这两个操作的函数。它可能看起来像这样：</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">actions</span><span class="o">.</span><span class="n">js</span>
+<span class="n">function</span><span class="w"> </span><span class="n">showNotification</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s1">'SHOW_NOTIFICATION'</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+<span class="n">function</span><span class="w"> </span><span class="n">hideNotification</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s1">'HIDE_NOTIFICATION'</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">let</span><span class="w"> </span><span class="n">nextNotificationId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="k">export</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">dispatch</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">Assigning</span><span class="w"> </span><span class="n">IDs</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">notifications</span><span class="w"> </span><span class="n">lets</span><span class="w"> </span><span class="n">reducer</span><span class="w"> </span><span class="n">ignore</span><span class="w"> </span><span class="n">HIDE_NOTIFICATION</span>
+<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">notification</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">currently</span><span class="w"> </span><span class="n">visible</span><span class="o">.</span>
+<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">Alternatively</span><span class="p">,</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">could</span><span class="w"> </span><span class="n">store</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">timeout</span><span class="w"> </span><span class="n">ID</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">call</span>
+<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">clearTimeout</span><span class="p">(),</span><span class="w"> </span><span class="n">but</span><span class="w"> </span><span class="n">we</span><span class="err">’</span><span class="n">d</span><span class="w"> </span><span class="n">still</span><span class="w"> </span><span class="n">want</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">single</span><span class="w"> </span><span class="n">place</span><span class="o">.</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nextNotificationId</span><span class="o">++</span>
+<span class="w">  </span><span class="n">dispatch</span><span class="p">(</span><span class="n">showNotification</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">))</span>
+
+<span class="w">  </span><span class="n">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">dispatch</span><span class="p">(</span><span class="n">hideNotification</span><span class="p">(</span><span class="n">id</span><span class="p">))</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="mi">5000</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>现在组件可以使用<code>showNotificationWithTimeout</code>而无需复制此逻辑或具有不同通知的竞争条件：</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// component.js</span>
+<span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">props</span><span class="p">.</span><span class="n">dispatch</span><span class="p">,</span><span class="w"> </span><span class="s">'You just logged in.'</span><span class="p">)</span>
+
+<span class="c1">// otherComponent.js</span>
+<span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">props</span><span class="p">.</span><span class="n">dispatch</span><span class="p">,</span><span class="w"> </span><span class="s">'You just logged out.'</span><span class="p">)</span>
+</pre></div>
+
+<p>为什么<code>showNotificationWithTimeout()</code>accept<code>dispatch</code>作为第一个参数？因为它需要向商店发送操作。通常一个组件可以访问<code>dispatch</code>，但由于我们希望外部函数控制调度，我们需要让它控制调度。</p>
+<p>如果你有一个从某个模块导出的单例存储，你可以直接导入它并<code>dispatch</code>直接在它上面：</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span> <span class="n">store</span><span class="o">.</span><span class="n">js</span>
+<span class="n">export</span> <span class="n">default</span> <span class="n">createStore</span><span class="p">(</span><span class="n">reducer</span><span class="p">)</span>
+
+<span class="o">//</span> <span class="n">actions</span><span class="o">.</span><span class="n">js</span>
+<span class="kn">import</span> <span class="nn">store</span> <span class="kn">from</span> <span class="s1">'./store'</span>
+
+<span class="o">//</span> <span class="o">...</span>
+
+<span class="n">let</span> <span class="n">nextNotificationId</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">export</span> <span class="n">function</span> <span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">const</span> <span class="nb">id</span> <span class="o">=</span> <span class="n">nextNotificationId</span><span class="o">++</span>
+  <span class="n">store</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">showNotification</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">text</span><span class="p">))</span>
+
+  <span class="n">setTimeout</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="n">store</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">hideNotification</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span>
+  <span class="p">},</span> <span class="mi">5000</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="o">//</span> <span class="n">component</span><span class="o">.</span><span class="n">js</span>
+<span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="s1">'You just logged in.'</span><span class="p">)</span>
+
+<span class="o">//</span> <span class="n">otherComponent</span><span class="o">.</span><span class="n">js</span>
+<span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="s1">'You just logged out.'</span><span class="p">)</span>
+</pre></div>
+
+<p>这看起来更简单，但 <strong>我们不推荐这种方法</strong> 。我们不喜欢它的主要原因是 <strong>它强制 store 成为一个单例</strong>
+。这使得服务器渲染的实现变得非常困难。在服务器上，您会希望每个请求都有自己的存储，以便不同的用户获得不同的预加载数据。</p>
+<p>单例存储也使测试更加困难。在测试动作创建器时，您不能再模拟商店，因为它们引用从特定模块导出的特定真实商店。您甚至无法从外部重置其状态。</p>
+<p>因此，虽然从技术上讲您可以从模块导出单例存储，但我们不鼓励这样做。除非您确定您的应用永远不会添加服务器渲染，否则不要这样做。</p>
+<p>回到以前的版本：</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">actions</span><span class="o">.</span><span class="n">js</span>
+
+<span class="o">//</span><span class="w"> </span><span class="o">...</span>
+
+<span class="n">let</span><span class="w"> </span><span class="n">nextNotificationId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="k">export</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">dispatch</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nextNotificationId</span><span class="o">++</span>
+<span class="w">  </span><span class="n">dispatch</span><span class="p">(</span><span class="n">showNotification</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">))</span>
+
+<span class="w">  </span><span class="n">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">dispatch</span><span class="p">(</span><span class="n">hideNotification</span><span class="p">(</span><span class="n">id</span><span class="p">))</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="mi">5000</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">component</span><span class="o">.</span><span class="n">js</span>
+<span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">dispatch</span><span class="p">,</span><span class="w"> </span><span class="s1">'You just logged in.'</span><span class="p">)</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">otherComponent</span><span class="o">.</span><span class="n">js</span>
+<span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">dispatch</span><span class="p">,</span><span class="w"> </span><span class="s1">'You just logged out.'</span><span class="p">)</span>
+</pre></div>
+
+<p>这解决了逻辑重复的问题，并将我们从竞争条件中解救出来。</p>
+<h3>Thunk 中间件</h3>
+<p>对于简单的应用程序，该方法应该足够了。如果您对它感到满意，请不要担心中间件。</p>
+<p>但是，在较大的应用程序中，您可能会发现一些不便之处。</p>
+<p>例如，我们不得不四处走动似乎很不幸<code>dispatch</code>。这使得分离容器和展示组件变得更加棘手，因为以上述方式异步分派 Redux
+操作的任何组件都必须接受<code>dispatch</code>作为道具，以便它可以进一步传递它。你不能再绑定动作创建者了，<code>connect()</code>因为<code>showNotificationWithTimeout()</code>它不是真正的动作创建者。它不返回
+Redux 操作。</p>
+<p>此外，可能很难记住哪些函数是同步动作创建者，<code>showNotification()</code>哪些是异步助手，例如<code>showNotificationWithTimeout()</code>。您必须以不同的方式使用它们，并注意不要将它们相互混淆。</p>
+<p>这就是 <strong>找到一种方法使这种提供辅助函数的模式“合法化”的动机<code>dispatch</code>，并帮助 Redux
+“将此类异步动作创建者视为正常动作创建者的特例，</strong>而不是完全不同的功能。</p>
+<p>如果您仍然和我们在一起并且您也认识到您的应用程序中存在问题，欢迎您使用Redux Thunk中间件。</p>
+<p>在要点中，Redux Thunk 教会 Redux 识别实际上是函数的特殊类型的操作：</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="p">{</span> <span class="n">createStore</span><span class="p">,</span> <span class="n">applyMiddleware</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'redux'</span>
+<span class="kn">import</span> <span class="nn">thunk</span> <span class="kn">from</span> <span class="s1">'redux-thunk'</span>
+
+<span class="n">const</span> <span class="n">store</span> <span class="o">=</span> <span class="n">createStore</span><span class="p">(</span>
+  <span class="n">reducer</span><span class="p">,</span>
+  <span class="n">applyMiddleware</span><span class="p">(</span><span class="n">thunk</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="o">//</span> <span class="n">It</span> <span class="n">still</span> <span class="n">recognizes</span> <span class="n">plain</span> <span class="nb">object</span> <span class="n">actions</span>
+<span class="n">store</span><span class="o">.</span><span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'INCREMENT'</span> <span class="p">})</span>
+
+<span class="o">//</span> <span class="n">But</span> <span class="k">with</span> <span class="n">thunk</span> <span class="n">middleware</span><span class="p">,</span> <span class="n">it</span> <span class="n">also</span> <span class="n">recognizes</span> <span class="n">functions</span>
+<span class="n">store</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">function</span> <span class="p">(</span><span class="n">dispatch</span><span class="p">)</span> <span class="p">{</span>
+  <span class="o">//</span> <span class="o">...</span> <span class="n">which</span> <span class="n">themselves</span> <span class="n">may</span> <span class="n">dispatch</span> <span class="n">many</span> <span class="n">times</span>
+  <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'INCREMENT'</span> <span class="p">})</span>
+  <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'INCREMENT'</span> <span class="p">})</span>
+  <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'INCREMENT'</span> <span class="p">})</span>
+
+  <span class="n">setTimeout</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="o">//</span> <span class="o">...</span> <span class="n">even</span> <span class="n">asynchronously</span><span class="err">!</span>
+    <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'DECREMENT'</span> <span class="p">})</span>
+  <span class="p">},</span> <span class="mi">1000</span><span class="p">)</span>
+<span class="p">})</span>
+</pre></div>
+
+<p>When this middleware is enabled, <strong>if you dispatch a function</strong> , Redux Thunk
+middleware will give it <code>dispatch</code> as an argument. It will also “swallow” such
+actions so don’t worry about your reducers receiving weird function arguments.
+Your reducers will only receive plain object actions—either emitted directly,
+or emitted by the functions as we just described.</p>
+<p>This does not look very useful, does it? Not in this particular situation.
+However it lets us declare <code>showNotificationWithTimeout()</code> as a regular Redux
+action creator:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">actions</span><span class="o">.</span><span class="n">js</span>
+<span class="n">function</span><span class="w"> </span><span class="n">showNotification</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s1">'SHOW_NOTIFICATION'</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+<span class="n">function</span><span class="w"> </span><span class="n">hideNotification</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s1">'HIDE_NOTIFICATION'</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">let</span><span class="w"> </span><span class="n">nextNotificationId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="k">export</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="p">(</span><span class="n">dispatch</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nextNotificationId</span><span class="o">++</span>
+<span class="w">    </span><span class="n">dispatch</span><span class="p">(</span><span class="n">showNotification</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">))</span>
+
+<span class="w">    </span><span class="n">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">dispatch</span><span class="p">(</span><span class="n">hideNotification</span><span class="p">(</span><span class="n">id</span><span class="p">))</span>
+<span class="w">    </span><span class="p">},</span><span class="w"> </span><span class="mi">5000</span><span class="p">)</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Note how the function is almost identical to the one we wrote in the previous
+section. However it doesn’t accept <code>dispatch</code> as the first argument. Instead
+it <em>returns</em> a function that accepts <code>dispatch</code> as the first argument.</p>
+<p>How would we use it in our component? Definitely, we could write this:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// component.js</span>
+<span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="s">'You just logged in.'</span><span class="p">)(</span><span class="n">this</span><span class="p">.</span><span class="n">props</span><span class="p">.</span><span class="n">dispatch</span><span class="p">)</span>
+</pre></div>
+
+<p>We are calling the async action creator to get the inner function that wants
+just <code>dispatch</code>, and then we pass <code>dispatch</code>.</p>
+<p>However this is even more awkward than the original version! Why did we even
+go that way?</p>
+<p>Because of what I told you before. <strong>If Redux Thunk middleware is enabled, any
+time you attempt to dispatch a function instead of an action object, the
+middleware will call that function with<code>dispatch</code> method itself as the first
+argument</strong>.</p>
+<p>So we can do this instead:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// component.js</span>
+<span class="n">this</span><span class="p">.</span><span class="n">props</span><span class="p">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="s">'You just logged in.'</span><span class="p">))</span>
+</pre></div>
+
+<p>Finally, dispatching an asynchronous action (really, a series of actions)
+looks no different than dispatching a single action synchronously to the
+component. Which is good because components shouldn’t care whether something
+happens synchronously or asynchronously. We just abstracted that away.</p>
+<p>Notice that since we “taught” Redux to recognize such “special” action
+creators (we call them thunk action creators), we can now use them in any
+place where we would use regular action creators. For example, we can use them
+with <code>connect()</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span> <span class="n">actions</span><span class="o">.</span><span class="n">js</span>
+
+<span class="n">function</span> <span class="n">showNotification</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">{</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'SHOW_NOTIFICATION'</span><span class="p">,</span> <span class="nb">id</span><span class="p">,</span> <span class="n">text</span> <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">function</span> <span class="n">hideNotification</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">{</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">'HIDE_NOTIFICATION'</span><span class="p">,</span> <span class="nb">id</span> <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">let</span> <span class="n">nextNotificationId</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">export</span> <span class="n">function</span> <span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="n">function</span> <span class="p">(</span><span class="n">dispatch</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">const</span> <span class="nb">id</span> <span class="o">=</span> <span class="n">nextNotificationId</span><span class="o">++</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">showNotification</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">text</span><span class="p">))</span>
+
+    <span class="n">setTimeout</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+      <span class="n">dispatch</span><span class="p">(</span><span class="n">hideNotification</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span>
+    <span class="p">},</span> <span class="mi">5000</span><span class="p">)</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="o">//</span> <span class="n">component</span><span class="o">.</span><span class="n">js</span>
+
+<span class="kn">import</span> <span class="p">{</span> <span class="n">connect</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'react-redux'</span>
+
+<span class="o">//</span> <span class="o">...</span>
+
+<span class="n">this</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="s1">'You just logged in.'</span><span class="p">)</span>
+
+<span class="o">//</span> <span class="o">...</span>
+
+<span class="n">export</span> <span class="n">default</span> <span class="n">connect</span><span class="p">(</span>
+  <span class="n">mapStateToProps</span><span class="p">,</span>
+  <span class="p">{</span> <span class="n">showNotificationWithTimeout</span> <span class="p">}</span>
+<span class="p">)(</span><span class="n">MyComponent</span><span class="p">)</span>
+</pre></div>
+
+<h3>Reading State in Thunks</h3>
+<p>Usually your reducers contain the business logic for determining the next
+state. However, reducers only kick in after the actions are dispatched. What
+if you have a side effect (such as calling an API) in a thunk action creator,
+and you want to prevent it under some condition?</p>
+<p>Without using the thunk middleware, you’d just do this check inside the
+component:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// component.js</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">props</span><span class="p">.</span><span class="n">areNotificationsEnabled</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">props</span><span class="p">.</span><span class="n">dispatch</span><span class="p">,</span><span class="w"> </span><span class="s">'You just logged in.'</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>However, the point of extracting an action creator was to centralize this
+repetitive logic across many components. Fortunately, Redux Thunk offers you a
+way to <em>read</em> the current state of the Redux store. In addition to <code>dispatch</code>,
+it also passes <code>getState</code> as the second argument to the function you return
+from your thunk action creator. This lets the thunk read the current state of
+the store.</p>
+<div class="code"><pre class="code literal-block"><span class="n">let</span><span class="w"> </span><span class="n">nextNotificationId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="k">export</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">showNotificationWithTimeout</span><span class="p">(</span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="p">(</span><span class="n">dispatch</span><span class="p">,</span><span class="w"> </span><span class="n">getState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Unlike</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">regular</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="n">creator</span><span class="p">,</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">exit</span><span class="w"> </span><span class="n">early</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">thunk</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Redux</span><span class="w"> </span><span class="n">doesn</span><span class="err">’</span><span class="n">t</span><span class="w"> </span><span class="n">care</span><span class="w"> </span><span class="n">about</span><span class="w"> </span><span class="n">its</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">(</span><span class="ow">or</span><span class="w"> </span><span class="n">lack</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">it</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">getState</span><span class="p">()</span><span class="o">.</span><span class="n">areNotificationsEnabled</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nextNotificationId</span><span class="o">++</span>
+<span class="w">    </span><span class="n">dispatch</span><span class="p">(</span><span class="n">showNotification</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">))</span>
+
+<span class="w">    </span><span class="n">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">dispatch</span><span class="p">(</span><span class="n">hideNotification</span><span class="p">(</span><span class="n">id</span><span class="p">))</span>
+<span class="w">    </span><span class="p">},</span><span class="w"> </span><span class="mi">5000</span><span class="p">)</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Don’t abuse this pattern. It is good for bailing out of API calls when there
+is cached data available, but it is not a very good foundation to build your
+business logic upon. If you use <code>getState()</code> only to conditionally dispatch
+different actions, consider putting the business logic into the reducers
+instead.</p>
+<h3>Next Steps</h3>
+<p>Now that you have a basic intuition about how thunks work, check out Redux
+async example which uses them.</p>
+<p>You may find many examples in which thunks return Promises. This is not
+required but can be very convenient. Redux doesn’t care what you return from a
+thunk, but it gives you its return value from <code>dispatch()</code>. This is why you
+can return a Promise from a thunk and wait for it to complete by calling
+<code>dispatch(someThunkReturningPromise()).then(...)</code>.</p>
+<p>You may also split complex thunk action creators into several smaller thunk
+action creators. The <code>dispatch</code> method provided by thunks can accept thunks
+itself, so you can apply the pattern recursively. Again, this works best with
+Promises because you can implement asynchronous control flow on top of that.</p>
+<p>For some apps, you may find yourself in a situation where your asynchronous
+control flow requirements are too complex to be expressed with thunks. For
+example, retrying failed requests, reauthorization flow with tokens, or a
+step-by-step onboarding can be too verbose and error-prone when written this
+way. In this case, you might want to look at more advanced asynchronous
+control flow solutions such as Redux Saga or Redux Loop. Evaluate them,
+compare the examples relevant to your needs, and pick the one you like the
+most.</p>
+<p>Finally, don’t use anything (including thunks) if you don’t have the genuine
+need for them. Remember that, depending on the requirements, your solution
+might look as simple as</p>
+<div class="code"><pre class="code literal-block">store.dispatch({ type: 'SHOW_NOTIFICATION', text: 'You logged in.' })
+setTimeout(() =&gt; {
+  store.dispatch({ type: 'HIDE_NOTIFICATION' })
+}, 5000)
+</pre></div>
+
+<p>Don’t sweat it unless you know why you’re doing this.</p>
+<p><br></p>
+<h3>更多建议</h3>
+<h4>使用 Redux-saga</h4>
+<p>正如 Dan Abramov 所说，如果您想对异步代码进行更高级的控制，您可以看看redux-saga。</p>
+<p>这个答案是一个简单的例子，如果你想更好地解释为什么 redux-saga 对你的应用程序有用，请查看 <strong>这个其他答案 。</strong></p>
+<p>一般的想法是 Redux-saga 提供了一个 ES6 生成器解释器，允许您轻松编写看起来像同步代码的异步代码（这就是为什么您经常会在 Redux-saga
+中发现无限 while 循环）。不知何故，Redux-saga 正在直接在 Javascript 中构建自己的语言。Redux-saga
+一开始会觉得有点难学，因为你需要对生成器有基本的了解，还要了解 Redux-saga 提供的语言。</p>
+<p>我将在这里尝试描述我在 redux-saga 之上构建的通知系统。此示例当前正在生产中运行。</p>
+<h4>高级通知系统规范</h4>
+<ul>
+<li>您可以请求显示通知</li>
+<li>您可以请求通知隐藏</li>
+<li>通知不应显示超过 4 秒</li>
+<li>可以同时显示多个通知</li>
+<li>最多只能同时显示 3 个通知</li>
+<li>如果在已经显示 3 个通知时请求通知，则将其排队/推迟。</li>
+</ul>
+<h4>结果</h4>
+<p>我的生产应用程序Stample.co的屏幕截图</p>
+<p><img alt="干杯" src="../../images/L80nq.png"></p>
+<h4>代码</h4>
+<p>在这里我将通知命名为 a<code>toast</code>但这是一个命名细节。</p>
+<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">toastSaga</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Some</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="n">constants</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">MaxToasts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">ToastDisplayTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4000</span><span class="p">;</span>
+
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Local</span><span class="w"> </span><span class="n">generator</span><span class="w"> </span><span class="n">state</span><span class="p">:</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">put</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">Redux</span><span class="w"> </span><span class="n">store</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">it</span><span class="s1">'s really important to you, in my case it'</span><span class="n">s</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">really</span>
+<span class="w">    </span><span class="n">let</span><span class="w"> </span><span class="n">pendingToasts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="n">queue</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">toasts</span><span class="w"> </span><span class="n">waiting</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">displayed</span>
+<span class="w">    </span><span class="n">let</span><span class="w"> </span><span class="n">activeToasts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Toasts</span><span class="w"> </span><span class="n">currently</span><span class="w"> </span><span class="n">displayed</span>
+
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Trigger</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">display</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">toast</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="n">seconds</span>
+<span class="w">    </span><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">displayToast</span><span class="p">(</span><span class="n">toast</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">activeToasts</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">MaxToasts</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Error</span><span class="p">(</span><span class="s2">"can't display more than "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">MaxToasts</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" at the same time"</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">activeToasts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="o">...</span><span class="n">activeToasts</span><span class="p">,</span><span class="n">toast</span><span class="p">];</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Add</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">active</span><span class="w"> </span><span class="n">toasts</span>
+<span class="w">        </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">(</span><span class="n">events</span><span class="o">.</span><span class="n">toastDisplayed</span><span class="p">(</span><span class="n">toast</span><span class="p">));</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Display</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">toast</span><span class="w"> </span><span class="p">(</span><span class="n">put</span><span class="w"> </span><span class="n">means</span><span class="w"> </span><span class="n">dispatch</span><span class="p">)</span>
+<span class="w">        </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span><span class="n">ToastDisplayTime</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Wait</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="n">seconds</span>
+<span class="w">        </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">(</span><span class="n">events</span><span class="o">.</span><span class="n">toastHidden</span><span class="p">(</span><span class="n">toast</span><span class="p">));</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Hide</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">toast</span>
+<span class="w">        </span><span class="n">activeToasts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_</span><span class="o">.</span><span class="n">without</span><span class="p">(</span><span class="n">activeToasts</span><span class="p">,</span><span class="n">toast</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Remove</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">active</span><span class="w"> </span><span class="n">toasts</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Everytime</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">receive</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">toast</span><span class="w"> </span><span class="n">display</span><span class="w"> </span><span class="n">request</span><span class="p">,</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">put</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">request</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queue</span>
+<span class="w">    </span><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">toastRequestsWatcher</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="bp">true</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Take</span><span class="w"> </span><span class="n">means</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">saga</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">block</span><span class="w"> </span><span class="n">until</span><span class="w"> </span><span class="n">TOAST_DISPLAY_REQUESTED</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">dispatched</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">event</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">take</span><span class="p">(</span><span class="n">Names</span><span class="o">.</span><span class="n">TOAST_DISPLAY_REQUESTED</span><span class="p">);</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">newToast</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">toastData</span><span class="p">;</span>
+<span class="w">            </span><span class="n">pendingToasts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="o">...</span><span class="n">pendingToasts</span><span class="p">,</span><span class="n">newToast</span><span class="p">];</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">We</span><span class="w"> </span><span class="n">try</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queued</span><span class="w"> </span><span class="n">toasts</span><span class="w"> </span><span class="n">periodically</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">display</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">toast</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">it</span><span class="s1">'s a good time to do so...</span>
+<span class="w">    </span><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">toastScheduler</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="bp">true</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">canDisplayToast</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">activeToasts</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MaxToasts</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">pendingToasts</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">canDisplayToast</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="n">We</span><span class="w"> </span><span class="n">display</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">pending</span><span class="w"> </span><span class="n">toast</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queue</span>
+<span class="w">                </span><span class="k">const</span><span class="w"> </span><span class="p">[</span><span class="n">firstToast</span><span class="p">,</span><span class="o">...</span><span class="n">remainingToasts</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pendingToasts</span><span class="p">;</span>
+<span class="w">                </span><span class="n">pendingToasts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">remainingToasts</span><span class="p">;</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="n">Fork</span><span class="w"> </span><span class="n">means</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">creating</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">subprocess</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">display</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">single</span><span class="w"> </span><span class="n">toast</span>
+<span class="w">                </span><span class="nb">yield</span><span class="w"> </span><span class="n">fork</span><span class="p">(</span><span class="n">displayToast</span><span class="p">,</span><span class="n">firstToast</span><span class="p">);</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="n">Add</span><span class="w"> </span><span class="n">little</span><span class="w"> </span><span class="n">delay</span><span class="w"> </span><span class="n">so</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="n">concurrent</span><span class="w"> </span><span class="n">toast</span><span class="w"> </span><span class="n">requests</span><span class="w"> </span><span class="n">aren</span><span class="s1">'t display at the same time</span>
+<span class="w">                </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span><span class="mi">300</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span><span class="mi">50</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="n">toast</span><span class="w"> </span><span class="n">saga</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">composition</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="n">smaller</span><span class="w"> </span><span class="s2">"sub-sagas"</span><span class="w"> </span><span class="p">(</span><span class="n">we</span><span class="w"> </span><span class="n">could</span><span class="w"> </span><span class="n">also</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">used</span><span class="w"> </span><span class="n">fork</span><span class="o">/</span><span class="n">spawn</span><span class="w"> </span><span class="n">effects</span><span class="w"> </span><span class="n">here</span><span class="p">,</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">difference</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">quite</span><span class="w"> </span><span class="n">subtile</span><span class="p">:</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">depends</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">want</span><span class="w"> </span><span class="n">toastSaga</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">block</span><span class="p">)</span>
+<span class="w">    </span><span class="nb">yield</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="n">call</span><span class="p">(</span><span class="n">toastRequestsWatcher</span><span class="p">),</span>
+<span class="w">        </span><span class="n">call</span><span class="p">(</span><span class="n">toastScheduler</span><span class="p">)</span>
+<span class="w">    </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>和减速器：</p>
+<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">reducer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[],</span><span class="n">event</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">switch</span><span class="w"> </span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">case</span><span class="w"> </span><span class="n">Names</span><span class="o">.</span><span class="n">TOAST_DISPLAYED</span><span class="p">:</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="p">[</span><span class="o">...</span><span class="n">state</span><span class="p">,</span><span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">toastData</span><span class="p">];</span>
+<span class="w">        </span><span class="n">case</span><span class="w"> </span><span class="n">Names</span><span class="o">.</span><span class="n">TOAST_HIDDEN</span><span class="p">:</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">_</span><span class="o">.</span><span class="n">without</span><span class="p">(</span><span class="n">state</span><span class="p">,</span><span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">toastData</span><span class="p">);</span>
+<span class="w">        </span><span class="n">default</span><span class="p">:</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">state</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+
+<h4>用法</h4>
+<p>您可以简单地调度<code>TOAST_DISPLAY_REQUESTED</code>事件。如果发送 4 个请求，则只会显示 3 个通知，第 1 个通知消失后，第 4
+个会稍晚出现。</p>
+<p>请注意，我不特别推荐<code>TOAST_DISPLAY_REQUESTED</code>从 JSX 调度。您宁愿添加另一个 saga
+来侦听您已经存在的应用程序事件，然后分派<code>TOAST_DISPLAY_REQUESTED</code>：触发通知的组件，不必与通知系统紧密耦合。</p>
+<h4>结论</h4>
+<p>我的代码并不完美，但在生产环境中运行了几个月，错误为 0。Redux-saga 和生成器最初有点难，但一旦你理解了它们，这种系统就很容易构建。</p>
+<p>实现更复杂的规则甚至非常容易，例如：</p>
+<ul>
+<li>当太多通知“排队”时，为每个通知提供更少的显示时间，以便队列大小可以更快地减少。</li>
+<li>检测窗口大小变化，并相应地更改显示通知的最大数量（例如，桌面=3，手机纵向=2，手机横向=1）</li>
+</ul>
+<p>老实说，祝你好运，用 thunks 正确地实现这种东西。</p>
+<p>请注意，您可以使用与redux-saga 非常相似的redux-observable做完全相同的事情。它几乎相同，只是生成器和 RxJS 之间的品味问题。</p>
+<p><br><br><a href="../how-to-dispatch-a-redux-action-with-a-timeout/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/javascript/" rel="tag">javascript</a></li>
+            <li><a class="tag p-category" href="../../categories/react-redux/" rel="tag">react-redux</a></li>
+            <li><a class="tag p-category" href="../../categories/redux/" rel="tag">redux</a></li>
+            <li><a class="tag p-category" href="../../categories/timeout/" rel="tag">timeout</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ru-he-jiang-yi-jing-yun-xing-de-jin-cheng-zhi-yu-nohup-xia/" rel="prev" title="如何将已经运行的进程置于 nohup 下？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../shi-yao-shi-hou-ying-gai-shi-yong-git-pull-rebase/" rel="next" title="什么时候应该使用 git pull --rebase？">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

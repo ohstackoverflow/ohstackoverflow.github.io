@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>为什么在单独的循环中按元素添加比在组合循环中快得多？ | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/wei-shi-yao-zai-dan-du-de-xun-huan-zhong-an-yuan-su-tian-jia-bi-zai-zu-he-xun-huan-zhong-kuai-de-duo/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ru-he-zai-git-zhong-bao-cun-yong-hu-ming-he-mi-ma/" title="如何在 Git 中保存用户名和密码？" type="text/html">
+<link rel="next" href="../zai-javascript-zhong-sheng-cheng-liang-ge-shu-zi-zhi-jian-de-sui-ji-shu/" title="在 JavaScript 中生成两个数字之间的随机数" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="为什么在单独的循环中按元素添加比在组合循环中快得多？">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/wei-shi-yao-zai-dan-du-de-xun-huan-zhong-an-yuan-su-tian-jia-bi-zai-zu-he-xun-huan-zhong-kuai-de-duo/">
+<meta property="og:description" content="假设a1, b1, c1, 和d1指向堆内存，我的数值代码有以下核心循环。
+const int n = 100000;
+
+for (int j = 0; j &lt; n; j++) {
+    a1[j] += b1[j];
+    c1[j] += d1[j];
+}
+
+
+该循环通过另一个外部循环执行了 10,000 次for。为了加快速度，我将代码更改为：
+for (int j = 0; j &lt; n">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-16T21:30:39+08:00">
+<meta property="article:tag" content="compiler-optimization">
+<meta property="article:tag" content="cPlusPlus">
+<meta property="article:tag" content="performance">
+<meta property="article:tag" content="vectorization">
+<meta property="article:tag" content="x86">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">为什么在单独的循环中按元素添加比在组合循环中快得多？</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T21:30:39+08:00" itemprop="datePublished" title="2023-02-16 21:30">2023-02-16 21:30</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>假设<code>a1</code>, <code>b1</code>, <code>c1</code>, 和<code>d1</code>指向堆内存，我的数值代码有以下核心循环。</p>
+<div class="code"><pre class="code literal-block"><span class="n">const</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span><span class="p">;</span>
+
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">a1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="n">c1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">d1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>该循环通过另一个外部循环执行了 10,000 次<code>for</code>。为了加快速度，我将代码更改为：</p>
+<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">a1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="err">}</span>
+
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">c1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">d1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>在Microsoft Visual C++ 10.0上编译，并在Intel Core 2 Duo (x64)上为 32
+位启用了完全优化和SSE2，第一个示例耗时 5.5 秒，而双循环示例仅耗时 1.9 秒。</p>
+<p>第一个循环的反汇编基本上是这样的（这个块在整个程序中重复了大约五次）：</p>
+<div class="code"><pre class="code literal-block">movsd       xmm0,mmword ptr [edx+18h]
+addsd       xmm0,mmword ptr [ecx+20h]
+movsd       mmword ptr [ecx+20h],xmm0
+movsd       xmm0,mmword ptr [esi+10h]
+addsd       xmm0,mmword ptr [eax+30h]
+movsd       mmword ptr [eax+30h],xmm0
+movsd       xmm0,mmword ptr [edx+20h]
+addsd       xmm0,mmword ptr [ecx+28h]
+movsd       mmword ptr [ecx+28h],xmm0
+movsd       xmm0,mmword ptr [esi+18h]
+addsd       xmm0,mmword ptr [eax+38h]
+</pre></div>
+
+<p>双循环示例的每个循环都会生成此代码（以下块重复大约三次）：</p>
+<div class="code"><pre class="code literal-block">addsd       xmm0,mmword ptr [eax+28h]
+movsd       mmword ptr [eax+28h],xmm0
+movsd       xmm0,mmword ptr [ecx+20h]
+addsd       xmm0,mmword ptr [eax+30h]
+movsd       mmword ptr [eax+30h],xmm0
+movsd       xmm0,mmword ptr [ecx+28h]
+addsd       xmm0,mmword ptr [eax+38h]
+movsd       mmword ptr [eax+38h],xmm0
+movsd       xmm0,mmword ptr [ecx+30h]
+addsd       xmm0,mmword ptr [eax+40h]
+movsd       mmword ptr [eax+40h],xmm0
+</pre></div>
+
+<p>结果证明这个问题无关紧要，因为行为严重取决于数组 (n) 的大小和 CPU 缓存。因此，如果有进一步的兴趣，我改写这个问题：</p>
+<ul>
+<li>
+<p>您能否对导致不同缓存行为的细节提供一些可靠的见解，如下图中的五个区域所示？</p>
+</li>
+<li>
+<p>通过为这些 CPU 提供类似的图表来指出 CPU/缓存架构之间的差异可能也很有趣。</p>
+</li>
+</ul>
+<p>这是完整的代码。它使用TBB <code>Tick_Count</code>进行更高分辨率的计时，可以通过不定义<code>TBB_TIMING</code>宏来禁用它：</p>
+<div class="code"><pre class="code literal-block"><span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">iostream</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">iomanip</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">cmath</span><span class="o">&gt;</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span>
+
+<span class="o">//</span><span class="n">#define</span><span class="w"> </span><span class="n">TBB_TIMING</span>
+
+<span class="n">#ifdef</span><span class="w"> </span><span class="n">TBB_TIMING</span><span class="w">   </span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="n">tbb</span><span class="o">/</span><span class="n">tick_count</span><span class="p">.</span><span class="n">h</span><span class="o">&gt;</span>
+<span class="k">using</span><span class="w"> </span><span class="nl">tbb</span><span class="p">:</span><span class="err">:</span><span class="n">tick_count</span><span class="p">;</span>
+<span class="n">#else</span>
+<span class="n">#include</span><span class="w"> </span><span class="o">&lt;</span><span class="nc">time</span><span class="p">.</span><span class="n">h</span><span class="o">&gt;</span>
+<span class="n">#endif</span>
+
+<span class="k">using</span><span class="w"> </span><span class="n">namespace</span><span class="w"> </span><span class="n">std</span><span class="p">;</span>
+
+<span class="o">//</span><span class="n">#define</span><span class="w"> </span><span class="n">preallocate_memory</span><span class="w"> </span><span class="n">new_cont</span>
+
+<span class="n">enum</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">new_cont</span><span class="p">,</span><span class="w"> </span><span class="n">new_sep</span><span class="w"> </span><span class="err">}</span><span class="p">;</span>
+
+<span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">a1</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">b1</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">c1</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">d1</span><span class="p">;</span>
+
+
+<span class="n">void</span><span class="w"> </span><span class="n">allo</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">cont</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="n">switch</span><span class="p">(</span><span class="n">cont</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="nl">new_cont</span><span class="p">:</span>
+<span class="w">        </span><span class="n">a1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">double</span><span class="o">[</span><span class="n">n*4</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="n">b1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">        </span><span class="n">c1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">        </span><span class="n">d1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="nl">new_sep</span><span class="p">:</span>
+<span class="w">        </span><span class="n">a1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">double</span><span class="o">[</span><span class="n">n</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="n">b1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">double</span><span class="o">[</span><span class="n">n</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="n">c1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">double</span><span class="o">[</span><span class="n">n</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="n">d1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">double</span><span class="o">[</span><span class="n">n</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">a1</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+<span class="w">        </span><span class="n">d1</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+<span class="w">        </span><span class="n">c1</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+<span class="w">        </span><span class="n">b1</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+
+<span class="n">void</span><span class="w"> </span><span class="n">ff</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">cont</span><span class="p">)</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="n">switch</span><span class="p">(</span><span class="n">cont</span><span class="p">)</span><span class="err">{</span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="nl">new_sep</span><span class="p">:</span>
+<span class="w">        </span><span class="k">delete</span><span class="err">[]</span><span class="w"> </span><span class="n">b1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">delete</span><span class="err">[]</span><span class="w"> </span><span class="n">c1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">delete</span><span class="err">[]</span><span class="w"> </span><span class="n">d1</span><span class="p">;</span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="nl">new_cont</span><span class="p">:</span>
+<span class="w">        </span><span class="k">delete</span><span class="err">[]</span><span class="w"> </span><span class="n">a1</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+
+<span class="k">double</span><span class="w"> </span><span class="n">plain</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">cont</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">loops</span><span class="p">)</span>
+<span class="err">{</span>
+<span class="n">#ifndef</span><span class="w"> </span><span class="n">preallocate_memory</span>
+<span class="w">    </span><span class="n">allo</span><span class="p">(</span><span class="n">cont</span><span class="p">,</span><span class="n">n</span><span class="p">);</span>
+<span class="n">#endif</span>
+
+<span class="n">#ifdef</span><span class="w"> </span><span class="n">TBB_TIMING</span><span class="w">   </span>
+<span class="w">    </span><span class="n">tick_count</span><span class="w"> </span><span class="n">t0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">tick_count</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="n">#else</span>
+<span class="w">    </span><span class="n">clock_t</span><span class="w"> </span><span class="k">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clock</span><span class="p">();</span>
+<span class="n">#endif</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">loops</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">m</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">                </span><span class="n">a1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">                </span><span class="n">c1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">d1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">m</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                </span><span class="n">a1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                </span><span class="n">c1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">d1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span>
+
+<span class="n">#ifdef</span><span class="w"> </span><span class="n">TBB_TIMING</span><span class="w">   </span>
+<span class="w">    </span><span class="n">tick_count</span><span class="w"> </span><span class="n">t1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nl">tick_count</span><span class="p">:</span><span class="err">:</span><span class="n">now</span><span class="p">();</span>
+<span class="w">    </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="o">*</span><span class="k">double</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">*</span><span class="k">double</span><span class="p">(</span><span class="n">m</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">t1</span><span class="o">-</span><span class="n">t0</span><span class="p">).</span><span class="n">seconds</span><span class="p">();</span>
+<span class="n">#else</span>
+<span class="w">    </span><span class="n">clock_t</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clock</span><span class="p">();</span>
+<span class="w">    </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="o">*</span><span class="k">double</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">*</span><span class="k">double</span><span class="p">(</span><span class="n">m</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="k">double</span><span class="p">)(</span><span class="k">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="k">start</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="k">double</span><span class="p">(</span><span class="n">CLOCKS_PER_SEC</span><span class="p">);</span>
+<span class="n">#endif</span>
+
+<span class="n">#ifndef</span><span class="w"> </span><span class="n">preallocate_memory</span>
+<span class="w">    </span><span class="n">ff</span><span class="p">(</span><span class="n">cont</span><span class="p">);</span>
+<span class="n">#endif</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span>
+<span class="err">}</span>
+
+
+<span class="n">void</span><span class="w"> </span><span class="n">main</span><span class="p">()</span>
+<span class="err">{</span><span class="w">   </span>
+<span class="w">    </span><span class="n">freopen</span><span class="p">(</span><span class="ss">"C:\\test.csv"</span><span class="p">,</span><span class="w"> </span><span class="ss">"w"</span><span class="p">,</span><span class="w"> </span><span class="n">stdout</span><span class="p">);</span>
+
+<span class="w">    </span><span class="nc">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">" "</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">na</span><span class="o">[</span><span class="n">2</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="err">{</span><span class="ss">"new_cont"</span><span class="p">,</span><span class="w"> </span><span class="ss">"new_sep"</span><span class="err">}</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"n"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="n">#ifdef</span><span class="w"> </span><span class="n">preallocate_memory</span>
+<span class="w">            </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"_loops_"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">na</span><span class="o">[</span><span class="n">preallocate_memory</span><span class="o">]</span><span class="p">;</span>
+<span class="n">#else</span>
+<span class="w">            </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"_loops_"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">na</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="n">#endif</span>
+
+<span class="w">    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">long</span><span class="w"> </span><span class="n">long</span><span class="w"> </span><span class="n">nmax</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000000</span><span class="p">;</span>
+
+<span class="n">#ifdef</span><span class="w"> </span><span class="n">preallocate_memory</span>
+<span class="w">    </span><span class="n">allo</span><span class="p">(</span><span class="n">preallocate_memory</span><span class="p">,</span><span class="w"> </span><span class="n">nmax</span><span class="p">);</span>
+<span class="n">#endif</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">long</span><span class="w"> </span><span class="n">long</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="n">L</span><span class="p">;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">nmax</span><span class="p">;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">max</span><span class="p">(</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">long</span><span class="w"> </span><span class="n">long</span><span class="p">(</span><span class="n">n</span><span class="o">*</span><span class="mf">1.2</span><span class="p">)))</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="n">const</span><span class="w"> </span><span class="n">long</span><span class="w"> </span><span class="n">long</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10000000</span><span class="o">/</span><span class="n">n</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">                </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">plain</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>它显示 FLOP/s 的不同值<code>n</code>。</p>
+<p><img alt="性能图" src="../../images/426bP.gif"></p>
+<p><br><br></p>
+<h2>解答</h2>
+<p>进一步分析，我认为这是（至少部分）由四分球的数据对齐造成的。这将导致某种程度的缓存组/方式冲突。</p>
+<p>如果我猜对了您分配数组的方式，它们 _ <strong>很可能与页面行对齐</strong>_ 。</p>
+<p>这意味着您在每个循环中的所有访问都将落在相同的缓存方式上。然而，Intel 处理器已经有一段时间具有 8 路 L1
+缓存关联性。但实际上，性能并不完全一致。访问 4 路仍然比说 2 路慢。</p>
+<p><strong>编辑：实际上看起来您正在分别分配所有数组。</strong>
+通常当请求如此大的分配时，分配器将从操作系统请求新页面。因此，大分配很有可能出现在与页面边界相同的偏移处。</p>
+<p><strong>这是测试代码：</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nc">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="err">{</span>
+<span class="w">    </span><span class="n">const</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span><span class="p">;</span>
+
+<span class="n">#ifdef</span><span class="w"> </span><span class="n">ALLOCATE_SEPERATE</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">a1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">double</span><span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">));</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">b1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">double</span><span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">));</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">c1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">double</span><span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">));</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">d1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">double</span><span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">));</span>
+<span class="n">#else</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">a1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">double</span><span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">b1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">c1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">    </span><span class="k">double</span><span class="w"> </span><span class="o">*</span><span class="n">d1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="n">#endif</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w">  </span><span class="n">Zero</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">data</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">prevent</span><span class="w"> </span><span class="ow">any</span><span class="w"> </span><span class="n">chance</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="n">denormals</span><span class="p">.</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="n">a1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">));</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="n">b1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">));</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="n">c1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">));</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="n">d1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="k">double</span><span class="p">));</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w">  </span><span class="k">Print</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">addresses</span>
+<span class="w">    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">a1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">b1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">c1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">d1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">clock_t</span><span class="w"> </span><span class="k">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clock</span><span class="p">();</span>
+
+<span class="w">    </span><span class="nc">int</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">c</span><span class="o">++</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">)</span><span class="err">{</span>
+
+<span class="n">#if</span><span class="w"> </span><span class="n">ONE_LOOP</span>
+<span class="w">        </span><span class="k">for</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">j</span><span class="o">&lt;</span><span class="n">n</span><span class="p">;</span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">            </span><span class="n">a1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="n">c1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">d1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="n">#else</span>
+<span class="w">        </span><span class="k">for</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">j</span><span class="o">&lt;</span><span class="n">n</span><span class="p">;</span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">            </span><span class="n">a1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">        </span><span class="k">for</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">j</span><span class="o">&lt;</span><span class="n">n</span><span class="p">;</span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="err">{</span>
+<span class="w">            </span><span class="n">c1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">d1</span><span class="o">[</span><span class="n">j</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="n">#endif</span>
+
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">clock_t</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clock</span><span class="p">();</span>
+<span class="w">    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="ss">"seconds = "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="p">(</span><span class="k">double</span><span class="p">)(</span><span class="k">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="k">start</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">CLOCKS_PER_SEC</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">system</span><span class="p">(</span><span class="ss">"pause"</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<hr>
+<p><strong>基准测试结果：</strong></p>
+<h2>编辑：在 <em>实际的</em> Core 2 架构机器上的结果：</h2>
+<p><strong>2 x Intel Xeon X5482 Harpertown @ 3.2 GHz：</strong></p>
+<div class="code"><pre class="code literal-block">#define ALLOCATE_SEPERATE
+#define ONE_LOOP
+00600020
+006D0020
+007A0020
+00870020
+seconds = 6.206
+
+#define ALLOCATE_SEPERATE
+//#define ONE_LOOP
+005E0020
+006B0020
+00780020
+00850020
+seconds = 2.116
+
+//#define ALLOCATE_SEPERATE
+#define ONE_LOOP
+00570020
+00633520
+006F6A20
+007B9F20
+seconds = 1.894
+
+//#define ALLOCATE_SEPERATE
+//#define ONE_LOOP
+008C0020
+00983520
+00A46A20
+00B09F20
+seconds = 1.993
+</pre></div>
+
+<p>观察：</p>
+<ul>
+<li>
+<p><strong><em>*一个循环 </em>*6.206 秒</strong> ，两个循环 <strong>2.116 秒。</strong> 这准确地再现了 OP 的结果。</p>
+</li>
+<li>
+<p><strong>在前两个测试中，数组是分开分配的。</strong> 您会注意到它们都相对于页面具有相同的对齐方式。</p>
+</li>
+<li>
+<p><strong>在后两个测试中，阵列被打包在一起以打破这种对齐方式。</strong> 在这里您会注意到两个循环都更快。此外，第二个（双）循环现在比您通常预期的要慢。</p>
+</li>
+</ul>
+<p>正如@Stephen Cannon 在评论中指出的那样，这种对齐很可能会导致加载/存储单元或缓存中出现 _ <strong>错误的别名。</strong><em>
+我在谷歌上搜索了一下，发现英特尔实际上有一个用于 _ <strong>部分地址别名停顿的</strong></em> 硬件计数器：</p>
+<p>http://software.intel.com/sites/products/documentation/doclib/stdxe/2013/~amplifierxe/pmw_dp/events/partial_address_alias.html</p>
+<hr>
+<h2>5 个区域 - 说明</h2>
+<p><strong>区域 1：</strong></p>
+<p>这个很简单。数据集非常小，性能主要由循环和分支等开销决定。</p>
+<p><strong>区域 2：</strong></p>
+<p><del>在这里，随着数据大小的增加，相对开销的数量下降并且性能“饱和”。 这里的两个循环比较慢，因为它有两倍的循环和分支开销。</del></p>
+<p>我不确定这里到底发生了什么......对齐仍然可以发挥作用，因为 Agner Fog 提到了cache bank conflicts。（该链接是关于
+Sandy Bridge 的，但这个想法应该仍然适用于 Core 2。）</p>
+<p><strong>区域 3：</strong></p>
+<p>此时，数据不再适合 L1 缓存。因此性能受到 L1 &lt;-&gt; L2 缓存带宽的限制。</p>
+<p><strong>区域 4：</strong></p>
+<p>单循环中的性能下降是我们所观察到的。并且如前所述，这是由于对齐（很可能）导致处理器加载/存储单元中的 _ <strong>假别名停顿。</strong>_</p>
+<p>然而，为了发生假别名，数据集之间必须有足够大的步幅。这就是为什么您在区域 3 中看不到它。</p>
+<p><strong>区域 5：</strong></p>
+<p>此时，缓存中没有任何内容。所以你受内存带宽的限制。</p>
+<hr>
+<p><img alt="2 x Intel X5482 Harpertown @ 3.2 GHz" src="../../images/ElCGL.png"><img alt="英特尔酷睿 i7 870 @
+2.8 GHz" src="../../images/QMpwj.png"><img alt="英特尔酷睿 i7 2600K @ 4.4 GHz" src="../../images/NpyhG.png"></p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>好的，正确的答案肯定与 CPU 缓存有关。但是使用缓存参数可能会非常困难，尤其是在没有数据的情况下。</p>
+<p>有很多答案，引发了很多讨论，但让我们面对现实吧：缓存问题可能非常复杂，而且不是一维的。它们在很大程度上取决于数据的大小，所以我的问题是不公平的：事实证明它位于缓存图中一个非常有趣的点。</p>
+<p>@Mysticial 的回答说服了很多人（包括我），可能是因为它是唯一一个似乎依赖于事实的答案，但它只是真相的一个“数据点”。</p>
+<p>这就是为什么我结合了他的测试（使用连续分配与单独分配）和@James'Answer 的建议。</p>
+<p>下图显示，根据具体场景和使用的参数，大多数答案，尤其是对问题和答案的大多数评论可以被认为是完全错误的或正确的。</p>
+<p>请注意，我最初的问题是在 <strong>n = 100.000</strong> 处。这一点（偶然）表现出特殊行为：</p>
+<ol>
+<li>
+<p>它在一个和两个循环版本之间具有最大的差异（几乎是三倍）</p>
+</li>
+<li>
+<p>这是唯一一点，单循环（即连续分配）胜过双循环版本。（这使得 Mysticial 的回答成为可能。）</p>
+</li>
+</ol>
+<p>使用初始化数据的结果：</p>
+<p><img alt="在此处输入图像描述" src="../../images/orxF8.png"></p>
+<p>使用未初始化数据的结果（这是 Mysticial 测试的结果）：</p>
+<p><img alt="在此处输入图像描述" src="../../images/mZPh9.png"></p>
+<p>这是一个难以解释的数据：初始化数据，分配一次并重复用于以下不同向量大小的每个测试用例：</p>
+<p><img alt="在此处输入图像描述" src="../../images/aiDfv.png"></p>
+<h3>提议</h3>
+<p>应该要求 Stack Overflow 上的每个低级性能相关问题提供整个缓存相关数据大小范围的 MFLOPS
+信息！在没有这些信息的情况下思考答案，尤其是与他人讨论答案，是在浪费每个人的时间。</p>
+<p><br><br><a href="../why-are-elementwise-additions-much-faster-in-separate-loops-than-in-a-combined-loop/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/compiler-optimization/" rel="tag">compiler-optimization</a></li>
+            <li><a class="tag p-category" href="../../categories/cplusplus/" rel="tag">cPlusPlus</a></li>
+            <li><a class="tag p-category" href="../../categories/performance/" rel="tag">performance</a></li>
+            <li><a class="tag p-category" href="../../categories/vectorization/" rel="tag">vectorization</a></li>
+            <li><a class="tag p-category" href="../../categories/x86/" rel="tag">x86</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ru-he-zai-git-zhong-bao-cun-yong-hu-ming-he-mi-ma/" rel="prev" title="如何在 Git 中保存用户名和密码？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../zai-javascript-zhong-sheng-cheng-liang-ge-shu-zi-zhi-jian-de-sui-ji-shu/" rel="next" title="在 JavaScript 中生成两个数字之间的随机数">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

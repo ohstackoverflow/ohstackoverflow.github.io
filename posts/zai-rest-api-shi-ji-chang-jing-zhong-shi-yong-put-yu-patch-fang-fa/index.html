@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>在 REST API 实际场景中使用 PUT 与 PATCH 方法 | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/zai-rest-api-shi-ji-chang-jing-zhong-shi-yong-put-yu-patch-fang-fa/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ke-yi-zai-qi-fan-wei-zhi-wai-fang-wen-ju-bu-bian-liang-de-nei-cun-ma/" title="可以在其范围之外访问局部变量的内存吗？" type="text/html">
+<link rel="next" href="../ru-he-jiang-shu-zu-de-suo-you-cheng-yuan-chu-shi-hua-wei-xiang-tong-de-zhi/" title="如何将数组的所有成员初始化为相同的值？" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="在 REST API 实际场景中使用 PUT 与 PATCH 方法">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/zai-rest-api-shi-ji-chang-jing-zhong-shi-yong-put-yu-patch-fang-fa/">
+<meta property="og:description" content="首先，一些定义：
+PUT 在第 9.6 节 RFC 2616中定义：
+
+PUT 方法请求将封闭的实体存储在提供的 Request-URI 下。如果 Request-URI 引用一个已经存在的资源，那么封闭的实体
+应该被认为是驻留在源服务器上的实体的修改版本 。如果请求 URI 不指向现有资源，并且该 URI
+能够被请求用户代理定义为新资源，则源服务器可以使用该 URI 创建资源。
+
+PATCH 在">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-17T05:14:29+08:00">
+<meta property="article:tag" content="http">
+<meta property="article:tag" content="http-method">
+<meta property="article:tag" content="json">
+<meta property="article:tag" content="put">
+<meta property="article:tag" content="rest">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">在 REST API 实际场景中使用 PUT 与 PATCH 方法</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T05:14:29+08:00" itemprop="datePublished" title="2023-02-17 05:14">2023-02-17 05:14</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>首先，一些定义：</p>
+<p>PUT 在第 9.6 节 RFC 2616中定义：</p>
+<blockquote>
+<p>PUT 方法请求将封闭的实体存储在提供的 Request-URI 下。如果 Request-URI 引用一个已经存在的资源，那么封闭的实体
+<strong>应该被认为是驻留在源服务器上的实体的修改版本</strong> 。如果请求 URI 不指向现有资源，并且该 URI
+能够被请求用户代理定义为新资源，则源服务器可以使用该 URI 创建资源。</p>
+</blockquote>
+<p>PATCH 在RFC 5789中定义：</p>
+<blockquote>
+<p>PATCH 方法请求将请求实体中描述的 <strong>一组更改</strong> 应用于由 Request-URI 标识的资源。</p>
+</blockquote>
+<p>同样根据RFC 2616 第 9.1.2 节， PUT 是幂等的，而 PATCH 不是。</p>
+<p>现在让我们来看一个真实的例子。<code>/users</code>当我对数据进行 POST<code>{username: 'skwee357', email:
+'skwee357@domain.example'}</code>并且服务器能够创建资源时，它将以 201 和资源位置（假设<code>/users/1</code>）进行响应，并且对
+GET 的任何下一次调用都<code>/users/1</code>将返回<code>{id: 1, username: 'skwee357', email:
+'skwee357@domain.example'}</code>。</p>
+<p>现在假设我想修改我的电子邮件。电子邮件修改被认为是“一组更改”，因此我应该<code>/users/1</code>使用“补丁文件”进行 PATCH。在我的例子中，它将是
+JSON 文档：<code>{email: 'skwee357@newdomain.example'}</code>. 然后服务器返回
+200（假设权限没问题）。这让我想到第一个问题：</p>
+<ul>
+<li>PATCH 不是幂等的。它在 RFC 2616 和 RFC 5789 中是这样说的。但是，如果我发出相同的 PATCH 请求（使用我的新电子邮件），我将获得相同的资源状态（我的电子邮件被修改为请求的值）。为什么 PATCH 不是幂等的？</li>
+</ul>
+<p>PATCH 是一个比较新的动词（RFC 于 2010 年 3 月引入），它来解决“修补”或修改一组字段的问题。在引入 PATCH 之前，大家都使用 PUT
+来更新资源。但是引入PATCH之后，让我很困惑PUT是干什么用的。这让我想到了第二个（也是主要的）问题：</p>
+<ul>
+<li>PUT 和 PATCH 之间的真正区别是什么？我在某处读到 PUT 可能用于 <strong>替换</strong> 特定资源下的整个实体，因此应该发送完整的实体（而不是像 PATCH 那样的属性集）。这种情况的实际用途是什么？您什么时候想替换/覆盖特定资源 URI 上的实体，为什么不考虑更新/修补实体这样的操作？我看到的 PUT 的唯一实际用例是在集合上发出 PUT，即<code>/users</code>替换整个集合。在引入 PATCH 之后，在特定实体上发布 PUT 就没有意义了。我错了吗？</li>
+</ul>
+<p><br><br></p>
+<h2>解答</h2>
+<p><strong>注意</strong> ：当我第一次花时间阅读有关 REST 的内容时，幂等性是一个难以理解的概念。正如进一步的评论（和Jason Hoetger
+的回答）所示，我在最初的回答中仍然没有完全正确。有一段时间，我一直拒绝广泛更新这个答案，以避免有效地剽窃
+Jason，但我现在正在编辑它，因为，好吧，我被要求这样做（在评论中）。</p>
+<p>阅读我的回答后，我建议您也阅读Jason Hoetger对这个问题的出色回答，我会尽量让我的回答更好，而不是简单地从 Jason 那里窃取。</p>
+<h3>为什么 PUT 是幂等的？</h3>
+<p>正如您在 RFC 2616 引文中指出的那样，PUT 被认为是幂等的。当您 PUT 资源时，这两个假设在起作用：</p>
+<ol>
+<li>
+<p>您指的是一个实体，而不是一个集合。</p>
+</li>
+<li>
+<p>您提供的实体是完整的（ <em>整个</em> 实体）。</p>
+</li>
+</ol>
+<p>让我们看看你的一个例子。</p>
+<div class="code"><pre class="code literal-block"><span class="err">{</span><span class="w"> </span><span class="ss">"username"</span><span class="err">:</span><span class="w"> </span><span class="ss">"skwee357"</span><span class="p">,</span><span class="w"> </span><span class="ss">"email"</span><span class="err">:</span><span class="w"> </span><span class="ss">"skwee357@domain.example"</span><span class="w"> </span><span class="err">}</span>
+</pre></div>
+
+<p>如果您<code>/users</code>按照您的建议将此文档发布到 ，那么您可能会取回一个实体，例如</p>
+<div class="code"><pre class="code literal-block"><span class="err">##</span><span class="w"> </span><span class="o">/</span><span class="n">users</span><span class="o">/</span><span class="mi">1</span>
+
+<span class="err">{</span>
+<span class="w">    </span><span class="ss">"username"</span><span class="err">:</span><span class="w"> </span><span class="ss">"skwee357"</span><span class="p">,</span>
+<span class="w">    </span><span class="ss">"email"</span><span class="err">:</span><span class="w"> </span><span class="ss">"skwee357@domain.example"</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>如果以后要修改此实体，请在 PUT 和 PATCH 之间进行选择。PUT 可能如下所示：</p>
+<div class="code"><pre class="code literal-block"><span class="err">PUT /users/1</span>
+<span class="err">{</span>
+<span class="err">    "username": "skwee357",</span>
+<span class="err">    "email": "skwee357@gmail.com"       // new email address</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>您可以使用 PATCH 完成相同的操作。这可能看起来像这样：</p>
+<div class="code"><pre class="code literal-block"><span class="err">PATCH /users/1</span>
+<span class="err">{</span>
+<span class="err">    "email": "skwee357@gmail.com"       // new email address</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>您会立即注意到这两者之间的区别。PUT 包含此用户的所有参数，但 PATCH 仅包含正在修改的参数 ( <code>email</code>)。</p>
+<p>使用 PUT 时，假定您要发送完整的实体，并且该完整的实体 <em>会替换</em> 该 URI 上的任何现有实体。在上面的示例中，PUT 和 PATCH
+实现了相同的目标：它们都更改了该用户的电子邮件地址。但是 PUT 通过替换整个实体来处理它，而 PATCH 只更新提供的字段，而其他字段不受影响。</p>
+<p>由于 PUT 请求包括整个实体，如果您重复发出相同的请求，它应该总是有相同的结果（您发送的数据现在是实体的全部数据）。因此 PUT 是幂等的。</p>
+<h3>使用 PUT 错误</h3>
+<p>如果在 PUT 请求中使用上述 PATCH 数据会发生什么情况？</p>
+<div class="code"><pre class="code literal-block"><span class="err">GET /users/1</span>
+<span class="err">{</span>
+<span class="err">    "username": "skwee357",</span>
+<span class="err">    "email": "skwee357@domain.example"</span>
+<span class="err">}</span>
+<span class="err">PUT /users/1</span>
+<span class="err">{</span>
+<span class="err">    "email": "skwee357@gmail.com"       // new email address</span>
+<span class="err">}</span>
+
+<span class="err">GET /users/1</span>
+<span class="err">{</span>
+<span class="err">    "email": "skwee357@gmail.com"      // new email address... and nothing else!</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>（出于这个问题的目的，我假设服务器没有任何特定的必填字段，并且会允许这种情况发生......实际上可能并非如此。）</p>
+<p>因为我们使用了 PUT，但只提供了<code>email</code>，现在这是这个实体中唯一的东西。这导致数据丢失。</p>
+<p>这个例子是为了说明目的——永远不要真正这样做（除非你的意图是删除省略的字段，当然......那么你正在使用 PUT，因为它应该被使用）。这个 PUT
+请求在技术上是幂等的，但这并不意味着它不是一个糟糕的、失败的想法。</p>
+<h3>PATCH如何做到幂等？</h3>
+<p>在上面的例子中，PATCH <em>是</em> 幂等的。您进行了更改，但如果您一次又一次地进行相同的更改，它总是会返回相同的结果：您将电子邮件地址更改为新值。</p>
+<div class="code"><pre class="code literal-block"><span class="err">GET /users/1</span>
+<span class="err">{</span>
+<span class="err">    "username": "skwee357",</span>
+<span class="err">    "email": "skwee357@domain.example"</span>
+<span class="err">}</span>
+<span class="err">PATCH /users/1</span>
+<span class="err">{</span>
+<span class="err">    "email": "skwee357@gmail.com"       // new email address</span>
+<span class="err">}</span>
+
+<span class="err">GET /users/1</span>
+<span class="err">{</span>
+<span class="err">    "username": "skwee357",</span>
+<span class="err">    "email": "skwee357@gmail.com"       // email address was changed</span>
+<span class="err">}</span>
+<span class="err">PATCH /users/1</span>
+<span class="err">{</span>
+<span class="err">    "email": "skwee357@gmail.com"       // new email address... again</span>
+<span class="err">}</span>
+
+<span class="err">GET /users/1</span>
+<span class="err">{</span>
+<span class="err">    "username": "skwee357",</span>
+<span class="err">    "email": "skwee357@gmail.com"       // nothing changed since last GET</span>
+<span class="err">}</span>
+</pre></div>
+
+<h3>我原来的例子，为了准确性而修正</h3>
+<p>我最初有我认为显示非幂等性的例子，但它们具有误导性/不正确。我将保留示例，但使用它们来说明不同的事情：针对同一实体的多个 PATCH
+文档，修改不同的属性，不会使 PATCH 非幂等。</p>
+<p>假设在过去的某个时间添加了一个用户。这是你开始的状态。</p>
+<div class="code"><pre class="code literal-block"><span class="err">{</span>
+<span class="w">  </span><span class="ss">"id"</span><span class="err">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="ss">"name"</span><span class="err">:</span><span class="w"> </span><span class="ss">"Sam Kwee"</span><span class="p">,</span>
+<span class="w">  </span><span class="ss">"email"</span><span class="err">:</span><span class="w"> </span><span class="ss">"skwee357@olddomain.example"</span><span class="p">,</span>
+<span class="w">  </span><span class="ss">"address"</span><span class="err">:</span><span class="w"> </span><span class="ss">"123 Mockingbird Lane"</span><span class="p">,</span>
+<span class="w">  </span><span class="ss">"city"</span><span class="err">:</span><span class="w"> </span><span class="ss">"New York"</span><span class="p">,</span>
+<span class="w">  </span><span class="ss">"state"</span><span class="err">:</span><span class="w"> </span><span class="ss">"NY"</span><span class="p">,</span>
+<span class="w">  </span><span class="ss">"zip"</span><span class="err">:</span><span class="w"> </span><span class="ss">"10001"</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>在 PATCH 之后，您有一个修改后的实体：</p>
+<div class="code"><pre class="code literal-block"><span class="err">PATCH /users/1</span>
+<span class="err">{"email": "skwee357@newdomain.example"}</span>
+
+<span class="err">{</span>
+<span class="err">  "id": 1,</span>
+<span class="err">  "name": "Sam Kwee",</span>
+<span class="err">  "email": "skwee357@newdomain.example",    // the email changed, yay!</span>
+<span class="err">  "address": "123 Mockingbird Lane",</span>
+<span class="err">  "city": "New York",</span>
+<span class="err">  "state": "NY",</span>
+<span class="err">  "zip": "10001"</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>如果您随后重复应用您的 PATCH，您将继续得到相同的结果：电子邮件已更改为新值。A 进去，A 出来，因此这是幂等的。</p>
+<p>一个小时后，在你去泡咖啡休息一下之后，其他人带着他们自己的 PATCH 来了。看来邮局一直在做一些改变。</p>
+<div class="code"><pre class="code literal-block"><span class="err">PATCH /users/1</span>
+<span class="err">{"zip": "12345"}</span>
+
+<span class="err">{</span>
+<span class="err">  "id": 1,</span>
+<span class="err">  "name": "Sam Kwee",</span>
+<span class="err">  "email": "skwee357@newdomain.example",  // still the new email you set</span>
+<span class="err">  "address": "123 Mockingbird Lane",</span>
+<span class="err">  "city": "New York",</span>
+<span class="err">  "state": "NY",</span>
+<span class="err">  "zip": "12345"                      // and this change as well</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>由于这个来自邮局的 PATCH 本身不关心电子邮件，只关心邮政编码，如果重复应用，它也会得到相同的结果：邮政编码被设置为新值。A进去，A出来，所以这也是
+<em>幂</em> 等的。</p>
+<p>第二天，您决定再次发送 PATCH。</p>
+<div class="code"><pre class="code literal-block"><span class="err">PATCH /users/1</span>
+<span class="err">{"email": "skwee357@newdomain.example"}</span>
+
+<span class="err">{</span>
+<span class="err">  "id": 1,</span>
+<span class="err">  "name": "Sam Kwee",</span>
+<span class="err">  "email": "skwee357@newdomain.example",</span>
+<span class="err">  "address": "123 Mockingbird Lane",</span>
+<span class="err">  "city": "New York",</span>
+<span class="err">  "state": "NY",</span>
+<span class="err">  "zip": "12345"</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>您的补丁具有与昨天相同的效果：它设置了电子邮件地址。A 进去了，A 出来了，所以这也是幂等的。</p>
+<h3>我在原来的答案中错了什么</h3>
+<p>我想做出一个重要的区分（我在最初的回答中弄错了）。许多服务器将通过发回新的实体状态以及您的修改（如果有）来响应您的 REST 请求。因此，当您收到此
+<em>回复时，它</em> <em>与您昨天收到的回复</em> 不同，因为邮政编码不是您上次收到的回复。但是，您的请求与邮政编码无关，只与电子邮件有关。所以你的 PATCH
+文档仍然是幂等的——你在 PATCH 中发送的电子邮件现在是实体上的电子邮件地址。</p>
+<h3>那么 PATCH 什么时候不是幂等的呢？</h3>
+<p>为了完整地处理这个问题，我再次向您推荐Jason Hoetger 的回答，它已经完全回答了这个问题。</p>
+<p><br></p>
+<h3>更多建议</h3>
+<p>尽管 Dan Lowe 的出色回答非常彻底地回答了 OP 关于 PUT 和 PATCH 之间的区别的问题，但它对为什么 PATCH
+不是幂等的问题的回答并不完全正确。</p>
+<p>为了说明为什么 PATCH 不是幂等的，它有助于从幂等的定义开始（来自维基百科）：</p>
+<blockquote>
+<p>术语幂等更广泛地用于描述如果执行一次或多次将产生相同结果的操作 [...] 幂等函数是具有属性 f(f(x)) = f(x) 的函数任意值 x。</p>
+</blockquote>
+<p>用更易于理解的语言，幂等 PATCH 可以定义为：在使用补丁文档对资源进行 PATCH 之后，所有使用相同补丁文档对同一资源的后续 PATCH
+调用都不会更改该资源。</p>
+<p>相反，非幂等操作是 f(f(x)) != f(x)，对于 PATCH 可以表示为：在使用补丁文档 PATCH 资源之后，后续 PATCH
+调用相同的资源相同的补丁文件 <strong>确实</strong> 改变了资源。</p>
+<p>为了说明非幂等 PATCH，假设有一个 /users 资源，并假设调用<code>GET /users</code>返回一个用户列表，当前：</p>
+<div class="code"><pre class="code literal-block"><span class="o">[</span><span class="n">{ "id": 1, "username": "firstuser", "email": "firstuser@example.org" }</span><span class="o">]</span>
+</pre></div>
+
+<p>假设服务器允许 PATCHing /users，而不是像 OP 示例中那样 PATCHing /users/{id}。让我们发出这个 PATCH 请求：</p>
+<div class="code"><pre class="code literal-block"><span class="err">PATCH /users</span>
+<span class="err">[{ "op": "add", "username": "newuser", "email": "newuser@example.org" }]</span>
+</pre></div>
+
+<p>我们的补丁文件指示服务器添加一个名为<code>newuser</code>用户列表的新用户。第一次调用后，<code>GET /users</code>将返回：</p>
+<div class="code"><pre class="code literal-block"><span class="o">[</span><span class="n">{ "id": 1, "username": "firstuser", "email": "firstuser@example.org" },</span>
+<span class="n"> { "id": 2, "username": "newuser", "email": "newuser@example.org" }</span><span class="o">]</span>
+</pre></div>
+
+<p>现在，如果我们发出与上面 <em>完全相同的PATCH 请求，会发生什么？</em> （为了这个例子，我们假设 /users
+资源允许重复的用户名。）“op”是“add”，所以一个新用户被添加到列表中，随后返回<code>GET /users</code>：</p>
+<div class="code"><pre class="code literal-block"><span class="o">[</span><span class="n">{ "id": 1, "username": "firstuser", "email": "firstuser@example.org" },</span>
+<span class="n"> { "id": 2, "username": "newuser", "email": "newuser@example.org" },</span>
+<span class="n"> { "id": 3, "username": "newuser", "email": "newuser@example.org" }</span><span class="o">]</span>
+</pre></div>
+
+<p>/users 资源 <em>再次</em> 更改，即使我们针对 <em>完全相同的端点发布了</em> <em>完全相同的</em> PATCH 。如果我们的 PATCH 是 f(x)，则
+f(f(x)) 与 f(x) 不同，因此， <strong>这个特定的 PATCH 不是幂等的</strong> 。 __ ****</p>
+<p>尽管不能 <em>保证</em> PATCH是幂等的，但 PATCH 规范中没有任何内容可以阻止您在特定服务器上进行所有 PATCH 操作是幂等的。RFC 5789
+甚至预见到了幂等 PATCH 请求的优势：</p>
+<blockquote>
+<p>PATCH 请求可以以幂等的方式发出，这也有助于防止在相似的时间范围内对同一资源的两个 PATCH 请求之间发生冲突而导致的不良结果。</p>
+</blockquote>
+<p>在 Dan 的示例中，他的 PATCH 操作实际上是幂等的。在那个例子中， /users/1 实体在我们的 PATCH 请求之间发生了变化，但不是 <em>因为</em>
+我们的 PATCH 请求；实际上是邮局的 <em>不同</em> 补丁文档导致邮政编码发生变化。Post Office不同的PATCH是不同的操作；如果我们的 PATCH
+是 f(x)，那么邮局的 PATCH 就是 g(x)。幂等性指出<code>f(f(f(x))) = f(x)</code>，但不保证<code>f(g(f(x)))</code>。</p>
+<p><br><br><a href="../use-of-put-vs-patch-methods-in-rest-api-real-life-scenarios/">查看原文</a></p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/http/" rel="tag">http</a></li>
+            <li><a class="tag p-category" href="../../categories/http-method/" rel="tag">http-method</a></li>
+            <li><a class="tag p-category" href="../../categories/json/" rel="tag">json</a></li>
+            <li><a class="tag p-category" href="../../categories/put/" rel="tag">put</a></li>
+            <li><a class="tag p-category" href="../../categories/rest/" rel="tag">rest</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ke-yi-zai-qi-fan-wei-zhi-wai-fang-wen-ju-bu-bian-liang-de-nei-cun-ma/" rel="prev" title="可以在其范围之外访问局部变量的内存吗？">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../ru-he-jiang-shu-zu-de-suo-you-cheng-yuan-chu-shi-hua-wei-xiang-tong-de-zhi/" rel="next" title="如何将数组的所有成员初始化为相同的值？">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>
