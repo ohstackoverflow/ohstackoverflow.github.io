@@ -108,7 +108,180 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-define-a-circle-shape-in-an-android-xml-drawable-file/" class="u-url">How to define a circle shape in an Android XML drawable file?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-building-a-heap-be-o-n-time-complexity/" class="u-url">How can building a heap be O(n) time complexity?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-can-building-a-heap-be-o-n-time-complexity/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T12:36:07+08:00" itemprop="datePublished" title="2023-02-17 12:36">2023-02-17 12:36</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Can someone help explain how can building a heap be <em>O(n)</em> complexity?</p>
+<p>Inserting an item into a heap is <em>O(log n)</em> , and the insert is repeated n/2
+times (the remainder are leaves, and can't violate the heap property). So,
+this means the complexity should be <em>O(n log n)</em> , I would think.</p>
+<p>In other words, for each item we "heapify", it has the potential to have to
+filter down (i.e., sift down) once for each level for the heap so far (which
+is <em>log n</em> levels).</p>
+<p>What am I missing?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I think there are several questions buried in this topic:</p>
+<ul>
+<li>How do you implement <code>buildHeap</code> so it runs in <em>O(n)</em> time?</li>
+<li>How do you show that <code>buildHeap</code> runs in <em>O(n)</em> time when implemented correctly?</li>
+<li>Why doesn't that same logic work to make heap sort run in <em>O(n)</em> time rather than <em>O(n log n)</em>?</li>
+</ul>
+<h3>How do you implement <code>buildHeap</code> so it runs in <em>O(n)</em> time?</h3>
+<p>Often, answers to these questions focus on the difference between <code>siftUp</code> and
+<code>siftDown</code>. Making the correct choice between <code>siftUp</code> and <code>siftDown</code> is
+critical to get <em>O(n)</em> performance for <code>buildHeap</code>, but does nothing to help
+one understand the difference between <code>buildHeap</code> and <code>heapSort</code> in general.
+Indeed, proper implementations of both <code>buildHeap</code> and <code>heapSort</code> will
+<strong>only</strong> use <code>siftDown</code>. The <code>siftUp</code> operation is only needed to perform
+inserts into an existing heap, so it would be used to implement a priority
+queue using a binary heap, for example.</p>
+<p>I've written this to describe how a max heap works. This is the type of heap
+typically used for heap sort or for a priority queue where higher values
+indicate higher priority. A min heap is also useful; for example, when
+retrieving items with integer keys in ascending order or strings in
+alphabetical order. The principles are exactly the same; simply switch the
+sort order.</p>
+<p>The <strong>heap property</strong> specifies that each node in a binary heap must be at
+least as large as both of its children. In particular, this implies that the
+largest item in the heap is at the root. Sifting down and sifting up are
+essentially the same operation in opposite directions: move an offending node
+until it satisfies the heap property:</p>
+<ul>
+<li>
+<code>siftDown</code> swaps a node that is too small with its largest child (thereby moving it down) until it is at least as large as both nodes below it.</li>
+<li>
+<code>siftUp</code> swaps a node that is too large with its parent (thereby moving it up) until it is no larger than the node above it.</li>
+</ul>
+<p>The number of operations required for <code>siftDown</code> and <code>siftUp</code> is proportional
+to the distance the node may have to move. For <code>siftDown</code>, it is the distance
+to the bottom of the tree, so <code>siftDown</code> is expensive for nodes at the top of
+the tree. With <code>siftUp</code>, the work is proportional to the distance to the top
+of the tree, so <code>siftUp</code> is expensive for nodes at the bottom of the tree.
+Although both operations are <em>O(log n)</em> in the worst case, in a heap, only one
+node is at the top whereas half the nodes lie in the bottom layer. So <strong>it
+shouldn't be too surprising that if we have to apply an operation to every
+node, we would prefer<code>siftDown</code> over <code>siftUp</code>.</strong></p>
+<p>The <code>buildHeap</code> function takes an array of unsorted items and moves them until
+they all satisfy the heap property, thereby producing a valid heap. There are
+two approaches one might take for <code>buildHeap</code> using the <code>siftUp</code> and
+<code>siftDown</code> operations we've described.</p>
+<ol>
+<li>
+<p>Start at the top of the heap (the beginning of the array) and call <code>siftUp</code> on each item. At each step, the previously sifted items (the items before the current item in the array) form a valid heap, and sifting the next item up places it into a valid position in the heap. After sifting up each node, all items satisfy the heap property.</p>
+</li>
+<li>
+<p>Or, go in the opposite direction: start at the end of the array and move backwards towards the front. At each iteration, you sift an item down until it is in the correct location.</p>
+</li>
+</ol>
+<h3>Which implementation for <code>buildHeap</code> is more efficient?</h3>
+<p>Both of these solutions will produce a valid heap. Unsurprisingly, the more
+efficient one is the second operation that uses <code>siftDown</code>.</p>
+<p>Let <em>h = log n</em> represent the height of the heap. The work required for the
+<code>siftDown</code> approach is given by the sum</p>
+<div class="code"><pre class="code literal-block">(0 * n/2) + (1 * n/4) + (2 * n/8) + ... + (h * 1).
+</pre></div>
+
+<p>Each term in the sum has the maximum distance a node at the given height will
+have to move (zero for the bottom layer, h for the root) multiplied by the
+number of nodes at that height. In contrast, the sum for calling <code>siftUp</code> on
+each node is</p>
+<div class="code"><pre class="code literal-block">(h * n/2) + ((h-1) * n/4) + ((h-2)*n/8) + ... + (0 * 1).
+</pre></div>
+
+<p>It should be clear that the second sum is larger. The first term alone is
+<em>hn/2 = 1/2 n log n</em> , so this approach has complexity at best <em>O(n log n)</em>.</p>
+<h3>How do we prove the sum for the <code>siftDown</code> approach is indeed <em>O(n)</em>?</h3>
+<p>One method (there are other analyses that also work) is to turn the finite sum
+into an infinite series and then use Taylor series. We may ignore the first
+term, which is zero:</p>
+<p><img alt="Taylor series for buildHeap complexity" src="images/959f6.png"></p>
+<p>If you aren't sure why each of those steps works, here is a justification for
+the process in words:</p>
+<ul>
+<li>The terms are all positive, so the finite sum must be smaller than the infinite sum.</li>
+<li>The series is equal to a power series evaluated at <em>x=1/2</em>.</li>
+<li>That power series is equal to (a constant times) the derivative of the Taylor series for <em>f(x)=1/(1-x)</em>.</li>
+<li>
+<em>x=1/2</em> is within the interval of convergence of that Taylor series.</li>
+<li>Therefore, we can replace the Taylor series with <em>1/(1-x)</em> , differentiate, and evaluate to find the value of the infinite series.</li>
+</ul>
+<p>Since the infinite sum is exactly <em>n</em> , we conclude that the finite sum is no
+larger, and is therefore, <em>O(n)</em>.</p>
+<h3>Why does heap sort require <em>O(n log n)</em> time?</h3>
+<p>If it is possible to run <code>buildHeap</code> in linear time, why does heap sort
+require <em>O(n log n)</em> time? Well, heap sort consists of two stages. First, we
+call <code>buildHeap</code> on the array, which requires <em>O(n)</em> time if implemented
+optimally. The next stage is to repeatedly delete the largest item in the heap
+and put it at the end of the array. Because we delete an item from the heap,
+there is always an open spot just after the end of the heap where we can store
+the item. So heap sort achieves a sorted order by successively removing the
+next largest item and putting it into the array starting at the last position
+and moving towards the front. It is the complexity of this last part that
+dominates in heap sort. The loop looks likes this:</p>
+<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">--</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">arr</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">deleteMax</span><span class="p">();</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>Clearly, the loop runs O(n) times ( <em>n - 1</em> to be precise, the last item is
+already in place). The complexity of <code>deleteMax</code> for a heap is <em>O(log n)</em>. It
+is typically implemented by removing the root (the largest item left in the
+heap) and replacing it with the last item in the heap, which is a leaf, and
+therefore one of the smallest items. This new root will almost certainly
+violate the heap property, so you have to call <code>siftDown</code> until you move it
+back into an acceptable position. This also has the effect of moving the next
+largest item up to the root. Notice that, in contrast to <code>buildHeap</code> where for
+most of the nodes we are calling <code>siftDown</code> from the bottom of the tree, we
+are now calling <code>siftDown</code> from the top of the tree on each iteration!
+<em>Although the tree is shrinking, it doesn't shrink fast enough</em> : The height
+of the tree stays constant until you have removed the first half of the nodes
+(when you clear out the bottom layer completely). Then for the next quarter,
+the height is <em>h - 1</em>. So the total work for this second stage is</p>
+<div class="code"><pre class="code literal-block">h*n/2 + (h-1)*n/4 + ... + 0 * 1.
+</pre></div>
+
+<p>Notice the switch: now the zero work case corresponds to a single node and the
+<em>h</em> work case corresponds to half the nodes. This sum is <em>O(n log n)</em> just
+like the inefficient version of <code>buildHeap</code> that is implemented using siftUp.
+But in this case, we have no choice since we are trying to sort and we require
+the next largest item be removed next.</p>
+<p>In summary, the work for heap sort is the sum of the two stages: <em>O(n) time
+for buildHeap and <strong>O(n log n) to remove each node in order</strong> , so the
+complexity is O(n log n)</em>. You can prove (using some ideas from information
+theory) that for a comparison-based sort, <em>O(n log n)</em> is the best you could
+hope for anyway, so there's no reason to be disappointed by this or expect
+heap sort to achieve the O(n) time bound that <code>buildHeap</code> does.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Your analysis is correct. However, it is not tight.</p>
+<p>It is not really easy to explain why building a heap is a linear operation,
+you should better read it.</p>
+<p>A <em>great analysis</em> of the algorithm can be seen here.</p>
+<hr>
+<p>The main idea is that in the <code>build_heap</code> algorithm the actual <code>heapify</code> cost
+is not <code>O(log n)</code>for all elements.</p>
+<p>When <code>heapify</code> is called, the running time depends on how far an element might
+move down in the tree before the process terminates. In other words, it
+depends on the height of the element in the heap. In the worst case, the
+element might go down all the way to the leaf level.</p>
+<p>Let us count the work done level by level.</p>
+<p>At the bottommost level, there are <code>2^(h)</code>nodes, but we do not call <code>heapify</code>
+on any of these, so the work is 0. At the next level there are <code>2^(h − 1)</code>
+nodes, and each might move down by 1 level. At the 3rd level from the bottom,
+there are <code>2^(h − 2)</code> nodes, and each might move down by 2 levels.</p>
+<p>As you can see not all heapify operations are <code>O(log n)</code>, this is why you are
+getting <code>O(n)</code>.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-define-a-circle-shape-in-an-android-xml-drawable-file/" class="u-url">How to define a circle shape in an Android XML drawable file?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -240,60 +413,6 @@ rename histories even though <code>git log</code> does. (I do not know why.)</p>
 are rather frightening. See GitHub-Gist: emiller/git-mv-with-history.)</p>
 <p>In short: if Subversion doing this is wrong, then Git doing this is also wrong
 - doing this isn't some (mis!)feature, <strong>it's a mistake.</strong></p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/ecmascript-6-arrow-function-that-returns-an-object/" class="u-url">ECMAScript 6 arrow function that returns an object</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/ecmascript-6-arrow-function-that-returns-an-object/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T12:33:09+08:00" itemprop="datePublished" title="2023-02-17 12:33">2023-02-17 12:33</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>When returning an object from an arrow function, it seems that it is necessary
-to use an extra set of <code>{}</code> and a <code>return</code> keyword because of an ambiguity in
-the grammar.</p>
-<p>That means I can’t write <code>p =&gt; {foo: "bar"}</code>, but have to write <code>p =&gt; { return
-{foo: "bar"}; }</code>.</p>
-<p>If the arrow function returns anything other than an object, the <code>{}</code> and
-<code>return</code> are unnecessary, e.g.: <code>p =&gt; "foo"</code>.</p>
-<p><code>p =&gt; {foo: "bar"}</code> returns <code>undefined</code>.</p>
-<p>A modified <code>p =&gt; {"foo": "bar"}</code> throws <em>“<code>SyntaxError</code>: unexpected token:
-'<code>:</code>'”</em>.</p>
-<p>Is there something obvious I am missing?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You must wrap the returning object literal into parentheses. Otherwise curly
-braces will be considered to denote the function’s body. The following works:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">p</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">(</span><span class="p">{</span><span class="w"> </span><span class="n">foo</span><span class="p">:</span><span class="w"> </span><span class="s1">'bar'</span><span class="w"> </span><span class="p">}</span><span class="o">);</span>
-</pre></div>
-
-<p>You don't need to wrap any other expression into parentheses:</p>
-<div class="code"><pre class="code literal-block">p =&gt; 10;
-p =&gt; 'foo';
-p =&gt; true;
-p =&gt; [1,2,3];
-p =&gt; null;
-p =&gt; /^foo$/;
-</pre></div>
-
-<p>and so on.</p>
-<p>Reference: MDN - Returning object literals</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You may wonder, why the syntax is valid (but not working as expected):</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="k">func</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">foo</span><span class="p">:</span><span class="w"> </span><span class="s2">"bar"</span><span class="w"> </span><span class="p">}</span>
-</pre></div>
-
-<p>It's because of JavaScript's label syntax:</p>
-<p>So if you transpile the above code to ES5, it should look like:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="k">func</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">foo</span><span class="p">:</span>
-<span class="w">  </span><span class="s2">"bar"</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="n">obviously</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">here</span><span class="o">!</span>
-<span class="p">}</span>
-</pre></div>
     </div>
     </article>
 </div>

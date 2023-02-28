@@ -108,7 +108,77 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/linux-copy-and-create-destination-dir-if-it-does-not-exist/" class="u-url">Linux: copy and create destination dir if it does not exist</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-mockito-capture-arguments-of-a-method-called-multiple-times/" class="u-url">Can Mockito capture arguments of a method called multiple times?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/can-mockito-capture-arguments-of-a-method-called-multiple-times/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T03:48:20+08:00" itemprop="datePublished" title="2023-02-18 03:48">2023-02-18 03:48</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a method that gets called twice, and I want to capture the argument of
+the second method call.</p>
+<p>Here's what I've tried:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">ArgumentCaptor</span><span class="o">&lt;</span><span class="nv">Foo</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">firstFooCaptor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">ArgumentCaptor</span>.<span class="nv">forClass</span><span class="ss">(</span><span class="nv">Foo</span>.<span class="nv">class</span><span class="ss">)</span><span class="c1">;</span>
+<span class="nv">ArgumentCaptor</span><span class="o">&lt;</span><span class="nv">Foo</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">secondFooCaptor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">ArgumentCaptor</span>.<span class="nv">forClass</span><span class="ss">(</span><span class="nv">Foo</span>.<span class="nv">class</span><span class="ss">)</span><span class="c1">;</span>
+<span class="nv">verify</span><span class="ss">(</span><span class="nv">mockBar</span><span class="ss">)</span>.<span class="nv">doSomething</span><span class="ss">(</span><span class="nv">firstFooCaptor</span>.<span class="nv">capture</span><span class="ss">())</span><span class="c1">;</span>
+<span class="nv">verify</span><span class="ss">(</span><span class="nv">mockBar</span><span class="ss">)</span>.<span class="nv">doSomething</span><span class="ss">(</span><span class="nv">secondFooCaptor</span>.<span class="nv">capture</span><span class="ss">())</span><span class="c1">;</span>
+<span class="o">//</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">some</span><span class="w"> </span><span class="nv">assertions</span><span class="w"> </span><span class="nv">on</span><span class="w"> </span><span class="nv">secondFooCaptor</span>.<span class="nv">getValue</span><span class="ss">()</span>
+</pre></div>
+
+<p>But I get a <code>TooManyActualInvocations</code> Exception, as Mockito thinks that
+<code>doSomething</code> should only be called once.</p>
+<p>How can I verify the argument of the second call of <code>doSomething</code>?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I think it should be</p>
+<div class="code"><pre class="code literal-block">verify(mockBar, times(2)).doSomething(...)
+</pre></div>
+
+<p>Sample from mockito javadoc:</p>
+<div class="code"><pre class="code literal-block">ArgumentCaptor&lt;Person&gt; peopleCaptor = ArgumentCaptor.forClass(Person.class);
+verify(mock, times(2)).doSomething(peopleCaptor.capture());
+
+List&lt;Person&gt; capturedPeople = peopleCaptor.getAllValues();
+assertEquals("John", capturedPeople.get(0).getName());
+assertEquals("Jane", capturedPeople.get(1).getName());
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Since Mockito 2.0 there's also possibility to use static method
+Matchers.argThat(ArgumentMatcher). With the help of Java 8 it is now much
+cleaner and more readable to write:</p>
+<div class="code"><pre class="code literal-block"><span class="n">verify</span><span class="p">(</span><span class="n">mockBar</span><span class="p">).</span><span class="n">doSth</span><span class="p">(</span><span class="n">argThat</span><span class="p">((</span><span class="n">arg</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">arg</span><span class="p">.</span><span class="n">getSurname</span><span class="p">().</span><span class="n">equals</span><span class="p">(</span><span class="s">"OneSurname"</span><span class="p">)));</span>
+<span class="n">verify</span><span class="p">(</span><span class="n">mockBar</span><span class="p">).</span><span class="n">doSth</span><span class="p">(</span><span class="n">argThat</span><span class="p">((</span><span class="n">arg</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">arg</span><span class="p">.</span><span class="n">getSurname</span><span class="p">().</span><span class="n">equals</span><span class="p">(</span><span class="s">"AnotherSurname"</span><span class="p">)));</span>
+</pre></div>
+
+<p>If you're tied to lower Java version there's also not-that-bad:</p>
+<div class="code"><pre class="code literal-block"><span class="n">verify</span><span class="p">(</span><span class="n">mockBar</span><span class="p">).</span><span class="n">doSth</span><span class="p">(</span><span class="n">argThat</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">ArgumentMatcher</span><span class="o">&lt;</span><span class="n">Employee</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="nv">@Override</span>
+<span class="w">        </span><span class="k">public</span><span class="w"> </span><span class="k">boolean</span><span class="w"> </span><span class="n">matches</span><span class="p">(</span><span class="k">Object</span><span class="w"> </span><span class="n">emp</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="p">((</span><span class="n">Employee</span><span class="p">)</span><span class="w"> </span><span class="n">emp</span><span class="p">).</span><span class="n">getSurname</span><span class="p">().</span><span class="k">equals</span><span class="p">(</span><span class="ss">"SomeSurname"</span><span class="p">);</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span><span class="p">));</span>
+</pre></div>
+
+<p>Of course none of those can verify order of calls - for which you should use
+InOrder :</p>
+<div class="code"><pre class="code literal-block"><span class="n">InOrder</span><span class="w"> </span><span class="n">inOrder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inOrder</span><span class="p">(</span><span class="n">mockBar</span><span class="p">);</span>
+
+<span class="n">inOrder</span><span class="p">.</span><span class="n">verify</span><span class="p">(</span><span class="n">mockBar</span><span class="p">).</span><span class="n">doSth</span><span class="p">(</span><span class="n">argThat</span><span class="p">((</span><span class="n">arg</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">arg</span><span class="p">.</span><span class="n">getSurname</span><span class="p">().</span><span class="n">equals</span><span class="p">(</span><span class="s">"FirstSurname"</span><span class="p">)));</span>
+<span class="n">inOrder</span><span class="p">.</span><span class="n">verify</span><span class="p">(</span><span class="n">mockBar</span><span class="p">).</span><span class="n">doSth</span><span class="p">(</span><span class="n">argThat</span><span class="p">((</span><span class="n">arg</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">arg</span><span class="p">.</span><span class="n">getSurname</span><span class="p">().</span><span class="n">equals</span><span class="p">(</span><span class="s">"SecondSurname"</span><span class="p">)));</span>
+</pre></div>
+
+<p>Please take a look at mockito-java8 project which makes possible to make calls
+such as:</p>
+<div class="code"><pre class="code literal-block"><span class="n">verify</span><span class="p">(</span><span class="n">mockBar</span><span class="p">).</span><span class="n">doSth</span><span class="p">(</span><span class="n">assertArg</span><span class="p">(</span><span class="n">arg</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">assertThat</span><span class="p">(</span><span class="n">arg</span><span class="p">.</span><span class="n">getSurname</span><span class="p">()).</span><span class="n">isEqualTo</span><span class="p">(</span><span class="s">"Surname"</span><span class="p">)));</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/linux-copy-and-create-destination-dir-if-it-does-not-exist/" class="u-url">Linux: copy and create destination dir if it does not exist</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -220,66 +290,6 @@ list:</p>
 </pre></div>
 
 <p>This works as long as the parent container has <code>position: relative;</code></p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/php-equivalent-of-net-java-s-tostring/" class="u-url">PHP equivalent of .NET/Java's toString()</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/php-equivalent-of-net-java-s-tostring/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T03:46:51+08:00" itemprop="datePublished" title="2023-02-18 03:46">2023-02-18 03:46</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do I convert the value of a PHP variable to string?</p>
-<p>I was looking for something better than concatenating with an empty string:</p>
-<div class="code"><pre class="code literal-block">$myText = $myVar . '';
-</pre></div>
-
-<p>Like the <code>ToString()</code> method in Java or .NET.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You can use the casting operators:</p>
-<div class="code"><pre class="code literal-block">$myText = (string)$myVar;
-</pre></div>
-
-<p>There are more details for string casting and conversion in the Strings
-section of the PHP manual, including special handling for booleans and nulls.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>This is done with typecasting:</p>
-<div class="code"><pre class="code literal-block"><span class="o">$</span><span class="n">strvar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">string</span><span class="p">)</span><span class="w"> </span><span class="o">$</span><span class="k">var</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Casts</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">string</span>
-<span class="n">echo</span><span class="w"> </span><span class="o">$</span><span class="k">var</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Will</span><span class="w"> </span><span class="n">cast</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">implicitly</span>
-<span class="n">var_dump</span><span class="p">(</span><span class="o">$</span><span class="k">var</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Will</span><span class="w"> </span><span class="n">show</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="bp">true</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">variable</span>
-</pre></div>
-
-<p>In a class you can define what is output by using the magical method
-<code>__toString</code>. An example is below:</p>
-<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">Bottles</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">__toString</span><span class="p">()</span>
-<span class="w">    </span><span class="p">{</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s1">'Ninety nine green bottles'</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
-
-<span class="o">$</span><span class="n">ex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Bottles</span><span class="p">;</span>
-<span class="n">var_dump</span><span class="p">(</span><span class="o">$</span><span class="n">ex</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">string</span><span class="p">)</span><span class="w"> </span><span class="o">$</span><span class="n">ex</span><span class="p">);</span>
-<span class="o">//</span><span class="w"> </span><span class="n">Returns</span><span class="p">:</span><span class="w"> </span><span class="n">instance</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">Bottles</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="s2">"Ninety nine green bottles"</span>
-</pre></div>
-
-<p>Some more type casting examples:</p>
-<div class="code"><pre class="code literal-block"><span class="o">$</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-
-<span class="o">//</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="mi">1</span>
-<span class="n">var_dump</span><span class="p">((</span><span class="nb nb-Type">int</span><span class="p">)</span><span class="w"> </span><span class="o">$</span><span class="n">i</span><span class="p">);</span>
-
-<span class="o">//</span><span class="w"> </span><span class="nb nb-Type">bool</span><span class="w"> </span><span class="bp">true</span>
-<span class="n">var_dump</span><span class="p">((</span><span class="nb nb-Type">bool</span><span class="p">)</span><span class="w"> </span><span class="o">$</span><span class="n">i</span><span class="p">);</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="s2">"1"</span>
-<span class="n">var_dump</span><span class="p">((</span><span class="n">string</span><span class="p">)</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
-</pre></div>
     </div>
     </article>
 </div>

@@ -108,7 +108,78 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/push-back-vs-emplace-back/" class="u-url">push_back vs emplace_back</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-the-sizes-of-the-tables-of-a-mysql-database/" class="u-url">How to get the sizes of the tables of a MySQL database?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-get-the-sizes-of-the-tables-of-a-mysql-database/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T05:59:04+08:00" itemprop="datePublished" title="2023-02-17 05:59">2023-02-17 05:59</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I can run this query to get the sizes of all tables in a MySQL database:</p>
+<div class="code"><pre class="code literal-block"><span class="k">show</span><span class="w"> </span><span class="nv">table</span><span class="w"> </span><span class="nv">status</span><span class="w"> </span><span class="nv">from</span><span class="w"> </span><span class="nv">myDatabaseName</span><span class="c1">;</span>
+</pre></div>
+
+<p>I would like some help in understanding the results. I am looking for tables
+with the largest sizes.</p>
+<p>Which column should I look at?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You can use this query to show the size of a table (although you need to
+substitute the variables first):</p>
+<div class="code"><pre class="code literal-block"><span class="k">SELECT</span><span class="w"> </span>
+<span class="w">    </span><span class="k">table_name</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n n-Quoted">`Table`</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="nf">round</span><span class="p">(((</span><span class="n">data_length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index_length</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="p">),</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="n n-Quoted">`Size in MB`</span><span class="w"> </span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="k">TABLES</span><span class="w"> </span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">table_schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"$DB_NAME"</span>
+<span class="w">    </span><span class="k">AND</span><span class="w"> </span><span class="k">table_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"$TABLE_NAME"</span><span class="p">;</span>
+</pre></div>
+
+<p>or this query to list the size of every table in every database, largest
+first:</p>
+<div class="code"><pre class="code literal-block"><span class="k">SELECT</span><span class="w"> </span>
+<span class="w">     </span><span class="n">table_schema</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n n-Quoted">`Database`</span><span class="p">,</span><span class="w"> </span>
+<span class="w">     </span><span class="k">table_name</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n n-Quoted">`Table`</span><span class="p">,</span><span class="w"> </span>
+<span class="w">     </span><span class="nf">round</span><span class="p">(((</span><span class="n">data_length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index_length</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="p">),</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="n n-Quoted">`Size in MB`</span><span class="w"> </span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="k">TABLES</span><span class="w"> </span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="p">(</span><span class="n">data_length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index_length</span><span class="p">)</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<div class="code"><pre class="code literal-block">SELECT TABLE_NAME AS "Table Name", 
+table_rows AS "Quant of Rows", ROUND( (
+data_length + index_length
+) /1024, 2 ) AS "Total Size Kb"
+FROM information_schema.TABLES
+WHERE information_schema.TABLES.table_schema = 'YOUR SCHEMA NAME/DATABASE NAME HERE'
+LIMIT 0 , 30
+</pre></div>
+
+<p>You can get schema name from " <strong>information_schema</strong> " -&gt; <strong>SCHEMATA</strong> table
+-&gt; " <strong>SCHEMA_NAME</strong> " column</p>
+<hr>
+<p><strong>Additional</strong> You can get <strong>size of the mysql databases</strong> as following.</p>
+<div class="code"><pre class="code literal-block">SELECT table_schema "DB Name", 
+Round(Sum(data_length + index_length) / 1024 / 1024, 1) "DB Size in MB" 
+FROM   information_schema.tables 
+GROUP  BY table_schema
+ORDER BY `DB Size in MB` DESC;
+</pre></div>
+
+<p><strong>Result</strong></p>
+<div class="code"><pre class="code literal-block">DB Name              |      DB Size in MB
+
+mydatabase_wrdp             39.1
+information_schema          0.0
+</pre></div>
+
+<p>You can get additional details in here.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/push-back-vs-emplace-back/" class="u-url">push_back vs emplace_back</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -524,125 +595,6 @@ COLUMNNAMES(DATES)
   |  3   |    NULL     | 
   x------x-------------x
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-there-any-difference-between-a-guid-and-a-uuid/" class="u-url">Is there any difference between a GUID and a UUID?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/is-there-any-difference-between-a-guid-and-a-uuid/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T05:57:49+08:00" itemprop="datePublished" title="2023-02-17 05:57">2023-02-17 05:57</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I see these two acronyms being thrown around and I was wondering if there are
-any differences between a GUID and a UUID?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><del>The <strong>simple answer</strong> is: **no difference, they are the same thing.</del></p>
-<p><strong>2020-08-20 Update</strong> : While GUIDs (as used by Microsoft) and UUIDs (as
-defined by RFC4122) look similar and serve similar purposes, there are subtle-
-but-occasionally-important differences. Specifically, some Microsoft GUID docs
-allow GUIDs to contain any hex digit in any position, while RFC4122 requires
-certain values for the <code>version</code> and <code>variant</code> fields. Also, [per that same
-link], GUIDs should be all-upper case, whereas UUIDs should be "output as
-lower case characters and are case insensitive on input". This can lead to
-incompatibilities between code libraries (such as this).</p>
-<p>(Original answer follows)</p>
-<hr>
-<p>Treat them as a 16 byte (128 bits) value that is used as a unique value. In
-Microsoft-speak they are called GUIDs, but call them UUIDs when not using
-Microsoft-speak.</p>
-<p>Even the authors of the UUID specification and Microsoft claim they are
-synonyms:</p>
-<ul>
-<li>
-<p>From the introduction to IETF RFC 4122 " <em>A Universally Unique IDentifier (UUID) URN Namespace</em> ": "a Uniform Resource Name namespace for UUIDs (Universally Unique IDentifier), also known as GUIDs (Globally Unique IDentifier)."</p>
-</li>
-<li>
-<p>From the ITU-T Recommendation X.667, ISO/IEC 9834-8:2004 International Standard: "UUIDs are also known as Globally Unique Identifiers (GUIDs), but this term is not used in this Recommendation."</p>
-</li>
-<li>
-<p>And Microsoft even claims a GUID is specified by the UUID RFC: "In Microsoft Windows programming and in Windows operating systems, a globally unique identifier (GUID), as specified in [RFC4122], is ... The term universally unique identifier (UUID) is sometimes used in Windows protocol specifications as a synonym for GUID."</p>
-</li>
-</ul>
-<p>But the <strong>correct answer</strong> depends on what the question means when it says
-"UUID"...</p>
-<p>The first part depends on what the asker is thinking when they are saying
-"UUID".</p>
-<p>Microsoft's claim implies that all UUIDs are GUIDs. But are all GUIDs real
-UUIDs? That is, is the set of all UUIDs just a proper subset of the set of all
-GUIDs, or is it the exact same set?</p>
-<p>Looking at the details of the RFC 4122, there are four different "variants" of
-UUIDs. This is mostly because such 16 byte identifiers were in use before
-those specifications were brought together in the creation of a UUID
-specification. From section 4.1.1 of RFC 4122, the four <em>variants</em> of UUID
-are:</p>
-<ol>
-<li>Reserved, Network Computing System backward compatibility</li>
-<li>The <em>variant</em> specified in RFC 4122 (of which there are five sub-variants, which are called "versions")</li>
-<li>Reserved, Microsoft Corporation backward compatibility</li>
-<li>Reserved for future definition.</li>
-</ol>
-<p>According to RFC 4122, all UUID <em>variants</em> are "real UUIDs", then all GUIDs
-are real UUIDs. To the literal question "is there any difference between GUID
-and UUID" the answer is definitely no for RFC 4122 UUIDs: <strong>no difference</strong>
-(but subject to the second part below).</p>
-<p>But not all GUIDs are <em>variant</em> 2 UUIDs (e.g. Microsoft COM has GUIDs which
-are variant 3 UUIDs). If the question was "is there any difference between
-GUID and variant 2 UUIDs", then the answer would be yes -- they can be
-different. Someone asking the question probably doesn't know about <em>variants</em>
-and they might be only thinking of <em>variant</em> 2 UUIDs when they say the word
-"UUID" (e.g. they vaguely know of the MAC address+time and the random number
-algorithms forms of UUID, which are both <em>versions</em> of <em>variant</em> 2). In which
-case, the answer is <strong>yes different</strong>.</p>
-<p>So the answer, in part, depends on what the person asking is thinking when
-they say the word "UUID". Do they mean variant 2 UUID (because that is the
-only variant they are aware of) or all UUIDs?</p>
-<p>The second part depends on which specification being used as the definition of
-UUID.</p>
-<p>If you think that was confusing, read the ITU-T X.667 ISO/IEC 9834-8:2004
-which is supposed to be aligned and fully technically compatible with RFC
-4122. It has an extra sentence in Clause 11.2 that says, "All UUIDs conforming
-to this Recommendation | International Standard shall have variant bits with
-bit 7 of octet 7 set to 1 and bit 6 of octet 7 set to 0". Which means that
-only <em>variant</em> 2 UUID conform to that Standard (those two bit values mean
-<em>variant</em> 2). If that is true, then not all GUIDs are conforming ITU-T/ISO/IEC
-UUIDs, because conformant ITU-T/ISO/IEC UUIDs can only be <em>variant</em> 2 values.</p>
-<p>Therefore, the real answer also depends on which specification of UUID the
-question is asking about. Assuming we are clearly talking about all UUIDs and
-not just variant 2 UUIDs: there is <strong>no difference</strong> between GUID and IETF's
-UUIDs, but <strong>yes difference</strong> between GUID and <em>conforming</em> ITU-T/ISO/IEC's
-UUIDs!</p>
-<p><strong>Binary encodings could differ</strong></p>
-<p>When encoded in binary (as opposed to the human-readable text format), the
-GUID may be stored in a structure with four different fields as follows. This
-format differs from the [UUID standard] 8 only in the byte order of the first
-3 fields.</p>
-<div class="code"><pre class="code literal-block">Bits  Bytes Name   Endianness  Endianness
-                   (GUID)      RFC 4122
-
-32    4     Data1  Native      Big
-16    2     Data2  Native      Big
-16    2     Data3  Native      Big
-64    8     Data4  Big         Big
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>GUID is Microsoft's implementation of the UUID standard.</p>
-<p>Per Wikipedia:</p>
-<blockquote>
-<p>The term GUID usually refers to Microsoft's implementation of the
-Universally Unique Identifier (UUID) standard.</p>
-</blockquote>
-<p>An updated quote from that same Wikipedia article:</p>
-<blockquote>
-<p>RFC 4122 itself states that UUIDs "are also known as GUIDs". All this
-suggests that "GUID", while originally referring to a variant of UUID used
-by Microsoft, has become simply an alternative name for UUID…</p>
-</blockquote>
     </div>
     </article>
 </div>

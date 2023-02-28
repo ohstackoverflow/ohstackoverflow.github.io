@@ -108,7 +108,166 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-convert-a-map-to-list-in-java/" class="u-url">How do I convert a Map to List in Java?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-s-the-difference-between-constexpr-and-const/" class="u-url">What's the difference between constexpr and const?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-s-the-difference-between-constexpr-and-const/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T13:18:09+08:00" itemprop="datePublished" title="2023-02-17 13:18">2023-02-17 13:18</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What's the difference between <code>constexpr</code> and <code>const</code>?</p>
+<ul>
+<li>When can I use only one of them? </li>
+<li>When can I use both and how should I choose one?</li>
+</ul>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>Basic meaning and syntax</h3>
+<p>Both keywords can be used in the declaration of objects as well as functions.
+The basic difference when applied to <em>objects</em> is this:</p>
+<ul>
+<li>
+<p><code>const</code> declares an object as <em>constant</em>. This implies a guarantee that once initialized, the value of that object won't change, and the compiler can make use of this fact for optimizations. It also helps prevent the programmer from writing code that modifies objects that were not meant to be modified after initialization.</p>
+</li>
+<li>
+<p><code>constexpr</code> declares an object as fit for use in what the Standard calls <em>constant expressions</em>. But note that <code>constexpr</code> is not the only way to do this.</p>
+</li>
+</ul>
+<p>When applied to <em>functions</em> the basic difference is this:</p>
+<ul>
+<li>
+<p><code>const</code> can only be used for non-static member functions, not functions in general. It gives a guarantee that the member function does not modify any of the non-static data members (except for mutable data members, which can be modified anyway).</p>
+</li>
+<li>
+<p><code>constexpr</code> can be used with both member and non-member functions, as well as constructors. It declares the function fit for use in <em>constant expressions</em>. The compiler will only accept it if the function meets certain criteria (7.1.5/3,4), most importantly (†):</p>
+<ul>
+<li>The function body must be non-virtual and extremely simple: Apart from typedefs and static asserts, only a single <code>return</code> statement is allowed. In the case of a constructor, only an initialization list, typedefs, and static assert are allowed. (<code>= default</code> and <code>= delete</code> are allowed, too, though.)</li>
+<li>As of C++14, the rules are more relaxed, what is allowed since then inside a constexpr function: <code>asm</code> declaration, a <code>goto</code> statement, a statement with a label other than <code>case</code> and <code>default</code>, try-block, the definition of a variable of non-literal type, definition of a variable of static or thread storage duration, the definition of a variable for which no initialization is performed.</li>
+<li>The arguments and the return type must be <em>literal types</em> (i.e., generally speaking, very simple types, typically scalars or aggregates)</li>
+</ul>
+</li>
+</ul>
+<h3>Constant expressions</h3>
+<p>As said above, <code>constexpr</code> declares both objects as well as functions as fit
+for use in constant expressions. A constant expression is more than merely
+constant:</p>
+<ul>
+<li>
+<p>It can be used in places that require compile-time evaluation, for example, template parameters and array-size specifiers:</p>
+<div class="code"><pre class="code literal-block">  template&lt;int N&gt;
+</pre></div>
+
+<p>class fixed_size_list
+  { /<em>...</em>/ };</p>
+<p>fixed_size_list<x> mylist;  // X must be an integer constant expression</x></p>
+<p>int numbers[X];  // X must be an integer constant expression</p>
+</li>
+<li>
+<p>But note:</p>
+</li>
+<li>
+<p>Declaring something as <code>constexpr</code> does not necessarily guarantee that it will be evaluated at compile time. It <em>can be used</em> for such, but it can be used in other places that are evaluated at run-time, as well.</p>
+</li>
+<li>
+<p>An object <em>may</em> be fit for use in constant expressions <em>without</em> being declared <code>constexpr</code>. Example:</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="nc">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span>
+<span class="w"> </span><span class="err">{</span>
+<span class="w">   </span><span class="n">const</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="w">   </span><span class="nc">int</span><span class="w"> </span><span class="n">numbers</span><span class="o">[</span><span class="n">N</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="err">}</span><span class="p">;</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">constant</span><span class="w"> </span><span class="n">expression</span>
+<span class="w"> </span><span class="err">}</span>
+</pre></div>
+
+</li>
+</ul>
+<p>This is possible because <code>N</code>, being constant and initialized at declaration
+time with a literal, satisfies the criteria for a constant expression, even if
+it isn't declared <code>constexpr</code>.</p>
+<p><strong>So when do I actually have to use<code>constexpr</code>?</strong></p>
+<ul>
+<li>An <strong>object</strong> like <code>N</code> above can be used as constant expression <em>without</em> being declared <code>constexpr</code>. This is true for all objects that are:</li>
+<li><code>const</code></li>
+<li>of integral or enumeration type <em>and</em>
+</li>
+<li>initialized at declaration time with an expression that is itself a constant expression   </li>
+</ul>
+<p>[This is due to §5.19/2: A constant expression must not include a
+subexpression that involves "an lvalue-to-rvalue modification unless […] a
+glvalue of integral or enumeration type […]" Thanks to Richard Smith for
+correcting my earlier claim that this was true for all literal types.]</p>
+<ul>
+<li>
+<p>For a <strong>function</strong> to be fit for use in constant expressions, it <strong>must</strong> be explicitly declared <code>constexpr</code>; it is not sufficient for it merely to satisfy the criteria for constant-expression functions. Example:</p>
+<div class="code"><pre class="code literal-block"> template&lt;int N&gt;
+</pre></div>
+
+<p>class list
+ { };</p>
+<p _="*" arg arg_="arg;" return>constexpr int sqr1(int arg)</p>
+<p _="*" arg arg_="arg;" return>int sqr2(int arg)</p>
+<p>int main()
+ {
+   const int X = 2;
+   list<sqr1> mylist1;  // OK: sqr1 is constexpr
+   list<sqr2> mylist2;  // wrong: sqr2 is not constexpr
+ }</sqr2></sqr1></p>
+</li>
+</ul>
+<p><strong>When can I / should I use both,<code>const</code> and <code>constexpr</code> <em>together?</em></strong></p>
+<p><strong>A. In object declarations.</strong> This is never necessary when both keywords
+refer to the same object to be declared. <code>constexpr</code> implies <code>const</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="n">constexpr</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+</pre></div>
+
+<p>is the same as</p>
+<div class="code"><pre class="code literal-block"><span class="n">constexpr</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+</pre></div>
+
+<p>However, note that there may be situations when the keywords each refer to
+different parts of the declaration:</p>
+<div class="code"><pre class="code literal-block"><span class="k">static</span><span class="w"> </span><span class="n">constexpr</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+
+<span class="nb nb-Type">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">constexpr</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="o">*</span><span class="n">NP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">N</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Here, <code>NP</code> is declared as an address constant-expression, i.e. a pointer that
+is itself a constant expression. (This is possible when the address is
+generated by applying the address operator to a static/global constant
+expression.) Here, both <code>constexpr</code> and <code>const</code> are required: <code>constexpr</code>
+always refers to the expression being declared (here <code>NP</code>), while <code>const</code>
+refers to <code>int</code> (it declares a pointer-to-const). Removing the <code>const</code> would
+render the expression illegal (because (a) a pointer to a non-const object
+cannot be a constant expression, and (b) <code>&amp;N</code> is in-fact a pointer-to-
+constant).</p>
+<p><strong>B. In member function declarations.</strong> In C++11, <code>constexpr</code> implies <code>const</code>,
+while in C++14 and C++17 that is not the case. A member function declared
+under C++11 as</p>
+<div class="code"><pre class="code literal-block"><span class="n">constexpr</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">f</span><span class="p">();</span>
+</pre></div>
+
+<p>needs to be declared as</p>
+<div class="code"><pre class="code literal-block"><span class="n">constexpr</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">f</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+</pre></div>
+
+<p>under C++14 in order to still be usable as a <code>const</code> function.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><code>const</code> applies for <strong>variables</strong> , and <strong>prevents them from being modified</strong>
+in your code.</p>
+<p><code>constexpr</code> tells the compiler that this <strong>expression</strong> results in a <strong>compile
+time constant value</strong> , so it can be used in places like array lengths,
+assigning to <code>const</code> variables, etc. The link given by Oli has a lot of
+excellent examples.</p>
+<p>Basically they are 2 different concepts altogether, and can (and should) be
+used together.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-convert-a-map-to-list-in-java/" class="u-url">How do I convert a Map to List in Java?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -209,79 +368,6 @@ tasks</code> output or docs.</p>
 assemble - Assembles the outputs of this project.
 build - Assembles and tests this project.
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-get-the-query-builder-to-output-its-raw-sql-query-as-a-string/" class="u-url">How do I get the query builder to output its raw SQL query as a string?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-get-the-query-builder-to-output-its-raw-sql-query-as-a-string/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T13:16:49+08:00" itemprop="datePublished" title="2023-02-17 13:16">2023-02-17 13:16</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Given the following code:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">DB</span><span class="p">::</span><span class="nd">table</span><span class="o">(</span><span class="s1">'users'</span><span class="o">)</span><span class="nt">-</span><span class="o">&gt;</span><span class="nt">get</span><span class="o">();</span>
-</pre></div>
-
-<p>I want to get the raw SQL query string that the database query builder above
-will generate. In this example, it would be <code>SELECT * FROM users</code>.</p>
-<p>How do I do this?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>To output to the screen the last queries ran you can use this:</p>
-<div class="code"><pre class="code literal-block"><span class="err">\</span><span class="nt">DB</span><span class="p">::</span><span class="nd">enableQueryLog</span><span class="o">();</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nt">Enable</span><span class="w"> </span><span class="nt">query</span><span class="w"> </span><span class="nt">log</span>
-
-<span class="o">//</span><span class="w"> </span><span class="nt">Your</span><span class="w"> </span><span class="nt">Eloquent</span><span class="w"> </span><span class="nt">query</span><span class="w"> </span><span class="nt">executed</span><span class="w"> </span><span class="nt">by</span><span class="w"> </span><span class="nt">using</span><span class="w"> </span><span class="nt">get</span><span class="o">()</span>
-
-<span class="nt">dd</span><span class="o">(</span><span class="err">\</span><span class="nt">DB</span><span class="p">::</span><span class="nd">getQueryLog</span><span class="o">());</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nt">Show</span><span class="w"> </span><span class="nt">results</span><span class="w"> </span><span class="nt">of</span><span class="w"> </span><span class="nt">log</span>
-</pre></div>
-
-<p>I believe the most recent queries will be at the bottom of the array.</p>
-<p>You will have something like that:</p>
-<div class="code"><pre class="code literal-block">array(1) {
-  [0]=&gt;
-  array(3) {
-    ["query"]=&gt;
-    string(21) "select * from "users""
-    ["bindings"]=&gt;
-    array(0) {
-    }
-    ["time"]=&gt;
-    string(4) "0.92"
-  }
-}
-</pre></div>
-
-<p>(Thanks to Joshua's comment below.)</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>To output to the screen the last queries ran you can use this:</p>
-<div class="code"><pre class="code literal-block"><span class="err">\</span><span class="nt">DB</span><span class="p">::</span><span class="nd">enableQueryLog</span><span class="o">();</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nt">Enable</span><span class="w"> </span><span class="nt">query</span><span class="w"> </span><span class="nt">log</span>
-
-<span class="o">//</span><span class="w"> </span><span class="nt">Your</span><span class="w"> </span><span class="nt">Eloquent</span><span class="w"> </span><span class="nt">query</span><span class="w"> </span><span class="nt">executed</span><span class="w"> </span><span class="nt">by</span><span class="w"> </span><span class="nt">using</span><span class="w"> </span><span class="nt">get</span><span class="o">()</span>
-
-<span class="nt">dd</span><span class="o">(</span><span class="err">\</span><span class="nt">DB</span><span class="p">::</span><span class="nd">getQueryLog</span><span class="o">());</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nt">Show</span><span class="w"> </span><span class="nt">results</span><span class="w"> </span><span class="nt">of</span><span class="w"> </span><span class="nt">log</span>
-</pre></div>
-
-<p>I believe the most recent queries will be at the bottom of the array.</p>
-<p>You will have something like that:</p>
-<div class="code"><pre class="code literal-block">array(1) {
-  [0]=&gt;
-  array(3) {
-    ["query"]=&gt;
-    string(21) "select * from "users""
-    ["bindings"]=&gt;
-    array(0) {
-    }
-    ["time"]=&gt;
-    string(4) "0.92"
-  }
-}
-</pre></div>
-
-<p>(Thanks to Joshua's comment below.)</p>
     </div>
     </article>
 </div>

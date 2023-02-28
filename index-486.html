@@ -108,7 +108,293 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/behaviorsubject-vs-observable/" class="u-url">BehaviorSubject vs Observable?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/angular-rxjs-when-should-i-unsubscribe-from-subscription/" class="u-url">Angular/RxJS When should I unsubscribe from `Subscription`</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/angular-rxjs-when-should-i-unsubscribe-from-subscription/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T08:04:53+08:00" itemprop="datePublished" title="2023-02-17 08:04">2023-02-17 08:04</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>When should I store the <code>Subscription</code> instances and invoke <code>unsubscribe()</code>
+during the <code>ngOnDestroy</code> life cycle and when can I simply ignore them?</p>
+<p>Saving all subscriptions introduces a lot of mess into component code.</p>
+<p>HTTP Client Guide ignore subscriptions like this:</p>
+<div class="code"><pre class="code literal-block">getHeroes() {
+  this.heroService.getHeroes()
+                  .subscribe(
+                     heroes =&gt; this.heroes = heroes,
+                     error =&gt;  this.errorMessage = &lt;any&gt;error);
+}
+</pre></div>
+
+<p>In the same time Route &amp; Navigation Guide says that:</p>
+<blockquote>
+<p>Eventually, we'll navigate somewhere else. The router will remove this
+component from the DOM and destroy it. We need to clean up after ourselves
+before that happens. Specifically, we must unsubscribe before Angular
+destroys the component. Failure to do so could create a memory leak.</p>
+<p>We unsubscribe from our <code>Observable</code> in the <code>ngOnDestroy</code> method.</p>
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="nt">private</span><span class="w"> </span><span class="nt">sub</span><span class="o">:</span><span class="w"> </span><span class="nt">any</span><span class="o">;</span>
+
+<span class="nt">ngOnInit</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">this.sub</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">this.route.params.subscribe(params</span><span class="w"> </span><span class="err">=&gt;</span><span class="w"> </span><span class="err">{</span>
+<span class="w">     </span><span class="err">let</span><span class="w"> </span><span class="err">id</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">+params</span><span class="cp">[</span><span class="s1">'id'</span><span class="cp">]</span><span class="p">;</span><span class="w"> </span><span class="err">//</span><span class="w"> </span><span class="err">(+)</span><span class="w"> </span><span class="err">converts</span><span class="w"> </span><span class="err">string</span><span class="w"> </span><span class="err">'id'</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">number</span>
+<span class="w">     </span><span class="err">this.service.getHero(id).then(hero</span><span class="w"> </span><span class="err">=&gt;</span><span class="w"> </span><span class="err">this.hero</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">hero)</span><span class="p">;</span>
+<span class="w">   </span><span class="p">}</span><span class="o">);</span>
+<span class="err">}</span>
+
+<span class="nt">ngOnDestroy</span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">this.sub.unsubscribe()</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>TL;DR</strong></p>
+<p>For this question there are two kinds of Observables - <strong>finite</strong> value and
+<strong>infinite</strong> value.</p>
+<p><code>http</code> Observables produce <strong>finite</strong> (1) values and something like a DOM
+event listener Observable produces <strong>infinite</strong> values.</p>
+<p>If you manually call <code>subscribe</code> (not using async pipe), then <code>unsubscribe</code>
+from <strong>infinite</strong> Observables.</p>
+<p>Don't worry about <strong>finite</strong> ones, RxJs will take care of them.</p>
+<hr>
+<p>Sources:</p>
+<ol>
+<li>I tracked down an answer from Rob Wormald in Angular's Gitter here.</li>
+</ol>
+<p>He states (I reorganized for clarity and emphasis is mine):</p>
+<blockquote>
+<p>if its <strong>a single-value-sequence</strong> (like an http request) the <strong>manual
+cleanup is unnecessary</strong> (assuming you subscribe in the controller manually)</p>
+<p>i should say "if its a <strong>sequence that completes</strong> " (of which single value
+sequences, a la http, are one)</p>
+<p><strong>if its an infinite sequence</strong> , <strong>you should unsubscribe</strong> which the async
+pipe does for you</p>
+</blockquote>
+<p>Also he mentions in this YouTube video on Observables that <em>"they clean up
+after themselves..."</em> in the context of Observables that <em>complete</em> (like
+Promises, which always complete because they are always producing one value
+and ending - we never worried about unsubscribing from Promises to make sure
+they clean up XHR event listeners, right?)</p>
+<ol>
+<li>Also in the Rangle guide to Angular 2 it reads</li>
+</ol>
+<blockquote>
+<p>In most cases we will not need to explicitly call the <code>unsubscribe</code> method
+unless we want to cancel early or our <code>Observable</code> has a longer lifespan
+than our subscription. The default behavior of <code>Observable</code> operators is to
+dispose of the subscription as soon as <code>.complete()</code> or <code>.error()</code> messages
+are published. Keep in mind that RxJS was designed to be used in a "fire and
+forget" fashion most of the time.</p>
+</blockquote>
+<p>When does the phrase <em>"our<code>Observable</code> has a longer lifespan than our
+subscription"</em> apply?</p>
+<p>It applies when a subscription is created inside a component which is
+destroyed before (or not 'long' before) the Observable completes.</p>
+<p>I read this as meaning if we subscribe to an <code>http</code> request or an Observable
+that emits 10 values and our component is destroyed before that <code>http</code> request
+returns or the 10 values have been emitted, we are still OK!</p>
+<p>When the request does return or the 10th value is finally emitted the
+Observable will complete and all resources will be cleaned up.</p>
+<ol>
+<li>If we look at this example from the same Rangle guide we can see that the subscription to <code>route.params</code> does require an <code>unsubscribe()</code> because we don't know when those <code>params</code> will stop changing (emitting new values).</li>
+</ol>
+<p>The component could be destroyed by navigating away in which case the route
+params will likely still be changing (they could technically change until the
+app ends) and the resources allocated in subscription would still be allocated
+because there hasn't been a <em>completion</em>.</p>
+<ol>
+<li>
+<p>In this video from NgEurope Rob Wormald also says you do not need to unsubscribe from Router Observables. He also mentions the <code>http</code> service and <code>ActivatedRoute.params</code> in this video from November 2016.</p>
+</li>
+<li>
+<p>The Angular tutorial, the Routing chapter now states the following:</p>
+</li>
+</ol>
+<blockquote>
+<p>The <code>Router</code> manages the observables it provides and localizes the
+subscriptions. The subscriptions are cleaned up when the component is
+destroyed, protecting against memory leaks, so we don't need to unsubscribe
+from the route <code>params</code> <code>Observable</code>.</p>
+</blockquote>
+<p>Here's a discussion on the GitHub Issues for the Angular docs regarding Router
+Observables where Ward Bell mentions that clarification for all of this is in
+the works.</p>
+<hr>
+<p>I spoke with Ward Bell about this question at NGConf (I even showed him this
+answer which he said was correct) but he told me the docs team for Angular had
+a solution to this question that is unpublished (though they are working on
+getting it approved). He also told me I could update my SO answer with the
+forthcoming official recommendation.</p>
+<p>The solution we should all use going forward is to add a <code>private
+ngUnsubscribe = new Subject&lt;void&gt;();</code> field to all components that have
+<code>.subscribe()</code> calls to Observables within their class code.</p>
+<p>We then call <code>this.ngUnsubscribe.next(); this.ngUnsubscribe.complete();</code> in
+our <code>ngOnDestroy()</code> methods.</p>
+<p>The secret sauce (as noted already by @metamaker) is to call
+<code>takeUntil(this.ngUnsubscribe)</code> before each of our <code>.subscribe()</code> calls which
+will guarantee all subscriptions will be cleaned up when the component is
+destroyed.</p>
+<p>Example:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="p">{</span> <span class="n">Component</span><span class="p">,</span> <span class="n">OnDestroy</span><span class="p">,</span> <span class="n">OnInit</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'@angular/core'</span><span class="p">;</span>
+<span class="o">//</span> <span class="n">RxJs</span> <span class="mf">6.</span><span class="n">x</span><span class="o">+</span> <span class="kn">import</span> <span class="nn">paths</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="nb">filter</span><span class="p">,</span> <span class="n">startWith</span><span class="p">,</span> <span class="n">takeUntil</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'rxjs/operators'</span><span class="p">;</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="n">Subject</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'rxjs'</span><span class="p">;</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="n">BookService</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'../books.service'</span><span class="p">;</span>
+
+<span class="nd">@Component</span><span class="p">({</span>
+    <span class="n">selector</span><span class="p">:</span> <span class="s1">'app-books'</span><span class="p">,</span>
+    <span class="n">templateUrl</span><span class="p">:</span> <span class="s1">'./books.component.html'</span>
+<span class="p">})</span>
+<span class="n">export</span> <span class="k">class</span> <span class="nc">BooksComponent</span> <span class="n">implements</span> <span class="n">OnDestroy</span><span class="p">,</span> <span class="n">OnInit</span> <span class="p">{</span>
+    <span class="n">private</span> <span class="n">ngUnsubscribe</span> <span class="o">=</span> <span class="n">new</span> <span class="n">Subject</span><span class="o">&lt;</span><span class="n">void</span><span class="o">&gt;</span><span class="p">();</span>
+
+    <span class="n">constructor</span><span class="p">(</span><span class="n">private</span> <span class="n">booksService</span><span class="p">:</span> <span class="n">BookService</span><span class="p">)</span> <span class="p">{</span> <span class="p">}</span>
+
+    <span class="n">ngOnInit</span><span class="p">()</span> <span class="p">{</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">booksService</span><span class="o">.</span><span class="n">getBooks</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">pipe</span><span class="p">(</span>
+               <span class="n">startWith</span><span class="p">([]),</span>
+               <span class="nb">filter</span><span class="p">(</span><span class="n">books</span> <span class="o">=&gt;</span> <span class="n">books</span><span class="o">.</span><span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span>
+               <span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">ngUnsubscribe</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">books</span> <span class="o">=&gt;</span> <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">books</span><span class="p">));</span>
+
+        <span class="n">this</span><span class="o">.</span><span class="n">booksService</span><span class="o">.</span><span class="n">getArchivedBooks</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">ngUnsubscribe</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">archivedBooks</span> <span class="o">=&gt;</span> <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">archivedBooks</span><span class="p">));</span>
+    <span class="p">}</span>
+
+    <span class="n">ngOnDestroy</span><span class="p">()</span> <span class="p">{</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">ngUnsubscribe</span><span class="o">.</span><span class="n">next</span><span class="p">();</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">ngUnsubscribe</span><span class="o">.</span><span class="n">complete</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>Note:</strong> It's important to add the <code>takeUntil</code> operator as the last one to
+prevent leaks with intermediate Observables in the operator chain.</p>
+<hr>
+<p>More recently, in an episode of Adventures in Angular Ben Lesh and Ward Bell
+discuss the issues around how/when to unsubscribe in a component. The
+discussion starts at about 1:05:30.</p>
+<p>Ward mentions <em>"right now there's an awful takeUntil dance that takes a lot of
+machinery"</em> and Shai Reznik mentions <em>"Angular handles some of the
+subscriptions like http and routing"</em>.</p>
+<p>In response Ben mentions that there are discussions right now to allow
+Observables to hook into the Angular component lifecycle events and Ward
+suggests an Observable of lifecycle events that a component could subscribe to
+as a way of knowing when to complete Observables maintained as component
+internal state.</p>
+<p>That said, we mostly need solutions now so here are some other resources.</p>
+<ol>
+<li>
+<p>A recommendation for the <code>takeUntil()</code> pattern from RxJs core team member Nicholas Jamieson and a TSLint rule to help enforce it: https://ncjamieson.com/avoiding-takeuntil-leaks/</p>
+</li>
+<li>
+<p>Lightweight npm package that exposes an Observable operator that takes a component instance (<code>this</code>) as a parameter and automatically unsubscribes during <code>ngOnDestroy</code>: https://github.com/NetanelBasal/ngx-take-until-destroy</p>
+</li>
+<li>
+<p>Another variation of the above with slightly better ergonomics if you are not doing AOT builds (but we should all be doing AOT now): https://github.com/smnbbrv/ngx-rx-collector</p>
+</li>
+<li>
+<p>Custom directive <code>*ngSubscribe</code> that works like async pipe but creates an embedded view in your template so you can refer to the 'unwrapped' value throughout your template: https://netbasal.com/diy-subscription-handling-directive-in-angular-c8f6e762697f</p>
+</li>
+</ol>
+<p>I mention in a comment to Nicholas' blog that over-use of <code>takeUntil()</code> could
+be a sign that your component is trying to do too much and that separating
+your existing components into <strong>Feature</strong> and <strong>Presentational</strong> components
+should be considered. You can then <code>| async</code> the Observable from the Feature
+component into an <code>Input</code> of the Presentational component, which means no
+subscriptions are necessary anywhere. Read more about this approach here.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>You don't need to have bunch of subscriptions and unsubscribe manually. Use
+Subject and takeUntil combo to handle subscriptions like a boss:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="p">{</span> <span class="n">Subject</span> <span class="p">}</span> <span class="kn">from</span> <span class="s2">"rxjs"</span>
+<span class="kn">import</span> <span class="p">{</span> <span class="n">takeUntil</span> <span class="p">}</span> <span class="kn">from</span> <span class="s2">"rxjs/operators"</span>
+
+<span class="nd">@Component</span><span class="p">({</span>
+  <span class="n">moduleId</span><span class="p">:</span> <span class="n">__moduleName</span><span class="p">,</span>
+  <span class="n">selector</span><span class="p">:</span> <span class="s2">"my-view"</span><span class="p">,</span>
+  <span class="n">templateUrl</span><span class="p">:</span> <span class="s2">"../views/view-route.view.html"</span>
+<span class="p">})</span>
+<span class="n">export</span> <span class="k">class</span> <span class="nc">ViewRouteComponent</span> <span class="n">implements</span> <span class="n">OnInit</span><span class="p">,</span> <span class="n">OnDestroy</span> <span class="p">{</span>
+  <span class="n">componentDestroyed</span><span class="err">$</span><span class="p">:</span> <span class="n">Subject</span><span class="o">&lt;</span><span class="n">boolean</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">new</span> <span class="n">Subject</span><span class="p">()</span>
+
+  <span class="n">constructor</span><span class="p">(</span><span class="n">private</span> <span class="n">titleService</span><span class="p">:</span> <span class="n">TitleService</span><span class="p">)</span> <span class="p">{}</span>
+
+  <span class="n">ngOnInit</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitter1</span><span class="err">$</span>
+      <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="p">))</span>
+      <span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span> <span class="nb">any</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="o">/*</span> <span class="o">...</span> <span class="n">do</span> <span class="n">something</span> <span class="mi">1</span> <span class="o">*/</span> <span class="p">})</span>
+
+    <span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitter2</span><span class="err">$</span>
+      <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="p">))</span>
+      <span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span> <span class="nb">any</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="o">/*</span> <span class="o">...</span> <span class="n">do</span> <span class="n">something</span> <span class="mi">2</span> <span class="o">*/</span> <span class="p">})</span>
+
+    <span class="o">//...</span>
+
+    <span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitterN</span><span class="err">$</span>
+      <span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeUntil</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="p">))</span>
+      <span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span> <span class="nb">any</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="o">/*</span> <span class="o">...</span> <span class="n">do</span> <span class="n">something</span> <span class="n">N</span> <span class="o">*/</span> <span class="p">})</span>
+  <span class="p">}</span>
+
+  <span class="n">ngOnDestroy</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="o">.</span><span class="n">next</span><span class="p">(</span><span class="n">true</span><span class="p">)</span>
+    <span class="n">this</span><span class="o">.</span><span class="n">componentDestroyed</span><span class="err">$</span><span class="o">.</span><span class="n">complete</span><span class="p">()</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<hr>
+<p><strong>Alternative approach</strong> , which was proposed by @acumartini in comments, uses
+takeWhile instead of takeUntil. You may prefer it, but mind that this way your
+Observable execution will not be cancelled on ngDestroy of your component
+(e.g. when you make time consuming calculations or wait for data from server).
+Method, which is based on takeUntil, doesn't have this drawback and leads to
+immediate cancellation of request. Thanks to @AlexChe for detailed explanation
+in comments.</p>
+<p>So here is the code:</p>
+<div class="code"><pre class="code literal-block"><span class="err">@</span><span class="n">Component</span><span class="p">({</span>
+<span class="w">  </span><span class="n">moduleId</span><span class="p">:</span><span class="w"> </span><span class="n">__moduleName</span><span class="p">,</span>
+<span class="w">  </span><span class="n">selector</span><span class="p">:</span><span class="w"> </span><span class="s2">"my-view"</span><span class="p">,</span>
+<span class="w">  </span><span class="n">templateUrl</span><span class="p">:</span><span class="w"> </span><span class="s2">"../views/view-route.view.html"</span>
+<span class="p">})</span>
+<span class="k">export</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ViewRouteComponent</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">OnInit</span><span class="p">,</span><span class="w"> </span><span class="n">OnDestroy</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">alive</span><span class="p">:</span><span class="w"> </span><span class="n">boolean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">true</span>
+
+<span class="w">  </span><span class="n">constructor</span><span class="p">(</span><span class="n">private</span><span class="w"> </span><span class="n">titleService</span><span class="p">:</span><span class="w"> </span><span class="n">TitleService</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+
+<span class="w">  </span><span class="n">ngOnInit</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitter1</span><span class="o">$</span>
+<span class="w">      </span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeWhile</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">alive</span><span class="p">))</span>
+<span class="w">      </span><span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">/*</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">*/</span><span class="w"> </span><span class="p">})</span>
+
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitter2</span><span class="o">$</span>
+<span class="w">      </span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeWhile</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">alive</span><span class="p">))</span>
+<span class="w">      </span><span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">/*</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*/</span><span class="w"> </span><span class="p">})</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="o">...</span>
+
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">titleService</span><span class="o">.</span><span class="n">emitterN</span><span class="o">$</span>
+<span class="w">      </span><span class="o">.</span><span class="n">pipe</span><span class="p">(</span><span class="n">takeWhile</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">alive</span><span class="p">))</span>
+<span class="w">      </span><span class="o">.</span><span class="n">subscribe</span><span class="p">((</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">/*</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">*/</span><span class="w"> </span><span class="p">})</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">ngOnDestroy</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">alive</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">false</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/behaviorsubject-vs-observable/" class="u-url">BehaviorSubject vs Observable?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -300,121 +586,6 @@ InputStream in = org.apache.commons.io.IOUtils.toInputStream(source, "UTF-8");
 
 <p>You may find that the library also offer many other shortcuts to commonly done
 tasks that you may be able to use in your project.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-clone-a-single-branch-in-git/" class="u-url">How do I clone a single branch in Git?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-clone-a-single-branch-in-git/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T08:03:36+08:00" itemprop="datePublished" title="2023-02-17 08:03">2023-02-17 08:03</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a local Git repository in <code>~/local_repo</code>. It has a few branches:</p>
-<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>branch
-*<span class="w"> </span>master
-<span class="w">  </span>rails
-<span class="w">  </span>c
-<span class="w">  </span>c++
-</pre></div>
-
-<p>To clone the local repository, I do:</p>
-<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>~/local_repo<span class="w"> </span>new_repo
-Initialized<span class="w"> </span>empty<span class="w"> </span>Git<span class="w"> </span>repository<span class="w"> </span><span class="k">in</span><span class="w"> </span>/home/username/new_repo/.git/
-</pre></div>
-
-<p>The <code>new_repo</code> master branch points to the <code>local_repo</code> master branch, and I
-can push / pull.</p>
-<p>But I am unable to clone another branch. I want to only pull the branch I want
-(e.g. <code>rails</code>), so that the new repository has a <code>master</code> branch that pushes
-to and pulls from <code>local_repo</code>'s <code>rails</code> branch, by default. How do I
-accomplish this, or perhaps something similar with <code>local_repo</code> tracking the
-master <code>local_repo</code>?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Note: the <strong>git1.7.10 (April 2012)</strong> actually allows you to <strong>clone only one
-branch</strong> :</p>
-<div class="code"><pre class="code literal-block"># clone only the remote primary HEAD (default: origin/master)
-git clone &lt;url&gt; --single-branch
-
-# as in:
-git clone &lt;url&gt; --branch &lt;branch&gt; --single-branch &lt;folder&gt;
-</pre></div>
-
-<p>Note:</p>
-<ul>
-<li>
-<code>&lt;url&gt;</code> is the URL of the remote repository, and does not reference the branch cloned</li>
-<li>
-<code>&lt;folder&gt;</code> is the local folder where you want to clone the repository</li>
-</ul>
-<p>You can see it in <code>t5500-fetch-pack.sh</code>:</p>
-<div class="code"><pre class="code literal-block">test_expect_success 'single branch clone' '
-  git clone --single-branch "file://$(pwd)/." singlebranch
-'
-</pre></div>
-
-<p>Tobu comments that:</p>
-<blockquote>
-<p><strong>This is implicit when doing a shallow clone.<br>
- This makes <code>git clone --depth 1</code> the easiest way to save bandwidth.</strong></p>
-</blockquote>
-<p>And since Git 1.9.0 (February 2014), shallow clones support data transfer
-(push/pull), so that option is even more useful now.<br>
-See more at "Is <code>git clone --depth 1</code> (shallow clone) more useful than it
-makes out?".</p>
-<hr>
-<p>"Undoing" a shallow clone is detailed at "Convert shallow clone to full clone"
-(git 1.8.3+)</p>
-<div class="code"><pre class="code literal-block">#<span class="w"> </span><span class="nv">unshallow</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">current</span><span class="w"> </span><span class="nv">branch</span>
-<span class="nv">git</span><span class="w"> </span><span class="nv">fetch</span><span class="w"> </span><span class="o">--</span><span class="nv">unshallow</span>
-
-#<span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">getting</span><span class="w"> </span><span class="nv">back</span><span class="w"> </span><span class="nv">all</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">branches</span><span class="w"> </span><span class="ss">(</span><span class="nv">see</span><span class="w"> </span><span class="nv">Peter</span><span class="w"> </span><span class="nv">Cordes</span><span class="err">' comment)</span>
-<span class="err">git config remote.origin.fetch refs/heads/*:refs/remotes/origin/*</span>
-<span class="err">git fetch --unshallow</span>
-</pre></div>
-
-<p>As Chris comments:</p>
-<blockquote>
-<p>the magic line for getting missing branches to reverse <code>--single-branch</code> is
-(git v2.1.4):</p>
-</blockquote>
-<div class="code"><pre class="code literal-block">git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*
-git fetch --unshallow
-</pre></div>
-
-<hr>
-<p>With Git 2.26 (Q1 2020), "<code>git clone --recurse-submodules --single-branch</code>"
-<strong>now uses the same single-branch option when cloning the submodules</strong>.</p>
-<p>See commit 132f600, commit 4731957 (21 Feb 2020) by Emily Shaffer
-(<code>nasamuffin</code>).<br>
-(Merged by Junio C Hamano -- <code>gitster</code> -- in commit b22db26, 05 Mar 2020)</p>
-<blockquote>
-<h3>
-<code>clone</code>: pass --single-branch during --recurse-submodules</h3>
-<p>Signed-off-by: Emily Shaffer<br>
- Acked-by: Jeff King</p>
-<p>Previously, performing "<code>git clone --recurse-submodules --single-branch</code>"
-resulted in submodules cloning all branches even though the superproject
-cloned only one branch.</p>
-<p>Pipe <code>--single-branch</code> through the submodule helper framework to make it to
-'<code>clone</code>' later on.</p>
-</blockquote>
-<p><br></p>
-<h3>Suggest</h3>
-<p>One way is to execute the following.</p>
-<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">clone</span><span class="w"> </span><span class="k">user</span><span class="nv">@git</span><span class="o">-</span><span class="nl">server</span><span class="p">:</span><span class="n">project_name</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="o">-</span><span class="n">b</span><span class="w"> </span><span class="n">branch_name</span><span class="w"> </span><span class="o">/</span><span class="n">your</span><span class="o">/</span><span class="n">folder</span>
-</pre></div>
-
-<p>Where <code>branch_name</code> is the branch of your choice and "/your/folder" is the
-destination folder for that branch. It's true that this will bring other
-branches giving you the opportunity to merge back and forth.</p>
-<p><strong>Update</strong></p>
-<p>Now, starting with Git 1.7.10, you can now do this</p>
-<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">clone</span><span class="w"> </span><span class="k">user</span><span class="nv">@git</span><span class="o">-</span><span class="nl">server</span><span class="p">:</span><span class="n">project_name</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="o">-</span><span class="n">b</span><span class="w"> </span><span class="n">branch_name</span><span class="w"> </span><span class="c1">--single-branch /your/folder</span>
-</pre></div>
     </div>
     </article>
 </div>

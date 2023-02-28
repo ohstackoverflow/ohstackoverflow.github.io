@@ -108,7 +108,140 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-move-an-element-into-another-element/" class="u-url">How to move an element into another element</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/select-first-row-in-each-group-by-group/" class="u-url">Select first row in each GROUP BY group?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/select-first-row-in-each-group-by-group/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T23:42:27+08:00" itemprop="datePublished" title="2023-02-16 23:42">2023-02-16 23:42</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>As the title suggests, I'd like to select the first row of each set of rows
+grouped with a <code>GROUP BY</code>.</p>
+<p>Specifically, if I've got a <code>purchases</code> table that looks like this:</p>
+<div class="code"><pre class="code literal-block">SELECT * FROM purchases;
+</pre></div>
+
+<p><strong>My Output:</strong></p>
+<table>
+<thead><tr>
+<th>id</th>
+<th>customer</th>
+<th>total</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Joe</td>
+<td>5</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Sally</td>
+<td>3</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Joe</td>
+<td>2</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Sally</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>I'd like to query for the <code>id</code> of the largest purchase (<code>total</code>) made by each
+<code>customer</code>. Something like this:</p>
+<div class="code"><pre class="code literal-block">SELECT FIRST(id), customer, FIRST(total)
+FROM  purchases
+GROUP BY customer
+ORDER BY total DESC;
+</pre></div>
+
+<p><strong>Expected Output:</strong></p>
+<table>
+<thead><tr>
+<th>FIRST(id)</th>
+<th>customer</th>
+<th>FIRST(total)</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Joe</td>
+<td>5</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Sally</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>On databases that support CTE and windowing functions:</h3>
+<div class="code"><pre class="code literal-block">WITH summary AS (
+    SELECT p.id, 
+           p.customer, 
+           p.total, 
+           ROW_NUMBER() OVER(PARTITION BY p.customer 
+                                 ORDER BY p.total DESC) AS rank
+      FROM PURCHASES p)
+ SELECT *
+   FROM summary
+ WHERE rank = 1
+</pre></div>
+
+<h3>Supported by any database:</h3>
+<p>But you need to add logic to break ties:</p>
+<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nv">SELECT</span><span class="w"> </span><span class="nv">MIN</span><span class="ss">(</span><span class="nv">x</span>.<span class="nv">id</span><span class="ss">)</span>,<span class="w">  </span><span class="o">--</span><span class="w"> </span><span class="nv">change</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">MAX</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="nv">want</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">highest</span>
+<span class="w">         </span><span class="nv">x</span>.<span class="nv">customer</span>,<span class="w"> </span>
+<span class="w">         </span><span class="nv">x</span>.<span class="nv">total</span>
+<span class="w">    </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">PURCHASES</span><span class="w"> </span><span class="nv">x</span>
+<span class="w">    </span><span class="nv">JOIN</span><span class="w"> </span><span class="ss">(</span><span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">customer</span>,
+<span class="w">                 </span><span class="nv">MAX</span><span class="ss">(</span><span class="nv">total</span><span class="ss">)</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">max_total</span>
+<span class="w">            </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">PURCHASES</span><span class="w"> </span><span class="nv">p</span>
+<span class="w">        </span><span class="nv">GROUP</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">customer</span><span class="ss">)</span><span class="w"> </span><span class="nv">y</span><span class="w"> </span><span class="nv">ON</span><span class="w"> </span><span class="nv">y</span>.<span class="nv">customer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">x</span>.<span class="nv">customer</span>
+<span class="w">                              </span><span class="nv">AND</span><span class="w"> </span><span class="nv">y</span>.<span class="nv">max_total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">x</span>.<span class="nv">total</span>
+<span class="nv">GROUP</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">x</span>.<span class="nv">customer</span>,<span class="w"> </span><span class="nv">x</span>.<span class="nv">total</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<h3>On databases that support CTE and windowing functions:</h3>
+<div class="code"><pre class="code literal-block">WITH summary AS (
+    SELECT p.id, 
+           p.customer, 
+           p.total, 
+           ROW_NUMBER() OVER(PARTITION BY p.customer 
+                                 ORDER BY p.total DESC) AS rank
+      FROM PURCHASES p)
+ SELECT *
+   FROM summary
+ WHERE rank = 1
+</pre></div>
+
+<h3>Supported by any database:</h3>
+<p>But you need to add logic to break ties:</p>
+<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nv">SELECT</span><span class="w"> </span><span class="nv">MIN</span><span class="ss">(</span><span class="nv">x</span>.<span class="nv">id</span><span class="ss">)</span>,<span class="w">  </span><span class="o">--</span><span class="w"> </span><span class="nv">change</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">MAX</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="nv">want</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">highest</span>
+<span class="w">         </span><span class="nv">x</span>.<span class="nv">customer</span>,<span class="w"> </span>
+<span class="w">         </span><span class="nv">x</span>.<span class="nv">total</span>
+<span class="w">    </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">PURCHASES</span><span class="w"> </span><span class="nv">x</span>
+<span class="w">    </span><span class="nv">JOIN</span><span class="w"> </span><span class="ss">(</span><span class="nv">SELECT</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">customer</span>,
+<span class="w">                 </span><span class="nv">MAX</span><span class="ss">(</span><span class="nv">total</span><span class="ss">)</span><span class="w"> </span><span class="nv">AS</span><span class="w"> </span><span class="nv">max_total</span>
+<span class="w">            </span><span class="nv">FROM</span><span class="w"> </span><span class="nv">PURCHASES</span><span class="w"> </span><span class="nv">p</span>
+<span class="w">        </span><span class="nv">GROUP</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">customer</span><span class="ss">)</span><span class="w"> </span><span class="nv">y</span><span class="w"> </span><span class="nv">ON</span><span class="w"> </span><span class="nv">y</span>.<span class="nv">customer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">x</span>.<span class="nv">customer</span>
+<span class="w">                              </span><span class="nv">AND</span><span class="w"> </span><span class="nv">y</span>.<span class="nv">max_total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">x</span>.<span class="nv">total</span>
+<span class="nv">GROUP</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">x</span>.<span class="nv">customer</span>,<span class="w"> </span><span class="nv">x</span>.<span class="nv">total</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-move-an-element-into-another-element/" class="u-url">How to move an element into another element</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -320,89 +453,6 @@ versions are installed in the tree (the parent module, then node_modules).</p>
 </li>
 </ul>
 <p>For more information, I suggest reading the docs of npm 3</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/loop-inside-react-jsx/" class="u-url">Loop inside React JSX</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/loop-inside-react-jsx/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-16T23:40:47+08:00" itemprop="datePublished" title="2023-02-16 23:40">2023-02-16 23:40</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm trying to do something like the following in React JSX (where ObjectRow is
-a separate component):</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;tbody&gt;</span>
-<span class="w">    </span>for<span class="w"> </span>(var<span class="w"> </span>i=0;<span class="w"> </span>i<span class="w"> </span><span class="nt">&lt; numrows</span><span class="err">;</span><span class="w"> </span><span class="err">i++)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">        </span><span class="err">&lt;ObjectRow</span><span class="nt">/&gt;</span>
-<span class="w">    </span>}<span class="w"> </span>
-<span class="nt">&lt;/tbody&gt;</span>
-</pre></div>
-
-<p>I realize and understand why this isn't valid JSX, since JSX maps to function
-calls. However, coming from template land and being new to JSX, I am unsure
-how I would achieve the above (adding a component multiple times).</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Think of it like you're just calling JavaScript functions. You can't use a
-<code>for</code> loop where the arguments to a function call would go:</p>
-<div class="code"><pre class="code literal-block"><span class="k">return</span><span class="w"> </span><span class="nv">tbody</span><span class="ss">(</span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">let</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; i &lt; numrows; i++) {</span>
-<span class="w">        </span><span class="nv">ObjectRow</span><span class="ss">()</span>
-<span class="w">    </span>}<span class="w"> </span>
-<span class="ss">)</span>
-</pre></div>
-
-<p>See how the function <code>tbody</code> is being passed a <code>for</code> loop as an argument –
-leading to a syntax error.</p>
-<p>But you can make an array, and then pass that in as an argument:</p>
-<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
-<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">let</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">numrows</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">rows</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">ObjectRow</span><span class="p">());</span>
-<span class="p">}</span>
-<span class="k">return</span><span class="w"> </span><span class="n">tbody</span><span class="p">(</span><span class="n">rows</span><span class="p">);</span>
-</pre></div>
-
-<hr>
-<p>You can basically use the same structure when working with JSX:</p>
-<div class="code"><pre class="code literal-block">const<span class="w"> </span>rows<span class="w"> </span>=<span class="w"> </span>[];
-for<span class="w"> </span>(let<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span>0;<span class="w"> </span>i<span class="w"> </span><span class="nt">&lt; numrows</span><span class="err">;</span><span class="w"> </span><span class="err">i++)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">note:</span><span class="w"> </span><span class="err">we</span><span class="w"> </span><span class="err">are</span><span class="w"> </span><span class="err">adding</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">key</span><span class="w"> </span><span class="err">prop</span><span class="w"> </span><span class="err">here</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">allow</span><span class="w"> </span><span class="err">react</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">uniquely</span><span class="w"> </span><span class="err">identify</span><span class="w"> </span><span class="err">each</span>
-<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">element</span><span class="w"> </span><span class="err">in</span><span class="w"> </span><span class="err">this</span><span class="w"> </span><span class="err">array.</span><span class="w"> </span><span class="err">see:</span><span class="w"> </span><span class="err">https://reactjs.org/docs/lists-and-keys.html</span>
-<span class="w">    </span><span class="err">rows.push(&lt;ObjectRow</span><span class="w"> </span><span class="na">key=</span><span class="s">{i}</span><span class="w"> </span><span class="nt">/&gt;</span>);
-}
-return<span class="w"> </span><span class="nt">&lt;tbody&gt;</span>{rows}<span class="nt">&lt;/tbody&gt;</span>;
-</pre></div>
-
-<p>Incidentally, my JavaScript example is almost exactly what that example of JSX
-transforms into. Play around with Babel REPL to get a feel for how JSX works.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I am not sure if this will work for your situation, but often map is a good
-answer.</p>
-<p>If this was your code with the <em>for</em> loop:</p>
-<div class="code"><pre class="code literal-block"><span class="o">&lt;</span><span class="n">tbody</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nf">var</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">objects</span><span class="p">.</span><span class="n">length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="n">ObjectRow</span><span class="w"> </span><span class="n">obj</span><span class="o">=</span><span class="err">{</span><span class="n">objects</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="err">}</span><span class="w"> </span><span class="k">key</span><span class="o">=</span><span class="err">{</span><span class="n">i</span><span class="err">}</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="err">}</span>
-<span class="o">&lt;/</span><span class="n">tbody</span><span class="o">&gt;</span>
-</pre></div>
-
-<p>You could write it like this with map:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;tbody&gt;</span>
-<span class="w">    </span>{objects.map(function(object,<span class="w"> </span>i){
-<span class="w">        </span>return<span class="w"> </span><span class="nt">&lt;ObjectRow</span><span class="w"> </span><span class="na">obj=</span><span class="s">{object}</span><span class="w"> </span><span class="na">key=</span><span class="s">{i}</span><span class="w"> </span><span class="nt">/&gt;</span>;
-<span class="w">    </span>})}
-<span class="nt">&lt;/tbody&gt;</span>
-</pre></div>
-
-<p>ES6 syntax:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;tbody&gt;</span>
-<span class="w">    </span>{objects.map((object,<span class="w"> </span>i)<span class="w"> </span>=&gt;<span class="w"> </span><span class="nt">&lt;ObjectRow</span><span class="w"> </span><span class="na">obj=</span><span class="s">{object}</span><span class="w"> </span><span class="na">key=</span><span class="s">{i}</span><span class="w"> </span><span class="nt">/&gt;</span>)}
-<span class="nt">&lt;/tbody&gt;</span>
-</pre></div>
     </div>
     </article>
 </div>

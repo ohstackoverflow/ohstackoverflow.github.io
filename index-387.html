@@ -108,7 +108,130 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/parameterize-an-sql-in-clause/" class="u-url">Parameterize an SQL IN clause</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-use-scope-watch-and-scope-apply-in-angularjs/" class="u-url">How do I use $scope.$watch and $scope.$apply in AngularJS?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-use-scope-watch-and-scope-apply-in-angularjs/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T05:33:46+08:00" itemprop="datePublished" title="2023-02-17 05:33">2023-02-17 05:33</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I don't understand how to use <code>$scope.$watch</code> and <code>$scope.$apply</code>. The
+official documentation isn't helpful.</p>
+<p>What I don't understand specifically:</p>
+<ul>
+<li>Are they connected to the DOM?</li>
+<li>How can I update DOM changes to the model?</li>
+<li>What is the connection point between them?</li>
+</ul>
+<p>I tried this tutorial, but it takes the understanding of <code>$watch</code> and <code>$apply</code>
+for granted.</p>
+<p>What do <code>$apply</code> and <code>$watch</code> do, and how do I use them appropriately?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You need to be aware about how AngularJS works in order to understand it.</p>
+<h3>Digest cycle and $scope</h3>
+<p>First and foremost, AngularJS defines a concept of a so-called <strong>digest
+cycle</strong>. This cycle can be considered as a loop, during which AngularJS checks
+if there are any changes to all the variables <strong>watched</strong> by all the
+<code>$scope</code>s. So if you have <code>$scope.myVar</code> defined in your controller and this
+variable was <strong>marked for being watched</strong> , then you are implicitly telling
+AngularJS to monitor the changes on <code>myVar</code> in each iteration of the loop.</p>
+<p>A natural follow-up question would be: Is everything attached to <code>$scope</code>
+being watched? Fortunately, no. If you would watch for changes to every object
+in your <code>$scope</code>, then quickly a digest loop would take ages to evaluate and
+you would quickly run into performance issues. That is why the AngularJS team
+gave us two ways of declaring some <code>$scope</code> variable as being watched (read
+below).</p>
+<h3>$watch helps to listen for $scope changes</h3>
+<p>There are two ways of declaring a <code>$scope</code> variable as being watched.</p>
+<ol>
+<li>By using it in your template via the expression <code>&lt;span&gt;{{myVar}}&lt;/span&gt;</code>
+</li>
+<li>By adding it manually via the <code>$watch</code> service</li>
+</ol>
+<p>Ad 1) This is the most common scenario and I'm sure you've seen it before, but
+you didn't know that this has created a watch in the background. Yes, it had!
+Using AngularJS directives (such as <code>ng-repeat</code>) can also create implicit
+watches.</p>
+<p>Ad 2) This is how you create your own <strong>watches</strong>. <code>$watch</code> service helps you
+to run some code when some value attached to the <code>$scope</code> has changed. It is
+rarely used, but sometimes is helpful. For instance, if you want to run some
+code each time 'myVar' changes, you could do the following:</p>
+<div class="code"><pre class="code literal-block">function MyController($scope) {
+
+    $scope.myVar = 1;
+
+    $scope.$watch('myVar', function() {
+        alert('hey, myVar has changed!');
+    });
+
+    $scope.buttonClicked = function() {
+        $scope.myVar = 2; // This will trigger $watch expression to kick in
+    };
+}
+</pre></div>
+
+<h3>$apply enables to integrate changes with the digest cycle</h3>
+<p>You can think of the <strong><code>$apply</code> function as of an integration mechanism</strong>. You
+see, each time you change some <strong>watched variable attached to the<code>$scope</code></strong>
+object directly, AngularJS will know that the change has happened. This is
+because AngularJS already knew to monitor those changes. So if it happens in
+code managed by the framework, the digest cycle will carry on.</p>
+<p>However, sometimes you want to <strong>change some value outside of the AngularJS
+world</strong> and see the changes propagate normally. Consider this - you have a
+<code>$scope.myVar</code> value which will be modified within a jQuery's <code>$.ajax()</code>
+handler. This will happen at some point in future. AngularJS can't wait for
+this to happen, since it hasn't been instructed to wait on jQuery.</p>
+<p>To tackle this, <code>$apply</code> has been introduced. It lets you start the digestion
+cycle explicitly. However, you should only use this to migrate some data to
+AngularJS (integration with other frameworks), but never use this method
+combined with regular AngularJS code, as AngularJS will throw an error then.</p>
+<h3>How is all of this related to the DOM?</h3>
+<p>Well, you should really follow the tutorial again, now that you know all this.
+The digest cycle will make sure that the UI and the JavaScript code stay
+synchronised, by evaluating every watcher attached to all <code>$scope</code>s as long as
+nothing changes. If no more changes happen in the digest loop, then it's
+considered to be finished.</p>
+<p>You can attach objects to the <code>$scope</code> object either explicitly in the
+Controller, or by declaring them in <code>{{expression}}</code> form directly in the
+view.</p>
+<p>Further readings:</p>
+<ul>
+<li><em>Make Your Own AngularJS, Part 1: Scopes And Digest</em></li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>In AngularJS, we update our models, and our views/templates update the DOM
+"automatically" (via built-in or custom directives).</p>
+<p>$apply and $watch, both being Scope methods, are not related to the DOM.</p>
+<p>The Concepts page (section "Runtime") has a pretty good explanation of the
+$digest loop, $apply, the $evalAsync queue and the $watch list. Here's the
+picture that accompanies the text:</p>
+<p><img alt="$digest loop" src="images/O1iSG.png"></p>
+<p>Whatever code has access to a scope – normally controllers and directives
+(their link functions and/or their controllers) – can set up a
+"watchExpression" that AngularJS will evaluate against that scope. This
+evaluation happens whenever AngularJS enters its $digest loop (in particular,
+the "$watch list" loop). You can watch individual scope properties, you can
+define a function to watch two properties together, you can watch the length
+of an array, etc.</p>
+<p>When things happen "inside AngularJS" – e.g., you type into a textbox that has
+AngularJS two-way databinding enabled (i.e., uses ng-model), an $http callback
+fires, etc. – $apply has already been called, so we're inside the "AngularJS"
+rectangle in the figure above. All watchExpressions will be evaluated
+(possibly more than once – until no further changes are detected).</p>
+<p>When things happen "outside AngularJS" – e.g., you used bind() in a directive
+and then that event fires, resulting in your callback being called, or some
+jQuery registered callback fires – we're still in the "Native" rectangle. If
+the callback code modifies anything that any $watch is watching, call $apply
+to get into the AngularJS rectangle, causing the $digest loop to run, and
+hence AngularJS will notice the change and do its magic.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/parameterize-an-sql-in-clause/" class="u-url">Parameterize an SQL IN clause</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -252,52 +375,6 @@ project.</p>
 <span class="n">byte</span><span class="err">[]</span><span class="w"> </span><span class="n">decBytes4</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HttpServerUtility</span><span class="p">.</span><span class="n">UrlTokenDecode</span><span class="p">(</span><span class="n">s4</span><span class="p">);</span>
 <span class="o">//</span><span class="w"> </span><span class="n">decBytes4</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">bytes</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/list-all-environment-variables-from-the-command-line/" class="u-url">List all environment variables from the command line</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/list-all-environment-variables-from-the-command-line/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T05:32:19+08:00" itemprop="datePublished" title="2023-02-17 05:32">2023-02-17 05:32</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is it possible to list <em>all</em> environment variables from a Windows' command
-prompt?</p>
-<p>Something equivalent to PowerShell's <code>gci env:</code> (or <code>ls env:</code> or <code>dir env:</code>).</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Just do:</p>
-<div class="code"><pre class="code literal-block">SET
-</pre></div>
-
-<p>You can also do <code>SET prefix</code> to see all variables with names starting with
-<code>prefix</code>.</p>
-<p>For example, if you want to read only derbydb from the environment variables,
-do the following:</p>
-<div class="code"><pre class="code literal-block">set derby
-</pre></div>
-
-<p>...and you will get the following:</p>
-<div class="code"><pre class="code literal-block">DERBY_HOME=c:\Users\amro-a\Desktop\db-derby-10.10.1.1-bin\db-derby-10.10.1.1-bin
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Jon has the right answer, but to elaborate a little more with some syntactic
-sugar..</p>
-<div class="code"><pre class="code literal-block">SET | more
-</pre></div>
-
-<p>enables you to see the variables one page at a time, rather than the whole
-lot, or</p>
-<div class="code"><pre class="code literal-block">SET &gt; output.txt
-</pre></div>
-
-<p>sends the output to a file output.txt which you can open in Notepad or
-whatever...</p>
     </div>
     </article>
 </div>

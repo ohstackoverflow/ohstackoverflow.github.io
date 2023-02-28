@@ -108,7 +108,104 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-python-3-equivalent-of-python-m-simplehttpserver/" class="u-url">What is the Python 3 equivalent of "python -m SimpleHTTPServer"</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/application-x-www-form-urlencoded-or-multipart-form-data/" class="u-url">application/x-www-form-urlencoded or multipart/form-data?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/application-x-www-form-urlencoded-or-multipart-form-data/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:18:31+08:00" itemprop="datePublished" title="2023-02-17 01:18">2023-02-17 01:18</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>In HTTP there are two ways to POST data: <code>application/x-www-form-urlencoded</code>
+and <code>multipart/form-data</code>. I understand that most browsers are only able to
+upload files if <code>multipart/form-data</code> is used. Is there any additional
+guidance when to use one of the encoding types in an API context (no browser
+involved)? This might e.g. be based on:</p>
+<ul>
+<li>data size</li>
+<li>existence of non-ASCII characters</li>
+<li>existence on (unencoded) binary data</li>
+<li>the need to transfer additional data (like filename)</li>
+</ul>
+<p>I basically found no formal guidance on the web regarding the use of the
+different content-types so far.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>TL;DR</strong></p>
+<p>Summary; if you have binary (non-alphanumeric) data (or a significantly sized
+payload) to transmit, use <code>multipart/form-data</code>. Otherwise, use
+<code>application/x-www-form-urlencoded</code>.</p>
+<hr>
+<p>The MIME types you mention are the two <code>Content-Type</code> headers for HTTP POST
+requests that user-agents (browsers) must support. The purpose of both of
+those types of requests is to send a list of name/value pairs to the server.
+Depending on the type and amount of data being transmitted, one of the methods
+will be more efficient than the other. To understand why, you have to look at
+what each is doing under the covers.</p>
+<p>For <code>application/x-www-form-urlencoded</code>, the body of the HTTP message sent to
+the server is essentially one giant query string -- name/value pairs are
+separated by the ampersand (<code>&amp;</code>), and names are separated from values by the
+equals symbol (<code>=</code>). An example of this would be:</p>
+<p><code>MyVariableOne=ValueOne&amp;MyVariableTwo=ValueTwo</code></p>
+<p>According to the specification:</p>
+<blockquote>
+<p>[Reserved and] non-alphanumeric characters are replaced by `%HH', a percent
+sign and two hexadecimal digits representing the ASCII code of the character</p>
+</blockquote>
+<p>That means that for each non-alphanumeric byte that exists in one of our
+values, it's going to take three bytes to represent it. For large binary
+files, tripling the payload is going to be highly inefficient.</p>
+<p>That's where <code>multipart/form-data</code> comes in. With this method of transmitting
+name/value pairs, each pair is represented as a "part" in a MIME message (as
+described by other answers). Parts are separated by a particular string
+boundary (chosen specifically so that this boundary string does not occur in
+any of the "value" payloads). Each part has its own set of MIME headers like
+<code>Content-Type</code>, and particularly <code>Content-Disposition</code>, which can give each
+part its "name." The value piece of each name/value pair is the payload of
+each part of the MIME message. The MIME spec gives us more options when
+representing the value payload -- we can choose a more efficient encoding of
+binary data to save bandwidth (e.g. base 64 or even raw binary).</p>
+<p>Why not use <code>multipart/form-data</code> all the time? For short alphanumeric values
+(like most web forms), the overhead of adding all of the MIME headers is going
+to significantly outweigh any savings from more efficient binary encoding.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>READ AT LEAST THE FIRST PARA HERE!</strong></p>
+<p>I know this is 3 years too late, but Matt's (accepted) answer is incomplete
+and will eventually get you into trouble. The key here is that, if you choose
+to use <code>multipart/form-data</code>, the boundary must <em>not</em> appear in the file data
+that the server eventually receives.</p>
+<p>This is not a problem for <code>application/x-www-form-urlencoded</code>, because there
+is no boundary. <code>x-www-form-urlencoded</code> can also always handle binary data, by
+the simple expedient of turning one arbitrary byte into three <code>7BIT</code> bytes.
+Inefficient, but it works (and note that the comment about not being able to
+send filenames as well as binary data is incorrect; you just send it as
+another key/value pair).</p>
+<p>The problem with <code>multipart/form-data</code> is that the boundary separator must not
+be present in the file data (see RFC 2388; section 5.2 also includes a rather
+lame excuse for not having a proper aggregate MIME type that avoids this
+problem).</p>
+<p>So, at first sight, <code>multipart/form-data</code> is of no value whatsoever in <em>any</em>
+file upload, binary or otherwise. If you don't choose your boundary correctly,
+then you <em>will</em> eventually have a problem, whether you're sending plain text
+or raw binary - the server will find a boundary in the wrong place, and your
+file will be truncated, or the POST will fail.</p>
+<p>The key is to choose an encoding and a boundary such that your selected
+boundary characters cannot appear in the encoded output. One simple solution
+is to use <code>base64</code> (do <em>not</em> use raw binary). In base64 3 arbitrary bytes are
+encoded into four 7-bit characters, where the output character set is
+<code>[A-Za-z0-9+/=]</code> (i.e. alphanumerics, '+', '/' or '='). <code>=</code> is a special case,
+and may only appear at the end of the encoded output, as a single <code>=</code> or a
+double <code>==</code>. Now, choose your boundary as a 7-bit ASCII string which cannot
+appear in <code>base64</code> output. Many choices you see on the net fail this test -
+the MDN forms docs, for example, use "blob" as a boundary when sending binary
+data - not good. However, something like "!blob!" will never appear in
+<code>base64</code> output.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-python-3-equivalent-of-python-m-simplehttpserver/" class="u-url">What is the Python 3 equivalent of "python -m SimpleHTTPServer"</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -461,134 +558,6 @@ mantissa, the conversion from <code>long</code> to <code>double</code> includes 
 values. Nonetheless, the test is correct (unless the proof is wrong).</p>
 <p>Trying to incorporate the mod255 idea wasn't successful.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/compiling-an-application-for-use-in-highly-radioactive-environments/" class="u-url">Compiling an application for use in highly radioactive environments</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/compiling-an-application-for-use-in-highly-radioactive-environments/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T01:16:51+08:00" itemprop="datePublished" title="2023-02-17 01:16">2023-02-17 01:16</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>We are compiling an embedded C++ application that is deployed in a shielded
-device in an environment bombarded with ionizing radiation. We are using GCC
-and cross-compiling for ARM. When deployed, our application generates some
-erroneous data and crashes more often than we would like. The hardware is
-designed for this environment, and our application has run on this platform
-for several years.</p>
-<p>Are there changes we can make to our code, or compile-time improvements that
-can be made to identify/correct soft errors and memory-corruption caused by
-single event upsets? Have any other developers had success in reducing the
-harmful effects of soft errors on a long-running application?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Working for about 4-5 years with software/firmware development and environment
-testing of miniaturized satellites*, I would like to share my experience here.</p>
-<p>*( <em>miniaturized satellites are a lot more prone to single event upsets than bigger satellites due to its relatively small, limited sizes for its electronic components</em> )</p>
-<blockquote>
-<p>To be very concise and direct: there is no mechanism to recover from
-<em>detectable, erroneous situation</em> by the software/firmware itself <em>without</em>
-, at least, one <em>copy</em> of <em>minimum working version</em> of the software/firmware
-<em>somewhere</em> for <em>recovery</em> purpose - and with the <em>hardware supporting the
-recovery</em> (functional).</p>
-</blockquote>
-<p>Now, this situation is normally handled both in the hardware and software
-level. Here, as you request, I will share what we can do in the software
-level.</p>
-<ol>
-<li>
-<p><strong>...recovery purpose...</strong>. Provide ability to update/recompile/reflash your software/firmware in real environment. This is an <em>almost must-have</em> feature for any software/firmware in highly ionized environment. Without this, you <em>could</em> have redundant software/hardware as many as you want but at one point, they are all going to blow up. So, prepare this feature!</p>
-</li>
-<li>
-<p><strong>...minimum working version...</strong> Have responsive, multiple copies, minimum version of the software/firmware in your code. This is like Safe mode in Windows. Instead of having only one, fully functional version of your software, have multiple copies of the minimum version of your software/firmware. The minimum copy will usually having much less size than the full copy and almost always have <em>only</em> the following two or three features: </p>
-<ol>
-<li>capable of listening to command from external system, </li>
-<li>capable of updating the current software/firmware, </li>
-<li>capable of monitoring the basic operation's housekeeping data.</li>
-<li>
-<p><strong>...copy... somewhere...</strong> Have redundant software/firmware somewhere. </p>
-</li>
-<li>
-<p>You could, with <em>or</em> without redundant hardware, try to have redundant software/firmware in your ARM uC. This is normally done by having two or more identical software/firmware <em>in separate addresses</em> which sending heartbeat to each other - but only one will be active at a time. If one or more software/firmware is known to be unresponsive, switch to the other software/firmware. The benefit of using this approach is we can have functional replacement immediately after an error occurs - without any contact with whatever external system/party who is responsible to detect and to repair the error (in satellite case, it is usually the Mission Control Centre (MCC)). </p>
-</li>
-</ol>
-</li>
-</ol>
-<p>Strictly speaking, without redundant hardware, the disadvantage of doing this
-is you actually <em>cannot</em> eliminate <em>all</em> single point of failures. At the very
-least, you will still have <em>one</em> single point of failure, which is <em>the switch
-itself</em> (or often the beginning of the code). Nevertheless, for a device
-limited by size in a highly ionized environment (such as pico/femto
-satellites), the reduction of the single point of failures to one point
-<em>without</em> additional hardware will still be worth considering. Somemore, the
-piece of code for the switching would certainly be much less than the code for
-the whole program - significantly reducing the risk of getting Single Event in
-it.</p>
-<div class="code"><pre class="code literal-block"><span class="mf">2.</span><span class="w"> </span><span class="n">But</span><span class="w"> </span><span class="kr">if</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">doing</span><span class="w"> </span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">should</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">least</span><span class="w"> </span><span class="kr">on</span><span class="n">e</span><span class="w"> </span><span class="n">copy</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">external</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">come</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="kr">cont</span><span class="n">act</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">device</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">update</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">software</span><span class="o">/</span><span class="n">firmware</span><span class="w"> </span><span class="p">(</span><span class="n">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">satellite</span><span class="w"> </span><span class="n">case</span><span class="p">,</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">is</span><span class="w"> </span><span class="n">again</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">mission</span><span class="w"> </span><span class="kr">cont</span><span class="n">rol</span><span class="w"> </span><span class="n">centre</span><span class="p">)</span><span class="mf">.</span>
-
-<span class="mf">3.</span><span class="w"> </span><span class="n">You</span><span class="w"> </span><span class="n">could</span><span class="w"> </span><span class="n">also</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">copy</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">permanent</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="n">storage</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">device</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">triggered</span><span class="w"> </span><span class="kr">to</span><span class="w"> </span><span class="kd">restore</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="kr">run</span><span class="n">ning</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="err">'</span><span class="n">s</span><span class="w"> </span><span class="n">software</span><span class="o">/</span><span class="n">firmware</span>
-</pre></div>
-
-<ol>
-<li>
-<p><strong>...detectable erroneous situation..</strong> The error must be <em>detectable</em> , usually by the hardware <em>error correction/detection circuit</em> or by a small piece of code for error correction/detection. It is best to put such code small, multiple, and <em>independent</em> from the main software/firmware. Its main task is <em>only</em> for checking/correcting. If the hardware circuit/firmware is <em>reliable</em> (such as it is more radiation hardened than the rests - or having multiple circuits/logics), then you might consider making error-correction with it. But if it is not, it is better to make it as error-detection. The correction can be by external system/device. For the error correction, you could consider making use of a basic error correction algorithm like Hamming/Golay23, because they can be implemented more easily both in the circuit/software. But it ultimately depends on your team's capability. For error detection, normally CRC is used.</p>
-</li>
-<li>
-<p><strong>...hardware supporting the recovery</strong> Now, comes to the most difficult aspect on this issue. Ultimately, the recovery requires the hardware which is responsible for the recovery to be <em>at least</em> functional. If the hardware is permanently broken (normally happen after its <strong>Total ionizing dose</strong> reaches certain level), then there is (sadly) no way for the software to help in recovery. Thus, hardware is rightly the utmost importance concern for a device exposed to high radiation level (such as satellite). </p>
-</li>
-</ol>
-<p>In addition to the suggestion for above anticipating firmware's error due to
-single event upset, I would also like to suggest you to have:</p>
-<ol>
-<li>
-<p>Error detection and/or error correction algorithm in the inter-subsystem communication protocol. This is another almost must have in order to avoid incomplete/wrong signals received from other system</p>
-</li>
-<li>
-<p>Filter in your ADC reading. Do <em>not</em> use the ADC reading directly. Filter it by median filter, mean filter, or any other filters - <em>never</em> trust single reading value. Sample more, not less - reasonably.</p>
-</li>
-</ol>
-<p><br></p>
-<h3>Suggest</h3>
-<p>NASA has a paper on radiation-hardened software. It describes three main
-tasks:</p>
-<ol>
-<li>Regular monitoring of memory for errors then scrubbing out those errors,</li>
-<li>robust error recovery mechanisms, and</li>
-<li>the ability to reconfigure if something no longer works.</li>
-</ol>
-<p>Note that the memory scan rate should be frequent enough that multi-bit errors
-rarely occur, as most ECC memory can recover from single-bit errors, not
-multi-bit errors.</p>
-<p>Robust error recovery includes control flow transfer (typically restarting a
-process at a point before the error), resource release, and data restoration.</p>
-<p>Their main recommendation for data restoration is to avoid the need for it,
-through having intermediate data be treated as temporary, so that restarting
-before the error also rolls back the data to a reliable state. This sounds
-similar to the concept of "transactions" in databases.</p>
-<p>They discuss techniques particularly suitable for object-oriented languages
-such as C++. For example</p>
-<ol>
-<li>Software-based ECCs for contiguous memory objects</li>
-<li>Programming by Contract: verifying preconditions and postconditions, then checking the object to verify it is still in a valid state.</li>
-</ol>
-<p>And, it just so happens, NASA has used C++ for major projects such as the Mars
-Rover.</p>
-<blockquote>
-<p>C++ class abstraction and encapsulation enabled rapid development and
-testing among multiple projects and developers.</p>
-</blockquote>
-<p>They avoided certain C++ features that could create problems:</p>
-<ol>
-<li>Exceptions</li>
-<li>Templates</li>
-<li>Iostream (no console)</li>
-<li>Multiple inheritance</li>
-<li>Operator overloading (other than <code>new</code> and <code>delete</code>)</li>
-<li>Dynamic allocation (used a dedicated memory pool and placement <code>new</code> to avoid the possibility of system heap corruption).</li>
-</ol>
-</div>
     </article>
 </div>
 

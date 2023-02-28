@@ -108,7 +108,135 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-delay-the-keyup-handler-until-the-user-stops-typing/" class="u-url">How to delay the .keyup() handler until the user stops typing?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/when-to-use-single-quotes-double-quotes-and-backticks-in-mysql/" class="u-url">When to use single quotes, double quotes, and backticks in MySQL</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/when-to-use-single-quotes-double-quotes-and-backticks-in-mysql/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T14:53:23+08:00" itemprop="datePublished" title="2023-02-17 14:53">2023-02-17 14:53</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I am trying to learn the best way to write queries. I also understand the
+importance of being consistent. Until now, I have randomly used single quotes,
+double quotes, and backticks without any real thought.</p>
+<p>Example:</p>
+<div class="code"><pre class="code literal-block">$query = 'INSERT INTO table (id, col1, col2) VALUES (NULL, val1, val2)';
+</pre></div>
+
+<p>Also, in the above example, consider that <code>table</code>, <code>col1</code>, <code>val1</code>, etc. may be
+variables.</p>
+<p>What is the standard for this? What do you do?</p>
+<p>I've been reading answers to similar questions on here for about 20 minutes,
+but it seems like there is no definitive answer to this question.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Backticks are to be used for table and column identifiers, but are only
+necessary when the identifier is a MySQL reserved keyword, or when the
+identifier contains whitespace characters or characters beyond a limited set
+(see below) It is often recommended to avoid using reserved keywords as column
+or table identifiers when possible, avoiding the quoting issue.</p>
+<p>Single quotes should be used for string values like in the <code>VALUES()</code> list.
+Double quotes are supported by MySQL for string values as well, but single
+quotes are more widely accepted by other RDBMS, so it is a good habit to use
+single quotes instead of double.</p>
+<p>MySQL also expects <code>DATE</code> and <code>DATETIME</code> literal values to be single-quoted as
+strings like <code>'2001-01-01 00:00:00'</code>. Consult the Date and Time Literals
+documentation for more details, in particular alternatives to using the hyphen
+<code>-</code> as a segment delimiter in date strings.</p>
+<p>So using your example, I would double-quote the PHP string and use single
+quotes on the values <code>'val1', 'val2'</code>. <code>NULL</code> is a MySQL keyword, and a
+special (non)-value, and is therefore unquoted.</p>
+<p>None of these table or column identifiers are reserved words or make use of
+characters requiring quoting, but I've quoted them anyway with backticks (more
+on this later...).</p>
+<p>Functions native to the RDBMS (for example, <code>NOW()</code> in MySQL) should not be
+quoted, although their arguments are subject to the same string or identifier
+quoting rules already mentioned.</p>
+<div class="code"><pre class="code literal-block"><span class="n">Backtick</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`)</span>
+<span class="n n-Quoted">table &amp; column ───────┬─────┬──┬──┬──┬────┬──┬────┬──┬────┬──┬───────┐</span>
+<span class="n n-Quoted">                      ↓     ↓  ↓  ↓  ↓    ↓  ↓    ↓  ↓    ↓  ↓       ↓</span>
+<span class="n n-Quoted">$query = " **INSERT INTO `</span><span class="k">table</span><span class="n n-Quoted">` (`</span><span class="n">id</span><span class="n n-Quoted">`, `</span><span class="n">col1</span><span class="n n-Quoted">`, `</span><span class="n">col2</span><span class="n n-Quoted">`, `</span><span class="kt">date</span><span class="n n-Quoted">`, `</span><span class="n">updated</span><span class="n n-Quoted">`) </span>
+<span class="n n-Quoted">                       VALUES (NULL, 'val1', 'val2', '2001-01-01', NOW())** ";</span>
+<span class="n n-Quoted">                               ↑↑↑↑  ↑    ↑  ↑    ↑  ↑          ↑  ↑↑↑↑↑ </span>
+<span class="n n-Quoted">Unquoted keyword          ─────┴┴┴┘  │    │  │    │  │          │  │││││</span>
+<span class="n n-Quoted">Single-quoted (') strings ───────────┴────┴──┴────┘  │          │  │││││</span>
+<span class="n n-Quoted">Single-quoted (') DATE    ───────────────────────────┴──────────┘  │││││</span>
+<span class="n n-Quoted">Unquoted function         ─────────────────────────────────────────┴┴┴┴┘</span>
+</pre></div>
+
+<h4>Variable interpolation</h4>
+<p>The quoting patterns for variables do not change, although if you intend to
+interpolate the variables directly in a string, it must be double-quoted in
+PHP. Just make sure that you have properly escaped the variables for use in
+SQL. (It is recommended to use an API supporting prepared statements instead,
+as protection against SQL injection).</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Same</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="k">some</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">replacements</span>
+<span class="o">//</span><span class="w"> </span><span class="n">Here</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="k">name</span><span class="w"> </span><span class="n">$table</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">backtick</span><span class="o">-</span><span class="n">quoted</span><span class="p">,</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">variables</span>
+<span class="o">//</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">list</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">single</span><span class="o">-</span><span class="n">quoted</span><span class="w"> </span>
+<span class="n">$query</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"INSERT INTO **`$table`** (`id`, `col1`, `col2`, `date`) VALUES (NULL, **'$val1'** , **'$val2'** , **'$date'** )"</span><span class="p">;</span>
+</pre></div>
+
+<h4>Prepared statements</h4>
+<p>When working with prepared statements, consult the documentation to determine
+whether or not the statement's placeholders must be quoted. The most popular
+APIs available in PHP, PDO and MySQLi, expect <em>unquoted</em> placeholders, as do
+most prepared statement APIs in other languages:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">PDO</span><span class="w"> </span><span class="n">example</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">named</span><span class="w"> </span><span class="n">parameters</span><span class="p">,</span><span class="w"> </span><span class="n">unquoted</span>
+<span class="n">$query</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"INSERT INTO `table` (`id`, `col1`, `col2`, `date`) VALUES (:id, :col1, :col2, :date)"</span><span class="p">;</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">MySQLi</span><span class="w"> </span><span class="n">example</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nv">?</span><span class="w"> </span><span class="n">parameters</span><span class="p">,</span><span class="w"> </span><span class="n">unquoted</span>
+<span class="n">$query</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"INSERT INTO `table` (`id`, `col1`, `col2`, `date`) VALUES (?, ?, ?, ?)"</span><span class="p">;</span>
+</pre></div>
+
+<h4>Characters requring backtick quoting in identifiers:</h4>
+<p>According to MySQL documentation, you do not need to quote (backtick)
+identifiers using the following character set:</p>
+<blockquote>
+<p>ASCII: <code>[0-9,a-z,A-Z$_]</code> (basic Latin letters, digits 0-9, dollar,
+underscore)</p>
+</blockquote>
+<p>You can use characters beyond that set as table or column identifiers,
+including whitespace for example, but then you <em>must</em> quote (backtick) them.</p>
+<p>Also, although numbers are valid characters for identifiers, identifiers
+cannot consist solely of numbers. If they do they must be wrapped in
+backticks.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>There are two types of quotes in MySQL:</p>
+<ol>
+<li>
+<code>'</code> for enclosing string literals</li>
+<li>``` for enclosing identifiers such as table and column names</li>
+</ol>
+<p>And then there is <code>"</code> which is a special case. It could be used for <em>one</em> of
+above-mentioned purposes at a time depending on MySQL server's <code>sql_mode</code>:</p>
+<ol>
+<li>
+<em>By default</em> the <code>"</code> character can be used to enclose string literals just like <code>'</code>
+</li>
+<li>In <code>ANSI_QUOTES</code> mode the <code>"</code> character can be used to enclose identifiers just like ```</li>
+</ol>
+<h4>The following query will produce different results (or errors) depending</h4>
+<p>on SQL mode:</p>
+<div class="code"><pre class="code literal-block">SELECT "column" FROM table WHERE foo = "bar"
+</pre></div>
+
+<h4>ANSI_QUOTES disabled</h4>
+<p>The query will select the string literal <code>"column"</code> where column <code>foo</code> is
+equal to string <code>"bar"</code></p>
+<h4>ANSI_QUOTES enabled</h4>
+<p>The query will select the column <code>column</code> where column <code>foo</code> is equal to
+column <code>bar</code></p>
+<h4>When to use what</h4>
+<ul>
+<li>I suggest that you avoid using <code>"</code> so that your code becomes independent of SQL modes</li>
+<li>Always quote identifiers since it is a good practice (quite a few questions on SO discuss this)</li>
+</ul>
+</div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-delay-the-keyup-handler-until-the-user-stops-typing/" class="u-url">How to delay the .keyup() handler until the user stops typing?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -300,92 +428,6 @@ a slightly different URL. See Ajax Crawling. Another technique is to make each
 link point to a server-accessible URL and then use unobtrusive Javascript to
 change it into an SPI with an anchor.</p>
 <p>Here's the key link again: The Single Page Interface Manifesto</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-decompile-dex-into-java-source-code/" class="u-url">How to decompile DEX into Java source code?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-decompile-dex-into-java-source-code/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T14:51:56+08:00" itemprop="datePublished" title="2023-02-17 14:51">2023-02-17 14:51</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How can one decompile Android DEX (VM bytecode) files into corresponding Java
-source code?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h2>It's easy</h2>
-<p>Get these tools:</p>
-<ol>
-<li>
-<p>dex2jar to translate dex files to jar files</p>
-</li>
-<li>
-<p>jd-gui to view the java files in the jar</p>
-</li>
-</ol>
-<p>The source code is quite readable as dex2jar makes some optimizations.</p>
-<h3>Procedure:</h3>
-<p>And here's the procedure on how to decompile:</p>
-<h4>Step 1:</h4>
-<p>Convert classes.dex in test_apk-debug.apk to test_apk-debug_dex2jar.jar</p>
-<div class="code"><pre class="code literal-block">d2j-dex2jar.sh -f -o output_jar.jar apk_to_decompile.apk
-d2j-dex2jar.sh -f -o output_jar.jar dex_to_decompile.dex
-</pre></div>
-
-<blockquote>
-<p><strong>Note 1:</strong> In the Windows machines all the <code>.sh</code> scripts are replaced by
-<code>.bat</code> scripts</p>
-<p><strong>Note 2:</strong> On linux/mac don't forget about <code>sh</code> or <code>bash</code>. The full command
-should be:</p>
-</blockquote>
-<div class="code"><pre class="code literal-block">sh d2j-dex2jar.sh -f -o output_jar.jar apk_to_decompile.apk
-</pre></div>
-
-<blockquote>
-<p><strong>Note 3:</strong> Also, remember to add execute permission to <code>dex2jar-X.X</code>
-directory e.g. <code>sudo chmod -R +x dex2jar-2.0</code></p>
-</blockquote>
-<p>dex2jar documentation</p>
-<h4>Step 2:</h4>
-<p>Open the jar in JD-GUI</p>
-<p><img alt="The decompiled source" src="images/PWJIX.png"></p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>To clarify somewhat, there are two major paths you might take here depending
-on what you want to accomplish:</p>
-<p>Decompile the Dalvik bytecode (dex) into readable Java source. You can do this
-easily with dex2jar and jd-gui, as fred mentions. The resulting source is
-useful to read and understand the functionality of an app, but will likely not
-produce 100% usable code. In other words, you can read the source, but you
-can't really modify and repackage it. Note that if the source has been
-obfuscated with proguard, the resulting source code will be substantially more
-difficult to untangle.</p>
-<p>The other major alternative is to disassemble the bytecode to smali, an
-assembly language designed for precisely this purpose. I've found that the
-easiest way to do this is with apktool. Once you've got apktool installed, you
-can just point it at an apk file, and you'll get back a smali file for each
-class contained in the application. You can read and modify the smali or even
-replace classes entirely by generating smali from new Java source (to do this,
-you could compile your .java source to .class files with javac, then convert
-your .class files to .dex files with Android's dx compiler, and then use
-baksmali (smali disassembler) to convert the .dex to .smali files, as
-described in this question. There might be a shortcut here). Once you're done,
-you can easily package the apk back up with apktool again. Note that apktool
-does not sign the resulting apk, so you'll need to take care of that just like
-any other Android application.</p>
-<p>If you go the smali route, you might want to try APK Studio, an IDE that
-automates some of the above steps to assist you with decompiling and
-recompiling an apk and installing it on a device.</p>
-<p>In short, your choices are pretty much either to decompile into Java, which is
-more readable but likely irreversible, or to disassemble to smali, which is
-harder to read but much more flexible to make changes and repackage a modified
-app. Which approach you choose would depend on what you're looking to achieve.</p>
-<p>Lastly, the suggestion of dare is also of note. It's a retargeting tool to
-convert .dex and .apk files to java .class files, so that they can be analyzed
-using typical java static analysis tools.</p>
     </div>
     </article>
 </div>

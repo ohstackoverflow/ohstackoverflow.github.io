@@ -108,7 +108,126 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/find-which-version-of-package-is-installed-with-pip/" class="u-url">Find which version of package is installed with pip</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-deal-with-persistent-storage-e-g-databases-in-docker/" class="u-url">How to deal with persistent storage (e.g. databases) in Docker</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-deal-with-persistent-storage-e-g-databases-in-docker/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T06:30:27+08:00" itemprop="datePublished" title="2023-02-17 06:30">2023-02-17 06:30</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>How do people deal with persistent storage for your Docker containers?</p>
+<p>I am currently using this approach: build the image, e.g. for PostgreSQL, and
+then start the container with</p>
+<div class="code"><pre class="code literal-block">docker run --volumes-from c0dbc34fd631 -d app_name/postgres
+</pre></div>
+
+<p>IMHO, that has the drawback, that I must not ever (by accident) delete
+container "c0dbc34fd631".</p>
+<p>Another idea would be to mount host volumes "-v" into the container, however,
+the <strong>userid</strong> within the container does not necessarily match the <strong>userid</strong>
+from the host, and then permissions might be messed up.</p>
+<p>Note: Instead of <code>--volumes-from 'cryptic_id'</code> you can also use <code>--volumes-
+from my-data-container</code> where <code>my-data-container</code> is a name you assigned to a
+data-only container, e.g. <code>docker run --name my-data-container ...</code> (see the
+accepted answer)</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>Docker 1.9.0 and above</h3>
+<p>Use volume API</p>
+<div class="code"><pre class="code literal-block"><span class="nv">docker</span><span class="w"> </span><span class="nv">volume</span><span class="w"> </span><span class="nv">create</span><span class="w"> </span><span class="o">--</span><span class="nv">name</span><span class="w"> </span><span class="nv">hello</span>
+<span class="nv">docker</span><span class="w"> </span><span class="nv">run</span><span class="w"> </span><span class="o">-</span><span class="nv">d</span><span class="w"> </span><span class="o">-</span><span class="nv">v</span><span class="w"> </span><span class="nv">hello</span>:<span class="o">/</span><span class="nv">container</span><span class="o">/</span><span class="nv">path</span><span class="o">/</span><span class="k">for</span><span class="o">/</span><span class="nv">volume</span><span class="w"> </span><span class="nv">container_image</span><span class="w"> </span><span class="nv">my_command</span>
+</pre></div>
+
+<p>This means that the data-only container pattern must be abandoned in favour of
+the new volumes.</p>
+<p>Actually the volume API is only a better way to achieve what was the data-
+container pattern.</p>
+<p>If you create a container with a <code>-v volume_name:/container/fs/path</code> Docker
+will automatically create a named volume for you that can:</p>
+<ol>
+<li>Be listed through the <code>docker volume ls</code>
+</li>
+<li>Be identified through the <code>docker volume inspect volume_name</code>
+</li>
+<li>Backed up as a normal directory</li>
+<li>Backed up as before through a <code>--volumes-from</code> connection</li>
+</ol>
+<p>The new volume API adds a useful command that lets you identify dangling
+volumes:</p>
+<div class="code"><pre class="code literal-block">docker volume ls -f dangling=true
+</pre></div>
+
+<p>And then remove it through its name:</p>
+<div class="code"><pre class="code literal-block">docker volume rm &lt;volume name&gt;
+</pre></div>
+
+<p>As @mpugach underlines in the comments, you can get rid of all the dangling
+volumes with a nice one-liner:</p>
+<div class="code"><pre class="code literal-block">docker volume rm $(docker volume ls -f dangling=true -q)
+# Or using 1.13.x
+docker volume prune
+</pre></div>
+
+<h3>Docker 1.8.x and below</h3>
+<p>The approach that seems to work best for production is to use a <strong>data only
+container</strong>.</p>
+<p>The data only container is run on a barebones image and actually does nothing
+except exposing a data volume.</p>
+<p>Then you can run any other container to have access to the data container
+volumes:</p>
+<div class="code"><pre class="code literal-block">docker run --volumes-from data-container some-other-container command-to-execute
+</pre></div>
+
+<ul>
+<li>Here you can get a good picture of how to arrange the different containers.</li>
+<li>Here there is a good insight on how volumes work.</li>
+</ul>
+<p>In this blog post there is a good description of the so-called <strong>container as
+volume pattern</strong> which clarifies the main point of having <strong>data only
+containers</strong>.</p>
+<p>Docker documentation has now the DEFINITIVE description of the <strong>container as
+volume/s</strong> pattern.</p>
+<p>Following is the backup/restore procedure for Docker 1.8.x and below.</p>
+<p><strong>BACKUP:</strong></p>
+<div class="code"><pre class="code literal-block">sudo docker run --rm --volumes-from DATA -v $(pwd):/backup busybox tar cvf /backup/backup.tar /data
+</pre></div>
+
+<ul>
+<li>--rm: remove the container when it exits</li>
+<li>--volumes-from DATA: attach to the volumes shared by the DATA container</li>
+<li>-v $(pwd):/backup: bind mount the current directory into the container; to write the tar file to</li>
+<li>busybox: a small simpler image - good for quick maintenance</li>
+<li>tar cvf /backup/backup.tar /data: creates an uncompressed tar file of all the files in the /data directory</li>
+</ul>
+<p><strong>RESTORE:</strong></p>
+<div class="code"><pre class="code literal-block"><span class="c1"># Create a new data container</span>
+<span class="n">$</span><span class="w"> </span><span class="n">sudo</span><span class="w"> </span><span class="n">docker</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="w"> </span><span class="o">/</span><span class="k">data</span><span class="w"> </span><span class="o">-</span><span class="k">name</span><span class="w"> </span><span class="n">DATA2</span><span class="w"> </span><span class="n">busybox</span><span class="w"> </span><span class="no">true</span>
+<span class="c1"># untar the backup files into the new container᾿s data volume</span>
+<span class="n">$</span><span class="w"> </span><span class="n">sudo</span><span class="w"> </span><span class="n">docker</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="o">--</span><span class="n">rm</span><span class="w"> </span><span class="o">--</span><span class="n">volumes</span><span class="o">-</span><span class="k">from</span><span class="w"> </span><span class="n">DATA2</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="w"> </span><span class="n">$</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span><span class="o">:/</span><span class="k">backup</span><span class="w"> </span><span class="n">busybox</span><span class="w"> </span><span class="n">tar</span><span class="w"> </span><span class="n">xvf</span><span class="w"> </span><span class="o">/</span><span class="k">backup</span><span class="o">/</span><span class="k">backup</span><span class="p">.</span><span class="n">tar</span>
+<span class="k">data</span><span class="o">/</span>
+<span class="k">data</span><span class="o">/</span><span class="n">sven</span><span class="p">.</span><span class="n">txt</span>
+<span class="c1"># Compare to the original container</span>
+<span class="n">$</span><span class="w"> </span><span class="n">sudo</span><span class="w"> </span><span class="n">docker</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="o">--</span><span class="n">rm</span><span class="w"> </span><span class="o">--</span><span class="n">volumes</span><span class="o">-</span><span class="k">from</span><span class="w"> </span><span class="k">DATA</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="w"> </span><span class="n n-Quoted">`pwd`</span><span class="o">:/</span><span class="k">backup</span><span class="w"> </span><span class="n">busybox</span><span class="w"> </span><span class="n">ls</span><span class="w"> </span><span class="o">/</span><span class="k">data</span>
+<span class="n">sven</span><span class="p">.</span><span class="n">txt</span>
+</pre></div>
+
+<p>Here is a nice article from the excellent Brian Goff explaining why it is good
+to use the same image for a container and a data container.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>In <strong>Docker release v1.0</strong> , binding a mount of a file or directory on the
+host machine can be done by the given command:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span>/host:/container<span class="w"> </span>...
+</pre></div>
+
+<p>The above volume could be used as a persistent storage on the host running
+Docker.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/find-which-version-of-package-is-installed-with-pip/" class="u-url">Find which version of package is installed with pip</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -192,66 +311,6 @@ to do the processing.</p>
 that's why most new SQL people prefer them; it is the easy way; but when it
 comes to performance, JOINS are better in most cases even though they are not
 hard to read too.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-you-comment-out-code-in-powershell/" class="u-url">How do you comment out code in PowerShell?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-you-comment-out-code-in-powershell/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T06:28:48+08:00" itemprop="datePublished" title="2023-02-17 06:28">2023-02-17 06:28</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do you comment out code in <strong>PowerShell</strong> (1.0 or 2.0)?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>In PowerShell V1 there's only <code>#</code> to make the text after it a comment.</p>
-<div class="code"><pre class="code literal-block"># This is a comment in PowerShell
-</pre></div>
-
-<p>In PowerShell V2 <code>&lt;# #&gt;</code> can be used for block comments and more specifically
-for help comments.</p>
-<div class="code"><pre class="code literal-block"><span class="c1">#REQUIRES -Version 2.0</span>
-
-<span class="err">&lt;</span><span class="c1">#</span>
-<span class="na">.SYNOPSIS</span>
-<span class="w">    </span><span class="nf">A</span><span class="w"> </span><span class="no">brief</span><span class="w"> </span><span class="no">description</span><span class="w"> </span><span class="no">of</span><span class="w"> </span><span class="no">the</span><span class="w"> </span><span class="no">function</span><span class="w"> </span><span class="no">or</span><span class="w"> </span><span class="no">script.</span><span class="w"> </span><span class="no">This</span><span class="w"> </span><span class="no">keyword</span><span class="w"> </span><span class="no">can</span><span class="w"> </span><span class="no">be</span><span class="w"> </span><span class="no">used</span>
-<span class="w">    </span><span class="nf">only</span><span class="w"> </span><span class="no">once</span><span class="w"> </span><span class="no">in</span><span class="w"> </span><span class="no">each</span><span class="w"> </span><span class="no">topic.</span>
-<span class="na">.DESCRIPTION</span>
-<span class="w">    </span><span class="nf">A</span><span class="w"> </span><span class="no">detailed</span><span class="w"> </span><span class="no">description</span><span class="w"> </span><span class="no">of</span><span class="w"> </span><span class="no">the</span><span class="w"> </span><span class="no">function</span><span class="w"> </span><span class="no">or</span><span class="w"> </span><span class="no">script.</span><span class="w"> </span><span class="no">This</span><span class="w"> </span><span class="no">keyword</span><span class="w"> </span><span class="no">can</span><span class="w"> </span><span class="no">be</span>
-<span class="w">    </span><span class="nf">used</span><span class="w"> </span><span class="no">only</span><span class="w"> </span><span class="no">once</span><span class="w"> </span><span class="no">in</span><span class="w"> </span><span class="no">each</span><span class="w"> </span><span class="no">topic.</span>
-<span class="na">.NOTES</span>
-<span class="w">    </span><span class="nf">File</span><span class="w"> </span><span class="no">Name</span><span class="w">      </span><span class="p">:</span><span class="w"> </span><span class="no">xxxx.ps1</span>
-<span class="w">    </span><span class="nf">Author</span><span class="w">         </span><span class="p">:</span><span class="w"> </span><span class="no">J.P.</span><span class="w"> </span><span class="no">Blanc</span><span class="w"> </span><span class="p">(</span><span class="no">jean-paul_blanc@silogix-fr.com</span><span class="p">)</span>
-<span class="w">    </span><span class="nf">Prerequisite</span><span class="w">   </span><span class="p">:</span><span class="w"> </span><span class="no">PowerShell</span><span class="w"> </span><span class="no">V2</span><span class="w"> </span><span class="no">over</span><span class="w"> </span><span class="no">Vista</span><span class="w"> </span><span class="no">and</span><span class="w"> </span><span class="no">upper.</span>
-<span class="w">    </span><span class="nf">Copyright</span><span class="w"> </span><span class="mi">2011</span><span class="w"> </span><span class="p">-</span><span class="w"> </span><span class="no">Jean</span><span class="w"> </span><span class="no">Paul</span><span class="w"> </span><span class="no">Blanc</span><span class="err">/</span><span class="no">Silogix</span>
-<span class="na">.LINK</span>
-<span class="w">    </span><span class="nf">Script</span><span class="w"> </span><span class="no">posted</span><span class="w"> </span><span class="no">over</span><span class="p">:</span>
-<span class="w">    </span><span class="nl">http:</span><span class="c1">//silogix.fr</span>
-<span class="na">.EXAMPLE</span>
-<span class="w">    </span><span class="nf">Example</span><span class="w"> </span><span class="mi">1</span>
-<span class="na">.EXAMPLE</span>
-<span class="w">    </span><span class="nf">Example</span><span class="w"> </span><span class="mi">2</span>
-<span class="c1">#&gt;</span>
-<span class="nf">Function</span><span class="w"> </span><span class="no">blabla</span>
-<span class="err">{}</span>
-</pre></div>
-
-<p>For more explanation about <code>.SYNOPSIS</code> and <code>.*</code> see about_Comment_Based_Help.</p>
-<p>Remark: These function comments are used by the <code>Get-Help</code> CmdLet and can be
-put before the keyword <code>Function</code>, or inside the <code>{}</code> before or after the code
-itself.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You use the hash mark like this:</p>
-<div class="code"><pre class="code literal-block"># This is a comment in PowerShell
-</pre></div>
-
-<p>Wikipedia has a good page for keeping track of how to do comments in several
-popular languages:</p>
-<p><em>Comments</em></p>
     </div>
     </article>
 </div>

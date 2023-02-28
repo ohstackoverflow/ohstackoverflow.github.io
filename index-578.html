@@ -108,7 +108,88 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/linking-to-an-external-url-in-javadoc/" class="u-url">Linking to an external URL in Javadoc?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-are-the-differences-between-rust-s-string-and-str/" class="u-url">What are the differences between Rust's `String` and `str`?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-are-the-differences-between-rust-s-string-and-str/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T10:27:28+08:00" itemprop="datePublished" title="2023-02-17 10:27">2023-02-17 10:27</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Why does Rust have <code>String</code> and <code>str</code>? What are the differences between
+<code>String</code> and <code>str</code>? When does one use <code>String</code> instead of <code>str</code> and vice
+versa? Is one of them getting deprecated?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><code>String</code> is the dynamic heap string type, like <code>Vec</code>: use it when you need to
+own or modify your string data.</p>
+<p><code>str</code> is an immutable1 sequence of UTF-8 bytes of dynamic length somewhere in
+memory. Since the size is unknown, one can only handle it behind a pointer.
+This means that <code>str</code> most commonly2 appears as <code>&amp;str</code>: a reference to some
+UTF-8 data, normally called a "string slice" or just a "slice". A slice is
+just a view onto some data, and that data can be anywhere, e.g.</p>
+<ul>
+<li>
+<p><strong>In static storage</strong> : a string literal <code>"foo"</code> is a <code>&amp;'static str</code>. The data is hardcoded into the executable and loaded into memory when the program runs.</p>
+</li>
+<li>
+<p><strong>Inside a heap allocated<code>String</code></strong>: <code>String</code> dereferences to a <code>&amp;str</code> view of the <code>String</code>'s data.</p>
+</li>
+<li>
+<p><strong>On the stack</strong> : e.g. the following creates a stack-allocated byte array, and then gets a view of that data as a <code>&amp;str</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">use</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">str</span><span class="o">;</span>
+</pre></div>
+
+<p>let x: &amp;[u8] = &amp;[b'a', b'b', b'c'];
+let stack_str: &amp;str = str::from_utf8(x).unwrap();</p>
+</li>
+</ul>
+<p>In summary, use <code>String</code> if you need owned string data (like passing strings
+to other threads, or building them at runtime), and use <code>&amp;str</code> if you only
+need a view of a string.</p>
+<p>This is identical to the relationship between a vector <code>Vec&lt;T&gt;</code> and a slice
+<code>&amp;[T]</code>, and is similar to the relationship between by-value <code>T</code> and by-
+reference <code>&amp;T</code> for general types.</p>
+<hr>
+<p>1 A <code>str</code> is fixed-length; you cannot write bytes beyond the end, or leave
+trailing invalid bytes. Since UTF-8 is a variable-width encoding, this
+effectively forces all <code>str</code>s to be immutable in many cases. In general,
+mutation requires writing more or fewer bytes than there were before (e.g.
+replacing an <code>a</code> (1 byte) with an <code>ä</code> (2+ bytes) would require making more
+room in the <code>str</code>). There are specific methods that can modify a <code>&amp;mut str</code> in
+place, mostly those that handle only ASCII characters, like
+<code>make_ascii_uppercase</code>.</p>
+<p>2 Dynamically sized types allow things like <code>Rc&lt;str&gt;</code> for a sequence of
+reference counted UTF-8 bytes since Rust 1.2. Rust 1.21 allows easily creating
+these types.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I have a C++ background and I found it very useful to think about <code>String</code> and
+<code>&amp;str</code> in C++ terms:</p>
+<ul>
+<li>A Rust <code>String</code> is like a <code>std::string</code>; it owns the memory and does the dirty job of managing memory.</li>
+<li>A Rust <code>&amp;str</code> is like a <code>char*</code> (but a little more sophisticated); it points us to the beginning of a chunk in the same way you can get a pointer to the contents of <code>std::string</code>.</li>
+</ul>
+<p>Are either of them going to disappear? I do not think so. They serve two
+purposes:</p>
+<p><code>String</code> keeps the buffer and is very practical to use. <code>&amp;str</code> is lightweight
+and should be used to "look" into strings. You can search, split, parse, and
+even replace chunks without needing to allocate new memory.</p>
+<p><code>&amp;str</code> can look inside of a <code>String</code> as it can point to some string literal.
+The following code needs to copy the literal string into the <code>String</code> managed
+memory:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">let</span><span class="w"> </span><span class="nt">a</span><span class="o">:</span><span class="w"> </span><span class="nt">String</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"hello rust"</span><span class="p">.</span><span class="nc">into</span><span class="o">();</span>
+</pre></div>
+
+<p>The following code lets you use the literal itself without a copy (read-only
+though):</p>
+<div class="code"><pre class="code literal-block"><span class="nt">let</span><span class="w"> </span><span class="nt">a</span><span class="o">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nt">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"hello rust"</span><span class="o">;</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/linking-to-an-external-url-in-javadoc/" class="u-url">Linking to an external URL in Javadoc?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -223,70 +304,6 @@ is sequentially-indexed or zero-indexed):</p>
 <p>If there is at least one string key, <code>$array</code> will be regarded as an
 associative array.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/moment-js-transform-to-date-object/" class="u-url">Moment.js transform to date object</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/moment-js-transform-to-date-object/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T10:26:08+08:00" itemprop="datePublished" title="2023-02-17 10:26">2023-02-17 10:26</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Using Moment.js I can't transform a correct moment object to a date object
-with timezones. I can't get the correct date.</p>
-<p><strong>Example:</strong></p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">oldDate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Date</span><span class="p">(),</span>
-<span class="w">    </span><span class="n">momentObj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">moment</span><span class="p">(</span><span class="n">oldDate</span><span class="p">)</span><span class="o">.</span><span class="n">tz</span><span class="p">(</span><span class="s2">"MST7MDT"</span><span class="p">),</span>
-<span class="w">    </span><span class="n">newDate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">momentObj</span><span class="o">.</span><span class="n">toDate</span><span class="p">();</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"start date "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">oldDate</span><span class="p">)</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"Format from moment with offset "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">momentObj</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"Format from moment without offset "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">momentObj</span><span class="o">.</span><span class="n">utc</span><span class="p">()</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"(Date object) Time with offset "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">newDate</span><span class="p">)</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"(Date object) Time without offset "</span><span class="o">+</span><span class="w"> </span><span class="n">moment</span><span class="o">.</span><span class="n">utc</span><span class="p">(</span><span class="n">newDate</span><span class="p">)</span><span class="o">.</span><span class="n">toDate</span><span class="p">())</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Use this to transform a moment object into a date object:</p>
-<p>From http://momentjs.com/docs/#/displaying/as-javascript-date/</p>
-<div class="code"><pre class="code literal-block">moment().toDate();
-</pre></div>
-
-<p>Yields:</p>
-<div class="code"><pre class="code literal-block">Tue Nov 04 2014 14:04:01 GMT-0600 (CST)
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>As long as you have initialized moment-timezone with the data for the zones
-you want, your code works as expected.</p>
-<p>You are correctly converting the moment to the time zone, which is reflected
-in the second line of output from <code>momentObj.format()</code>.</p>
-<p>Switching to UTC doesn't just drop the offset, it changes back to the UTC time
-zone. If you're going to do that, you don't need the original <code>.tz()</code> call at
-all. You could just do <code>moment.utc()</code>.</p>
-<p>Perhaps you are just trying to change the output format string? If so, just
-specify the parameters you want to the <code>format</code> method:</p>
-<div class="code"><pre class="code literal-block">momentObj.format("YYYY-MM-DD HH:mm:ss")
-</pre></div>
-
-<p>Regarding the last to lines of your code - when you go back to a <code>Date</code> object
-using <code>toDate()</code>, you are giving up the behavior of moment.js and going back
-to JavaScript's behavior. A JavaScript <code>Date</code> object will always be printed in
-the local time zone of the computer it's running on. There's nothing moment.js
-can do about that.</p>
-<p>A couple of other little things:</p>
-<ul>
-<li>
-<p>While the moment constructor <em>can</em> take a <code>Date</code>, it is usually best to not use one. For "now", don't use <code>moment(new Date())</code>. Instead, just use <code>moment()</code>. Both will work but it's unnecessarily redundant. If you are parsing from a string, pass that string directly into moment. Don't try to parse it to a <code>Date</code> first. You will find moment's parser to be much more reliable.</p>
-</li>
-<li>
-<p>Time Zones like <code>MST7MDT</code> are there for backwards compatibility reasons. They stem from POSIX style time zones, and only a few of them are in the TZDB data. Unless absolutely necessary, you should use a key such as <code>America/Denver</code>.</p>
-</li>
-</ul>
-</div>
     </article>
 </div>
 

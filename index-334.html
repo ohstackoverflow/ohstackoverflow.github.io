@@ -108,7 +108,204 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-a-correct-mime-type-for-docx-pptx-etc/" class="u-url">What is a correct MIME type for .docx, .pptx, etc.?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/secure-hash-and-salt-for-php-passwords/" class="u-url">Secure hash and salt for PHP passwords</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/secure-hash-and-salt-for-php-passwords/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:13:51+08:00" itemprop="datePublished" title="2023-02-17 04:13">2023-02-17 04:13</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>It is currently said that MD5 is partially unsafe. Taking this into
+consideration, I'd like to know which mechanism to use for password
+protection.</p>
+<p>This question, Is “double hashing” a password less secure than just hashing it
+once? suggests that hashing multiple times may be a good idea, whereas How to
+implement password protection for individual files? suggests using salt.</p>
+<p>I'm using PHP. I want a safe and fast password encryption system. Hashing a
+password a million times may be safer, but also slower. How to achieve a good
+balance between speed and safety? Also, I'd prefer the result to have a
+constant number of characters.</p>
+<ol>
+<li>The hashing mechanism must be available in PHP</li>
+<li>It must be safe</li>
+<li>It can use salt (in this case, are all salts equally good? Is there any way to generate good salts?)</li>
+</ol>
+<p>Also, should I store two fields in the database (one using MD5 and another one
+using SHA, for example)? Would it make it safer or unsafer?</p>
+<p>In case I wasn't clear enough, I want to know which hashing function(s) to use
+and how to pick a good salt in order to have a safe and fast password
+protection mechanism.</p>
+<p><em>Related questions that don't quite cover my question:</em></p>
+<p>What's the difference between SHA and MD5 in PHP<br>
+Simple Password Encryption<br>
+Secure methods of storing keys, passwords for asp.net<br>
+How would you implement salted passwords in Tomcat 5.5</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<blockquote>
+<p><strong>DISCLAIMER</strong> : This answer was written in 2008.</p>
+<p>Since then, PHP has given us <code>password_hash</code> and <code>password_verify</code> and,
+since their introduction, they are the recommended password hashing &amp;
+checking method.</p>
+<p>The theory of the answer is still a good read though.</p>
+</blockquote>
+<h3>TL;DR</h3>
+<h4>Don'ts</h4>
+<ul>
+<li>Don't limit what characters users can enter for passwords. Only idiots do this.</li>
+<li>Don't limit the length of a password. If your users want a sentence with supercalifragilisticexpialidocious in it, don't prevent them from using it.</li>
+<li>Don't strip or escape HTML and special characters in the password.</li>
+<li>Never store your user's password in plain-text.</li>
+<li>Never email a password to your user <em>except when they have lost theirs, and you sent a temporary one.</em>
+</li>
+<li>Never, ever log passwords in any manner.</li>
+<li>Never hash passwords with SHA1 or MD5 or even SHA256! Modern crackers can exceed 60 and 180 billion hashes/second (respectively).</li>
+<li>Don't mix bcrypt and with the <em>raw</em> output of hash(), either use hex output or base64_encode it. (This applies to any input that may have a rogue <code>\0</code> in it, which can seriously weaken security.)</li>
+</ul>
+<h4>Dos</h4>
+<ul>
+<li>Use scrypt when you can; bcrypt if you cannot.</li>
+<li>Use PBKDF2 if you cannot use either bcrypt or scrypt, with SHA2 hashes.</li>
+<li>Reset everyone's passwords when the database is compromised.</li>
+<li>Implement a reasonable 8-10 character minimum length, plus require at least 1 upper case letter, 1 lower case letter, a number, and a symbol. This will improve the entropy of the password, in turn making it harder to crack. (See the "What makes a good password?" section for some debate.)</li>
+</ul>
+<h3>Why hash passwords anyway?</h3>
+<p>The objective behind hashing passwords is simple: preventing malicious access
+to user accounts by compromising the database. So the goal of password hashing
+is to deter a hacker or cracker by costing them too much time or money to
+calculate the plain-text passwords. And time/cost are the best deterrents in
+your arsenal.</p>
+<p>Another reason that you want a good, robust hash on a user accounts is to give
+you enough time to change all the passwords in the system. If your database is
+compromised you will need enough time to at <em>least</em> lock the system down, if
+not change every password in the database.</p>
+<p>Jeremiah Grossman, CTO of Whitehat Security, stated on White Hat Security blog
+after a recent password recovery that required brute-force breaking of his
+password protection:</p>
+<blockquote>
+<p>Interestingly, in living out this nightmare, I learned A LOT I didn’t know
+about password cracking, storage, and complexity. <em>I’ve come to appreciate
+why password storage is ever so much more important than password
+complexity. If you don’t know how your password is stored, then all you
+really can depend upon is complexity.</em> This might be common knowledge to
+password and crypto pros, but for the average InfoSec or Web Security
+expert, I highly doubt it.</p>
+</blockquote>
+<p>(Emphasis mine.)</p>
+<h3>What makes a <em>good</em> password anyway?</h3>
+<p>Entropy. (Not that I fully subscribe to Randall's viewpoint.)</p>
+<p>In short, entropy is how much variation is within the password. When a
+password is only lowercase roman letters, that's only 26 characters. That
+isn't much variation. Alpha-numeric passwords are better, with 36 characters.
+But allowing upper and lower case, with symbols, is roughly 96 characters.
+That's a lot better than just letters. One problem is, to make our passwords
+memorable we insert patterns—which reduces entropy. Oops!</p>
+<p>Password entropy is approximated easily. Using the full range of ascii
+characters (roughly 96 typeable characters) yields an entropy of 6.6 per
+character, which at 8 characters for a password is still too low (52.679 bits
+of entropy) for future security. But the good news is: longer passwords, and
+passwords with unicode characters, really increase the entropy of a password
+and make it harder to crack.</p>
+<p>There's a longer discussion of password entropy on the Crypto StackExchange
+site. A good Google search will also turn up a lot of results.</p>
+<p>In the comments I talked with @popnoodles, who pointed out that <em>enforcing</em> a
+password policy of X length with X many letters, numbers, symbols, etc, can
+actually reduce entropy by making the password scheme more predictable. I do
+agree. Randomess, as truly random as possible, is always the safest but least
+memorable solution.</p>
+<p>So far as I've been able to tell, making the world's best password is a
+Catch-22. Either its not memorable, too predictable, too short, too many
+unicode characters (hard to type on a Windows/Mobile device), too long, etc.
+No password is truly good enough for our purposes, so we must protect them as
+though they were in Fort Knox.</p>
+<h3>Best practices</h3>
+<p>Bcrypt and scrypt are the current best practices. Scrypt will be better than
+bcrypt in time, but it hasn't seen adoption as a standard by Linux/Unix or by
+webservers, and hasn't had in-depth reviews of its algorithm posted yet. But
+still, the future of the algorithm does look promising. If you are working
+with Ruby there is an scrypt gem that will help you out, and Node.js now has
+its own scrypt package. You can use Scrypt in PHP either via the Scrypt
+extension or the Libsodium extension (both are available in PECL).</p>
+<p>I highly suggest reading the documentation for the crypt function if you want
+to understand how to use bcrypt, or finding yourself a good wrapper or use
+something like PHPASS for a more legacy implementation. I recommend a minimum
+of 12 rounds of bcrypt, if not 15 to 18.</p>
+<p>I changed my mind about using bcrypt when I learned that bcrypt only uses
+blowfish's key schedule, with a variable cost mechanism. The latter lets you
+increase the cost to brute-force a password by increasing blowfish's already
+expensive key schedule.</p>
+<h3>Average practices</h3>
+<p>I almost can't imagine this situation anymore. PHPASS supports PHP 3.0.18
+through 5.3, so it is usable on almost every installation imaginable—and
+should be used if you don't <em>know for certain</em> that your environment supports
+bcrypt.</p>
+<p>But suppose that you cannot use bcrypt or PHPASS at all. What then?</p>
+<p>Try an implementation of PDKBF2 with the maximum number of rounds that your
+environment/application/user-perception can tolerate. The lowest number I'd
+recommend is 2500 rounds. Also, make sure to use hash_hmac() if it is
+available to make the operation harder to reproduce.</p>
+<h3>Future Practices</h3>
+<p>Coming in PHP 5.5 is a full password protection library that abstracts away
+any pains of working with bcrypt. While most of us are stuck with PHP 5.2 and
+5.3 in most common environments, especially shared hosts, @ircmaxell has built
+a compatibility layer for the coming API that is backward compatible to PHP
+5.3.7.</p>
+<h3>Cryptography Recap &amp; Disclaimer</h3>
+<p>The computational power required to actually <em>crack</em> a hashed password doesn't
+exist. The only way for computers to "crack" a password is to recreate it and
+simulate the hashing algorithm used to secure it. The speed of the hash is
+linearly related to its ability to be brute-forced. Worse still, most hash
+algorithms can be easily parallelized to perform even faster. This is why
+costly schemes like bcrypt and scrypt are so important.</p>
+<p>You cannot possibly foresee all threats or avenues of attack, and so you must
+make your best effort to protect your users <strong>up front</strong>. If you do not, then
+you might even miss the fact that you were attacked until it's too late...
+<em>and you're liable</em>. To avoid that situation, act paranoid to begin with.
+Attack your own software (internally) and attempt to steal user credentials,
+or modify other user's accounts or access their data. If you don't test the
+security of your system, then you cannot blame anyone but yourself.</p>
+<p>Lastly: I am not a cryptographer. Whatever I've said is my opinion, but I
+happen to think it's based on good ol' common sense ... and lots of reading.
+Remember, be as paranoid as possible, make things as hard to intrude as
+possible, and then, if you are still worried, contact a white-hat hacker or
+cryptographer to see what they say about your code/system.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>A much shorter and safer answer - <strong>don't write your own password mechanism at
+all</strong> , use a tried and tested mechanism.</p>
+<ul>
+<li>PHP 5.5 or higher: password_hash() is good quality and part of PHP core.</li>
+<li>PHP 4.x (obsolete): OpenWall's phpass library is much better than most custom code - used in WordPress, Drupal, etc.</li>
+</ul>
+<p>Most programmers just don't have the expertise to write crypto related code
+safely without introducing vulnerabilities.</p>
+<p><strong>Quick self-test:</strong> what is password stretching and how many iterations
+should you use? If you don't know the answer, you should use
+<code>password_hash()</code>, as password stretching is now a critical feature of
+password mechanisms due to much faster CPUs and the use of GPUs and FPGAs to
+crack passwords at rates of billions of guesses per second (with GPUs).</p>
+<p>As of 2012, you could crack all 8-character Windows passwords in 6 hours using
+25 GPUs installed in 5 desktop PCs. This is brute-forcing i.e. enumerating and
+checking <em>every 8-character Windows password</em> , including special characters,
+and is not a dictionary attack. With modern GPUs, you can of course crack more
+passwords or use fewer GPUs - or rent the GPUs in the cloud for a few hours at
+reasonable cost.</p>
+<p>There are also many rainbow table attacks on Windows passwords that run on
+ordinary CPUs and are very fast.</p>
+<p>All this is because Windows <em>still</em> doesn't salt or stretch its passwords,
+even in Windows 10. This is still true in 2021. Don't make the same mistake as
+Microsoft did!</p>
+<p><strong>See also:</strong></p>
+<ul>
+<li>excellent answer with more about why <code>password_hash()</code> or <code>phpass</code> are the best way to go.</li>
+<li>good blog article giving recommmended 'work factors' (number of iterations) for main algorithms including bcrypt, scrypt and PBKDF2.</li>
+</ul>
+</div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-a-correct-mime-type-for-docx-pptx-etc/" class="u-url">What is a correct MIME type for .docx, .pptx, etc.?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -960,317 +1157,6 @@ properties:</p>
 in Ruby". See also, "Trick an application into thinking its stdout is a
 terminal, not a pipe".</p>
 <p><img alt="enter image description here" src="images/1Vuvp.png"></p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-make-twitter-bootstrap-menu-dropdown-on-hover-rather-than-click/" class="u-url">How to make Twitter Bootstrap menu dropdown on hover rather than click</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-make-twitter-bootstrap-menu-dropdown-on-hover-rather-than-click/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T04:12:26+08:00" itemprop="datePublished" title="2023-02-17 04:12">2023-02-17 04:12</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'd like to have my Bootstrap menu automatically drop down on hover, rather
-than having to click the menu title. I'd also like to lose the little arrows
-next to the menu titles.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I created a pure on hover dropdown menu based on the latest (v2.0.2) Bootstrap
-framework that has support for multiple submenus and thought I'd post it for
-future users:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">body</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">padding-top</span><span class="p">:</span><span class="w"> </span><span class="mi">60</span><span class="kt">px</span><span class="p">;</span>
-<span class="w">  </span><span class="k">padding-bottom</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="kt">px</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">sidebar-nav</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">9</span><span class="kt">px</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">dropdown-menu</span><span class="w"> </span><span class="p">.</span><span class="nc">sub-menu</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="kt">%</span><span class="p">;</span>
-<span class="w">  </span><span class="k">position</span><span class="p">:</span><span class="w"> </span><span class="kc">absolute</span><span class="p">;</span>
-<span class="w">  </span><span class="k">top</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="w">  </span><span class="k">visibility</span><span class="p">:</span><span class="w"> </span><span class="kc">hidden</span><span class="p">;</span>
-<span class="w">  </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mi">-1</span><span class="kt">px</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">dropdown-menu</span><span class="w"> </span><span class="nt">li</span><span class="p">:</span><span class="nd">hover</span><span class="w"> </span><span class="p">.</span><span class="nc">sub-menu</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">visibility</span><span class="p">:</span><span class="w"> </span><span class="kc">visible</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">dropdown</span><span class="p">:</span><span class="nd">hover</span><span class="w"> </span><span class="p">.</span><span class="nc">dropdown-menu</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">block</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">nav-tabs</span><span class="w"> </span><span class="p">.</span><span class="nc">dropdown-menu</span><span class="o">,</span>
-<span class="p">.</span><span class="nc">nav-pills</span><span class="w"> </span><span class="p">.</span><span class="nc">dropdown-menu</span><span class="o">,</span>
-<span class="p">.</span><span class="nc">navbar</span><span class="w"> </span><span class="p">.</span><span class="nc">dropdown-menu</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">navbar</span><span class="w"> </span><span class="p">.</span><span class="nc">sub-menu</span><span class="p">:</span><span class="nd">before</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">border-bottom</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="kc">transparent</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-left</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-right</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">);</span>
-<span class="w">  </span><span class="k">border-top</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="kc">transparent</span><span class="p">;</span>
-<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">-7</span><span class="kt">px</span><span class="p">;</span>
-<span class="w">  </span><span class="k">top</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="kt">px</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">navbar</span><span class="w"> </span><span class="p">.</span><span class="nc">sub-menu</span><span class="p">:</span><span class="nd">after</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">border-top</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="kc">transparent</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-left</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-right</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="mh">#fff</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-bottom</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="kc">transparent</span><span class="p">;</span>
-<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="kt">px</span><span class="p">;</span>
-<span class="w">  </span><span class="k">top</span><span class="p">:</span><span class="w"> </span><span class="mi">11</span><span class="kt">px</span><span class="p">;</span>
-<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">-6</span><span class="kt">px</span><span class="p">;</span>
-<span class="p">}</span>
-
-
-<span class="o">&lt;</span><span class="nt">link</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.3.2/css/bootstrap.min.css"</span><span class="w"> </span><span class="nt">rel</span><span class="o">=</span><span class="s2">"stylesheet"</span><span class="w"> </span><span class="o">/&gt;</span>
-
-<span class="o">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"navbar navbar-fixed-top"</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"navbar-inner"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"container-fluid"</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">data-target</span><span class="o">=</span><span class="s2">".nav-collapse"</span><span class="w"> </span><span class="nt">data-toggle</span><span class="o">=</span><span class="s2">"collapse"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"btn btn-navbar"</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">span</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-bar"</span><span class="o">&gt;&lt;/</span><span class="nt">span</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">span</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-bar"</span><span class="o">&gt;&lt;/</span><span class="nt">span</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">span</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-bar"</span><span class="o">&gt;&lt;/</span><span class="nt">span</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"brand"</span><span class="o">&gt;</span><span class="nt">Project</span><span class="w"> </span><span class="nt">name</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav-collapse"</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav"</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"active"</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Home</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">            </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">data-toggle</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-toggle"</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Dropdown</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">b</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"caret"</span><span class="o">&gt;&lt;/</span><span class="nt">b</span><span class="o">&gt;&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">            </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-menu"</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">2-level</span><span class="w"> </span><span class="nt">Dropdown</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">i</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-arrow-right"</span><span class="o">&gt;&lt;/</span><span class="nt">i</span><span class="o">&gt;&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">                </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-menu sub-menu"</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Another</span><span class="w"> </span><span class="nt">action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Something</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="nt">here</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav-header"</span><span class="o">&gt;</span><span class="nt">Nav</span><span class="w"> </span><span class="nt">header</span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">One</span><span class="w"> </span><span class="nt">more</span><span class="w"> </span><span class="nt">separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Another</span><span class="w"> </span><span class="nt">action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Something</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="nt">here</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav-header"</span><span class="o">&gt;</span><span class="nt">Nav</span><span class="w"> </span><span class="nt">header</span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">One</span><span class="w"> </span><span class="nt">more</span><span class="w"> </span><span class="nt">separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">            </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">form</span><span class="w"> </span><span class="nt">action</span><span class="o">=</span><span class="s2">""</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"navbar-search pull-left"</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">input</span><span class="w"> </span><span class="nt">type</span><span class="o">=</span><span class="s2">"text"</span><span class="w"> </span><span class="nt">placeholder</span><span class="o">=</span><span class="s2">"Search"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"search-query span2"</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;/</span><span class="nt">form</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav pull-right"</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider-vertical"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">            </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"#"</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Menu</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;/</span><span class="nt">div</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;!</span><span class="nt">--</span><span class="w"> </span><span class="o">/</span><span class="p">.</span><span class="nc">nav-collapse</span><span class="w"> </span><span class="nt">--</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;/</span><span class="nt">div</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;/</span><span class="nt">div</span><span class="o">&gt;</span>
-<span class="o">&lt;/</span><span class="nt">div</span><span class="o">&gt;</span>
-
-<span class="o">&lt;</span><span class="nt">hr</span><span class="o">&gt;</span>
-
-<span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav nav-pills"</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"active"</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Regular</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="w"> </span><span class="nt">data-toggle</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-toggle"</span><span class="o">&gt;</span><span class="nt">Dropdown</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">b</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"caret"</span><span class="o">&gt;&lt;/</span><span class="nt">b</span><span class="o">&gt;&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-menu"</span><span class="w"> </span><span class="nt">id</span><span class="o">=</span><span class="s2">"menu1"</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">2-level</span><span class="w"> </span><span class="nt">Menu</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">i</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-arrow-right"</span><span class="o">&gt;&lt;/</span><span class="nt">i</span><span class="o">&gt;&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-menu sub-menu"</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Another</span><span class="w"> </span><span class="nt">action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Something</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="nt">here</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav-header"</span><span class="o">&gt;</span><span class="nt">Nav</span><span class="w"> </span><span class="nt">header</span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">One</span><span class="w"> </span><span class="nt">more</span><span class="w"> </span><span class="nt">separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Another</span><span class="w"> </span><span class="nt">action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Something</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="nt">here</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Menu</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Menu</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-</pre></div>
-
-<p>Demo</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I created a pure on hover dropdown menu based on the latest (v2.0.2) Bootstrap
-framework that has support for multiple submenus and thought I'd post it for
-future users:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">body</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">padding-top</span><span class="p">:</span><span class="w"> </span><span class="mi">60</span><span class="kt">px</span><span class="p">;</span>
-<span class="w">  </span><span class="k">padding-bottom</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="kt">px</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">sidebar-nav</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">9</span><span class="kt">px</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">dropdown-menu</span><span class="w"> </span><span class="p">.</span><span class="nc">sub-menu</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="kt">%</span><span class="p">;</span>
-<span class="w">  </span><span class="k">position</span><span class="p">:</span><span class="w"> </span><span class="kc">absolute</span><span class="p">;</span>
-<span class="w">  </span><span class="k">top</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="w">  </span><span class="k">visibility</span><span class="p">:</span><span class="w"> </span><span class="kc">hidden</span><span class="p">;</span>
-<span class="w">  </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mi">-1</span><span class="kt">px</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">dropdown-menu</span><span class="w"> </span><span class="nt">li</span><span class="p">:</span><span class="nd">hover</span><span class="w"> </span><span class="p">.</span><span class="nc">sub-menu</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">visibility</span><span class="p">:</span><span class="w"> </span><span class="kc">visible</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">dropdown</span><span class="p">:</span><span class="nd">hover</span><span class="w"> </span><span class="p">.</span><span class="nc">dropdown-menu</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">block</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">nav-tabs</span><span class="w"> </span><span class="p">.</span><span class="nc">dropdown-menu</span><span class="o">,</span>
-<span class="p">.</span><span class="nc">nav-pills</span><span class="w"> </span><span class="p">.</span><span class="nc">dropdown-menu</span><span class="o">,</span>
-<span class="p">.</span><span class="nc">navbar</span><span class="w"> </span><span class="p">.</span><span class="nc">dropdown-menu</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">navbar</span><span class="w"> </span><span class="p">.</span><span class="nc">sub-menu</span><span class="p">:</span><span class="nd">before</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">border-bottom</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="kc">transparent</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-left</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-right</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nb">rgba</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">);</span>
-<span class="w">  </span><span class="k">border-top</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="kc">transparent</span><span class="p">;</span>
-<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">-7</span><span class="kt">px</span><span class="p">;</span>
-<span class="w">  </span><span class="k">top</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="kt">px</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="p">.</span><span class="nc">navbar</span><span class="w"> </span><span class="p">.</span><span class="nc">sub-menu</span><span class="p">:</span><span class="nd">after</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">border-top</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="kc">transparent</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-left</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-right</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="mh">#fff</span><span class="p">;</span>
-<span class="w">  </span><span class="k">border-bottom</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="kc">transparent</span><span class="p">;</span>
-<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="kt">px</span><span class="p">;</span>
-<span class="w">  </span><span class="k">top</span><span class="p">:</span><span class="w"> </span><span class="mi">11</span><span class="kt">px</span><span class="p">;</span>
-<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">-6</span><span class="kt">px</span><span class="p">;</span>
-<span class="p">}</span>
-
-
-<span class="o">&lt;</span><span class="nt">link</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.3.2/css/bootstrap.min.css"</span><span class="w"> </span><span class="nt">rel</span><span class="o">=</span><span class="s2">"stylesheet"</span><span class="w"> </span><span class="o">/&gt;</span>
-
-<span class="o">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"navbar navbar-fixed-top"</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"navbar-inner"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"container-fluid"</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">data-target</span><span class="o">=</span><span class="s2">".nav-collapse"</span><span class="w"> </span><span class="nt">data-toggle</span><span class="o">=</span><span class="s2">"collapse"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"btn btn-navbar"</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">span</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-bar"</span><span class="o">&gt;&lt;/</span><span class="nt">span</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">span</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-bar"</span><span class="o">&gt;&lt;/</span><span class="nt">span</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">span</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-bar"</span><span class="o">&gt;&lt;/</span><span class="nt">span</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"brand"</span><span class="o">&gt;</span><span class="nt">Project</span><span class="w"> </span><span class="nt">name</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav-collapse"</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav"</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"active"</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Home</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">            </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">data-toggle</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-toggle"</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Dropdown</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">b</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"caret"</span><span class="o">&gt;&lt;/</span><span class="nt">b</span><span class="o">&gt;&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">            </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-menu"</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">2-level</span><span class="w"> </span><span class="nt">Dropdown</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">i</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-arrow-right"</span><span class="o">&gt;&lt;/</span><span class="nt">i</span><span class="o">&gt;&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">                </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-menu sub-menu"</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Another</span><span class="w"> </span><span class="nt">action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Something</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="nt">here</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav-header"</span><span class="o">&gt;</span><span class="nt">Nav</span><span class="w"> </span><span class="nt">header</span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                  </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">One</span><span class="w"> </span><span class="nt">more</span><span class="w"> </span><span class="nt">separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">                </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Another</span><span class="w"> </span><span class="nt">action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Something</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="nt">here</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav-header"</span><span class="o">&gt;</span><span class="nt">Nav</span><span class="w"> </span><span class="nt">header</span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">              </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">One</span><span class="w"> </span><span class="nt">more</span><span class="w"> </span><span class="nt">separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">            </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">form</span><span class="w"> </span><span class="nt">action</span><span class="o">=</span><span class="s2">""</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"navbar-search pull-left"</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">input</span><span class="w"> </span><span class="nt">type</span><span class="o">=</span><span class="s2">"text"</span><span class="w"> </span><span class="nt">placeholder</span><span class="o">=</span><span class="s2">"Search"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"search-query span2"</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;/</span><span class="nt">form</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav pull-right"</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider-vertical"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">            </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"#"</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Menu</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;/</span><span class="nt">div</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;!</span><span class="nt">--</span><span class="w"> </span><span class="o">/</span><span class="p">.</span><span class="nc">nav-collapse</span><span class="w"> </span><span class="nt">--</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;/</span><span class="nt">div</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;/</span><span class="nt">div</span><span class="o">&gt;</span>
-<span class="o">&lt;/</span><span class="nt">div</span><span class="o">&gt;</span>
-
-<span class="o">&lt;</span><span class="nt">hr</span><span class="o">&gt;</span>
-
-<span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav nav-pills"</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"active"</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Regular</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="w"> </span><span class="nt">data-toggle</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-toggle"</span><span class="o">&gt;</span><span class="nt">Dropdown</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">b</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"caret"</span><span class="o">&gt;&lt;/</span><span class="nt">b</span><span class="o">&gt;&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-menu"</span><span class="w"> </span><span class="nt">id</span><span class="o">=</span><span class="s2">"menu1"</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">2-level</span><span class="w"> </span><span class="nt">Menu</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">i</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"icon-arrow-right"</span><span class="o">&gt;&lt;/</span><span class="nt">i</span><span class="o">&gt;&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;</span><span class="nt">ul</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown-menu sub-menu"</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Another</span><span class="w"> </span><span class="nt">action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Something</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="nt">here</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"nav-header"</span><span class="o">&gt;</span><span class="nt">Nav</span><span class="w"> </span><span class="nt">header</span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">          </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">One</span><span class="w"> </span><span class="nt">more</span><span class="w"> </span><span class="nt">separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">        </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Another</span><span class="w"> </span><span class="nt">action</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Something</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="nt">here</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"divider"</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">      </span><span class="o">&lt;</span><span class="nt">li</span><span class="o">&gt;&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Separated</span><span class="w"> </span><span class="nt">link</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Menu</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="nt">class</span><span class="o">=</span><span class="s2">"dropdown"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="nt">href</span><span class="o">=</span><span class="s2">"#"</span><span class="o">&gt;</span><span class="nt">Menu</span><span class="o">&lt;/</span><span class="nt">a</span><span class="o">&gt;</span>
-<span class="w">  </span><span class="o">&lt;/</span><span class="nt">li</span><span class="o">&gt;</span>
-<span class="o">&lt;/</span><span class="nt">ul</span><span class="o">&gt;</span>
-</pre></div>
-
-<p>Demo</p>
     </div>
     </article>
 </div>

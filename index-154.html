@@ -108,7 +108,105 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-remedy-the-breakpoint-will-not-currently-be-hit-no-symbols-have-been-loaded-for-this-document-warning/" class="u-url">How do I remedy "The breakpoint will not currently be hit. No symbols have been loaded for this document." warning?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/remove-tracking-branches-no-longer-on-remote/" class="u-url">Remove tracking branches no longer on remote</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/remove-tracking-branches-no-longer-on-remote/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T23:13:59+08:00" itemprop="datePublished" title="2023-02-16 23:13">2023-02-16 23:13</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there a simple way to delete all tracking branches whose remote equivalent
+no longer exists?</p>
+<p>Example:</p>
+<p>Branches (local and remote)</p>
+<ul>
+<li>master</li>
+<li>origin/master</li>
+<li>origin/bug-fix-a</li>
+<li>origin/bug-fix-b</li>
+<li>origin/bug-fix-c</li>
+</ul>
+<p>Locally, I only have a master branch. Now I need to work on <em>bug-fix-a</em> , so I
+check it out, work on it, and push changes to the remote. Next I do the same
+with <em>bug-fix-b</em>.</p>
+<p>Branches (local and remote)</p>
+<ul>
+<li>master</li>
+<li>bug-fix-a</li>
+<li>bug-fix-b</li>
+<li>origin/master</li>
+<li>origin/bug-fix-a</li>
+<li>origin/bug-fix-b</li>
+<li>origin/bug-fix-c</li>
+</ul>
+<p>Now I have local branches <em>master</em> , <em>bug-fix-a</em> , <em>bug-fix-b</em>. The Master
+branch maintainer will merge my changes into <em>master</em> and delete all branches
+he has already merged.</p>
+<p>So the current state is now:</p>
+<p>Branches (local and remote)</p>
+<ul>
+<li>master</li>
+<li>bug-fix-a</li>
+<li>bug-fix-b</li>
+<li>origin/master</li>
+<li>origin/bug-fix-c</li>
+</ul>
+<p>Now I would like to call some command to delete branches (in this case <em>bug-
+fix-a</em> , <em>bug-fix-b</em> ), which are no longer represented in the remote
+repository.</p>
+<p>It would be something like the existing command <code>git remote prune origin</code>, but
+more like <code>git local prune origin</code>.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><code>git remote prune origin</code> prunes tracking branches not on the remote.</p>
+<p><code>git branch --merged</code> lists branches that have been merged into the current
+branch.</p>
+<p><code>xargs git branch -d</code> deletes branches listed on standard input.</p>
+<p>Be careful deleting branches listed by <code>git branch --merged</code>. The list could
+include <code>master</code> or other branches you'd prefer not to delete.</p>
+<p>To give yourself the opportunity to edit the list before deleting branches,
+you could do the following in one line:</p>
+<div class="code"><pre class="code literal-block">git branch --merged &gt;/tmp/merged-branches &amp;&amp; \
+  vi /tmp/merged-branches &amp;&amp; xargs git branch -d &lt;/tmp/merged-branches
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>The safest way to do this is to use the "plumbing" command <code>git for-each-ref</code>
+with the interpolation variable <code>%(upstream:track)</code>, which will be <code>[gone]</code>
+when the branch is no longer on the remote:</p>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="k">fetch</span><span class="w"> </span><span class="o">-</span><span class="n">p</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="err">$</span><span class="p">(</span><span class="n">git</span><span class="w"> </span><span class="k">for</span><span class="o">-</span><span class="k">each</span><span class="o">-</span><span class="k">ref</span><span class="w"> </span><span class="c1">--format '%(refname) %(upstream:track)' refs/heads | awk '$2 == "[gone]" {sub("refs/heads/", "", $1); print $1}'); do git branch -D $branch; done</span>
+</pre></div>
+
+<p>This approach is somewhat safer than using the "porcelain" command, because
+there is no risk of accidentally matching on part of the commit message. Here
+is a version using the "porcelain" git commands:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="nv">fetch</span><span class="w"> </span><span class="o">-</span><span class="nv">p</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">branch</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span>$<span class="ss">(</span><span class="nv">git</span><span class="w"> </span><span class="nv">branch</span><span class="w"> </span><span class="o">-</span><span class="nv">vv</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nv">grep</span><span class="w"> </span><span class="s1">': gone]'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nv">awk</span><span class="w"> </span><span class="s1">'{print $1}'</span><span class="ss">)</span><span class="c1">; do git branch -D $branch; done</span>
+</pre></div>
+
+<p>The way this works is that after the command</p>
+<div class="code"><pre class="code literal-block">git fetch -p
+</pre></div>
+
+<p>removes the remote references, when you run</p>
+<div class="code"><pre class="code literal-block">git branch -vv
+</pre></div>
+
+<p>it will show 'gone' as the remote status. For example,</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>branch<span class="w"> </span>-vv
+<span class="w">  </span>master<span class="w">                 </span>b900de9<span class="w"> </span><span class="o">[</span>origin/master:<span class="w"> </span>behind<span class="w"> </span><span class="m">4</span><span class="o">]</span><span class="w"> </span>Fixed<span class="w"> </span>bug
+<span class="w">  </span>release/v3.8<span class="w">           </span>fdd2f4e<span class="w"> </span><span class="o">[</span>origin/release/v3.8:<span class="w"> </span>behind<span class="w"> </span><span class="m">2</span><span class="o">]</span><span class="w"> </span>Fixed<span class="w"> </span>bug
+<span class="w">  </span>release/v3.9<span class="w">           </span>0d680d0<span class="w"> </span><span class="o">[</span>origin/release/v3.9:<span class="w"> </span>behind<span class="w"> </span><span class="m">2</span><span class="o">]</span><span class="w"> </span>Updated<span class="w"> </span>comments
+<span class="w">  </span>bug/1234<span class="w">               </span>57379e4<span class="w"> </span><span class="o">[</span>origin/bug/1234:<span class="w"> </span>gone<span class="o">]</span><span class="w"> </span>Fixed<span class="w"> </span>bug
+</pre></div>
+
+<p>This is what the scripts iterate over.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-remedy-the-breakpoint-will-not-currently-be-hit-no-symbols-have-been-loaded-for-this-document-warning/" class="u-url">How do I remedy "The breakpoint will not currently be hit. No symbols have been loaded for this document." warning?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -236,68 +334,6 @@ width borders, but changing the border widths can skew the angle).</p>
 <p>By hiding certain borders, you can get the triangle effect (as you can see
 above by making the different portions different colours). <code>transparent</code> is
 often used as an edge colour to achieve the triangle shape.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-t-bind-to-ngmodel-since-it-isn-t-a-known-property-of-input/" class="u-url">Can't bind to 'ngModel' since it isn't a known property of 'input'</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/can-t-bind-to-ngmodel-since-it-isn-t-a-known-property-of-input/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-16T23:11:51+08:00" itemprop="datePublished" title="2023-02-16 23:11">2023-02-16 23:11</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have this simple input in my component which uses <code>[(ngModel)]</code> :</p>
-<div class="code"><pre class="code literal-block">&lt;input type="text" [(ngModel)]="test" placeholder="foo" /&gt;
-</pre></div>
-
-<p>And I get the following error when I launch my app, even if the component is
-not displayed.</p>
-<blockquote>
-<p>zone.js:461 Unhandled Promise rejection: Template parse errors: Can't bind
-to 'ngModel' since it isn't a known property of 'input'.</p>
-</blockquote>
-<p>Here is the component.ts:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="p">{</span> <span class="n">Component</span><span class="p">,</span> <span class="n">EventEmitter</span><span class="p">,</span> <span class="n">Input</span><span class="p">,</span> <span class="n">OnInit</span><span class="p">,</span> <span class="n">Output</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'@angular/core'</span><span class="p">;</span>
-<span class="kn">import</span> <span class="p">{</span> <span class="n">Intervention</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'../../model/intervention'</span><span class="p">;</span>
-
-<span class="nd">@Component</span><span class="p">({</span>
-   <span class="n">selector</span><span class="p">:</span> <span class="s1">'intervention-details'</span><span class="p">,</span>
-   <span class="n">templateUrl</span><span class="p">:</span> <span class="s1">'app/intervention/details/intervention.details.html'</span><span class="p">,</span>
-   <span class="n">styleUrls</span><span class="p">:</span> <span class="p">[</span><span class="s1">'app/intervention/details/intervention.details.css'</span><span class="p">]</span>
-<span class="p">})</span>
-
-<span class="n">export</span> <span class="k">class</span> <span class="nc">InterventionDetails</span>
-<span class="p">{</span>
-   <span class="nd">@Input</span><span class="p">()</span> <span class="n">intervention</span><span class="p">:</span> <span class="n">Intervention</span><span class="p">;</span>
-
-   <span class="n">public</span> <span class="n">test</span> <span class="p">:</span> <span class="n">string</span> <span class="o">=</span> <span class="s2">"toto"</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Yes, that's it. In the <em>app.module.ts</em> file, I just added:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="p">{</span> <span class="n">FormsModule</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'@angular/forms'</span><span class="p">;</span>
-
-<span class="p">[</span><span class="o">...</span><span class="p">]</span>
-
-<span class="nd">@NgModule</span><span class="p">({</span>
-  <span class="n">imports</span><span class="p">:</span> <span class="p">[</span>
-    <span class="p">[</span><span class="o">...</span><span class="p">]</span>
-    <span class="n">FormsModule</span>
-  <span class="p">],</span>
-  <span class="p">[</span><span class="o">...</span><span class="p">]</span>
-<span class="p">})</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>In order to be able to use two-way data binding for form inputs you need to
-import the <code>FormsModule</code> package in your Angular module.</p>
-<p>For more information, see the Angular 2 official tutorial here and the
-official documentation for forms.</p>
     </div>
     </article>
 </div>

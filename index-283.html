@@ -108,7 +108,92 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-visibility-hidden-and-display-none/" class="u-url">What is the difference between visibility:hidden and display:none?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-remove-duplicate-rows/" class="u-url">How can I remove duplicate rows?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-can-i-remove-duplicate-rows/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T02:57:58+08:00" itemprop="datePublished" title="2023-02-17 02:57">2023-02-17 02:57</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I need to remove duplicate rows from a fairly large SQL Server table (i.e.
+300,000+ rows).</p>
+<p>The rows, of course, will not be perfect duplicates because of the existence
+of the <code>RowID</code> identity field.</p>
+<p><strong>MyTable</strong></p>
+<div class="code"><pre class="code literal-block"><span class="n">RowID</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="w"> </span><span class="n">identity</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="n">primary</span><span class="w"> </span><span class="n">key</span><span class="p">,</span>
+<span class="n">Col1</span><span class="w"> </span><span class="n">varchar</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">,</span>
+<span class="n">Col2</span><span class="w"> </span><span class="n">varchar</span><span class="p">(</span><span class="mi">2048</span><span class="p">)</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">,</span>
+<span class="n">Col3</span><span class="w"> </span><span class="n">tinyint</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nb nb-Type">null</span>
+</pre></div>
+
+<p>How can I do this?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Assuming no nulls, you <code>GROUP BY</code> the unique columns, and <code>SELECT</code> the <code>MIN
+(or MAX)</code> RowId as the row to keep. Then, just delete everything that didn't
+have a row id:</p>
+<div class="code"><pre class="code literal-block">DELETE FROM MyTable
+LEFT OUTER JOIN (
+   SELECT MIN(RowId) as RowId, Col1, Col2, Col3 
+   FROM MyTable 
+   GROUP BY Col1, Col2, Col3
+) as KeepRows ON
+   MyTable.RowId = KeepRows.RowId
+WHERE
+   KeepRows.RowId IS NULL
+</pre></div>
+
+<p>In case you have a GUID instead of an integer, you can replace</p>
+<div class="code"><pre class="code literal-block">MIN(RowId)
+</pre></div>
+
+<p>with</p>
+<div class="code"><pre class="code literal-block">CONVERT(uniqueidentifier, MIN(CONVERT(char(36), MyGuidColumn)))
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Another possible way of doing this is</p>
+<div class="code"><pre class="code literal-block">;
+
+--Ensure that any immediately preceding statement is terminated with a semicolon above
+WITH cte
+     AS (SELECT ROW_NUMBER() OVER (PARTITION BY Col1, Col2, Col3 
+                                       ORDER BY ( SELECT 0)) RN
+         FROM   #MyTable)
+DELETE FROM cte
+WHERE  RN &gt; 1;
+</pre></div>
+
+<p>I am using <code>ORDER BY (SELECT 0)</code> above as it is arbitrary which row to
+preserve in the event of a tie.</p>
+<p>To preserve the latest one in <code>RowID</code> order for example you could use <code>ORDER
+BY RowID DESC</code></p>
+<p><strong>Execution Plans</strong></p>
+<p>The execution plan for this is often simpler and more efficient than that in
+the accepted answer as it does not require the self join.</p>
+<p><img alt="Execution Plans" src="images/ZJiWF.jpg"></p>
+<p>This is not always the case however. One place where the <code>GROUP BY</code> solution
+might be preferred is situations where a hash aggregate would be chosen in
+preference to a stream aggregate.</p>
+<p>The <code>ROW_NUMBER</code> solution will always give pretty much the same plan whereas
+the <code>GROUP BY</code> strategy is more flexible.</p>
+<p><img alt="Execution Plans" src="images/iUlWm.jpg"></p>
+<p>Factors which might favour the hash aggregate approach would be</p>
+<ul>
+<li>No useful index on the partitioning columns</li>
+<li>relatively fewer groups with relatively more duplicates in each group </li>
+</ul>
+<p>In extreme versions of this second case (if there are very few groups with
+many duplicates in each) one could also consider simply inserting the rows to
+keep into a new table then <code>TRUNCATE</code>-ing the original and copying them back
+to minimise logging compared to deleting a very high proportion of the rows.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-visibility-hidden-and-display-none/" class="u-url">What is the difference between visibility:hidden and display:none?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -270,48 +355,6 @@ method. Shouldn't it be reached immediately?</p>
 <p>You may find my <code>async</code>/<code>await</code> intro helpful. The official MSDN docs are also
 unusually good (particularly the TAP section), and the <code>async</code> team put out an
 excellent FAQ.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-pass-arguments-to-a-batch-file/" class="u-url">How can I pass arguments to a batch file?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-can-i-pass-arguments-to-a-batch-file/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T02:56:10+08:00" itemprop="datePublished" title="2023-02-17 02:56">2023-02-17 02:56</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I need to pass an ID and a password to a batch file at the time of running
-rather than hardcoding them into the file.</p>
-<p>Here's what the command line looks like:</p>
-<div class="code"><pre class="code literal-block"><span class="n">test</span><span class="p">.</span><span class="n">cmd</span><span class="w"> </span><span class="n">admin</span><span class="w"> </span><span class="n">P</span><span class="mi">@55</span><span class="n">w0rd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">test</span><span class="o">-</span><span class="n">log</span><span class="p">.</span><span class="n">txt</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Here's how I did it:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">@fake</span><span class="o">-</span><span class="n">command</span><span class="w"> </span><span class="o">/</span><span class="n">u</span><span class="w"> </span><span class="o">%</span><span class="mi">1</span><span class="w"> </span><span class="o">/</span><span class="n">p</span><span class="w"> </span><span class="o">%</span><span class="mi">2</span>
-</pre></div>
-
-<p>Here's what the command looks like:</p>
-<div class="code"><pre class="code literal-block"><span class="n">test</span><span class="p">.</span><span class="n">cmd</span><span class="w"> </span><span class="n">admin</span><span class="w"> </span><span class="n">P</span><span class="mi">@55</span><span class="n">w0rd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">test</span><span class="o">-</span><span class="n">log</span><span class="p">.</span><span class="n">txt</span>
-</pre></div>
-
-<p>The <code>%1</code> applies to the first parameter the <code>%2</code> (and here's the tricky part)
-applies to the second. You can have up to 9 parameters passed in this way.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Here's how I did it:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">@fake</span><span class="o">-</span><span class="n">command</span><span class="w"> </span><span class="o">/</span><span class="n">u</span><span class="w"> </span><span class="o">%</span><span class="mi">1</span><span class="w"> </span><span class="o">/</span><span class="n">p</span><span class="w"> </span><span class="o">%</span><span class="mi">2</span>
-</pre></div>
-
-<p>Here's what the command looks like:</p>
-<div class="code"><pre class="code literal-block"><span class="n">test</span><span class="p">.</span><span class="n">cmd</span><span class="w"> </span><span class="n">admin</span><span class="w"> </span><span class="n">P</span><span class="mi">@55</span><span class="n">w0rd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">test</span><span class="o">-</span><span class="n">log</span><span class="p">.</span><span class="n">txt</span>
-</pre></div>
-
-<p>The <code>%1</code> applies to the first parameter the <code>%2</code> (and here's the tricky part)
-applies to the second. You can have up to 9 parameters passed in this way.</p>
     </div>
     </article>
 </div>

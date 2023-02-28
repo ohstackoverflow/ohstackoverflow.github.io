@@ -108,7 +108,106 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/get-list-of-all-tables-in-oracle/" class="u-url">Get list of all tables in Oracle?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-pass-command-line-arguments-to-a-rake-task/" class="u-url">How to pass command line arguments to a rake task</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-pass-command-line-arguments-to-a-rake-task/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:47:17+08:00" itemprop="datePublished" title="2023-02-17 04:47">2023-02-17 04:47</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a rake task that needs to insert a value into multiple databases.</p>
+<p>I'd like to pass this value into the rake task from the command line, or from
+<em>another</em> rake task.</p>
+<p>How can I do this?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Options and dependencies need to be inside arrays:</p>
+<div class="code"><pre class="code literal-block"><span class="kd">namespace</span><span class="w"> </span><span class="o">:</span><span class="n">thing</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="n">desc</span><span class="w"> </span><span class="s2">"it does a thing"</span>
+<span class="w">  </span><span class="n">task</span><span class="w"> </span><span class="o">:</span><span class="n">work</span><span class="o">,</span><span class="w"> </span><span class="o">[:</span><span class="n">option</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">foo</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">bar</span><span class="o">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="n">task</span><span class="o">,</span><span class="w"> </span><span class="n">args</span><span class="o">|</span>
+<span class="w">    </span><span class="n">puts</span><span class="w"> </span><span class="s2">"work"</span><span class="o">,</span><span class="w"> </span><span class="n">args</span>
+<span class="w">  </span><span class="n">end</span>
+
+<span class="w">  </span><span class="n">task</span><span class="w"> </span><span class="o">:</span><span class="n">another</span><span class="o">,</span><span class="w"> </span><span class="o">[:</span><span class="n">option</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">foo</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">bar</span><span class="o">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="n">task</span><span class="o">,</span><span class="w"> </span><span class="n">args</span><span class="o">|</span>
+<span class="w">    </span><span class="n">puts</span><span class="w"> </span><span class="s2">"another #{args}"</span>
+<span class="w">    </span><span class="n">Rake</span><span class="o">::</span><span class="n">Task</span><span class="o">[</span><span class="s2">"thing:work"</span><span class="o">].</span><span class="n">invoke</span><span class="o">(</span><span class="n">args</span><span class="o">[:</span><span class="n">option</span><span class="o">],</span><span class="w"> </span><span class="n">args</span><span class="o">[:</span><span class="n">foo</span><span class="o">],</span><span class="w"> </span><span class="n">args</span><span class="o">[:</span><span class="n">bar</span><span class="o">])</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">or</span><span class="w"> </span><span class="n">splat</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">args</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">Rake</span><span class="o">::</span><span class="n">Task</span><span class="o">[</span><span class="s2">"thing:work"</span><span class="o">].</span><span class="n">invoke</span><span class="o">(*</span><span class="n">args</span><span class="o">)</span>
+<span class="w">  </span><span class="n">end</span>
+
+<span class="n">end</span>
+</pre></div>
+
+<p>Then</p>
+<div class="code"><pre class="code literal-block">rake thing:work[1,2,3]
+=&gt; work: {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
+
+rake thing:another[1,2,3]
+=&gt; another {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
+=&gt; work: {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
+</pre></div>
+
+<blockquote>
+<p>NOTE: variable <code>task</code> is the task object, not very helpful unless you
+know/care about Rake internals.</p>
+</blockquote>
+<p><strong>RAILS NOTE:</strong></p>
+<blockquote>
+<p>If running the task from Rails, it's best to preload the environment by
+adding <code>=&gt; [:environment]</code> which is a way to setup <em>dependent</em> tasks.</p>
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nv">task</span><span class="w"> </span>:<span class="nv">work</span>,<span class="w"> </span>[:<span class="nv">option</span>,<span class="w"> </span>:<span class="nv">foo</span>,<span class="w"> </span>:<span class="nv">bar</span>]<span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>[:<span class="nv">environment</span>]<span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="nv">task</span>,<span class="w"> </span><span class="nv">args</span><span class="o">|</span>
+<span class="w">    </span><span class="nv">puts</span><span class="w"> </span><span class="s2">"work"</span>,<span class="w"> </span><span class="nv">args</span>
+<span class="w">  </span><span class="k">end</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Options and dependencies need to be inside arrays:</p>
+<div class="code"><pre class="code literal-block"><span class="kd">namespace</span><span class="w"> </span><span class="o">:</span><span class="n">thing</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="n">desc</span><span class="w"> </span><span class="s2">"it does a thing"</span>
+<span class="w">  </span><span class="n">task</span><span class="w"> </span><span class="o">:</span><span class="n">work</span><span class="o">,</span><span class="w"> </span><span class="o">[:</span><span class="n">option</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">foo</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">bar</span><span class="o">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="n">task</span><span class="o">,</span><span class="w"> </span><span class="n">args</span><span class="o">|</span>
+<span class="w">    </span><span class="n">puts</span><span class="w"> </span><span class="s2">"work"</span><span class="o">,</span><span class="w"> </span><span class="n">args</span>
+<span class="w">  </span><span class="n">end</span>
+
+<span class="w">  </span><span class="n">task</span><span class="w"> </span><span class="o">:</span><span class="n">another</span><span class="o">,</span><span class="w"> </span><span class="o">[:</span><span class="n">option</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">foo</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">bar</span><span class="o">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="n">task</span><span class="o">,</span><span class="w"> </span><span class="n">args</span><span class="o">|</span>
+<span class="w">    </span><span class="n">puts</span><span class="w"> </span><span class="s2">"another #{args}"</span>
+<span class="w">    </span><span class="n">Rake</span><span class="o">::</span><span class="n">Task</span><span class="o">[</span><span class="s2">"thing:work"</span><span class="o">].</span><span class="n">invoke</span><span class="o">(</span><span class="n">args</span><span class="o">[:</span><span class="n">option</span><span class="o">],</span><span class="w"> </span><span class="n">args</span><span class="o">[:</span><span class="n">foo</span><span class="o">],</span><span class="w"> </span><span class="n">args</span><span class="o">[:</span><span class="n">bar</span><span class="o">])</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">or</span><span class="w"> </span><span class="n">splat</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">args</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">Rake</span><span class="o">::</span><span class="n">Task</span><span class="o">[</span><span class="s2">"thing:work"</span><span class="o">].</span><span class="n">invoke</span><span class="o">(*</span><span class="n">args</span><span class="o">)</span>
+<span class="w">  </span><span class="n">end</span>
+
+<span class="n">end</span>
+</pre></div>
+
+<p>Then</p>
+<div class="code"><pre class="code literal-block">rake thing:work[1,2,3]
+=&gt; work: {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
+
+rake thing:another[1,2,3]
+=&gt; another {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
+=&gt; work: {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
+</pre></div>
+
+<blockquote>
+<p>NOTE: variable <code>task</code> is the task object, not very helpful unless you
+know/care about Rake internals.</p>
+</blockquote>
+<p><strong>RAILS NOTE:</strong></p>
+<blockquote>
+<p>If running the task from Rails, it's best to preload the environment by
+adding <code>=&gt; [:environment]</code> which is a way to setup <em>dependent</em> tasks.</p>
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nv">task</span><span class="w"> </span>:<span class="nv">work</span>,<span class="w"> </span>[:<span class="nv">option</span>,<span class="w"> </span>:<span class="nv">foo</span>,<span class="w"> </span>:<span class="nv">bar</span>]<span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>[:<span class="nv">environment</span>]<span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="nv">task</span>,<span class="w"> </span><span class="nv">args</span><span class="o">|</span>
+<span class="w">    </span><span class="nv">puts</span><span class="w"> </span><span class="s2">"work"</span>,<span class="w"> </span><span class="nv">args</span>
+<span class="w">  </span><span class="k">end</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/get-list-of-all-tables-in-oracle/" class="u-url">Get list of all tables in Oracle?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -401,79 +500,6 @@ selector as a static Nodelist.</p>
 </pre></div>
 
 <p>See this functioning in codepen.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/get-the-data-received-in-a-flask-request/" class="u-url">Get the data received in a Flask request</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/get-the-data-received-in-a-flask-request/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T04:45:08+08:00" itemprop="datePublished" title="2023-02-17 04:45">2023-02-17 04:45</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I want to be able to get the data sent to my Flask app. I've tried accessing
-<code>request.data</code> but it is an empty string. How do you access request data?</p>
-<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">request</span>
-
-<span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">'/'</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">'GET'</span><span class="p">,</span> <span class="s1">'POST'</span><span class="p">])</span>
-<span class="k">def</span> <span class="nf">parse_request</span><span class="p">():</span>
-    <span class="n">data</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">data</span>  <span class="c1"># data is empty</span>
-    <span class="c1"># need posted data here</span>
-</pre></div>
-
-<hr>
-<p>The answer to this question led me to ask Get raw POST body in Python Flask
-regardless of Content-Type header next, which is about getting the raw data
-rather than the parsed data.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The docs describe the attributes available on the <code>request</code> object (<code>from
-flask import request</code>) during a request. In most common cases <code>request.data</code>
-will be empty because it's used as a fallback:</p>
-<blockquote>
-<p><code>request.data</code> Contains the incoming request data as string in case it came
-with a mimetype Flask does not handle.</p>
-</blockquote>
-<ul>
-<li>
-<code>request.args</code>: the key/value pairs in the URL query string</li>
-<li>
-<code>request.form</code>: the key/value pairs in the body, from a HTML post form, or JavaScript request that isn't JSON encoded</li>
-<li>
-<code>request.files</code>: the files in the body, which Flask keeps separate from <code>form</code>. HTML forms must use <code>enctype=multipart/form-data</code> or files will not be uploaded.</li>
-<li>
-<code>request.values</code>: combined <code>args</code> and <code>form</code>, preferring <code>args</code> if keys overlap</li>
-<li>
-<code>request.json</code>: parsed JSON data. The request must have the <code>application/json</code> content type, or use <code>request.get_json(force=True)</code> to ignore the content type.</li>
-</ul>
-<p>All of these are <code>MultiDict</code> instances (except for <code>json</code>). You can access
-values using:</p>
-<ul>
-<li>
-<code>request.form['name']</code>: use indexing if you know the key exists</li>
-<li>
-<code>request.form.get('name')</code>: use <code>get</code> if the key might not exist</li>
-<li>
-<code>request.form.getlist('name')</code>: use <code>getlist</code> if the key is sent multiple times and you want a list of values. <code>get</code> only returns the first value.</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>For URL query parameters, use <code>request.args</code>.</p>
-<div class="code"><pre class="code literal-block">search = request.args.get("search")
-page = request.args.get("page")
-</pre></div>
-
-<p>For posted form input, use <code>request.form</code>.</p>
-<div class="code"><pre class="code literal-block">email = request.form.get('email')
-password = request.form.get('password')
-</pre></div>
-
-<p>For JSON posted with content type <code>application/json</code>, use
-<code>request.get_json()</code>.</p>
-<div class="code"><pre class="code literal-block">data = request.get_json()
-</pre></div>
     </div>
     </article>
 </div>

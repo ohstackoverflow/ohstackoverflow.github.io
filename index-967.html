@@ -108,7 +108,70 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-build-jars-from-intellij-properly/" class="u-url">How to build JARs from IntelliJ properly?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/disable-output-buffering/" class="u-url">Disable output buffering</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/disable-output-buffering/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T21:00:29+08:00" itemprop="datePublished" title="2023-02-17 21:00">2023-02-17 21:00</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is output buffering enabled by default in Python's interpreter for
+<code>sys.stdout</code>?</p>
+<p>If the answer is positive, what are all the ways to disable it?</p>
+<p>Suggestions so far:</p>
+<ol>
+<li>Use the <code>-u</code> command line switch</li>
+<li>Wrap <code>sys.stdout</code> in an object that flushes after every write</li>
+<li>Set <code>PYTHONUNBUFFERED</code> env var</li>
+<li><code>sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)</code></li>
+</ol>
+<p>Is there any other way to set some global flag in <code>sys</code>/<code>sys.stdout</code>
+programmatically during execution?</p>
+<hr>
+<p>If you just want to flush after a specific write using <code>print</code>, see How can I
+flush the output of the print function?.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>From Magnus Lycka answer on a mailing list:</p>
+<blockquote>
+<p>You can skip buffering for a whole python process using <code>python -u</code> or by
+setting the environment variable PYTHONUNBUFFERED.</p>
+<p>You could also replace sys.stdout with some other stream like wrapper which
+does a flush after every call.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="nc">Unbuffered</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+   <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">):</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">stream</span>
+   <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+   <span class="k">def</span> <span class="nf">writelines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datas</span><span class="p">):</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">datas</span><span class="p">)</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+   <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+       <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">Unbuffered</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+<span class="nb">print</span> <span class="s1">'Hello'</span>
+</pre></div>
+
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I would rather put my answer in How to flush output of print function? or in
+Python's print function that flushes the buffer when it's called?, but since
+they were marked as duplicates of this one (what I do not agree), I'll answer
+it here.</p>
+<p>Since Python 3.3, print() supports the keyword argument "flush" (see
+documentation):</p>
+<div class="code"><pre class="code literal-block">print('Hello World!', flush=True)
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-build-jars-from-intellij-properly/" class="u-url">How to build JARs from IntelliJ properly?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -329,118 +392,6 @@ it and makes for (occasionally) more concise code.</p>
 </pre></div>
 
 <p>Demo</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-completely-uninstall-android-studio-on-mac/" class="u-url">How to completely uninstall Android Studio on Mac?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-completely-uninstall-android-studio-on-mac/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T20:56:25+08:00" itemprop="datePublished" title="2023-02-17 20:56">2023-02-17 20:56</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I recently downloaded Android Studio on my Macbook Pro and I messed up with it
-every time I open it. It gives me plugin errors and several other errors. I
-need to uninstall it completely from my mac. I tried to delete it from my mac
-and then install it again as if you would do the first time, but it did
-nothing and now the same problems occur.</p>
-<p><strong>How can I manage to remove it completely and install a fresh one again?</strong></p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Execute these commands in the terminal (excluding the lines with hashtags -
-they're comments):</p>
-<div class="code"><pre class="code literal-block"><span class="c1"># Deletes the Android Studio application</span>
-<span class="c1"># Note that this may be different depending on what you named the application as, or whether you downloaded the preview version</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">/</span><span class="n">Applications</span><span class="o">/</span><span class="n">Android</span>\<span class="w"> </span><span class="n">Studio</span><span class="o">.</span><span class="n">app</span>
-<span class="c1"># Delete All Android Studio related preferences</span>
-<span class="c1"># The asterisk here should target all folders/files beginning with the string before it</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Preferences</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Preferences</span><span class="o">/</span><span class="n">Google</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span>
-<span class="c1"># Deletes the Android Studio's plist file</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Preferences</span><span class="o">/</span><span class="n">com</span><span class="o">.</span><span class="n">google</span><span class="o">.</span><span class="n">android</span><span class="o">.*</span>
-<span class="c1"># Deletes the Android Emulator's plist file</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Preferences</span><span class="o">/</span><span class="n">com</span><span class="o">.</span><span class="n">android</span><span class="o">.*</span>
-<span class="c1"># Deletes mainly plugins (or at least according to what mine (Edric) contains)</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Application</span>\<span class="w"> </span><span class="n">Support</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Application</span>\<span class="w"> </span><span class="n">Support</span><span class="o">/</span><span class="n">Google</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span>
-<span class="c1"># Deletes all logs that Android Studio outputs</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Logs</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Logs</span><span class="o">/</span><span class="n">Google</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span>
-<span class="c1"># Deletes Android Studio's caches</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Caches</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Caches</span><span class="o">/</span><span class="n">Google</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span>
-<span class="c1"># Deletes older versions of Android Studio</span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/.</span><span class="n">AndroidStudio</span><span class="o">*</span>
-</pre></div>
-
-<p>If you would like to delete all <strong>projects</strong> :</p>
-<div class="code"><pre class="code literal-block">rm -Rf ~/AndroidStudioProjects
-</pre></div>
-
-<p>To remove gradle related files (caches &amp; wrapper)</p>
-<div class="code"><pre class="code literal-block">rm -Rf ~/.gradle
-</pre></div>
-
-<p>Use the below command to delete all <strong>Android Virtual Devices</strong> (AVDs) and
-keystores.</p>
-<p><em><strong>Note</strong> : This folder is used by other Android IDEs as well, so if you still
-using other IDE you may not want to delete this folder)</em></p>
-<div class="code"><pre class="code literal-block">rm -Rf ~/.android
-</pre></div>
-
-<p>To delete Android SDK tools</p>
-<div class="code"><pre class="code literal-block">rm -Rf ~/Library/Android*
-</pre></div>
-
-<p>Emulator Console Auth Token</p>
-<div class="code"><pre class="code literal-block">rm -Rf ~/.emulator_console_auth_token
-</pre></div>
-
-<p>Thanks to those who commented/improved on this answer!</p>
-<hr>
-<h2>Notes</h2>
-<ol>
-<li>The flags for <code>rm</code> are case-sensitive1 (as with most other commands), which means that the <code>f</code> flag must be in lower case. However, the <code>r</code> flag can also be capitalised.</li>
-<li>The flags for <code>rm</code> can be either combined together or separated. They don't have to be combined.</li>
-</ol>
-<h3>What the flags indicate</h3>
-<ol>
-<li>The <code>r</code> flag indicates that the <code>rm</code> command should- </li>
-</ol>
-<blockquote>
-<p>a <em>ttempt to remove the file hierarchy rooted in each file argument.</em> -
-<strong>DESCRIPTION</strong> section on the manpage for <code>rm</code> (See <code>man rm</code> for more info)</p>
-</blockquote>
-<ol>
-<li>The <code>f</code> flag indicates that the <code>rm</code> command should- </li>
-</ol>
-<blockquote>
-<p>a <em>ttempt to remove the files without prompting for confirmation, regardless
-of the file's permissions.</em> - <strong>DESCRIPTION</strong> section on the manpage for
-<code>rm</code> (See <code>man rm</code> for more info)</p>
-</blockquote>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Run the following commands in the terminal:</p>
-<div class="code"><pre class="code literal-block"><span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">/</span><span class="n">Applications</span><span class="o">/</span><span class="n">Android</span>\<span class="w"> </span><span class="n">Studio</span><span class="o">.</span><span class="n">app</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Preferences</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Preferences</span><span class="o">/</span><span class="n">com</span><span class="o">.</span><span class="n">google</span><span class="o">.</span><span class="n">android</span><span class="o">.*</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Preferences</span><span class="o">/</span><span class="n">com</span><span class="o">.</span><span class="n">android</span><span class="o">.*</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Application</span>\<span class="w"> </span><span class="n">Support</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Logs</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Caches</span><span class="o">/</span><span class="n">AndroidStudio</span><span class="o">*</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/.</span><span class="n">AndroidStudio</span><span class="o">*</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/.</span><span class="n">gradle</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/.</span><span class="n">android</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">~/</span><span class="n">Library</span><span class="o">/</span><span class="n">Android</span><span class="o">*</span><span class="w">  </span>
-<span class="n">rm</span><span class="w"> </span><span class="o">-</span><span class="n">Rf</span><span class="w"> </span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="k">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">android</span><span class="o">-</span><span class="n">sdk</span><span class="o">/</span>
-</pre></div>
-
-<p>To delete all projects:</p>
-<div class="code"><pre class="code literal-block">rm -Rf ~/AndroidStudioProjects
-</pre></div>
     </div>
     </article>
 </div>

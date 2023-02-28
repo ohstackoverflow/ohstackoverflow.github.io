@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How sending transactions and receiving events work in backends in Ethereum blockchain | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-sending-transactions-and-receiving-events-work-in-backends-in-ethereum-blockchain/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-do-floating-point-arithmetic-in-substrate-runtime/" title="How to do floating point arithmetic in substrate runtime" type="text/html">
+<link rel="next" href="../cartesi-rollups-dapp-modularity/" title="Cartesi Rollups DApp modularity" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How sending transactions and receiving events work in backends in Ethe">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-sending-transactions-and-receiving-events-work-in-backends-in-ethereum-blockchain/">
+<meta property="og:description" content="I am working on an ethereum project but I have some doubts. I have a backend
+that connects to the blockchain via web3.js. To connect to the blockchain I
+use a geth node. I understand that the sequence">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-28T04:49:56+08:00">
+<meta property="article:tag" content="blockchain">
+<meta property="article:tag" content="ethereum">
+<meta property="article:tag" content="events">
+<meta property="article:tag" content="transactions">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How sending transactions and receiving events work in backends in Ethereum blockchain</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:49:56+08:00" itemprop="datePublished" title="2023-02-28 04:49">2023-02-28 04:49</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I am working on an ethereum project but I have some doubts. I have a backend
+that connects to the blockchain via web3.js. To connect to the blockchain I
+use a geth node. I understand that the sequence is this:</p>
+<p>send transacrion <img alt="enter image description here" src="../../images/tHqUs.png"> listen to
+events <img alt="enter image description here" src="../../images/fVqA2.png"> my questions are:</p>
+<ul>
+<li>What is the component sending the transaction? Is it the backend component or the geth node?</li>
+<li>Then suppose that another smart contract in the network emits an event that I want to capture. What is the component that captures the event? Is it the backend component or the geth node?</li>
+</ul>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>A very good question, sir.</p>
+<p>Usually, in setups like this backend signs the transaction with its wallet
+key. The backend has a hot wallet with ETH balance to be able to create and
+broadcast transactions.</p>
+<p>The transaction is pushed to Ethereum API node over JSON-RPC. The node
+broadcasters the transaction to P2P network. A miner picks up the transaction
+from the mempool. A new block is created. The miner broadcasts the newly
+crated block back to the peer-to-peer network. Your Ethereum node picks up the
+new block. Web3.js backend application polls or subscribes events related to
+the smart contracts from your Ethereum node. Backend event web3.js handlers
+are fired for the state changes in the new block.</p>
+<p>Note that the blocks can be also rolled back in the case of a minor blockchain
+reorganisation. In the case or reorganisation, the event handlers fire again
+(twice, thrice, etc.) for each competing block. Minor blockchain
+reorganisation may occur many times in an hour. The current state is
+probabilistic, so you always need to wait for a few blocks to be sure.</p>
+<p>For events and transactions by other actors in the blockchain, you just
+subscribe to the events and process them as new blocks arrive from miners to
+your node.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/blockchain/" rel="tag">blockchain</a></li>
+            <li><a class="tag p-category" href="../../categories/ethereum/" rel="tag">ethereum</a></li>
+            <li><a class="tag p-category" href="../../categories/events/" rel="tag">events</a></li>
+            <li><a class="tag p-category" href="../../categories/transactions/" rel="tag">transactions</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-do-floating-point-arithmetic-in-substrate-runtime/" rel="prev" title="How to do floating point arithmetic in substrate runtime">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../cartesi-rollups-dapp-modularity/" rel="next" title="Cartesi Rollups DApp modularity">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

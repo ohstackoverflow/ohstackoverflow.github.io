@@ -108,7 +108,177 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/maximum-length-of-http-get-request/" class="u-url">Maximum length of HTTP GET request</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-there-a-way-to-crack-the-password-on-an-excel-vba-project/" class="u-url">Is there a way to crack the password on an Excel VBA Project?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/is-there-a-way-to-crack-the-password-on-an-excel-vba-project/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T03:34:22+08:00" itemprop="datePublished" title="2023-02-18 03:34">2023-02-18 03:34</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I've been asked to update some Excel 2003 macros, but the VBA projects are
+password protected, and it seems there's a lack of documentation... no-one
+knows the passwords.</p>
+<p>Is there a way of removing or cracking the password on a VBA project?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You can try this direct <code>VBA</code> approach which doesn't require HEX editing. It
+will work for any files (<em>.xls, </em>.xlsm, *.xlam ...).</p>
+<p>Tested and works on:</p>
+<blockquote>
+<p>Excel 2007<br>
+ Excel 2010<br>
+ Excel 2013 - <strong>32 bit version</strong><br>
+ Excel 2016 - <strong>32 bit version</strong></p>
+</blockquote>
+<p>Looking for 64 bit version? See this answer</p>
+<h3>How it works</h3>
+<p>I will try my best to explain how it works - please excuse my English.</p>
+<ol>
+<li>The VBE will call a system function to create the password dialog box.</li>
+<li>If user enters the right password and click OK, this function returns 1. If user enters the wrong password or click Cancel, this function returns 0.</li>
+<li>After the dialog box is closed, the VBE checks the returned value of the system function </li>
+<li>if this value is 1, the VBE will "think" that the password is right, hence the locked VBA project will be opened. </li>
+<li>The code below swaps the memory of the original function used to display the password dialog with a user defined function that will always return 1 when being called. </li>
+</ol>
+<h3>Using the code</h3>
+<p><strong>Please backup your files first!</strong></p>
+<ol>
+<li>Open the file(s) that contain your locked VBA Projects</li>
+<li>Create a new xlsm file and store this code in <strong>Module1</strong>
+</li>
+</ol>
+<p><code>code credited to Siwtom (nick name), a Vietnamese developer</code></p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="nv">Option</span><span class="w"> </span><span class="nv">Explicit</span>
+
+<span class="nv">Private</span><span class="w"> </span><span class="nv">Const</span><span class="w"> </span><span class="nv">PAGE_EXECUTE_READWRITE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nv">H40</span>
+
+<span class="nv">Private</span><span class="w"> </span><span class="nv">Declare</span><span class="w"> </span><span class="nv">Sub</span><span class="w"> </span><span class="nv">MoveMemory</span><span class="w"> </span><span class="nv">Lib</span><span class="w"> </span><span class="s2">"kernel32"</span><span class="w"> </span><span class="nv">Alias</span><span class="w"> </span><span class="s2">"RtlMoveMemory"</span><span class="w"> </span><span class="nv">_</span>
+<span class="w">        </span><span class="ss">(</span><span class="nv">Destination</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">Source</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">Length</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span><span class="ss">)</span>
+
+<span class="nv">Private</span><span class="w"> </span><span class="nv">Declare</span><span class="w"> </span><span class="nv">Function</span><span class="w"> </span><span class="nv">VirtualProtect</span><span class="w"> </span><span class="nv">Lib</span><span class="w"> </span><span class="s2">"kernel32"</span><span class="w"> </span><span class="ss">(</span><span class="nv">lpAddress</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">_</span>
+<span class="w">        </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">dwSize</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">flNewProtect</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">lpflOldProtect</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>
+
+<span class="nv">Private</span><span class="w"> </span><span class="nv">Declare</span><span class="w"> </span><span class="nv">Function</span><span class="w"> </span><span class="nv">GetModuleHandleA</span><span class="w"> </span><span class="nv">Lib</span><span class="w"> </span><span class="s2">"kernel32"</span><span class="w"> </span><span class="ss">(</span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">lpModuleName</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">String</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>
+
+<span class="nv">Private</span><span class="w"> </span><span class="nv">Declare</span><span class="w"> </span><span class="nv">Function</span><span class="w"> </span><span class="nv">GetProcAddress</span><span class="w"> </span><span class="nv">Lib</span><span class="w"> </span><span class="s2">"kernel32"</span><span class="w"> </span><span class="ss">(</span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">hModule</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">_</span>
+<span class="w">        </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">lpProcName</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">String</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>
+
+<span class="nv">Private</span><span class="w"> </span><span class="nv">Declare</span><span class="w"> </span><span class="nv">Function</span><span class="w"> </span><span class="nv">DialogBoxParam</span><span class="w"> </span><span class="nv">Lib</span><span class="w"> </span><span class="s2">"user32"</span><span class="w"> </span><span class="nv">Alias</span><span class="w"> </span><span class="s2">"DialogBoxParamA"</span><span class="w"> </span><span class="ss">(</span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">hInstance</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">_</span>
+<span class="w">        </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">pTemplateName</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">hWndParent</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">_</span>
+<span class="w">        </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">lpDialogFunc</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">dwInitParam</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Integer</span>
+
+<span class="nv">Dim</span><span class="w"> </span><span class="nv">HookBytes</span><span class="ss">(</span><span class="mi">0</span><span class="w"> </span><span class="nv">To</span><span class="w"> </span><span class="mi">5</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Byte</span>
+<span class="nv">Dim</span><span class="w"> </span><span class="nv">OriginBytes</span><span class="ss">(</span><span class="mi">0</span><span class="w"> </span><span class="nv">To</span><span class="w"> </span><span class="mi">5</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Byte</span>
+<span class="nv">Dim</span><span class="w"> </span><span class="nv">pFunc</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>
+<span class="nv">Dim</span><span class="w"> </span><span class="nv">Flag</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Boolean</span>
+
+<span class="nv">Private</span><span class="w"> </span><span class="nv">Function</span><span class="w"> </span><span class="nv">GetPtr</span><span class="ss">(</span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">Value</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>
+<span class="w">    </span><span class="nv">GetPtr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">Value</span>
+<span class="k">End</span><span class="w"> </span><span class="nv">Function</span>
+
+<span class="nv">Public</span><span class="w"> </span><span class="nv">Sub</span><span class="w"> </span><span class="nv">RecoverBytes</span><span class="ss">()</span>
+<span class="w">    </span><span class="k">If</span><span class="w"> </span><span class="nv">Flag</span><span class="w"> </span><span class="k">Then</span><span class="w"> </span><span class="nv">MoveMemory</span><span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">pFunc</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">VarPtr</span><span class="ss">(</span><span class="nv">OriginBytes</span><span class="ss">(</span><span class="mi">0</span><span class="ss">))</span>,<span class="w"> </span><span class="mi">6</span>
+<span class="k">End</span><span class="w"> </span><span class="nv">Sub</span>
+
+<span class="nv">Public</span><span class="w"> </span><span class="nv">Function</span><span class="w"> </span><span class="nv">Hook</span><span class="ss">()</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Boolean</span>
+<span class="w">    </span><span class="nv">Dim</span><span class="w"> </span><span class="nv">TmpBytes</span><span class="ss">(</span><span class="mi">0</span><span class="w"> </span><span class="nv">To</span><span class="w"> </span><span class="mi">5</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Byte</span>
+<span class="w">    </span><span class="nv">Dim</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>
+<span class="w">    </span><span class="nv">Dim</span><span class="w"> </span><span class="nv">OriginProtect</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>
+
+<span class="w">    </span><span class="nv">Hook</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">False</span>
+
+<span class="w">    </span><span class="nv">pFunc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">GetProcAddress</span><span class="ss">(</span><span class="nv">GetModuleHandleA</span><span class="ss">(</span><span class="s2">"user32.dll"</span><span class="ss">)</span>,<span class="w"> </span><span class="s2">"DialogBoxParamA"</span><span class="ss">)</span>
+
+
+<span class="w">    </span><span class="k">If</span><span class="w"> </span><span class="nv">VirtualProtect</span><span class="ss">(</span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">pFunc</span>,<span class="w"> </span><span class="mi">6</span>,<span class="w"> </span><span class="nv">PAGE_EXECUTE_READWRITE</span>,<span class="w"> </span><span class="nv">OriginProtect</span><span class="ss">)</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">Then</span>
+
+<span class="w">        </span><span class="nv">MoveMemory</span><span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">VarPtr</span><span class="ss">(</span><span class="nv">TmpBytes</span><span class="ss">(</span><span class="mi">0</span><span class="ss">))</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">pFunc</span>,<span class="w"> </span><span class="mi">6</span>
+<span class="w">        </span><span class="k">If</span><span class="w"> </span><span class="nv">TmpBytes</span><span class="ss">(</span><span class="mi">0</span><span class="ss">)</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="nv">H68</span><span class="w"> </span><span class="k">Then</span>
+
+<span class="w">            </span><span class="nv">MoveMemory</span><span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">VarPtr</span><span class="ss">(</span><span class="nv">OriginBytes</span><span class="ss">(</span><span class="mi">0</span><span class="ss">))</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">pFunc</span>,<span class="w"> </span><span class="mi">6</span>
+
+<span class="w">            </span><span class="nv">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">GetPtr</span><span class="ss">(</span><span class="nv">AddressOf</span><span class="w"> </span><span class="nv">MyDialogBoxParam</span><span class="ss">)</span>
+
+<span class="w">            </span><span class="nv">HookBytes</span><span class="ss">(</span><span class="mi">0</span><span class="ss">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nv">H68</span>
+<span class="w">            </span><span class="nv">MoveMemory</span><span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">VarPtr</span><span class="ss">(</span><span class="nv">HookBytes</span><span class="ss">(</span><span class="mi">1</span><span class="ss">))</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">VarPtr</span><span class="ss">(</span><span class="nv">p</span><span class="ss">)</span>,<span class="w"> </span><span class="mi">4</span>
+<span class="w">            </span><span class="nv">HookBytes</span><span class="ss">(</span><span class="mi">5</span><span class="ss">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nv">HC3</span>
+
+<span class="w">            </span><span class="nv">MoveMemory</span><span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">pFunc</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">VarPtr</span><span class="ss">(</span><span class="nv">HookBytes</span><span class="ss">(</span><span class="mi">0</span><span class="ss">))</span>,<span class="w"> </span><span class="mi">6</span>
+<span class="w">            </span><span class="nv">Flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">True</span>
+<span class="w">            </span><span class="nv">Hook</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">True</span>
+<span class="w">        </span><span class="k">End</span><span class="w"> </span><span class="k">If</span>
+<span class="w">    </span><span class="k">End</span><span class="w"> </span><span class="k">If</span>
+<span class="k">End</span><span class="w"> </span><span class="nv">Function</span>
+
+<span class="nv">Private</span><span class="w"> </span><span class="nv">Function</span><span class="w"> </span><span class="nv">MyDialogBoxParam</span><span class="ss">(</span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">hInstance</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">_</span>
+<span class="w">        </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">pTemplateName</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">hWndParent</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">_</span>
+<span class="w">        </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">lpDialogFunc</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span>,<span class="w"> </span><span class="nv">ByVal</span><span class="w"> </span><span class="nv">dwInitParam</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Long</span><span class="ss">)</span><span class="w"> </span><span class="nv">As</span><span class="w"> </span><span class="nv">Integer</span>
+<span class="w">    </span><span class="k">If</span><span class="w"> </span><span class="nv">pTemplateName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4070</span><span class="w"> </span><span class="k">Then</span>
+<span class="w">        </span><span class="nv">MyDialogBoxParam</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="k">Else</span>
+<span class="w">        </span><span class="nv">RecoverBytes</span>
+<span class="w">        </span><span class="nv">MyDialogBoxParam</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">DialogBoxParam</span><span class="ss">(</span><span class="nv">hInstance</span>,<span class="w"> </span><span class="nv">pTemplateName</span>,<span class="w"> </span><span class="nv">_</span>
+<span class="w">                           </span><span class="nv">hWndParent</span>,<span class="w"> </span><span class="nv">lpDialogFunc</span>,<span class="w"> </span><span class="nv">dwInitParam</span><span class="ss">)</span>
+<span class="w">        </span><span class="nv">Hook</span>
+<span class="w">    </span><span class="k">End</span><span class="w"> </span><span class="k">If</span>
+<span class="k">End</span><span class="w"> </span><span class="nv">Function</span>
+</pre></div>
+
+<ol>
+<li>
+<p>Paste this code under the above code in <strong>Module1</strong> and run it</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Sub</span><span class="w"> </span><span class="nv">unprotected</span><span class="ss">()</span>
+<span class="k">If</span><span class="w"> </span><span class="nv">Hook</span><span class="w"> </span><span class="k">Then</span>
+<span class="w">    </span><span class="nv">MsgBox</span><span class="w"> </span><span class="s2">"VBA Project is unprotected!"</span>,<span class="w"> </span><span class="nv">vbInformation</span>,<span class="w"> </span><span class="s2">"*****"</span>
+<span class="k">End</span><span class="w"> </span><span class="k">If</span>
+</pre></div>
+
+<p>End Sub</p>
+</li>
+<li>
+<p>Come back to your VBA Projects and enjoy.</p>
+</li>
+</ol>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Yes there is, as long as you are using a <code>.xls</code> format spreadsheet (the
+default for Excel up to 2003). For Excel 2007 onwards, the default is <code>.xlsx</code>,
+which is a fairly secure format, and this method will not work.</p>
+<p>As Treb says, it's a simple comparison. One method is to simply swap out the
+password entry in the file using a hex editor (see Hex editors for Windows).
+Step by step example:</p>
+<ol>
+<li>Create a new simple excel file.</li>
+<li>In the VBA part, set a simple password (say - 1234).</li>
+<li>Save the file and exit. <strong>Then check the file size - see Stewbob's gotcha</strong>
+</li>
+<li>Open the file you just created with a hex editor.</li>
+<li>
+<p>Copy the lines starting with the following keys:</p>
+<div class="code"><pre class="code literal-block">CMG=....
+</pre></div>
+
+<p>DPB=...
+GC=...</p>
+</li>
+<li>
+<p><strong>FIRST BACKUP</strong> the excel file you don't know the VBA password for, then open it with your hex editor, and paste the above copied lines from the dummy file.</p>
+</li>
+<li>
+<p>Save the excel file and exit.</p>
+</li>
+<li>Now, open the excel file you need to see the VBA code in. The password for the VBA code will simply be 1234 (as in the example I'm showing here).</li>
+</ol>
+<p>If you need to work with Excel 2007 or 2010, there are some other answers
+below which might help, particularly these: 1, 2, 3.</p>
+<p><strong>EDIT</strong> Feb 2015: for another method that looks very promising, look at
+<strong>this new answer</strong> by Đức Thanh Nguyễn.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/maximum-length-of-http-get-request/" class="u-url">Maximum length of HTTP GET request</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -239,69 +409,6 @@ retrievals. I also had trouble trying to get it to return fields of type
 object.</p>
 <p>So in summary, you have two options, either though source filtering or
 [stored] fields.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-remove-double-quotes-in-jq-output-for-parsing-json-files-in-bash/" class="u-url">How to remove double-quotes in jq output for parsing json files in bash?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-remove-double-quotes-in-jq-output-for-parsing-json-files-in-bash/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T03:31:44+08:00" itemprop="datePublished" title="2023-02-18 03:31">2023-02-18 03:31</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm using jq to parse a JSON file as shown here. However, the results for
-string values contain the "double-quotes" as expected, as shown below:</p>
-<div class="code"><pre class="code literal-block">$<span class="w"> </span>cat<span class="w"> </span>json.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.name'</span>
-<span class="s2">"Google"</span>
-</pre></div>
-
-<p>How can I pipe this into another command to remove the ""? so I get</p>
-<div class="code"><pre class="code literal-block">$<span class="w"> </span>cat<span class="w"> </span>json.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.name'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>some_other_command
-Google
-</pre></div>
-
-<p>What <code>some_other_command</code> can I use?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Use the <code>-r</code> (or <code>--raw-output</code>) option to emit raw strings as output:</p>
-<div class="code"><pre class="code literal-block">jq -r '.name' &lt;json.txt
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>So for a file containing just <code>{"name": "Google"}</code> then yes</p>
-<div class="code"><pre class="code literal-block">sample='{"name":"Google"}'
-echo $sample| jq '.name'
-
-"Google"
-</pre></div>
-
-<p>using <code>--raw-input</code> helps</p>
-<div class="code"><pre class="code literal-block">echo $sample| jq --raw-output '.name'
-
-Google
-</pre></div>
-
-<p>But I stumbled upon this question because I was using <code>--raw-output</code> on a json
-array like this</p>
-<div class="code"><pre class="code literal-block">sample='[{"name":"Yahoo"},{"name":"Google"}]'
-echo $sample | jq --raw-output 'map(.name)'
-
-[
-  "Yahoo",
-  "Google"
-]
-</pre></div>
-
-<p>And I didn't understand why the quotes remained. I came across this post, and
-now I know adding <code>| .[]</code> does the trick!</p>
-<div class="code"><pre class="code literal-block">echo $sample | jq --raw-output 'map(.name)| .[]'
-
-Yahoo
-Google
-</pre></div>
     </div>
     </article>
 </div>

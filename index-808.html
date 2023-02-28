@@ -108,7 +108,74 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-avoid-concurrency-problems-when-using-sqlite-on-android/" class="u-url">How can I avoid concurrency problems when using SQLite on Android?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-runtime-performance-cost-of-a-docker-container/" class="u-url">What is the runtime performance cost of a Docker container?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-is-the-runtime-performance-cost-of-a-docker-container/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T16:31:06+08:00" itemprop="datePublished" title="2023-02-17 16:31">2023-02-17 16:31</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'd like to comprehensively understand the run-time performance cost of a
+Docker container. I've found references to networking anecdotally being ~100µs
+slower.</p>
+<p>I've also found references to the run-time cost being "negligible" and "close
+to zero" but I'd like to know more precisely what those costs are. Ideally I'd
+like to know what Docker is abstracting with a performance cost and things
+that are abstracted without a performance cost. Networking, CPU, memory, etc.</p>
+<p>Furthermore, if there are abstraction costs, are there ways to get around the
+abstraction cost. For example, perhaps I can mount a disk directly vs.
+virtually in Docker.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>An excellent 2014 IBM research paper “An Updated Performance Comparison of
+Virtual Machines and Linux Containers” by Felter et al. provides a comparison
+between bare metal, KVM, and Docker containers. The general result is:
+<strong>Docker is nearly identical to native performance and faster than KVM in
+every category.</strong></p>
+<p>The exception to this is Docker’s NAT — if you use port mapping (e.g., <code>docker
+run -p 8080:8080</code>), then you can expect a minor hit in latency, as shown
+below. However, you can now use the host network stack (e.g., <code>docker run
+--net=host</code>) when launching a Docker container, which will perform identically
+to the Native column (as shown in the Redis latency results lower down).</p>
+<p><img alt="Docker NAT overhead" src="images/4yRh1m.png"></p>
+<p>They also ran latency tests on a few specific services, such as Redis. You can
+see that above 20 client threads, highest latency overhead goes Docker NAT,
+then KVM, then a rough tie between Docker host/native.</p>
+<p><img alt="Docker Redis Latency Overhead" src="images/9RH9lm.png"></p>
+<p>Just because it’s a really useful paper, here are some other figures. Please
+download it for full access.</p>
+<p>Taking a look at Disk I/O:</p>
+<p><img alt="Docker vs. KVM vs. Native I/O Performance" src="images/2Ftytm.png"></p>
+<p>Now looking at CPU overhead:</p>
+<p><img alt="Docker CPU Overhead" src="images/wZZH6m.png"></p>
+<p>Now some examples of memory (read the paper for details, memory can be extra
+tricky):</p>
+<p><img alt="Docker Memory Comparison" src="images/aHPVkm.png"></p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Docker isn't virtualization, as such -- instead, it's an abstraction on top of
+the kernel's support for different process namespaces, device namespaces,
+etc.; one namespace isn't inherently more expensive or inefficient than
+another, so what actually makes Docker have a performance impact is a matter
+of what's actually <em>in</em> those namespaces.</p>
+<hr>
+<p>Docker's choices in terms of how it configures namespaces for its containers
+have costs, but those costs are all directly associated with benefits -- you
+can give them up, but in doing so you also give up the associated benefit:</p>
+<ul>
+<li>Layered filesystems are expensive -- exactly what the costs are vary with each one (and Docker supports multiple backends), and with your usage patterns (merging multiple large directories, or merging a very deep set of filesystems will be particularly expensive), but they're not free. On the other hand, a great deal of Docker's functionality -- being able to build guests off other guests in a copy-on-write manner, and getting the storage advantages implicit in same -- ride on paying this cost.</li>
+<li>DNAT gets expensive at scale -- but gives you the benefit of being able to configure your guest's networking independently of your host's and have a convenient interface for forwarding only the ports you want between them. You can replace this with a bridge to a physical interface, but again, lose the benefit.</li>
+<li>Being able to run each software stack with its dependencies installed in the most convenient manner -- independent of the host's distro, libc, and other library versions -- is a great benefit, but needing to load shared libraries more than once (when their versions differ) has the cost you'd expect.</li>
+</ul>
+<p>And so forth. How much these costs actually impact you in your environment --
+with your network access patterns, your memory constraints, etc -- is an item
+for which it's difficult to provide a generic answer.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-avoid-concurrency-problems-when-using-sqlite-on-android/" class="u-url">How can I avoid concurrency problems when using SQLite on Android?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -373,27 +440,6 @@ follows:<br>
 <blockquote>
 <p>A line starting with # serves as a comment.</p>
 </blockquote>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-do-redo-i-e-undo-undo-in-vim/" class="u-url">How do I do redo (i.e. "undo undo") in Vim?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-do-redo-i-e-undo-undo-in-vim/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T16:28:50+08:00" itemprop="datePublished" title="2023-02-17 16:28">2023-02-17 16:28</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>In Vim, I did too much undo. How do I undo this (that is, redo)?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><code>Ctrl</code>+<code>r</code></p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Also check out <code>:undolist</code>, which offers multiple paths through the undo
-history. This is useful if you accidentally type something after undoing too
-much.</p>
     </div>
     </article>
 </div>

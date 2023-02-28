@@ -108,7 +108,218 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-current-time-and-date-in-android/" class="u-url">How to get current time and date in Android</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-limit-the-number-of-rows-returned-by-an-oracle-query-after-ordering/" class="u-url">How do I limit the number of rows returned by an Oracle query after ordering?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-limit-the-number-of-rows-returned-by-an-oracle-query-after-ordering/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:50:20+08:00" itemprop="datePublished" title="2023-02-17 03:50">2023-02-17 03:50</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there a way to make an <code>Oracle</code> query behave like it contains a MySQL
+<code>limit</code> clause?</p>
+<p>In MySQL, I can do this:</p>
+<div class="code"><pre class="code literal-block">select * 
+from sometable
+order by name
+limit 20,10
+</pre></div>
+
+<p>to get the 21st to the 30th rows (skip the first 20, give the next 10). The
+rows are selected after the <code>order by</code>, so it really starts on the 20th name
+alphabetically.</p>
+<p>In Oracle, the only thing people mention is the <code>rownum</code> pseudo-column, but it
+is evaluated <em>before</em> <code>order by</code>, which means this:</p>
+<div class="code"><pre class="code literal-block">select * 
+from sometable
+where rownum &lt;= 10
+order by name
+</pre></div>
+
+<p>will return a random set of ten rows ordered by name, which is not usually
+what I want. It also doesn't allow for specifying an offset.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You can use a subquery for this like</p>
+<div class="code"><pre class="code literal-block">select *
+from  
+( select * 
+  from emp 
+  order by sal desc ) 
+where ROWNUM &lt;= 5;
+</pre></div>
+
+<p>Have also a look at the topic On ROWNUM and limiting results at Oracle/AskTom
+for more information.</p>
+<p><strong>Update</strong> : To limit the result with both lower and upper bounds things get a
+bit more bloated with</p>
+<div class="code"><pre class="code literal-block">select * from 
+( select a.*, ROWNUM rnum from 
+  ( &lt;your_query_goes_here, with order by&gt; ) a 
+  where ROWNUM &lt;= :MAX_ROW_TO_FETCH )
+where rnum  &gt;= :MIN_ROW_TO_FETCH;
+</pre></div>
+
+<p>(Copied from specified AskTom-article)</p>
+<p><strong>Update 2</strong> : Starting with Oracle 12c (12.1) there is a syntax available to
+limit rows or start at offsets.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span>
+<span class="nv">FROM</span><span class="w">   </span><span class="nv">sometable</span>
+<span class="nv">ORDER</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">name</span>
+<span class="nv">OFFSET</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">FETCH</span><span class="w"> </span><span class="k">NEXT</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">ONLY</span><span class="c1">;</span>
+</pre></div>
+
+<p>See this answer for more examples. Thanks to Krumia for the hint.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Starting from Oracle 12c R1 (12.1), there <em>is</em> a row limiting clause. It does
+not use familiar <code>LIMIT</code> syntax, but it can do the job better with more
+options. You can find the full syntax here. (Also read more on how this works
+internally in Oracle in this answer).</p>
+<p>To answer the original question, here's the query:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span>
+<span class="nv">FROM</span><span class="w">   </span><span class="nv">sometable</span>
+<span class="nv">ORDER</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">name</span>
+<span class="nv">OFFSET</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">FETCH</span><span class="w"> </span><span class="k">NEXT</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">ONLY</span><span class="c1">;</span>
+</pre></div>
+
+<p>(For earlier Oracle versions, please refer to other answers in this question)</p>
+<hr>
+<h3>Examples:</h3>
+<p>Following examples were quoted from linked page, in the hope of preventing
+link rot.</p>
+<h4>Setup</h4>
+<div class="code"><pre class="code literal-block"><span class="nv">CREATE</span><span class="w"> </span><span class="nv">TABLE</span><span class="w"> </span><span class="nv">rownum_order_test</span><span class="w"> </span><span class="ss">(</span>
+<span class="w">  </span><span class="nv">val</span><span class="w">  </span><span class="nv">NUMBER</span>
+<span class="ss">)</span><span class="c1">;</span>
+
+<span class="nv">INSERT</span><span class="w"> </span><span class="nv">ALL</span>
+<span class="w">  </span><span class="nv">INTO</span><span class="w"> </span><span class="nv">rownum_order_test</span>
+<span class="nv">SELECT</span><span class="w"> </span><span class="nv">level</span>
+<span class="nv">FROM</span><span class="w">   </span><span class="nv">dual</span>
+<span class="k">CONNECT</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">level</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">10</span><span class="c1">;</span>
+
+<span class="nv">COMMIT</span><span class="c1">;</span>
+</pre></div>
+
+<h4>What's in the table?</h4>
+<div class="code"><pre class="code literal-block">SELECT val
+FROM   rownum_order_test
+ORDER BY val;
+
+       VAL
+----------
+         1
+         1
+         2
+         2
+         3
+         3
+         4
+         4
+         5
+         5
+         6
+         6
+         7
+         7
+         8
+         8
+         9
+         9
+        10
+        10
+
+20 rows selected.
+</pre></div>
+
+<h4>Get first <code>N</code> rows</h4>
+<div class="code"><pre class="code literal-block">SELECT val
+FROM   rownum_order_test
+ORDER BY val DESC
+FETCH FIRST 5 ROWS ONLY;
+
+       VAL
+----------
+        10
+        10
+         9
+         9
+         8
+
+5 rows selected.
+</pre></div>
+
+<h4>Get first <code>N</code> rows, if <code>N</code>th row has ties, get all the tied rows</h4>
+<div class="code"><pre class="code literal-block">SELECT val
+FROM   rownum_order_test
+ORDER BY val DESC
+FETCH FIRST 5 ROWS WITH TIES;
+
+       VAL
+----------
+        10
+        10
+         9
+         9
+         8
+         8
+
+6 rows selected.
+</pre></div>
+
+<h4>Top <code>x</code>% of rows</h4>
+<div class="code"><pre class="code literal-block">SELECT val
+FROM   rownum_order_test
+ORDER BY val
+FETCH FIRST 20 PERCENT ROWS ONLY;
+
+       VAL
+----------
+         1
+         1
+         2
+         2
+
+4 rows selected.
+</pre></div>
+
+<h4>Using an offset, very useful for pagination</h4>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="nv">val</span>
+<span class="nv">FROM</span><span class="w">   </span><span class="nv">rownum_order_test</span>
+<span class="nv">ORDER</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">val</span>
+<span class="nv">OFFSET</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">FETCH</span><span class="w"> </span><span class="k">NEXT</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">ONLY</span><span class="c1">;</span>
+
+<span class="w">       </span><span class="nv">VAL</span>
+<span class="o">----------</span>
+<span class="w">         </span><span class="mi">3</span>
+<span class="w">         </span><span class="mi">3</span>
+<span class="w">         </span><span class="mi">4</span>
+<span class="w">         </span><span class="mi">4</span>
+
+<span class="mi">4</span><span class="w"> </span><span class="nv">rows</span><span class="w"> </span><span class="nv">selected</span>.
+</pre></div>
+
+<h4>You can combine offset with percentages</h4>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="nv">val</span>
+<span class="nv">FROM</span><span class="w">   </span><span class="nv">rownum_order_test</span>
+<span class="nv">ORDER</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">val</span>
+<span class="nv">OFFSET</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">FETCH</span><span class="w"> </span><span class="k">NEXT</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="nv">PERCENT</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">ONLY</span><span class="c1">;</span>
+
+<span class="w">       </span><span class="nv">VAL</span>
+<span class="o">----------</span>
+<span class="w">         </span><span class="mi">3</span>
+<span class="w">         </span><span class="mi">3</span>
+<span class="w">         </span><span class="mi">4</span>
+<span class="w">         </span><span class="mi">4</span>
+
+<span class="mi">4</span><span class="w"> </span><span class="nv">rows</span><span class="w"> </span><span class="nv">selected</span>.
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-current-time-and-date-in-android/" class="u-url">How to get current time and date in Android</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -271,84 +482,6 @@ before the code that accesses the shared resource:</p>
 <p>Here, the answer comes out as 50,000,000 every time.</p>
 <p>For more on locking, search for: mutex, semaphore, critical section, shared
 resource.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-check-if-a-string-contains-another-string-in-objective-c/" class="u-url">How do I check if a string contains another string in Objective-C?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-check-if-a-string-contains-another-string-in-objective-c/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T03:48:56+08:00" itemprop="datePublished" title="2023-02-17 03:48">2023-02-17 03:48</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How can I check if a string (<code>NSString</code>) contains another smaller string?</p>
-<p>I was hoping for something like:</p>
-<div class="code"><pre class="code literal-block"><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">@"hello bla bla"</span><span class="p">;</span>
-<span class="n">NSLog</span><span class="p">(</span><span class="s">@"%d"</span><span class="p">,[</span><span class="n">string</span><span class="w"> </span><span class="n">containsSubstring</span><span class="o">:</span><span class="s">@"hello"</span><span class="p">]);</span>
-</pre></div>
-
-<p>But the closest I could find was:</p>
-<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="p">([</span><span class="n">string</span><span class="w"> </span><span class="n">rangeOfString</span><span class="o">:</span><span class="s">@"hello"</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@"sub string doesnt exist"</span><span class="p">);</span>
-<span class="p">}</span><span class="w"> </span>
-<span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@"exists"</span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>Anyway, is that the best way to find if a string contains another string?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<div class="code"><pre class="code literal-block"><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">@"hello bla bla"</span><span class="p">;</span>
-<span class="k">if</span><span class="w"> </span><span class="p">([</span><span class="n">string</span><span class="w"> </span><span class="n">rangeOfString</span><span class="o">:</span><span class="s">@"bla"</span><span class="p">].</span><span class="n">location</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NSNotFound</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@"string does not contain bla"</span><span class="p">);</span>
-<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@"string contains bla!"</span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>The key is noticing that <code>rangeOfString:</code> returns an <code>NSRange</code> struct, and the
-documentation says that it returns the struct <code>{NSNotFound, 0}</code> if the
-"haystack" does not contain the "needle".</p>
-<hr>
-<p>And if you're on iOS 8 or OS X Yosemite, you can now do: * _( _NOTE: This WILL
-crash your app if this code is called on an iOS7 device).__</p>
-<div class="code"><pre class="code literal-block"><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">@"hello bla blah"</span><span class="p">;</span>
-<span class="k">if</span><span class="w"> </span><span class="p">([</span><span class="n">string</span><span class="w"> </span><span class="n">containsString</span><span class="o">:</span><span class="s">@"bla"</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@"string contains bla!"</span><span class="p">);</span>
-<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@"string does not contain bla"</span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>(This is also how it would work in Swift)</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>For iOS 8.0+ and macOS 10.10+, you can use NSString's native
-<code>containsString:</code>.</p>
-<p>For older versions of iOS and macOS, you can create your own (obsolete)
-category for NSString:</p>
-<div class="code"><pre class="code literal-block"><span class="k">@interface</span> <span class="bp">NSString</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">SubstringSearch</span><span class="w"> </span><span class="p">)</span>
-<span class="w">    </span><span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="kt">BOOL</span><span class="p">)</span><span class="n">containsString</span><span class="o">:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">substring</span><span class="p">;</span>
-<span class="k">@end</span>
-
-<span class="c1">// - - - -</span>
-
-<span class="k">@implementation</span> <span class="bp">NSString</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">SubstringSearch</span><span class="w"> </span><span class="p">)</span>
-
-<span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="kt">BOOL</span><span class="p">)</span><span class="n">containsString</span><span class="o">:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">substring</span>
-<span class="p">{</span><span class="w">    </span>
-<span class="w">    </span><span class="n">NSRange</span><span class="w"> </span><span class="n">range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nb">self</span><span class="w"> </span><span class="n">rangeOfString</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">substring</span><span class="p">];</span>
-<span class="w">    </span><span class="kt">BOOL</span><span class="w"> </span><span class="n">found</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">range</span><span class="p">.</span><span class="n">location</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">NSNotFound</span><span class="w"> </span><span class="p">);</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">found</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">@end</span>
-</pre></div>
-
-<p><strong><em>Note: Observe Daniel Galasko's comment below regarding naming</em></strong></p>
     </div>
     </article>
 </div>

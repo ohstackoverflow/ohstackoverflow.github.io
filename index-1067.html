@@ -108,7 +108,116 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-does-c-compilation-take-so-long/" class="u-url">Why does C++ compilation take so long?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/invalidating-json-web-tokens/" class="u-url">Invalidating JSON Web Tokens</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/invalidating-json-web-tokens/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:20:23+08:00" itemprop="datePublished" title="2023-02-18 00:20">2023-02-18 00:20</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>For a new node.js project I'm working on, I'm thinking about switching over
+from a cookie based session approach (by this, I mean, storing an id to a key-
+value store containing user sessions in a user's browser) to a token-based
+session approach (no key-value store) using JSON Web Tokens (jwt).</p>
+<p>The project is a game that utilizes socket.io - having a token-based session
+would be useful in such a scenario where there will be multiple communication
+channels in a single session (web and socket.io)</p>
+<p>How would one provide token/session invalidation from the server using the jwt
+Approach?</p>
+<p>I also wanted to understand what common (or uncommon) pitfalls/attacks I
+should look out for with this sort of paradigm. For example, if this paradigm
+is vulnerable to the same/different kinds of attacks as the session
+store/cookie-based approach.</p>
+<p>So, say I have the following (adapted from this and this):</p>
+<p>Session Store Login:</p>
+<div class="code"><pre class="code literal-block"><span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'/login'</span><span class="p">,</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">request</span><span class="p">,</span><span class="w"> </span><span class="n">response</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="n">request</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">password</span><span class="p">:</span><span class="w"> </span><span class="n">request</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">password</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Validate</span><span class="w"> </span><span class="n">somehow</span>
+<span class="w">    </span><span class="n">validate</span><span class="p">(</span><span class="n">user</span><span class="p">,</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">isValid</span><span class="p">,</span><span class="w"> </span><span class="n">profile</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Create</span><span class="w"> </span><span class="n">session</span><span class="w"> </span><span class="n">token</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">token</span><span class="o">=</span><span class="w"> </span><span class="n">createSessionToken</span><span class="p">();</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Add</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">key</span><span class="o">-</span><span class="n">value</span><span class="w"> </span><span class="n">database</span>
+<span class="w">        </span><span class="n">KeyValueStore</span><span class="o">.</span><span class="n">add</span><span class="p">({</span><span class="n">token</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="n">userid</span><span class="p">:</span><span class="w"> </span><span class="n">profile</span><span class="o">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">expiresInMinutes</span><span class="p">:</span><span class="w"> </span><span class="mi">60</span><span class="p">}});</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="n">should</span><span class="w"> </span><span class="n">save</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">session</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">cookie</span>
+<span class="w">        </span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">({</span><span class="n">sessionToken</span><span class="p">:</span><span class="w"> </span><span class="n">token</span><span class="p">});</span>
+<span class="w">    </span><span class="p">});</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Token-Based Login:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">jwt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'jsonwebtoken'</span><span class="p">);</span>
+<span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'/login'</span><span class="p">,</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">request</span><span class="p">,</span><span class="w"> </span><span class="n">response</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="n">request</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">password</span><span class="p">:</span><span class="w"> </span><span class="n">request</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">password</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Validate</span><span class="w"> </span><span class="n">somehow</span>
+<span class="w">    </span><span class="n">validate</span><span class="p">(</span><span class="n">user</span><span class="p">,</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">isValid</span><span class="p">,</span><span class="w"> </span><span class="n">profile</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">jwt</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span><span class="w"> </span><span class="s1">'My Super Secret'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">expiresInMinutes</span><span class="p">:</span><span class="w"> </span><span class="mi">60</span><span class="p">});</span>
+<span class="w">        </span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">({</span><span class="n">token</span><span class="p">:</span><span class="w"> </span><span class="n">token</span><span class="p">});</span>
+<span class="w">    </span><span class="p">});</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>--</p>
+<p>A logout (or invalidate) for the Session Store approach would require an
+update to the KeyValueStore database with the specified token.</p>
+<p>It seems like such a mechanism would not exist in the token-based approach
+since the token itself would contain the info that would normally exist in the
+key-value store.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I too have been researching this question, and while none of the ideas below
+are complete solutions, they might help others rule out ideas, or provide
+further ones.</p>
+<p><em>1) Simply remove the token from the client</em></p>
+<p>Obviously this does nothing for server side security, but it does stop an
+attacker by removing the token from existence (ie. they would have to have
+stolen the token prior to logout).</p>
+<p><em>2) Create a token blocklist</em></p>
+<p>You could store the invalid tokens until their initial expiry date, and
+compare them against incoming requests. This seems to negate the reason for
+going fully token based in the first place though, as you would need to touch
+the database for every request. The storage size would likely be lower though,
+as you would only need to store tokens that were between logout &amp; expiry time
+(this is a gut feeling, and is definitely dependent on context).</p>
+<p><em>3) Just keep token expiry times short and rotate them often</em></p>
+<p>If you keep the token expiry times at short enough intervals, and have the
+running client keep track and request updates when necessary, number 1 would
+effectively work as a complete logout system. The problem with this method, is
+that it makes it impossible to keep the user logged in between closes of the
+client code (depending on how long you make the expiry interval).</p>
+<p><em>Contingency Plans</em></p>
+<p>If there ever was an emergency, or a user token was compromised, one thing you
+could do is allow the user to change an underlying user lookup ID with their
+login credentials. This would render all associated tokens invalid, as the
+associated user would no longer be able to be found.</p>
+<p>I also wanted to note that it is a good idea to include the last login date
+with the token, so that you are able to enforce a relogin after some distant
+period of time.</p>
+<p>In terms of similarities/differences with regards to attacks using tokens,
+this post addresses the question:
+https://github.com/dentarg/blog/blob/master/_posts/2014-01-07-angularjs-
+authentication-with-cookies-vs-token.markdown</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>The ideas posted above are good, but a very simple and easy way to invalidate
+all the existing JWTs is simply to change the secret.</p>
+<p>If your server creates the JWT, signs it with a secret (JWS) then sends it to
+the client, simply changing the secret will invalidating all existing tokens
+and require all users to gain a new token to authenticate as their old token
+suddenly becomes invalid according to the server.</p>
+<p>It doesn't require any modifications to the actual token contents (or lookup
+ID).</p>
+<p>Clearly this only works for an emergency case when you wanted all existing
+tokens to expire, for per token expiry one of the solutions above is required
+(such as short token expiry time or invalidating a stored key inside the
+token).</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-does-c-compilation-take-so-long/" class="u-url">Why does C++ compilation take so long?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -232,58 +341,6 @@ symbolic link to my library located on an other directory.</p>
 
 <p>then to link it to your program:</p>
 <div class="code"><pre class="code literal-block">g++ -L/home/user/myDir -lxyz myprog.cpp -o myprog
-</pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-check-whether-a-pandas-dataframe-is-empty/" class="u-url">How to check whether a pandas DataFrame is empty?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-check-whether-a-pandas-dataframe-is-empty/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T00:18:51+08:00" itemprop="datePublished" title="2023-02-18 00:18">2023-02-18 00:18</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How to check whether a pandas <code>DataFrame</code> is empty? In my case I want to print
-some message in terminal if the <code>DataFrame</code> is empty.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You can use the attribute <code>df.empty</code> to check whether it's empty or not:</p>
-<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="nv">df</span>.<span class="nv">empty</span>:
-<span class="w">    </span><span class="nv">print</span><span class="ss">(</span><span class="s1">'DataFrame is empty!'</span><span class="ss">)</span>
-</pre></div>
-
-<p>Source: Pandas Documentation</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I use the <code>len</code> function. It's much faster than <code>empty</code>. <code>len(df.index)</code> is
-even faster.</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-
-<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">10000</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">columns</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="s1">'ABCD'</span><span class="p">))</span>
-
-<span class="k">def</span> <span class="nf">empty</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="kp">empty</span>
-
-<span class="k">def</span> <span class="nf">lenz</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
-
-<span class="k">def</span> <span class="nf">lenzi</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
-
-<span class="sd">'''</span>
-<span class="sd">%timeit empty(df)</span>
-<span class="sd">%timeit lenz(df)</span>
-<span class="sd">%timeit lenzi(df)</span>
-
-<span class="sd">10000 loops, best of 3: 13.9 µs per loop</span>
-<span class="sd">100000 loops, best of 3: 2.34 µs per loop</span>
-<span class="sd">1000000 loops, best of 3: 695 ns per loop</span>
-
-<span class="sd">len on index seems to be faster</span>
-<span class="sd">'''</span>
 </pre></div>
     </div>
     </article>

@@ -108,7 +108,82 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-determine-if-javascript-array-contains-an-object-with-an-attribute-that-equals-a-given-value/" class="u-url">How to determine if Javascript array contains an object with an attribute that equals a given value?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-execute-a-javascript-function-when-i-have-its-name-as-a-string/" class="u-url">How to execute a JavaScript function when I have its name as a string</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-execute-a-javascript-function-when-i-have-its-name-as-a-string/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:08:22+08:00" itemprop="datePublished" title="2023-02-17 04:08">2023-02-17 04:08</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have the name of a function in JavaScript as a string. How do I convert that
+into a function pointer so I can call it later?</p>
+<p>Depending on the circumstances, I may need to pass various arguments into the
+method too.</p>
+<p>Some of the functions may take the form of
+<code>namespace.namespace.function(args[...])</code>.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Don't use <code>eval</code> unless you <em>absolutely, positively</em> have no other choice.</p>
+<p>As has been mentioned, using something like this would be the best way to do
+it:</p>
+<div class="code"><pre class="code literal-block">window["functionName"](arguments);
+</pre></div>
+
+<p>That, however, will not work with a namespace'd function:</p>
+<div class="code"><pre class="code literal-block">window["My.Namespace.functionName"](arguments); // fail
+</pre></div>
+
+<p>This is how you would do that:</p>
+<div class="code"><pre class="code literal-block">window["My"]["Namespace"]["functionName"](arguments); // succeeds
+</pre></div>
+
+<p>In order to make that easier and provide some flexibility, here is a
+convenience function:</p>
+<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">executeFunctionByName</span><span class="p">(</span><span class="n">functionName</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="o">/*</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">*/</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">Array</span><span class="o">.</span><span class="n">prototype</span><span class="o">.</span><span class="n">slice</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">namespaces</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">functionName</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"."</span><span class="p">);</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="k">func</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">namespaces</span><span class="o">.</span><span class="n">pop</span><span class="p">();</span>
+<span class="w">  </span><span class="k">for</span><span class="p">(</span><span class="k">var</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">namespaces</span><span class="o">.</span><span class="n">length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">context</span><span class="p">[</span><span class="n">namespaces</span><span class="p">[</span><span class="n">i</span><span class="p">]];</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">context</span><span class="p">[</span><span class="k">func</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">context</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>You would call it like so:</p>
+<div class="code"><pre class="code literal-block">executeFunctionByName("My.Namespace.functionName", window, arguments);
+</pre></div>
+
+<p>Note, you can pass in whatever context you want, so this would do the same as
+above:</p>
+<div class="code"><pre class="code literal-block">executeFunctionByName("Namespace.functionName", My, arguments);
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Just thought I'd post a slightly altered version of Jason Bunting's very
+helpful function.</p>
+<p>First, I have simplified the first statement by supplying a second parameter
+to <em>slice()</em>. The original version was working fine in all browsers except IE.</p>
+<p>Second, I have replaced <em>this</em> with <em>context</em> in the return statement;
+otherwise, <em>this</em> was always pointing to <em>window</em> when the target function was
+being executed.</p>
+<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">executeFunctionByName</span><span class="p">(</span><span class="n">functionName</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="o">/*</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">*/</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">Array</span><span class="o">.</span><span class="n">prototype</span><span class="o">.</span><span class="n">slice</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">namespaces</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">functionName</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"."</span><span class="p">);</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="k">func</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">namespaces</span><span class="o">.</span><span class="n">pop</span><span class="p">();</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">var</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">namespaces</span><span class="o">.</span><span class="n">length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">context</span><span class="p">[</span><span class="n">namespaces</span><span class="p">[</span><span class="n">i</span><span class="p">]];</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">context</span><span class="p">[</span><span class="k">func</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">context</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-determine-if-javascript-array-contains-an-object-with-an-attribute-that-equals-a-given-value/" class="u-url">How to determine if Javascript array contains an object with an attribute that equals a given value?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -212,53 +287,6 @@ minimize computational time.</p>
 
 <p><strong>Decode:</strong></p>
 <div class="code"><pre class="code literal-block">string inputStr = Encoding.UTF8.GetString(Convert.FromBase64String(encodedStr));
-</pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-get-the-path-to-the-current-script-with-node-js/" class="u-url">How do I get the path to the current script with Node.js?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-get-the-path-to-the-current-script-with-node-js/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T04:06:59+08:00" itemprop="datePublished" title="2023-02-17 04:06">2023-02-17 04:06</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How would I get the path to the script in Node.js?</p>
-<p>I know there's <code>process.cwd</code>, but that only refers to the directory where the
-script was called, not of the script itself. For instance, say I'm in
-<code>/home/kyle/</code> and I run the following command:</p>
-<div class="code"><pre class="code literal-block">node /home/kyle/some/dir/file.js
-</pre></div>
-
-<p>If I call <code>process.cwd()</code>, I get <code>/home/kyle/</code>, not <code>/home/kyle/some/dir/</code>. Is
-there a way to get that directory?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I found it after looking through the documentation again. What I was looking
-for were the <code>__filename</code> and <code>__dirname</code> module-level variables.</p>
-<ul>
-<li>
-<code>__filename</code> is the file name of the current module. This is the resolved absolute path of the current module file. (ex:<code>/home/kyle/some/dir/file.js</code>)</li>
-<li>
-<code>__dirname</code> is the directory name of the current module. (ex:<code>/home/kyle/some/dir</code>)</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>So basically you can do this:</p>
-<div class="code"><pre class="code literal-block">fs.readFile(path.resolve(__dirname, 'settings.json'), 'UTF-8', callback);
-</pre></div>
-
-<p>Use resolve() instead of concatenating with '/' or '\' else you will run into
-cross-platform issues.</p>
-<p>Note: __dirname is the local path of the module or included script. If you are
-writing a plugin which needs to know the path of the main script it is:</p>
-<div class="code"><pre class="code literal-block">require.main.filename
-</pre></div>
-
-<p>or, to just get the folder name:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">require</span><span class="ss">(</span><span class="s1">'path'</span><span class="ss">)</span>.<span class="k">dirname</span><span class="ss">(</span><span class="nv">require</span>.<span class="nv">main</span>.<span class="nv">filename</span><span class="ss">)</span>
 </pre></div>
     </div>
     </article>

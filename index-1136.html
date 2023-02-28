@@ -108,7 +108,91 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/convert-set-to-list-without-creating-new-list/" class="u-url">Convert Set to List without creating new List</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-build-a-query-string-for-a-url-in-c/" class="u-url">How to build a query string for a URL in C#?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-build-a-query-string-for-a-url-in-c/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T02:07:27+08:00" itemprop="datePublished" title="2023-02-18 02:07">2023-02-18 02:07</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>A common task when calling web resources from a code is building a query
+string to including all the necessary parameters. While by all means no rocket
+science, there are some nifty details you need to take care of like, appending
+an <code>&amp;</code> if not the first parameter, encoding the parameters etc.</p>
+<p>The code to do it is very simple, but a bit tedious:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">StringBuilder</span><span class="w"> </span><span class="nv">SB</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">StringBuilder</span><span class="ss">()</span><span class="c1">;</span>
+<span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">NeedsToAddParameter</span><span class="w"> </span><span class="nv">A</span><span class="ss">)</span><span class="w"> </span>
+{<span class="w"> </span>
+<span class="w">  </span><span class="nv">SB</span>.<span class="nv">Append</span><span class="ss">(</span><span class="s2">"A="</span><span class="ss">)</span><span class="c1">; SB.Append(HttpUtility.UrlEncode("TheValueOfA")); </span>
+}
+
+<span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">NeedsToAddParameter</span><span class="w"> </span><span class="nv">B</span><span class="ss">)</span><span class="w"> </span>
+{
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">SB</span>.<span class="nv">Length</span><span class="o">&gt;</span><span class="mi">0</span><span class="ss">)</span><span class="w"> </span><span class="nv">SB</span>.<span class="nv">Append</span><span class="ss">(</span><span class="s2">"&amp;"</span><span class="ss">)</span><span class="c1">; </span>
+<span class="w">  </span><span class="nv">SB</span>.<span class="nv">Append</span><span class="ss">(</span><span class="s2">"B="</span><span class="ss">)</span><span class="c1">; SB.Append(HttpUtility.UrlEncode("TheValueOfB")); }</span>
+}
+</pre></div>
+
+<p>This is such a common task one would expect a utility class to exist that
+makes it more elegant and readable. Scanning MSDN, I failed to find one—which
+brings me to the following question:</p>
+<p>What is the most elegant clean way you know of doing the above?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>If you look under the hood the QueryString property is a NameValueCollection.
+When I've done similar things I've usually been interested in serialising AND
+deserialising so my suggestion is to build a NameValueCollection up and then
+pass to:</p>
+<div class="code"><pre class="code literal-block"><span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="o">.</span><span class="n">Linq</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="o">.</span><span class="n">Web</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="o">.</span><span class="n">Collections</span><span class="o">.</span><span class="n">Specialized</span><span class="p">;</span>
+
+<span class="n">private</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">ToQueryString</span><span class="p">(</span><span class="n">NameValueCollection</span><span class="w"> </span><span class="n">nvc</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="n">from</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">nvc</span><span class="o">.</span><span class="n">AllKeys</span>
+<span class="w">        </span><span class="n">from</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">nvc</span><span class="o">.</span><span class="n">GetValues</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+<span class="w">            </span><span class="n">select</span><span class="w"> </span><span class="n">string</span><span class="o">.</span><span class="n">Format</span><span class="p">(</span>
+<span class="w">                </span><span class="s2">"{0}={1}"</span><span class="p">,</span>
+<span class="w">                </span><span class="n">HttpUtility</span><span class="o">.</span><span class="n">UrlEncode</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
+<span class="w">                </span><span class="n">HttpUtility</span><span class="o">.</span><span class="n">UrlEncode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+<span class="w">        </span><span class="p">)</span><span class="o">.</span><span class="n">ToArray</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s2">"?"</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">string</span><span class="o">.</span><span class="n">Join</span><span class="p">(</span><span class="s2">"&amp;"</span><span class="p">,</span><span class="w"> </span><span class="n">array</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>I imagine there's a super elegant way to do this in LINQ too...</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>If you look under the hood the QueryString property is a NameValueCollection.
+When I've done similar things I've usually been interested in serialising AND
+deserialising so my suggestion is to build a NameValueCollection up and then
+pass to:</p>
+<div class="code"><pre class="code literal-block"><span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="o">.</span><span class="n">Linq</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="o">.</span><span class="n">Web</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="o">.</span><span class="n">Collections</span><span class="o">.</span><span class="n">Specialized</span><span class="p">;</span>
+
+<span class="n">private</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">ToQueryString</span><span class="p">(</span><span class="n">NameValueCollection</span><span class="w"> </span><span class="n">nvc</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="n">from</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">nvc</span><span class="o">.</span><span class="n">AllKeys</span>
+<span class="w">        </span><span class="n">from</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">nvc</span><span class="o">.</span><span class="n">GetValues</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+<span class="w">            </span><span class="n">select</span><span class="w"> </span><span class="n">string</span><span class="o">.</span><span class="n">Format</span><span class="p">(</span>
+<span class="w">                </span><span class="s2">"{0}={1}"</span><span class="p">,</span>
+<span class="w">                </span><span class="n">HttpUtility</span><span class="o">.</span><span class="n">UrlEncode</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
+<span class="w">                </span><span class="n">HttpUtility</span><span class="o">.</span><span class="n">UrlEncode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+<span class="w">        </span><span class="p">)</span><span class="o">.</span><span class="n">ToArray</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s2">"?"</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">string</span><span class="o">.</span><span class="n">Join</span><span class="p">(</span><span class="s2">"&amp;"</span><span class="p">,</span><span class="w"> </span><span class="n">array</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>I imagine there's a super elegant way to do this in LINQ too...</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/convert-set-to-list-without-creating-new-list/" class="u-url">Convert Set to List without creating new List</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -216,97 +300,6 @@ destructuring assignment. It will be transpiled into:</p>
 <span class="k">const</span><span class="w"> </span><span class="n">clone</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(({</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="o">...</span><span class="n">o</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">o</span><span class="p">)(</span><span class="n">obj</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">remove</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">c</span>
 <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">clone</span><span class="p">)</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-among-col-lg-col-md-and-col-sm-in-bootstrap/" class="u-url">What is the difference among col-lg-*, col-md-* and col-sm-* in Bootstrap?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-is-the-difference-among-col-lg-col-md-and-col-sm-in-bootstrap/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T02:06:08+08:00" itemprop="datePublished" title="2023-02-18 02:06">2023-02-18 02:06</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What is the difference among <code>col-lg-*</code> , <code>col-md-*</code> and <code>col-sm-*</code> in Twitter
-Bootstrap?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><em><strong>Updated 2020...</strong></em></p>
-<h3>Bootstrap 5</h3>
-<p>In <strong>Bootstrap 5</strong> (alpha) there is a new <code>-xxl-</code> size:</p>
-<p><code>col-*</code> - 0 (xs)<br><code>col-sm-*</code> - 576px<br><code>col-md-*</code> - 768px<br><code>col-lg-*</code> - 992px<br><code>col-xl-*</code> - 1200px<br><code>col-xxl-*</code> - 1400px  </p>
-<p>Bootstrap 5 Grid Demo</p>
-<hr>
-<h3>Bootstrap 4</h3>
-<p>In <strong>Bootstrap 4</strong> there is a new <code>-xl-</code> size, see this demo. Also the
-<strong><code>-xs-</code> infix has been removed</strong>, so smallest columns are simply <code>col-1</code>,
-<code>col-2</code>.. <code>col-12</code>, etc..</p>
-<p><code>col-*</code> - 0 (xs)<br><code>col-sm-*</code> - 576px<br><code>col-md-*</code> - 768px<br><code>col-lg-*</code> - 992px<br><code>col-xl-*</code> - 1200px  </p>
-<p>Bootstrap 4 Grid Demo</p>
-<p>Additionally, Bootstrap 4 includes new auto-layout columns. These also have
-responsive breakpoints (<code>col</code>, <code>col-sm</code>, <code>col-md</code>, etc..), but don't have
-defined % widths. Therefore, the auto-layout columns fill <strong>equal width</strong>
-across the row.</p>
-<hr>
-<h3>Bootstrap 3</h3>
-<p>The <strong>Bootstrap 3</strong> grid comes in <em>4</em> tiers (or "breakpoints")...</p>
-<ul>
-<li>Extra small (for smartphones <code>.col-xs-*</code>)</li>
-<li>Small (for tablets <code>.col-sm-*</code>)</li>
-<li>Medium (for laptops <code>.col-md-*</code>)</li>
-<li>Large (for laptops/desktops <code>.col-lg-*</code>).</li>
-</ul>
-<p>These grid sizes enable you to control grid behavior on different widths. The
-different tiers are controlled by CSS media queries.</p>
-<p>So in Bootstrap's 12-column grid...</p>
-<p><code>col-sm-3</code> is 3 of 12 columns wide (25%) on a typical <strong>small</strong> device width
-(&gt; 768 pixels)</p>
-<p><code>col-md-3</code> is 3 of 12 columns wide (25%) on a typical <strong>medium</strong> device width
-(&gt; 992 pixels)</p>
-<hr>
-<p><strong>The smaller tier (<code>xs</code>, <code>sm</code> or <code>md</code>) also defines the size for larger
-screen widths</strong>. So, for the <em>same</em> size column on all tiers, just set the
-width for the smallest viewport...</p>
-<p><code>&lt;div class="col-lg-3 col-md-3 col-sm-3"&gt;..&lt;/div&gt;</code> is the same as,</p>
-<p><code>&lt;div class="col-sm-3"&gt;..&lt;/div&gt;</code></p>
-<p>Larger tiers are <strong>implied.</strong> Because <code>col-sm-3</code> means <code>3 units on sm-and-up</code>,
-unless specifically overridden by a larger tier that uses a different size.</p>
-<p><code>xs</code>(default) &gt; overridden by <code>sm</code> &gt; overridden by <code>md</code> &gt; overridden by <code>lg</code></p>
-<hr>
-<p><strong><em>Combine</em> the classes to use change column widths on <em>different</em> grid
-sizes</strong>. This creates a responsive layout.</p>
-<p><code>&lt;div class="col-md-3 col-sm-6"&gt;..&lt;/div&gt;</code></p>
-<p>The <code>sm</code>, <code>md</code> and <code>lg</code> grids will all "stack" vertically on screens/viewports
-less than 768 pixels. This is where the <code>xs</code> grid fits in. Columns that use
-the <code>col-xs-*</code> classes will <em>not</em> stack vertically, and continue to scale down
-on the smallest screens.</p>
-<p>Resize your browser using this demo and you'll see the grid scaling effects.</p>
-<hr>
-<p>This article explains more about how the Bootstrap grid</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>The bootstrap docs do explain it, but it still took me a while to get it. It
-makes more sense when I explain it to myself in one of two ways:</p>
-<p><strong>If you think of the columns starting out horizontally, then you can choose
-when you want them to stack</strong>.</p>
-<p>For example, if you start with columns: A B C</p>
-<p>You decide when should they stack to be like this:</p>
-<p>A</p>
-<p>B</p>
-<p>C</p>
-<p>If you choose col-lg, then the columns will stack when the width is &lt; 1200px.</p>
-<p>If you choose col-md, then the columns will stack when the width is &lt; 992px.</p>
-<p>If you choose col-sm, then the columns will stack when the width is &lt; 768px.</p>
-<p>If you choose col-xs, then the columns will never stack.</p>
-<p><strong>On the other hand, if you think of the columns starting out stacked, then
-you can choose at what point they become horizontal</strong> :</p>
-<p>If you choose col-sm, then the columns will become horizontal when the width
-is &gt;= 768px.</p>
-<p>If you choose col-md, then the columns will become horizontal when the width
-is &gt;= 992px.</p>
-<p>If you choose col-lg, then the columns will become horizontal when the width
-is &gt;= 1200px.</p>
     </div>
     </article>
 </div>

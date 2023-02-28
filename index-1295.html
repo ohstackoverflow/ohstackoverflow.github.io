@@ -108,7 +108,125 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/target-blank-vs-target-new/" class="u-url">target="_blank" vs. target="_new"</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-pass-an-array-within-a-query-string/" class="u-url">How to pass an array within a query string?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-pass-an-array-within-a-query-string/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:57:22+08:00" itemprop="datePublished" title="2023-02-18 05:57">2023-02-18 05:57</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there a standard way of passing an array through a query string?</p>
+<p>To be clear, I have a query string with multiple values, one of which would be
+an array value. I want that query string value to be treated as an array- I
+don't want the array to be exploded so that it is indistinguishable from the
+other query string variables.</p>
+<p>Also, according to this post answer, the author suggests that query string
+support for arrays is not defined. Is this accurate?</p>
+<p><strong>EDIT:</strong></p>
+<p>Based on @Alex's answer, there is no standard way of doing this, so my follow-
+up is then what is an easy way to <em>recognize</em> that the parameter I'm reading
+is an array in both <strong>PHP</strong> and <strong>Javascript</strong>?</p>
+<p>Would it be acceptable to name multiple params the same name, and that way I
+would know that they belong to an array? Example:</p>
+<div class="code"><pre class="code literal-block">?myarray=value1&amp;myarray=value2&amp;myarray=value3...
+</pre></div>
+
+<p>Or would this be a bad practice?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Here's what I figured out:</p>
+<p>Submitting multi-value form fields, i.e. submitting arrays through GET/POST
+vars, can be done several different ways, as a standard is not necessarily
+spelled out.</p>
+<p>Three possible ways to send multi-value fields or arrays would be:</p>
+<ul>
+<li>
+<code>?cars[]=Saab&amp;cars[]=Audi</code> <em>(Best way- PHP reads this into an array)</em>
+</li>
+<li>
+<code>?cars=Saab&amp;cars=Audi</code> <em>(Bad way- PHP will only register last value)</em>
+</li>
+<li>
+<code>?cars=Saab,Audi</code> <em>(Haven't tried this)</em>
+</li>
+</ul>
+<h4>Form Examples</h4>
+<p>On a form, multi-valued fields could take the form of a <strong>select box set to
+multiple</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;form&gt;</span><span class="w"> </span>
+<span class="w">    </span><span class="nt">&lt;select</span><span class="w"> </span><span class="na">multiple=</span><span class="s">"multiple"</span><span class="w"> </span><span class="na">name=</span><span class="s">"cars[]"</span><span class="nt">&gt;</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">&lt;option&gt;</span>Volvo<span class="nt">&lt;/option&gt;</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">&lt;option&gt;</span>Saab<span class="nt">&lt;/option&gt;</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">&lt;option&gt;</span>Mercedes<span class="nt">&lt;/option&gt;</span><span class="w"> </span>
+<span class="w">    </span><span class="nt">&lt;/select&gt;</span>
+<span class="nt">&lt;/form&gt;</span>
+</pre></div>
+
+<p><em>(NOTE: In this case, it would be important to name the select
+control<code>some_name[]</code>, so that the resulting request vars would be registered
+as an array by PHP)</em></p>
+<p>... or as <strong>multiple hidden fields with the same name</strong> :</p>
+<div class="code"><pre class="code literal-block">&lt;input type="hidden" name="cars[]" value="Volvo"&gt;
+&lt;input type="hidden" name="cars[]" value="Saab"&gt;
+&lt;input type="hidden" name="cars[]" value="Mercedes"&gt;
+</pre></div>
+
+<hr>
+<p><strong>NOTE:</strong> Using <code>field[]</code> for multiple values is really poorly documented. I
+don't see any mention of it in the section on multi-valued keys in Query
+string - Wikipedia, or in the W3C docs dealing with multi-select inputs.</p>
+<hr>
+<p><strong>UPDATE</strong></p>
+<p>As commenters have pointed out, this is very much framework-specific. Some
+examples:</p>
+<p><strong>Query string:</strong></p>
+<div class="code"><pre class="code literal-block">?list_a=1&amp;list_a=2&amp;list_a=3&amp;list_b[]=1&amp;list_b[]=2&amp;list_b[]=3&amp;list_c=1,2,3
+</pre></div>
+
+<p><strong>Rails:</strong></p>
+<div class="code"><pre class="code literal-block">"list_a": "3", 
+"list_b":[
+    "1",
+    "2",
+    "3"
+  ], 
+"list_c": "1,2,3"
+</pre></div>
+
+<p><strong>Angular:</strong></p>
+<div class="code"><pre class="code literal-block"> "list_a": [
+    "1",
+    "2",
+    "3"
+  ],
+  "list_b[]": [
+    "1",
+    "2",
+    "3"
+  ],
+  "list_c": "1,2,3"
+</pre></div>
+
+<p>(Angular discussion)</p>
+<p>See comments for examples in <strong>node.js</strong> , <strong>Wordpress</strong> , <strong>ASP.net</strong></p>
+<hr>
+<p><strong>Maintaining order:</strong> One more thing to consider is that if you need to
+maintain the <em>order</em> of your items (i.e. array as an ordered list), you really
+only have one option, which is passing a delimited list of values, and
+explicitly converting it to an array yourself.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>A query string carries textual data so there is no option but to explode the
+array, encode it correctly and pass it in a representational format of your
+choice:</p>
+<p><code>p1=value1&amp;pN=valueN...</code><br><code>data=[value1,...,valueN]</code><br><code>data={p1:value1,...,pN:valueN}</code></p>
+<p>and then decode it in your server side code.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/target-blank-vs-target-new/" class="u-url">target="_blank" vs. target="_new"</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -212,106 +330,6 @@ optimization" often causes more problems than it's worth.</p>
 <p>My rule of thumb: if I know I'm going to need some data <em>at compile-time</em> ,
 and it's under a few hundred bytes in size, I stack-allocate it. Otherwise I
 heap-allocate it.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/programmatically-find-the-number-of-cores-on-a-machine/" class="u-url">Programmatically find the number of cores on a machine</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/programmatically-find-the-number-of-cores-on-a-machine/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:56:02+08:00" itemprop="datePublished" title="2023-02-18 05:56">2023-02-18 05:56</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is there a way to determine how many cores a machine has from C/C++ in a
-platform-independent way? If no such thing exists, what about determining it
-per-platform (Windows/*nix/Mac)?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h2>C++11</h2>
-<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;thread&gt;</span>
-
-<span class="c1">//may return 0 when not able to detect</span>
-<span class="kr">const</span><span class="w"> </span><span class="kr">auto</span><span class="w"> </span><span class="n">processor_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="o">::</span><span class="n">hardware_concurrency</span><span class="p">();</span>
-</pre></div>
-
-<p>Reference: std::thread::hardware_concurrency</p>
-<hr>
-<p>In C++ prior to C++11, there's no portable way. Instead, you'll need to use
-one or more of the following methods (guarded by appropriate <code>#ifdef</code> lines):</p>
-<ul>
-<li>
-<h4>Win32</h4>
-<div class="code"><pre class="code literal-block">SYSTEM_INFO sysinfo;
-</pre></div>
-
-<p>GetSystemInfo(&amp;sysinfo);
-int numCPU = sysinfo.dwNumberOfProcessors;</p>
-</li>
-<li>
-<h4>Linux, Solaris, AIX and Mac OS X &gt;=10.4 (i.e. Tiger onwards)</h4>
-<div class="code"><pre class="code literal-block">int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
-</pre></div>
-
-</li>
-<li>
-<h4>FreeBSD, MacOS X, NetBSD, OpenBSD, etc.</h4>
-<div class="code"><pre class="code literal-block">int mib[4];
-</pre></div>
-
-<p>int numCPU;
-std::size_t len = sizeof(numCPU); </p>
-<p>/<em> set the mib for hw.ncpu </em>/
-mib[0] = CTL_HW;
-mib[1] = HW_AVAILCPU;  // alternatively, try HW_NCPU;</p>
-<p>/<em> get the number of CPUs from the system </em>/
-sysctl(mib, 2, &amp;numCPU, &amp;len, NULL, 0);</p>
-<p>if (numCPU &lt; 1) 
-{
-    mib[1] = HW_NCPU;
-    sysctl(mib, 2, &amp;numCPU, &amp;len, NULL, 0);
-    if (numCPU &lt; 1)
-        numCPU = 1;
-}</p>
-</li>
-<li>
-<h4>HPUX</h4>
-<div class="code"><pre class="code literal-block">int numCPU = mpctl(MPC_GETNUMSPUS, NULL, NULL);
-</pre></div>
-
-</li>
-<li>
-<h4>IRIX</h4>
-<div class="code"><pre class="code literal-block">int numCPU = sysconf(_SC_NPROC_ONLN);
-</pre></div>
-
-</li>
-<li>
-<h4>Objective-C (Mac OS X &gt;=10.5 or iOS)</h4>
-<div class="code"><pre class="code literal-block"><span class="n">NSUInteger</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[[</span><span class="bp">NSProcessInfo</span><span class="w"> </span><span class="n">processInfo</span><span class="p">]</span><span class="w"> </span><span class="n">processorCount</span><span class="p">];</span>
-</pre></div>
-
-<p>NSUInteger b = [[NSProcessInfo processInfo] activeProcessorCount];</p>
-</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>This functionality is part of the C++11 standard.</p>
-<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;thread&gt;</span>
-
-<span class="kr">unsigned</span><span class="w"> </span><span class="kr">int</span><span class="w"> </span><span class="n">nthreads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="o">::</span><span class="n">hardware_concurrency</span><span class="p">();</span>
-</pre></div>
-
-<p>For older compilers, you can use the Boost.Thread library.</p>
-<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;boost/thread.hpp&gt;</span>
-
-<span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">nthreads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">boost</span><span class="o">::</span><span class="kr">thread</span><span class="o">::</span><span class="n">hardware_concurrency</span><span class="p">();</span>
-</pre></div>
-
-<p>In either case, <code>hardware_concurrency()</code> returns the number of threads that
-the hardware is capable of executing concurrently based on the number of CPU
-cores and hyper-threading units.</p>
     </div>
     </article>
 </div>

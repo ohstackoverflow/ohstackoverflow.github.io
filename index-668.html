@@ -108,7 +108,164 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-count-string-occurrence-in-string/" class="u-url">How to count string occurrence in string?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/call-async-await-functions-in-parallel/" class="u-url">Call async/await functions in parallel</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/call-async-await-functions-in-parallel/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T12:48:26+08:00" itemprop="datePublished" title="2023-02-17 12:48">2023-02-17 12:48</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>As far as I understand, in ES7/ES2016 putting multiple <code>await</code>'s in code will
+work similar to chaining <code>.then()</code> with promises, meaning that they will
+execute one after the other rather than in parallel. So, for example, we have
+this code:</p>
+<div class="code"><pre class="code literal-block">await someCall();
+await anotherCall();
+</pre></div>
+
+<p>Do I understand it correctly that <code>anotherCall()</code> will be called only when
+<code>someCall()</code> is completed? What is the most elegant way of calling them in
+parallel?</p>
+<p>I want to use it in Node, so maybe there's a solution with async library?</p>
+<p>EDIT: I'm not satisfied with the solution provided in this question: Slowdown
+due to non-parallel awaiting of promises in async generators, because it uses
+generators and I'm asking about a more general use case.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You can await on <code>Promise.all()</code>:</p>
+<div class="code"><pre class="code literal-block">await Promise.all([someCall(), anotherCall()]);
+</pre></div>
+
+<p>To store the results:</p>
+<div class="code"><pre class="code literal-block">let [someResult, anotherResult] = await Promise.all([someCall(), anotherCall()]);
+</pre></div>
+
+<p>Note that <code>Promise.all</code> fails fast, which means that as soon as one of the
+promises supplied to it rejects, then the entire thing rejects.</p>
+<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">happy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">ms</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Promise</span><span class="p">((</span><span class="n">resolve</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">resolve</span><span class="p">(</span><span class="n">v</span><span class="p">),</span><span class="w"> </span><span class="n">ms</span><span class="p">))</span>
+<span class="k">const</span><span class="w"> </span><span class="n">sad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">ms</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Promise</span><span class="p">((</span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">reject</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">reject</span><span class="p">(</span><span class="n">v</span><span class="p">),</span><span class="w"> </span><span class="n">ms</span><span class="p">))</span>
+
+<span class="n">Promise</span><span class="o">.</span><span class="n">all</span><span class="p">([</span><span class="n">happy</span><span class="p">(</span><span class="s1">'happy'</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">),</span><span class="w"> </span><span class="n">sad</span><span class="p">(</span><span class="s1">'sad'</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">)])</span>
+<span class="w">  </span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">)</span><span class="o">.</span><span class="n">catch</span><span class="p">(</span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="s1">'sad'</span>
+</pre></div>
+
+<p>If, instead, you want to wait for all the promises to either fulfill or
+reject, then you can use <code>Promise.allSettled</code>. Note that Internet Explorer
+does not natively support this method.</p>
+<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">happy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">ms</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Promise</span><span class="p">((</span><span class="n">resolve</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">resolve</span><span class="p">(</span><span class="n">v</span><span class="p">),</span><span class="w"> </span><span class="n">ms</span><span class="p">))</span>
+<span class="k">const</span><span class="w"> </span><span class="n">sad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">ms</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Promise</span><span class="p">((</span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">reject</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">reject</span><span class="p">(</span><span class="n">v</span><span class="p">),</span><span class="w"> </span><span class="n">ms</span><span class="p">))</span>
+
+<span class="n">Promise</span><span class="o">.</span><span class="n">allSettled</span><span class="p">([</span><span class="n">happy</span><span class="p">(</span><span class="s1">'happy'</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">),</span><span class="w"> </span><span class="n">sad</span><span class="p">(</span><span class="s1">'sad'</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">)])</span>
+<span class="w">  </span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="s2">"status"</span><span class="p">:</span><span class="s2">"fulfilled"</span><span class="p">,</span><span class="w"> </span><span class="s2">"value"</span><span class="p">:</span><span class="s2">"happy"</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s2">"status"</span><span class="p">:</span><span class="s2">"rejected"</span><span class="p">,</span><span class="w"> </span><span class="s2">"reason"</span><span class="p">:</span><span class="s2">"sad"</span><span class="w"> </span><span class="p">}]</span>
+</pre></div>
+
+<blockquote>
+<p><strong>Note:</strong> If you use <code>Promise.all</code> actions that managed to finish before
+rejection happen are not rolled back, so you may need to take care of such
+situation. For example if you have 5 actions, 4 quick, 1 slow and slow
+rejects. Those 4 actions may be already executed so you may need to roll
+back. In such situation consider using <code>Promise.allSettled</code> while it will
+provide exact detail which action failed and which not.</p>
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>TL;DR</strong></p>
+<p>Use <code>Promise.all</code> for the parallel function calls, the answer behaviors not
+correctly when the error occurs.</p>
+<hr>
+<p>First, execute <em>all</em> the asynchronous calls at once and obtain all the
+<code>Promise</code> objects. Second, use <code>await</code> on the <code>Promise</code> objects. This way,
+while you wait for the first <code>Promise</code> to resolve the other asynchronous calls
+are still progressing. Overall, you will only wait for as long as the slowest
+asynchronous call. For example:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Begin</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">store</span><span class="w"> </span><span class="n">promise</span><span class="w"> </span><span class="n">without</span><span class="w"> </span><span class="n">waiting</span>
+<span class="k">const</span><span class="w"> </span><span class="n">someResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">someCall</span><span class="p">();</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Begin</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">store</span><span class="w"> </span><span class="n">promise</span><span class="w"> </span><span class="n">without</span><span class="w"> </span><span class="n">waiting</span>
+<span class="k">const</span><span class="w"> </span><span class="n">anotherResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">anotherCall</span><span class="p">();</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Now</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">both</span><span class="w"> </span><span class="n">results</span><span class="p">,</span><span class="w"> </span><span class="n">whose</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="n">processes</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">already</span><span class="w"> </span><span class="n">been</span><span class="w"> </span><span class="n">started</span>
+<span class="k">const</span><span class="w"> </span><span class="n">finalResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">await</span><span class="w"> </span><span class="n">someResult</span><span class="p">,</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">anotherResult</span><span class="p">];</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">At</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">point</span><span class="w"> </span><span class="n">all</span><span class="w"> </span><span class="n">calls</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">been</span><span class="w"> </span><span class="n">resolved</span>
+<span class="o">//</span><span class="w"> </span><span class="n">Now</span><span class="w"> </span><span class="n">when</span><span class="w"> </span><span class="n">accessing</span><span class="w"> </span><span class="n">someResult</span><span class="o">|</span><span class="w"> </span><span class="n">anotherResult</span><span class="p">,</span>
+<span class="o">//</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="n">instead</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">promise</span>
+</pre></div>
+
+<p>JSbin example: http://jsbin.com/xerifanima/edit?js,console</p>
+<p><strong>Caveat:</strong> It doesn't matter if the <code>await</code> calls are on the same line or on
+different lines, so long as the first <code>await</code> call happens <em>after</em> all of the
+asynchronous calls. See JohnnyHK's comment.</p>
+<hr>
+<p><strong>Update:</strong> this answer has a different timing in error handling according to
+the @bergi's answer, it does <strong>NOT</strong> throw out the error as the error occurs
+but after all the promises are executed. I compare the result with @jonny's
+tip: <code>[result1, result2] = Promise.all([async1(), async2()])</code>, check the
+following code snippet</p>
+<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">correctAsync500ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Promise</span><span class="p">(</span><span class="n">resolve</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">setTimeout</span><span class="p">(</span><span class="n">resolve</span><span class="p">,</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span><span class="w"> </span><span class="s1">'correct500msResult'</span><span class="p">);</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="p">};</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">correctAsync100ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Promise</span><span class="p">(</span><span class="n">resolve</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">setTimeout</span><span class="p">(</span><span class="n">resolve</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="s1">'correct100msResult'</span><span class="p">);</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="p">};</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">rejectAsync100ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Promise</span><span class="p">((</span><span class="n">resolve</span><span class="p">,</span><span class="w"> </span><span class="n">reject</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">setTimeout</span><span class="p">(</span><span class="n">reject</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="s1">'reject100msError'</span><span class="p">);</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="p">};</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">asyncInArray</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">(</span><span class="n">fun1</span><span class="p">,</span><span class="w"> </span><span class="n">fun2</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'test async functions in array'</span><span class="p">;</span>
+<span class="w">  </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">time</span><span class="p">(</span><span class="n">label</span><span class="p">);</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">p1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fun1</span><span class="p">();</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">p2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fun2</span><span class="p">();</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">await</span><span class="w"> </span><span class="n">p1</span><span class="p">,</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">p2</span><span class="p">];</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">timeEnd</span><span class="p">(</span><span class="n">label</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'error is'</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">);</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">timeEnd</span><span class="p">(</span><span class="n">label</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">asyncInPromiseAll</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">(</span><span class="n">fun1</span><span class="p">,</span><span class="w"> </span><span class="n">fun2</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'test async functions with Promise.all'</span><span class="p">;</span>
+<span class="w">  </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">time</span><span class="p">(</span><span class="n">label</span><span class="p">);</span>
+<span class="w">    </span><span class="n">let</span><span class="w"> </span><span class="p">[</span><span class="n">value1</span><span class="p">,</span><span class="w"> </span><span class="n">value2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">Promise</span><span class="o">.</span><span class="n">all</span><span class="p">([</span><span class="n">fun1</span><span class="p">(),</span><span class="w"> </span><span class="n">fun2</span><span class="p">()]);</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">timeEnd</span><span class="p">(</span><span class="n">label</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'error is'</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">);</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">timeEnd</span><span class="p">(</span><span class="n">label</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="p">(</span><span class="n">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">'async functions without error'</span><span class="p">);</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'async functions without error: start'</span><span class="p">)</span>
+<span class="w">  </span><span class="n">await</span><span class="w"> </span><span class="n">asyncInArray</span><span class="p">(</span><span class="n">correctAsync500ms</span><span class="p">,</span><span class="w"> </span><span class="n">correctAsync100ms</span><span class="p">);</span>
+<span class="w">  </span><span class="n">await</span><span class="w"> </span><span class="n">asyncInPromiseAll</span><span class="p">(</span><span class="n">correctAsync500ms</span><span class="p">,</span><span class="w"> </span><span class="n">correctAsync100ms</span><span class="p">);</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">groupEnd</span><span class="p">();</span>
+
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">'async functions with error'</span><span class="p">);</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'async functions with error: start'</span><span class="p">)</span>
+<span class="w">  </span><span class="n">await</span><span class="w"> </span><span class="n">asyncInArray</span><span class="p">(</span><span class="n">correctAsync500ms</span><span class="p">,</span><span class="w"> </span><span class="n">rejectAsync100ms</span><span class="p">);</span>
+<span class="w">  </span><span class="n">await</span><span class="w"> </span><span class="n">asyncInPromiseAll</span><span class="p">(</span><span class="n">correctAsync500ms</span><span class="p">,</span><span class="w"> </span><span class="n">rejectAsync100ms</span><span class="p">);</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">groupEnd</span><span class="p">();</span>
+<span class="p">})();</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-count-string-occurrence-in-string/" class="u-url">How to count string occurrence in string?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -347,62 +504,6 @@ called, is called with a particular <code>this</code> value.</p>
 
 <p>Please refer to this link on MDN Web Docs for more information:</p>
 <p>Function.prototype.bind()</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/get-selected-element-s-outer-html/" class="u-url">Get selected element's outer HTML</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/get-selected-element-s-outer-html/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T12:47:02+08:00" itemprop="datePublished" title="2023-02-17 12:47">2023-02-17 12:47</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm trying to get the HTML of a selected object with jQuery. I am aware of the
-<code>.html()</code> function; the issue is that I need the HTML including the selected
-object (a table row in this case, where <code>.html()</code> only returns the cells
-inside the row).</p>
-<p>I've searched around and found a few very ‘hackish’ type methods of cloning an
-object, adding it to a newly created div, etc, etc, but this seems really
-dirty. Is there any better way, or does the new version of jQuery (1.4.2)
-offer any kind of <code>outerHtml</code> functionality?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><em>2014 Edit : The question and this reply are from 2010. At the time, no better
-solution was widely available. Now, many of the other replies are better :
-Eric Hu's, or Re Capcha's for example.</em></p>
-<p>This site seems to have a solution for you : jQuery: outerHTML | Yelotofu</p>
-<div class="code"><pre class="code literal-block"><span class="nv">jQuery</span>.<span class="nv">fn</span>.<span class="nv">outerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">function</span><span class="ss">(</span><span class="nv">s</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">s</span>
-<span class="w">        </span>?<span class="w"> </span><span class="nv">this</span>.<span class="nv">before</span><span class="ss">(</span><span class="nv">s</span><span class="ss">)</span>.<span class="nv">remove</span><span class="ss">()</span>
-<span class="w">        </span>:<span class="w"> </span><span class="nv">jQuery</span><span class="ss">(</span><span class="s2">"&lt;p&gt;"</span><span class="ss">)</span>.<span class="nv">append</span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">eq</span><span class="ss">(</span><span class="mi">0</span><span class="ss">)</span>.<span class="nv">clone</span><span class="ss">())</span>.<span class="nv">html</span><span class="ss">()</span><span class="c1">;</span>
-}<span class="c1">;</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>No need to generate a function for it. Just do it like this:</p>
-<div class="code"><pre class="code literal-block"><span class="o">$</span><span class="p">(</span><span class="s1">'a'</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">function</span><span class="p">(){</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="p">(</span><span class="n">this</span><span class="p">)</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="s1">'&lt;p&gt;'</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">html</span><span class="p">();</span>
-<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
-<span class="p">});</span>
-</pre></div>
-
-<p>(Your browser's console will show what is logged, by the way. Most of the
-latest browsers since around 2009 have this feature.)</p>
-<p>The magic is this on the end:</p>
-<div class="code"><pre class="code literal-block"><span class="na">.clone</span><span class="p">().</span><span class="no">wrap</span><span class="p">(</span><span class="err">'&lt;</span><span class="no">p</span><span class="err">&gt;'</span><span class="p">).</span><span class="no">parent</span><span class="p">().</span><span class="no">html</span><span class="p">()</span><span class="c1">;</span>
-</pre></div>
-
-<p>The clone means you're not actually disturbing the DOM. Run it without it and
-you'll see <code>p</code> tags inserted before/after all hyperlinks (in this example),
-which is undesirable. So, yes, use <code>.clone()</code>.</p>
-<p>The way it works is that it takes each <code>a</code> tag, makes a clone of it in RAM,
-wraps with <code>p</code> tags, gets the parent of it (meaning the <code>p</code> tag), and then
-gets the <code>innerHTML</code> property of it.</p>
-<p><strong>EDIT</strong> : Took advice and changed <code>div</code> tags to <code>p</code> tags because it's less
-typing and works the same.</p>
     </div>
     </article>
 </div>

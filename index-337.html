@@ -108,7 +108,69 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/count-the-number-of-occurrences-of-a-character-in-a-string/" class="u-url">Count the number of occurrences of a character in a string</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-clear-the-canvas-for-redrawing/" class="u-url">How to clear the canvas for redrawing</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-clear-the-canvas-for-redrawing/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:18:07+08:00" itemprop="datePublished" title="2023-02-17 04:18">2023-02-17 04:18</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>After experimenting with composite operations and drawing images on the canvas
+I'm now trying to remove images and compositing. How do I do this?</p>
+<p>I need to clear the canvas for redrawing other images; this can go on for a
+while so I don't think drawing a new rectangle every time will be the most
+efficient option.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Given that <code>canvas</code> is a canvas element or an <code>OffscreenCanvas</code> object, use
+<code>clearRect</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">canvas</span><span class="o">.</span><span class="n">getContext</span><span class="p">(</span><span class="s1">'2d'</span><span class="p">);</span>
+<span class="n">context</span><span class="o">.</span><span class="n">clearRect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">canvas</span><span class="o">.</span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="n">canvas</span><span class="o">.</span><span class="n">height</span><span class="p">);</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<h3>Use: <code>context.clearRect(0, 0, canvas.width, canvas.height);</code>
+</h3>
+<p>This is the fastest and most descriptive way to clear the entire canvas.</p>
+<h3>Do not use: <code>canvas.width = canvas.width;</code>
+</h3>
+<p>Resetting <code>canvas.width</code> resets all canvas state (e.g. transformations,
+lineWidth, strokeStyle, etc.), it is very slow (compared to clearRect), it
+doesn't work in all browsers, and it doesn't describe what you are actually
+trying to do.</p>
+<h3>Dealing with transformed coordinates</h3>
+<p>If you have modified the transformation matrix (e.g. using <code>scale</code>, <code>rotate</code>,
+or <code>translate</code>) then <code>context.clearRect(0,0,canvas.width,canvas.height)</code> will
+likely not clear the entire visible portion of the canvas.</p>
+<p>The solution? Reset the transformation matrix prior to clearing the canvas:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// Store the current transformation matrix</span>
+<span class="n">context</span><span class="p">.</span><span class="nb">save</span><span class="p">();</span>
+
+<span class="c1">// Use the identity matrix while clearing the canvas</span>
+<span class="n">context</span><span class="p">.</span><span class="n">setTransform</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="n">context</span><span class="p">.</span><span class="n">clearRect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">canvas</span><span class="p">.</span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="n">canvas</span><span class="p">.</span><span class="n">height</span><span class="p">);</span>
+
+<span class="c1">// Restore the transform</span>
+<span class="n">context</span><span class="p">.</span><span class="n">restore</span><span class="p">();</span>
+</pre></div>
+
+<p><strong>Edit:</strong> I've just done some profiling and (in Chrome) it is about 10% faster
+to clear a 300x150 (default size) canvas without resetting the transform. As
+the size of your canvas increases this difference drops.</p>
+<p>That is already relatively insignificant, but in most cases you will be
+drawing considerably more than you are clearing and I believe this performance
+difference be irrelevant.</p>
+<div class="code"><pre class="code literal-block"><span class="mf">100000</span><span class="w"> </span><span class="n">iterations</span><span class="w"> </span><span class="n">averaged</span><span class="w"> </span><span class="mf">10</span><span class="w"> </span><span class="n">times</span><span class="p">:</span>
+<span class="mf">1885</span><span class="n">ms</span><span class="w"> </span><span class="kr">to</span><span class="w"> </span><span class="n">clear</span>
+<span class="mf">2112</span><span class="n">ms</span><span class="w"> </span><span class="kr">to</span><span class="w"> </span><span class="n">reset</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">clear</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/count-the-number-of-occurrences-of-a-character-in-a-string/" class="u-url">Count the number of occurrences of a character in a string</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -220,64 +282,6 @@ the HEAD to that commit and use it implicitly in both commands:</p>
 <div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="nv">checkout</span><span class="w"> </span><span class="mi">9</span><span class="nv">fceb02</span>
 
 <span class="nv">GIT_COMMITTER_DATE</span><span class="o">=</span><span class="s2">"$(git show --format=%aD | head -1)"</span><span class="w"> </span><span class="nv">git</span><span class="w"> </span><span class="nv">tag</span><span class="w"> </span><span class="o">-</span><span class="nv">a</span><span class="w"> </span><span class="nv">v1</span>.<span class="mi">2</span><span class="w"> </span><span class="o">-</span><span class="nv">m</span><span class="w"> </span><span class="s2">"v1.2"</span>
-</pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-i-hide-the-html5-number-inputs-spin-box/" class="u-url">Can I hide the HTML5 number input’s spin box?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/can-i-hide-the-html5-number-inputs-spin-box/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T04:16:40+08:00" itemprop="datePublished" title="2023-02-17 04:16">2023-02-17 04:16</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is there a consistent way across browsers to hide the new spin boxes that some
-browsers (such as Chrome) render for HTML input of type number? I am looking
-for a CSS or JavaScript method to prevent the up/down arrows from appearing.</p>
-<div class="code"><pre class="code literal-block">&lt;input id="test" type="number"&gt;
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>This CSS effectively hides the spin-button for webkit browsers (have tested it
-in Chrome 7.0.517.44 and Safari Version 5.0.2 (6533.18.5)):</p>
-<div class="code"><pre class="code literal-block"><span class="s s-Atom">input</span><span class="p">:</span><span class="o">:-</span><span class="s s-Atom">webkit</span><span class="o">-</span><span class="s s-Atom">outer</span><span class="o">-</span><span class="s s-Atom">spin</span><span class="o">-</span><span class="s s-Atom">button</span><span class="p">,</span>
-<span class="s s-Atom">input</span><span class="p">:</span><span class="o">:-</span><span class="s s-Atom">webkit</span><span class="o">-</span><span class="s s-Atom">inner</span><span class="o">-</span><span class="s s-Atom">spin</span><span class="o">-</span><span class="s s-Atom">button</span> <span class="p">{</span>
-    <span class="cm">/* display: none; &lt;- Crashes Chrome on hover */</span>
-    <span class="o">-</span><span class="s s-Atom">webkit</span><span class="o">-</span><span class="s s-Atom">appearance</span><span class="p">:</span> <span class="s s-Atom">none</span><span class="p">;</span>
-    <span class="s s-Atom">margin</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span> <span class="cm">/* &lt;-- Apparently some margin are still there even though it's hidden */</span>
-<span class="p">}</span>
-
-<span class="s s-Atom">input</span><span class="p">[</span><span class="s s-Atom">type</span><span class="o">=</span><span class="s s-Atom">number</span><span class="p">]</span> <span class="p">{</span>
-    <span class="o">-</span><span class="s s-Atom">moz</span><span class="o">-</span><span class="s s-Atom">appearance</span><span class="p">:</span><span class="s s-Atom">textfield</span><span class="p">;</span> <span class="cm">/* Firefox */</span>
-<span class="p">}</span>
-
-
-<span class="o">&lt;</span><span class="s s-Atom">input</span> <span class="s s-Atom">type=</span><span class="s2">"number"</span> <span class="s s-Atom">step=</span><span class="s2">"0.01"</span> <span class="s s-Atom">/&gt;</span>
-</pre></div>
-
-<p>You can always use the inspector (webkit, possibly Firebug for Firefox) to
-look for matched CSS properties for the elements you are interested in, look
-for Pseudo elements. This image shows results for an input element
-type="number":</p>
-<p><img alt="Inspector for input type=number (Chrome)" src="images/QATjk.png"></p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Firefox 29 currently adds support for number elements, so here's a snippet for
-hiding the spinners in webkit and moz based browsers:</p>
-<div class="code"><pre class="code literal-block"><span class="s s-Atom">input</span><span class="p">[</span><span class="s s-Atom">type='number'</span><span class="p">]</span> <span class="p">{</span>
-    <span class="o">-</span><span class="s s-Atom">moz</span><span class="o">-</span><span class="s s-Atom">appearance</span><span class="p">:</span><span class="s s-Atom">textfield</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="s s-Atom">input</span><span class="p">:</span><span class="o">:-</span><span class="s s-Atom">webkit</span><span class="o">-</span><span class="s s-Atom">outer</span><span class="o">-</span><span class="s s-Atom">spin</span><span class="o">-</span><span class="s s-Atom">button</span><span class="p">,</span>
-<span class="s s-Atom">input</span><span class="p">:</span><span class="o">:-</span><span class="s s-Atom">webkit</span><span class="o">-</span><span class="s s-Atom">inner</span><span class="o">-</span><span class="s s-Atom">spin</span><span class="o">-</span><span class="s s-Atom">button</span> <span class="p">{</span>
-    <span class="o">-</span><span class="s s-Atom">webkit</span><span class="o">-</span><span class="s s-Atom">appearance</span><span class="p">:</span> <span class="s s-Atom">none</span><span class="p">;</span>
-<span class="p">}</span>
-
-
-<span class="o">&lt;</span><span class="s s-Atom">input</span> <span class="s s-Atom">id=</span><span class="s2">"test"</span> <span class="s s-Atom">type=</span><span class="s2">"number"</span><span class="o">&gt;</span>
 </pre></div>
     </div>
     </article>

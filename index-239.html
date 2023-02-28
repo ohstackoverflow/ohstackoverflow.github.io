@@ -108,7 +108,115 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/echo-that-outputs-to-stderr/" class="u-url">echo that outputs to stderr</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-are-the-differences-between-type-and-isinstance/" class="u-url">What are the differences between type() and isinstance()?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-are-the-differences-between-type-and-isinstance/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:46:26+08:00" itemprop="datePublished" title="2023-02-17 01:46">2023-02-17 01:46</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What are the differences between these two code snippets?</p>
+<p>Using <code>type</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">types</span>
+
+<span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">is</span> <span class="n">types</span><span class="o">.</span><span class="n">DictType</span><span class="p">:</span>
+    <span class="n">do_something</span><span class="p">()</span>
+<span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">types</span><span class="o">.</span><span class="n">StringTypes</span><span class="p">:</span>
+    <span class="n">do_something_else</span><span class="p">()</span>
+</pre></div>
+
+<p>Using <code>isinstance</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="nv">isinstance</span><span class="ss">(</span><span class="nv">a</span>,<span class="w"> </span><span class="nv">dict</span><span class="ss">)</span>:
+<span class="w">    </span><span class="nv">do_something</span><span class="ss">()</span>
+<span class="k">if</span><span class="w"> </span><span class="nv">isinstance</span><span class="ss">(</span><span class="nv">b</span>,<span class="w"> </span><span class="nv">str</span><span class="ss">)</span><span class="w"> </span><span class="nv">or</span><span class="w"> </span><span class="nv">isinstance</span><span class="ss">(</span><span class="nv">b</span>,<span class="w"> </span><span class="nv">unicode</span><span class="ss">)</span>:
+<span class="w">    </span><span class="nv">do_something_else</span><span class="ss">()</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>To summarize the contents of other (already good!) answers, <code>isinstance</code>
+caters for inheritance (an instance of a derived class <em>is an</em> instance of a
+base class, too), while checking for equality of <code>type</code> does not (it demands
+identity of types and rejects instances of subtypes, AKA subclasses).</p>
+<p>Normally, in Python, you want your code to support inheritance, of course
+(since inheritance is so handy, it would be bad to stop code using yours from
+using it!), so <code>isinstance</code> is less bad than checking identity of <code>type</code>s
+because it seamlessly supports inheritance.</p>
+<p>It's not that <code>isinstance</code> is <em>good</em> , mind you—it's just <em>less bad</em> than
+checking equality of types. The normal, Pythonic, preferred solution is almost
+invariably "duck typing": try using the argument <em>as if</em> it was of a certain
+desired type, do it in a <code>try</code>/<code>except</code> statement catching all exceptions that
+could arise if the argument was not in fact of that type (or any other type
+nicely duck-mimicking it;-), and in the <code>except</code> clause, try something else
+(using the argument "as if" it was of some other type).</p>
+<p><code>basestring</code> <strong>is</strong> , however, quite a special case—a builtin type that exists
+<strong>only</strong> to let you use <code>isinstance</code> (both <code>str</code> and <code>unicode</code> subclass
+<code>basestring</code>). Strings are sequences (you could loop over them, index them,
+slice them, ...), but you generally want to treat them as "scalar" types—it's
+somewhat incovenient (but a reasonably frequent use case) to treat all kinds
+of strings (and maybe other scalar types, i.e., ones you can't loop on) one
+way, all containers (lists, sets, dicts, ...) in another way, and <code>basestring</code>
+plus <code>isinstance</code> helps you do that—the overall structure of this idiom is
+something like:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="nv">isinstance</span><span class="ss">(</span><span class="nv">x</span>,<span class="w"> </span><span class="nv">basestring</span><span class="ss">)</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nv">treatasscalar</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>
+<span class="nv">try</span>:
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nv">treatasiter</span><span class="ss">(</span><span class="nv">iter</span><span class="ss">(</span><span class="nv">x</span><span class="ss">))</span>
+<span class="nv">except</span><span class="w"> </span><span class="nv">TypeError</span>:
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nv">treatasscalar</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>
+</pre></div>
+
+<p>You could say that <code>basestring</code> is an <em>Abstract Base Class</em> ("ABC")—it offers
+no concrete functionality to subclasses, but rather exists as a "marker",
+mainly for use with <code>isinstance</code>. The concept is obviously a growing one in
+Python, since PEP 3119, which introduces a generalization of it, was accepted
+and has been implemented starting with Python 2.6 and 3.0.</p>
+<p>The PEP makes it clear that, while ABCs can often substitute for duck typing,
+there is generally no big pressure to do that (see here). ABCs as implemented
+in recent Python versions do however offer extra goodies: <code>isinstance</code> (and
+<code>issubclass</code>) can now mean more than just "[an instance of] a derived class"
+(in particular, any class can be "registered" with an ABC so that it will show
+as a subclass, and its instances as instances of the ABC); and ABCs can also
+offer extra convenience to actual subclasses in a very natural way via
+Template Method design pattern applications (see here and here [[part II]] for
+more on the TM DP, in general and specifically in Python, independent of
+ABCs).</p>
+<p>For the underlying mechanics of ABC support as offered in Python 2.6, see
+here; for their 3.1 version, very similar, see here. In both versions,
+standard library module collections (that's the 3.1 version—for the very
+similar 2.6 version, see here) offers several useful ABCs.</p>
+<p>For the purpose of this answer, the key thing to retain about ABCs (beyond an
+arguably more natural placement for TM DP functionality, compared to the
+classic Python alternative of mixin classes such as UserDict.DictMixin) is
+that they make <code>isinstance</code> (and <code>issubclass</code>) much more attractive and
+pervasive (in Python 2.6 and going forward) than they used to be (in 2.5 and
+before), and therefore, by contrast, make checking type equality an even worse
+practice in recent Python versions than it already used to be.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Here's an example where <code>isinstance</code> achieves something that <code>type</code> cannot:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Vehicle:</span>
+    <span class="nb">pass</span>
+
+<span class="k">class</span> <span class="n">Truck</span>(<span class="n">Vehicle</span>):
+    <span class="nb">pass</span>
+</pre></div>
+
+<p>in this case, a truck object is a Vehicle, but you'll get this:</p>
+<div class="code"><pre class="code literal-block">isinstance(Vehicle(), Vehicle)  # returns True
+type(Vehicle()) == Vehicle      # returns True
+isinstance(Truck(), Vehicle)    # returns True
+type(Truck()) == Vehicle        # returns False, and this probably won't be what you want.
+</pre></div>
+
+<p>In other words, <code>isinstance</code> is true for subclasses, too.</p>
+<p>Also see: How to compare type of an object in Python?</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/echo-that-outputs-to-stderr/" class="u-url">echo that outputs to stderr</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -193,54 +301,6 @@ url.parse it manually:</p>
 <span class="k">var</span><span class="w"> </span><span class="n">url_parts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">url</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">url</span><span class="p">,</span><span class="w"> </span><span class="bp">true</span><span class="p">);</span>
 <span class="k">var</span><span class="w"> </span><span class="n">query</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">url_parts</span><span class="o">.</span><span class="n">query</span><span class="p">;</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-pass-data-between-activities-in-android-application/" class="u-url">How do I pass data between Activities in Android application?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-pass-data-between-activities-in-android-application/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T01:44:59+08:00" itemprop="datePublished" title="2023-02-17 01:44">2023-02-17 01:44</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a scenario where, after logging in through a login page, there will be
-a sign-out <code>button</code> on each <code>activity</code>.</p>
-<p>On clicking <code>sign-out</code>, I will be passing the <code>session id</code> of the signed in
-user to sign-out. Can anyone guide me on how to keep <code>session id</code> available to
-all <code>activities</code>?</p>
-<p>Any alternative to this case</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The easiest way to do this would be to pass the session id to the signout
-activity in the <code>Intent</code> you're using to start the activity:</p>
-<div class="code"><pre class="code literal-block">Intent intent = new Intent(getBaseContext(), SignoutActivity.class);
-intent.putExtra("EXTRA_SESSION_ID", sessionId);
-startActivity(intent);
-</pre></div>
-
-<p>Access that intent on the next activity:</p>
-<div class="code"><pre class="code literal-block">String sessionId = getIntent().getStringExtra("EXTRA_SESSION_ID");
-</pre></div>
-
-<p>The docs for Intents has more information (look at the section titled
-"Extras").</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>The easiest way to do this would be to pass the session id to the signout
-activity in the <code>Intent</code> you're using to start the activity:</p>
-<div class="code"><pre class="code literal-block">Intent intent = new Intent(getBaseContext(), SignoutActivity.class);
-intent.putExtra("EXTRA_SESSION_ID", sessionId);
-startActivity(intent);
-</pre></div>
-
-<p>Access that intent on the next activity:</p>
-<div class="code"><pre class="code literal-block">String sessionId = getIntent().getStringExtra("EXTRA_SESSION_ID");
-</pre></div>
-
-<p>The docs for Intents has more information (look at the section titled
-"Extras").</p>
     </div>
     </article>
 </div>

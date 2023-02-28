@@ -108,7 +108,93 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-compare-strings-in-java/" class="u-url">How do I compare strings in Java?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-i-set-an-unlimited-length-for-maxjsonlength-in-web-config/" class="u-url">Can I set an unlimited length for maxJsonLength in web.config?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/can-i-set-an-unlimited-length-for-maxjsonlength-in-web-config/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T16:33:06+08:00" itemprop="datePublished" title="2023-02-17 16:33">2023-02-17 16:33</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I am using the autocomplete feature of jQuery. When I try to retrieve the list
+of more then 17000 records (each won't have more than 10 char length), it's
+exceeding the length and throws the error:</p>
+<blockquote>
+<p>Exception information:<br>
+ Exception type: InvalidOperationException<br>
+ Exception message: Error during serialization or deserialization using the
+JSON JavaScriptSerializer. The length of the string exceeds the value set on
+the maxJsonLength property.</p>
+</blockquote>
+<p>Can I set an unlimited length for <code>maxJsonLength</code> in <code>web.config</code>? If not,
+what is the maximum length I can set?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>NOTE:</strong> this answer applies only to Web services, if you are returning JSON
+from a Controller method, make sure you read this SO answer below as well:
+https://stackoverflow.com/a/7207539/1246870</p>
+<hr>
+<p>The MaxJsonLength property cannot be unlimited, is an integer property that
+defaults to 102400 (100k).</p>
+<p>You can set the <code>MaxJsonLength</code> property on your web.config:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;configuration&gt;</span><span class="w"> </span>
+<span class="w">   </span><span class="nt">&lt;system.web.extensions&gt;</span>
+<span class="w">       </span><span class="nt">&lt;scripting&gt;</span>
+<span class="w">           </span><span class="nt">&lt;webServices&gt;</span>
+<span class="w">               </span><span class="nt">&lt;jsonSerialization</span><span class="w"> </span><span class="na">maxJsonLength=</span><span class="s">"50000000"</span><span class="nt">/&gt;</span>
+<span class="w">           </span><span class="nt">&lt;/webServices&gt;</span>
+<span class="w">       </span><span class="nt">&lt;/scripting&gt;</span>
+<span class="w">   </span><span class="nt">&lt;/system.web.extensions&gt;</span>
+<span class="nt">&lt;/configuration&gt;</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>If you are using MVC <strong>4</strong> , be sure to check out <em>this answer</em> as well.</p>
+<hr>
+<p>If you are still receiving the error:</p>
+<ul>
+<li>after setting the <code>maxJsonLength</code> property to its maximum value in web.config</li>
+<li>and you know that your data's length is less than this value</li>
+<li>and you are not utilizing a web service method for the JavaScript serialization</li>
+</ul>
+<p>your problem is is likely that:</p>
+<blockquote>
+<p>The value of the MaxJsonLength property applies only to the internal
+JavaScriptSerializer instance that is used by the asynchronous communication
+layer to invoke Web services methods. <em>(MSDN:
+ScriptingJsonSerializationSection.MaxJsonLength Property)</em></p>
+</blockquote>
+<p>Basically, the "internal" <code>JavaScriptSerializer</code> respects the value of
+<code>maxJsonLength</code> when called from a web method; direct use of a
+<code>JavaScriptSerializer</code> (or use via an MVC action-method/Controller) does
+<strong>not</strong> respect the <code>maxJsonLength</code> property, at least not from the
+<code>systemWebExtensions.scripting.webServices.jsonSerialization</code> section of
+web.config. In particular, the <code>Controller.Json()</code> method <strong>does not</strong> respect
+the configuration setting!</p>
+<p>As a workaround, you can do the following within your Controller (or anywhere
+really):</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">serializer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">JavaScriptSerializer</span><span class="p">();</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">For</span><span class="w"> </span><span class="n">simplicity</span><span class="w"> </span><span class="n">just</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="n">Int32</span><span class="s1">'s max value.</span>
+<span class="o">//</span><span class="w"> </span><span class="n">You</span><span class="w"> </span><span class="n">could</span><span class="w"> </span><span class="n">always</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="n">section</span><span class="w"> </span><span class="n">mentioned</span><span class="w"> </span><span class="n">above</span><span class="o">.</span>
+<span class="n">serializer</span><span class="o">.</span><span class="n">MaxJsonLength</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Int32</span><span class="o">.</span><span class="n">MaxValue</span><span class="p">;</span>
+
+<span class="k">var</span><span class="w"> </span><span class="n">resultData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"foo"</span><span class="p">,</span><span class="w"> </span><span class="n">Text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"var"</span><span class="w"> </span><span class="p">};</span>
+<span class="k">var</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ContentResult</span><span class="p">{</span>
+<span class="w">    </span><span class="n">Content</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">serializer</span><span class="o">.</span><span class="n">Serialize</span><span class="p">(</span><span class="n">resultData</span><span class="p">),</span>
+<span class="w">    </span><span class="n">ContentType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"application/json"</span>
+<span class="p">};</span>
+<span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+</pre></div>
+
+<hr>
+<p><em>This answer is my interpretation of this asp.net forum answer.</em></p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-compare-strings-in-java/" class="u-url">How do I compare strings in Java?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -301,73 +387,6 @@ script (since links keep on dying)</p>
 
 <p>Also check em out  </p>
 <p>Mͣͭͣ̾ Vͣͥͭ͛ͤͮͥͨͥͧ̾</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-runtime-performance-cost-of-a-docker-container/" class="u-url">What is the runtime performance cost of a Docker container?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-is-the-runtime-performance-cost-of-a-docker-container/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T16:31:06+08:00" itemprop="datePublished" title="2023-02-17 16:31">2023-02-17 16:31</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'd like to comprehensively understand the run-time performance cost of a
-Docker container. I've found references to networking anecdotally being ~100µs
-slower.</p>
-<p>I've also found references to the run-time cost being "negligible" and "close
-to zero" but I'd like to know more precisely what those costs are. Ideally I'd
-like to know what Docker is abstracting with a performance cost and things
-that are abstracted without a performance cost. Networking, CPU, memory, etc.</p>
-<p>Furthermore, if there are abstraction costs, are there ways to get around the
-abstraction cost. For example, perhaps I can mount a disk directly vs.
-virtually in Docker.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>An excellent 2014 IBM research paper “An Updated Performance Comparison of
-Virtual Machines and Linux Containers” by Felter et al. provides a comparison
-between bare metal, KVM, and Docker containers. The general result is:
-<strong>Docker is nearly identical to native performance and faster than KVM in
-every category.</strong></p>
-<p>The exception to this is Docker’s NAT — if you use port mapping (e.g., <code>docker
-run -p 8080:8080</code>), then you can expect a minor hit in latency, as shown
-below. However, you can now use the host network stack (e.g., <code>docker run
---net=host</code>) when launching a Docker container, which will perform identically
-to the Native column (as shown in the Redis latency results lower down).</p>
-<p><img alt="Docker NAT overhead" src="images/4yRh1m.png"></p>
-<p>They also ran latency tests on a few specific services, such as Redis. You can
-see that above 20 client threads, highest latency overhead goes Docker NAT,
-then KVM, then a rough tie between Docker host/native.</p>
-<p><img alt="Docker Redis Latency Overhead" src="images/9RH9lm.png"></p>
-<p>Just because it’s a really useful paper, here are some other figures. Please
-download it for full access.</p>
-<p>Taking a look at Disk I/O:</p>
-<p><img alt="Docker vs. KVM vs. Native I/O Performance" src="images/2Ftytm.png"></p>
-<p>Now looking at CPU overhead:</p>
-<p><img alt="Docker CPU Overhead" src="images/wZZH6m.png"></p>
-<p>Now some examples of memory (read the paper for details, memory can be extra
-tricky):</p>
-<p><img alt="Docker Memory Comparison" src="images/aHPVkm.png"></p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Docker isn't virtualization, as such -- instead, it's an abstraction on top of
-the kernel's support for different process namespaces, device namespaces,
-etc.; one namespace isn't inherently more expensive or inefficient than
-another, so what actually makes Docker have a performance impact is a matter
-of what's actually <em>in</em> those namespaces.</p>
-<hr>
-<p>Docker's choices in terms of how it configures namespaces for its containers
-have costs, but those costs are all directly associated with benefits -- you
-can give them up, but in doing so you also give up the associated benefit:</p>
-<ul>
-<li>Layered filesystems are expensive -- exactly what the costs are vary with each one (and Docker supports multiple backends), and with your usage patterns (merging multiple large directories, or merging a very deep set of filesystems will be particularly expensive), but they're not free. On the other hand, a great deal of Docker's functionality -- being able to build guests off other guests in a copy-on-write manner, and getting the storage advantages implicit in same -- ride on paying this cost.</li>
-<li>DNAT gets expensive at scale -- but gives you the benefit of being able to configure your guest's networking independently of your host's and have a convenient interface for forwarding only the ports you want between them. You can replace this with a bridge to a physical interface, but again, lose the benefit.</li>
-<li>Being able to run each software stack with its dependencies installed in the most convenient manner -- independent of the host's distro, libc, and other library versions -- is a great benefit, but needing to load shared libraries more than once (when their versions differ) has the cost you'd expect.</li>
-</ul>
-<p>And so forth. How much these costs actually impact you in your environment --
-with your network access patterns, your memory constraints, etc -- is an item
-for which it's difficult to provide a generic answer.</p>
     </div>
     </article>
 </div>

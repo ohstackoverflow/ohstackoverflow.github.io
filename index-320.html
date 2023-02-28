@@ -108,7 +108,89 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/call-one-constructor-from-another/" class="u-url">Call one constructor from another</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/git-push-rejected-after-feature-branch-rebase/" class="u-url">Git push rejected after feature branch rebase</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/git-push-rejected-after-feature-branch-rebase/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:53:00+08:00" itemprop="datePublished" title="2023-02-17 03:53">2023-02-17 03:53</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>OK, I thought this was a simple git scenario, what am I missing?</p>
+<p>I have a <code>master</code> branch and a <code>feature</code> branch. I do some work on <code>master</code>,
+some on <code>feature</code>, and then some more on <code>master</code>. I end up with something
+like this (lexicographic order implies the order of commits):</p>
+<div class="code"><pre class="code literal-block">A--B--C------F--G  (master)
+       \    
+        D--E  (feature)
+</pre></div>
+
+<p>I have no problem to <code>git push origin master</code> to keep the remote <code>master</code>
+updated, nor with <code>git push origin feature</code> (when on <code>feature</code>) to maintain a
+remote backup for my <code>feature</code> work. Up until now, we're good.</p>
+<p>But now I want to rebase <code>feature</code> on top of the <code>F--G</code> commits on master, so
+I <code>git checkout feature</code> and <code>git rebase master</code>. Still good. Now we have:</p>
+<div class="code"><pre class="code literal-block">A--B--C------F--G  (master)
+                 \
+                  D'--E'  (feature)
+</pre></div>
+
+<p><strong>Problem:</strong> the moment I want to backup the new rebased <code>feature</code> branched
+with <code>git push origin feature</code>, <strong>the push is rejected</strong> since the tree has
+changed due to the rebasing. This can only be solved with <code>git push --force
+origin feature</code>.</p>
+<p>I hate using <code>--force</code> without being sure I need it. So, do I need it? Does
+the rebasing <em>necessarily</em> imply that the next <code>push</code> should be <code>--force</code>ful?</p>
+<p>This feature branch is not shared with any other devs, so I have no problem
+<em>de facto</em> with the force push, I'm not going to lose any data, the question
+is more conceptual.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The problem is that <code>git push</code> assumes that remote branch can be fast-
+forwarded to your local branch, that is that all the difference between local
+and remote branches is in local having some new commits at the end like that:</p>
+<div class="code"><pre class="code literal-block"><span class="n">Z</span><span class="o">--</span><span class="n">X</span><span class="o">--</span><span class="n">R</span><span class="w">         </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">origin</span><span class="o">/</span><span class="n">some</span><span class="o">-</span><span class="nf">branch </span><span class="p">(</span><span class="n">can</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">fast</span><span class="o">-</span><span class="n">forwarded</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">Y</span><span class="w"> </span><span class="n">commit</span><span class="p">)</span>
+<span class="w">       </span>\<span class="w">        </span>
+<span class="w">        </span><span class="bp">T</span><span class="o">--</span><span class="n">Y</span><span class="w">    </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">some</span><span class="o">-</span><span class="n">branch</span>
+</pre></div>
+
+<p>When you perform <code>git rebase</code> commits D and E are applied to new base and new
+commits are created. That means after rebase you have something like that:</p>
+<div class="code"><pre class="code literal-block"><span class="n">A</span><span class="o">--</span><span class="n">B</span><span class="o">--</span><span class="n">C</span><span class="o">------</span><span class="bp">F</span><span class="o">--</span><span class="n">G</span><span class="o">--</span><span class="n">D</span><span class="s">'--E'</span><span class="w">   </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">feature</span><span class="o">-</span><span class="n">branch</span>
+<span class="w">       </span>\<span class="w">  </span>
+<span class="w">        </span><span class="n">D</span><span class="o">--</span><span class="n">E</span><span class="w">                </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">origin</span><span class="o">/</span><span class="n">feature</span><span class="o">-</span><span class="n">branch</span>
+</pre></div>
+
+<p>In that situation remote branch can't be fast-forwarded to local. Though,
+theoretically local branch can be merged into remote (obviously you don't need
+it in that case), but as <code>git push</code> performs only fast-forward merges it
+throws and error.</p>
+<p>And what <code>--force</code> option does is just ignoring state of remote branch and
+setting it to the commit you're pushing into it. So <code>git push --force origin
+feature-branch</code> simply overrides <code>origin/feature-branch</code> with local <code>feature-
+branch</code>.</p>
+<p>In my opinion, rebasing feature branches on <code>master</code> and force-pushing them
+back to remote repository is OK as long as you're the only one who works on
+that branch.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Instead of using <code>-f</code> or <code>--force</code> developers should use</p>
+<div class="code"><pre class="code literal-block">--force-with-lease
+</pre></div>
+
+<p>Why? Because it checks the remote branch for changes which is absolutely a
+good idea. Let's imagine that James and Lisa are working on the same feature
+branch and Lisa has pushed a commit. James now rebases his local branch and is
+rejected when trying to push. Of course James thinks this is due to rebase and
+uses <code>--force</code> and would rewrite all Lisa's changes. If James had used
+<code>--force-with-lease</code> he would have received a warning that there are commits
+done by someone else. I don't see why anyone would use <code>--force</code> instead of
+<code>--force-with-lease</code> when pushing after a rebase.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/call-one-constructor-from-another/" class="u-url">Call one constructor from another</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -225,221 +307,6 @@ instead if you pass it a unicode:</p>
 <div class="code"><pre class="code literal-block">&gt;&gt;&gt; ord(u'あ')
 12354
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-s-the-difference-between-utf8-general-ci-and-utf8-unicode-ci/" class="u-url">What's the difference between utf8_general_ci and utf8_unicode_ci?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-s-the-difference-between-utf8-general-ci-and-utf8-unicode-ci/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T03:51:45+08:00" itemprop="datePublished" title="2023-02-17 03:51">2023-02-17 03:51</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Between <code>utf8_general_ci</code> and <code>utf8_unicode_ci</code>, are there any differences in
-terms of performance?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><strong>For those people still arriving at this question in 2020 or later, there are
-newer options that may be better than <em>both</em> of these. For example,
-<code>utf8_unicode_520_ci</code>.</strong></p>
-<p>All these collations are for the UTF-8 character encoding. The differences are
-in how text is sorted and compared.</p>
-<p><code>_unicode_ci</code> and <code>_general_ci</code> are two different sets of rules for sorting
-and comparing text according to the way we expect. Newer versions of MySQL
-introduce new sets of rules, too, such as <code>_unicode_520_ci</code> for equivalent
-rules based on Unicode 5.2, or the MySQL 8.x specific <code>_0900_ai_ci</code> for
-equivalent rules based on Unicode 9.0 (and with no equivalent <code>_general_ci</code>
-variant). People reading this now should probably use one of these newer
-collations instead of either <code>_unicode_ci</code> or <code>_general_ci</code>. The description
-of those older collations below is provided for interest only.</p>
-<p><em>MySQL is currently transitioning away from an older, flawed UTF-8
-implementation. For now, you need to use<code>utf8mb4</code> instead of <code>utf8</code> for the
-character encoding part, to ensure you are getting the fixed version. The
-flawed version remains for backward compatibility, though it is being
-deprecated.</em></p>
-<p><strong>Key differences</strong></p>
-<ul>
-<li>
-<p><code>utf8mb4_unicode_ci</code> is based on the official Unicode rules for universal sorting and comparison, which sorts accurately in a wide range of languages.</p>
-</li>
-<li>
-<p><code>utf8mb4_general_ci</code> is a simplified set of sorting rules which aims to do as well as it can while taking many short-cuts designed to improve speed. It does not follow the Unicode rules and will result in undesirable sorting or comparison in some situations, such as when using particular languages or characters.</p>
-</li>
-</ul>
-<p>On modern servers, this performance boost will be all but negligible. It was
-devised in a time when servers had a tiny fraction of the CPU performance of
-today's computers.</p>
-<p><strong>Benefits of<code>utf8mb4_unicode_ci</code> over <code>utf8mb4_general_ci</code></strong></p>
-<p><code>utf8mb4_unicode_ci</code>, which uses the Unicode rules for sorting and comparison,
-employs a fairly complex algorithm for correct sorting in a wide range of
-languages and when using a wide range of special characters. These rules need
-to take into account language-specific conventions; not everybody sorts their
-characters in what we would call 'alphabetical order'.</p>
-<p>As far as Latin (ie "European") languages go, there is not much difference
-between the Unicode sorting and the simplified <code>utf8mb4_general_ci</code> sorting in
-MySQL, but there are still a few differences:</p>
-<ul>
-<li>
-<p>For examples, the Unicode collation sorts "ß" like "ss", and "Œ" like "OE" as people using those characters would normally want, whereas <code>utf8mb4_general_ci</code> sorts them as single characters (presumably like "s" and "e" respectively).</p>
-</li>
-<li>
-<p>Some Unicode characters are defined as ignorable, which means they shouldn't count toward the sort order and the comparison should move on to the next character instead. <code>utf8mb4_unicode_ci</code> handles these properly.</p>
-</li>
-</ul>
-<p>In non-latin languages, such as Asian languages or languages with different
-alphabets, there may be a lot <em>more</em> differences between Unicode sorting and
-the simplified <code>utf8mb4_general_ci</code> sorting. The suitability of
-<code>utf8mb4_general_ci</code> will depend heavily on the language used. For some
-languages, it'll be quite inadequate.</p>
-<p><strong>What should you use?</strong></p>
-<p>There is almost certainly no reason to use <code>utf8mb4_general_ci</code> anymore, as we
-have left behind the point where CPU speed is low enough that the performance
-difference would be important. Your database will almost certainly be limited
-by other bottlenecks than this.</p>
-<p>In the past, some people recommended to use <code>utf8mb4_general_ci</code> except when
-accurate sorting was going to be important enough to justify the performance
-cost. Today, that performance cost has all but disappeared, and developers are
-treating internationalization more seriously.</p>
-<p>There's an argument to be made that if speed is more important to you than
-accuracy, you may as well not do any sorting at all. It's trivial to make an
-algorithm faster if you do not need it to be accurate. So,
-<code>utf8mb4_general_ci</code> is a compromise that's probably not needed for speed
-reasons and probably also not suitable for accuracy reasons.</p>
-<p>One other thing I'll add is that even if you know your application only
-supports the English language, it may still need to deal with people's names,
-which can often contain characters used in other languages in which it is just
-as important to sort correctly. Using the Unicode rules for everything helps
-add peace of mind that the very smart Unicode people have worked very hard to
-make sorting work properly.</p>
-<p><strong>What the parts mean</strong></p>
-<p>Firstly, <code>ci</code> is for <em>case-insensitive</em> sorting and comparison. This means
-it's suitable for textual data, and case is not important. The other types of
-collation are <code>cs</code> (case-sensitive) for textual data where case is important,
-and <code>bin</code>, for where the encoding needs to match, bit for bit, which is
-suitable for fields which are really encoded binary data (including, for
-example, Base64). Case-sensitive sorting leads to some weird results and case-
-sensitive comparison can result in duplicate values differing only in letter
-case, so case-sensitive collations are falling out of favor for textual data -
-if case is significant to you, then otherwise ignorable punctuation and so on
-is probably also significant, and a binary collation might be more
-appropriate.</p>
-<p>Next, <code>unicode</code> or <code>general</code> refers to the specific sorting and comparison
-rules - in particular, the way text is normalized or compared. There are many
-different sets of rules for the utf8mb4 character encoding, with <code>unicode</code> and
-<code>general</code> being two that attempt to work well in all possible languages rather
-than one specific one. The differences between these two sets of rules are the
-subject of this answer. Note that <code>unicode</code> uses rules from Unicode 4.0.
-Recent versions of MySQL and MariaDB add the rulesets <code>unicode_520</code> using
-rules from Unicode 5.2, and MySQL 8.x adds <code>0900</code> (dropping the "unicode_"
-part) using rules from Unicode 9.0.</p>
-<p>And lastly, <code>utf8mb4</code> is of course the character encoding used internally. In
-this answer I'm talking only about Unicode based encodings.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I wanted to know what is the performance difference between using
-<code>utf8_general_ci</code> and <code>utf8_unicode_ci</code>, but I did not find any benchmarks
-listed on the internet, so I decided to create benchmarks myself.</p>
-<p>I created a very simple table with 500,000 rows:</p>
-<div class="code"><pre class="code literal-block">CREATE TABLE test(
-  ID INT(11) DEFAULT NULL,
-  Description VARCHAR(20) DEFAULT NULL
-)
-ENGINE = INNODB
-CHARACTER SET utf8
-COLLATE utf8_general_ci;
-</pre></div>
-
-<p>Then I filled it with random data by running this stored procedure:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">CREATE</span><span class="w"> </span><span class="nt">PROCEDURE</span><span class="w"> </span><span class="nt">randomizer</span><span class="o">()</span>
-<span class="nt">BEGIN</span>
-<span class="w">  </span><span class="nt">DECLARE</span><span class="w"> </span><span class="nt">i</span><span class="w"> </span><span class="nt">INT</span><span class="w"> </span><span class="nt">DEFAULT</span><span class="w"> </span><span class="nt">0</span><span class="o">;</span>
-<span class="w">  </span><span class="nt">DECLARE</span><span class="w"> </span><span class="nt">random</span><span class="w"> </span><span class="nt">CHAR</span><span class="o">(</span><span class="nt">20</span><span class="o">)</span><span class="w"> </span><span class="o">;</span>
-<span class="w">  </span><span class="nt">theloop</span><span class="o">:</span><span class="w"> </span><span class="nt">loop</span>
-<span class="w">    </span><span class="nt">SET</span><span class="w"> </span><span class="nt">random</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">CONV</span><span class="o">(</span><span class="nt">FLOOR</span><span class="o">(</span><span class="nt">RAND</span><span class="o">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nt">99999999999999</span><span class="o">),</span><span class="w"> </span><span class="nt">20</span><span class="o">,</span><span class="w"> </span><span class="nt">36</span><span class="o">);</span>
-<span class="w">    </span><span class="nt">INSERT</span><span class="w"> </span><span class="nt">INTO</span><span class="w"> </span><span class="nt">test</span><span class="w"> </span><span class="nt">VALUES</span><span class="w"> </span><span class="o">(</span><span class="nt">i</span><span class="o">+</span><span class="nt">1</span><span class="o">,</span><span class="w"> </span><span class="nt">random</span><span class="o">);</span>
-<span class="w">    </span><span class="nt">SET</span><span class="w"> </span><span class="nt">i</span><span class="o">=</span><span class="nt">i</span><span class="o">+</span><span class="nt">1</span><span class="o">;</span>
-<span class="w">    </span><span class="nt">IF</span><span class="w"> </span><span class="nt">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">500000</span><span class="w"> </span><span class="nt">THEN</span>
-<span class="w">      </span><span class="nt">LEAVE</span><span class="w"> </span><span class="nt">theloop</span><span class="o">;</span>
-<span class="w">    </span><span class="nt">END</span><span class="w"> </span><span class="nt">IF</span><span class="o">;</span>
-<span class="w">  </span><span class="nt">END</span><span class="w"> </span><span class="nt">LOOP</span><span class="w"> </span><span class="nt">theloop</span><span class="o">;</span>
-<span class="nt">END</span>
-</pre></div>
-
-<p>Then I created the following stored procedures to benchmark simple <code>SELECT</code>,
-<code>SELECT</code> with <code>LIKE</code>, and sorting (<code>SELECT</code> with <code>ORDER BY</code>):</p>
-<div class="code"><pre class="code literal-block">CREATE<span class="w"> </span>PROCEDURE<span class="w"> </span>benchmark_simple_select()
-BEGIN
-<span class="w">  </span>DECLARE<span class="w"> </span>i<span class="w"> </span>INT<span class="w"> </span>DEFAULT<span class="w"> </span><span class="m">0</span>;
-<span class="w">  </span>theloop:<span class="w"> </span>loop
-<span class="w">    </span>SELECT<span class="w"> </span>*
-<span class="w">    </span>FROM<span class="w"> </span>test
-<span class="w">    </span>WHERE<span class="w"> </span>Description<span class="w"> </span>=<span class="w"> </span>'test'<span class="w"> </span>COLLATE<span class="w"> </span>utf8_general_ci;
-<span class="w">    </span>SET<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span>i<span class="w"> </span>+<span class="w"> </span><span class="m">1</span>;
-<span class="w">    </span>IF<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span><span class="m">30</span><span class="w"> </span>THEN
-<span class="w">      </span>LEAVE<span class="w"> </span>theloop;
-<span class="w">    </span>END<span class="w"> </span>IF;
-<span class="w">  </span>END<span class="w"> </span>LOOP<span class="w"> </span>theloop;
-END;
-
-CREATE<span class="w"> </span>PROCEDURE<span class="w"> </span>benchmark_select_like()
-BEGIN
-<span class="w">  </span>DECLARE<span class="w"> </span>i<span class="w"> </span>INT<span class="w"> </span>DEFAULT<span class="w"> </span><span class="m">0</span>;
-<span class="w">  </span>theloop:<span class="w"> </span>loop
-<span class="w">    </span>SELECT<span class="w"> </span>*
-<span class="w">    </span>FROM<span class="w"> </span>test
-<span class="w">    </span>WHERE<span class="w"> </span>Description<span class="w"> </span>LIKE<span class="w"> </span>'%test'<span class="w"> </span>COLLATE<span class="w"> </span>utf8_general_ci;
-<span class="w">    </span>SET<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span>i<span class="w"> </span>+<span class="w"> </span><span class="m">1</span>;
-<span class="w">    </span>IF<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span><span class="m">30</span><span class="w"> </span>THEN
-<span class="w">      </span>LEAVE<span class="w"> </span>theloop;
-<span class="w">    </span>END<span class="w"> </span>IF;
-<span class="w">  </span>END<span class="w"> </span>LOOP<span class="w"> </span>theloop;
-END;
-
-CREATE<span class="w"> </span>PROCEDURE<span class="w"> </span>benchmark_order_by()
-BEGIN
-<span class="w">  </span>DECLARE<span class="w"> </span>i<span class="w"> </span>INT<span class="w"> </span>DEFAULT<span class="w"> </span><span class="m">0</span>;
-<span class="w">  </span>theloop:<span class="w"> </span>loop
-<span class="w">    </span>SELECT<span class="w"> </span>*
-<span class="w">    </span>FROM<span class="w"> </span>test
-<span class="w">    </span>WHERE<span class="w"> </span>ID<span class="w"> </span>&gt;<span class="w"> </span>FLOOR(<span class="m">1</span><span class="w"> </span>+<span class="w"> </span>RAND()<span class="w"> </span>*<span class="w"> </span>(<span class="m">400000</span><span class="w"> </span>-<span class="w"> </span><span class="m">1</span>))
-<span class="w">    </span>ORDER<span class="w"> </span>BY<span class="w"> </span>Description<span class="w"> </span>COLLATE<span class="w"> </span>utf8_general_ci<span class="w"> </span>LIMIT<span class="w"> </span><span class="m">1000</span>;
-<span class="w">    </span>SET<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span>i<span class="w"> </span>+<span class="w"> </span><span class="m">1</span>;
-<span class="w">    </span>IF<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span><span class="m">10</span><span class="w"> </span>THEN
-<span class="w">      </span>LEAVE<span class="w"> </span>theloop;
-<span class="w">    </span>END<span class="w"> </span>IF;
-<span class="w">  </span>END<span class="w"> </span>LOOP<span class="w"> </span>theloop;
-END;
-</pre></div>
-
-<p>In the stored procedures above <code>utf8_general_ci</code> collation is used, but of
-course during the tests I used both <code>utf8_general_ci</code> and <code>utf8_unicode_ci</code>.</p>
-<p>I called each stored procedure 5 times for each collation (5 times for
-<code>utf8_general_ci</code> and 5 times for <code>utf8_unicode_ci</code>) and then calculated the
-average values.</p>
-<p>My results are:</p>
-<p><strong><code>benchmark_simple_select()</code></strong></p>
-<ul>
-<li>with <code>utf8_general_ci</code>: 9,957 ms </li>
-<li>with <code>utf8_unicode_ci</code>: 10,271 ms </li>
-</ul>
-<p>In this benchmark using <code>utf8_unicode_ci</code> is slower than <code>utf8_general_ci</code> by
-3.2%.</p>
-<p><strong><code>benchmark_select_like()</code></strong></p>
-<ul>
-<li>with <code>utf8_general_ci</code>: 11,441 ms </li>
-<li>with <code>utf8_unicode_ci</code>: 12,811 ms </li>
-</ul>
-<p>In this benchmark using <code>utf8_unicode_ci</code> is slower than <code>utf8_general_ci</code> by
-12%.</p>
-<p><strong><code>benchmark_order_by()</code></strong></p>
-<ul>
-<li>with <code>utf8_general_ci</code>: 11,944 ms </li>
-<li>with <code>utf8_unicode_ci</code>: 12,887 ms </li>
-</ul>
-<p>In this benchmark using <code>utf8_unicode_ci</code> is slower than <code>utf8_general_ci</code> by
-7.9%.</p>
     </div>
     </article>
 </div>

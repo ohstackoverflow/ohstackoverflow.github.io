@@ -108,7 +108,68 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/try-catch-speeding-up-my-code/" class="u-url">Try-catch speeding up my code?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/get-size-of-all-tables-in-database/" class="u-url">Get size of all tables in database</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/get-size-of-all-tables-in-database/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:12:40+08:00" itemprop="datePublished" title="2023-02-17 01:12">2023-02-17 01:12</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have inherited a fairly large SQL Server database. It seems to take up more
+space than I would expect, given the data it contains.</p>
+<p>Is there an easy way to determine how much space on disk each table is
+consuming?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<div class="code"><pre class="code literal-block">SELECT 
+    t.NAME AS TableName,
+    s.Name AS SchemaName,
+    p.rows,
+    SUM(a.total_pages) * 8 AS TotalSpaceKB, 
+    CAST(ROUND(((SUM(a.total_pages) * 8) / 1024.00), 2) AS NUMERIC(36, 2)) AS TotalSpaceMB,
+    SUM(a.used_pages) * 8 AS UsedSpaceKB, 
+    CAST(ROUND(((SUM(a.used_pages) * 8) / 1024.00), 2) AS NUMERIC(36, 2)) AS UsedSpaceMB, 
+    (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS UnusedSpaceKB,
+    CAST(ROUND(((SUM(a.total_pages) - SUM(a.used_pages)) * 8) / 1024.00, 2) AS NUMERIC(36, 2)) AS UnusedSpaceMB
+FROM 
+    sys.tables t
+INNER JOIN      
+    sys.indexes i ON t.OBJECT_ID = i.object_id
+INNER JOIN 
+    sys.partitions p ON i.object_id = p.OBJECT_ID AND i.index_id = p.index_id
+INNER JOIN 
+    sys.allocation_units a ON p.partition_id = a.container_id
+LEFT OUTER JOIN 
+    sys.schemas s ON t.schema_id = s.schema_id
+WHERE 
+    t.NAME NOT LIKE 'dt%' 
+    AND t.is_ms_shipped = 0
+    AND i.OBJECT_ID &gt; 255 
+GROUP BY 
+    t.Name, s.Name, p.Rows
+ORDER BY 
+    TotalSpaceMB DESC, t.Name
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>If you are using <strong>SQL Server Management Studio</strong> (SSMS), instead of running a
+query ( <em>which in my case returned duplicate rows</em> ) you can run a <strong>standard
+report</strong>.</p>
+<ol>
+<li>Right click on the database</li>
+<li>Navigate to <strong>Reports &gt; Standard Reports &gt; Disk Usage By Table</strong>
+</li>
+</ol>
+<p>Note: The database compatibility level must be set to 90 or above for this to
+work correctly. See http://msdn.microsoft.com/en-gb/library/bb510680.aspx</p>
+<p>Note: This report isn't available when working with and Azure SQL database</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/try-catch-speeding-up-my-code/" class="u-url">Try-catch speeding up my code?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -487,67 +548,6 @@ The solution from this answer</p>
 <span class="w">    </span><span class="nt">&lt;/base-config&gt;</span>
 <span class="nt">&lt;/network-security-config&gt;</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-revert-a-merge-commit-that-has-already-been-pushed-to-remote/" class="u-url">How do I revert a merge commit that has already been pushed to remote?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-revert-a-merge-commit-that-has-already-been-pushed-to-remote/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T01:11:08+08:00" itemprop="datePublished" title="2023-02-17 01:11">2023-02-17 01:11</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p><code>git revert &lt;commit_hash&gt;</code> alone won't work. Apparently, <code>-m</code> must be
-specified.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>In <code>git revert -m</code>, the <code>-m</code> option specifies the <strong>parent number</strong>. This is
-needed because a merge commit has more than one parent, and Git does not know
-automatically which parent was the mainline, and which parent was the branch
-you want to un-merge.</p>
-<p>When you view a merge commit in the output of <code>git log</code>, you will see its
-parents listed on the line that begins with <code>Merge</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="k">commit</span><span class="w"> </span><span class="mi">8</span><span class="n">f937c683929b08379097828c8a04350b9b8e183</span>
-<span class="k">Merge</span><span class="err">:</span><span class="w"> </span><span class="mi">8989</span><span class="n">ee0</span><span class="w"> </span><span class="mi">7</span><span class="n">c6b236</span>
-<span class="nl">Author</span><span class="p">:</span><span class="w"> </span><span class="n">Ben</span><span class="w"> </span><span class="n">James</span><span class="w"> </span><span class="o">&lt;</span><span class="n">ben</span><span class="nv">@example</span><span class="p">.</span><span class="n">com</span><span class="o">&gt;</span>
-<span class="nc">Date</span><span class="err">:</span><span class="w">   </span><span class="n">Wed</span><span class="w"> </span><span class="n">Aug</span><span class="w"> </span><span class="mi">17</span><span class="w"> </span><span class="mi">22</span><span class="err">:</span><span class="mi">49</span><span class="err">:</span><span class="mi">41</span><span class="w"> </span><span class="mi">2011</span><span class="w"> </span><span class="o">+</span><span class="mi">0100</span>
-
-<span class="k">Merge</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="s1">'gh-pages'</span>
-
-<span class="nl">Conflicts</span><span class="p">:</span>
-<span class="w">    </span><span class="n">README</span>
-</pre></div>
-
-<p>In this situation, <code>git revert 8f937c6 -m 1</code> will get you the tree as it was
-in <code>8989ee0</code>, and <code>git revert -m 2</code> will reinstate the tree as it was in
-<code>7c6b236</code>.</p>
-<p>To better understand the parent IDs, you can run:</p>
-<div class="code"><pre class="code literal-block">git log 8989ee0
-</pre></div>
-
-<p>and</p>
-<div class="code"><pre class="code literal-block">git log 7c6b236
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Here's a complete example:</p>
-<div class="code"><pre class="code literal-block">git revert -m 1 &lt;commit-hash&gt; 
-git push -u origin master
-</pre></div>
-
-<p><code>git revert ...</code> commits your changes.</p>
-<ul>
-<li>
-<p><code>-m 1</code> indicates that you'd like to revert to the tree of the first parent prior to the merge, as stated by this answer.</p>
-</li>
-<li>
-<p><code>&lt;commit-hash&gt;</code> is the commit hash of the merge that you would like to revert.</p>
-</li>
-</ul>
-<p><code>git push ...</code> pushes your changes to the remote branch.</p>
     </div>
     </article>
 </div>

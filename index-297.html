@@ -108,7 +108,143 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/running-shell-command-and-capturing-the-output/" class="u-url">Running shell command and capturing the output</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-merge-two-commits-into-one-if-i-already-started-rebase/" class="u-url">How can I merge two commits into one if I already started rebase?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-can-i-merge-two-commits-into-one-if-i-already-started-rebase/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:18:38+08:00" itemprop="datePublished" title="2023-02-17 03:18">2023-02-17 03:18</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I am trying to merge 2 commits into 1, so I followed “squashing commits with
+rebase” from git ready.</p>
+<p>I ran</p>
+<div class="code"><pre class="code literal-block">git rebase --interactive HEAD~2
+</pre></div>
+
+<p>In the resulting editor, I change <code>pick</code> to <code>squash</code> and then save-quit, but
+the rebase fails with the error</p>
+<blockquote>
+<p>Cannot 'squash' without a previous commit</p>
+</blockquote>
+<p>Now that my work tree has reached this state, I’m having trouble recovering.</p>
+<p>The command <code>git rebase --interactive HEAD~2</code> fails with:</p>
+<blockquote>
+<p>Interactive rebase already started</p>
+</blockquote>
+<p>and <code>git rebase --continue</code> fails with</p>
+<blockquote>
+<p>Cannot 'squash' without a previous commit</p>
+</blockquote>
+<p><br><br></p>
+<h2>Answer</h2>
+<h4>Summary</h4>
+<p>The error message</p>
+<blockquote>
+<p>Cannot 'squash' without a previous commit</p>
+</blockquote>
+<p>means you likely attempted to “squash downward.” <strong>Git always squashes a newer
+commit into an older commit</strong> or “upward” as viewed on the interactive rebase
+todo list, that is into a commit on a previous line. Changing the command on
+your todo list’s very first line to <code>squash</code> will always produce this error as
+there is nothing for the first commit to squash into.</p>
+<h4>The Fix</h4>
+<p>First get back to where you started with</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>rebase<span class="w"> </span>--abort
+</pre></div>
+
+<p>Say your history is</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>log<span class="w"> </span>--pretty<span class="o">=</span>oneline
+a931ac7c808e2471b22b5bd20f0cad046b1c5d0d<span class="w"> </span>c
+b76d157d507e819d7511132bdb5a80dd421d854f<span class="w"> </span>b
+df239176e1a2ffac927d8b496ea00d5488481db5<span class="w"> </span>a
+</pre></div>
+
+<p>That is, a was the first commit, then b, and finally c. After committing c we
+decide to squash b and c together:</p>
+<p><em>(Note: Running<code>git log</code> pipes its output into a pager, <code>less</code> by default on
+most platforms. To quit the pager and return to your command prompt, press the
+<code>q</code> key.)</em></p>
+<p>Running <code>git rebase --interactive HEAD~2</code> gives you an editor with</p>
+<div class="code"><pre class="code literal-block"><span class="nv">pick</span><span class="w"> </span><span class="nv">b76d157</span><span class="w"> </span><span class="nv">b</span>
+<span class="nv">pick</span><span class="w"> </span><span class="nv">a931ac7</span><span class="w"> </span><span class="nv">c</span>
+
+#<span class="w"> </span><span class="nv">Rebase</span><span class="w"> </span><span class="nv">df23917</span>..<span class="nv">a931ac7</span><span class="w"> </span><span class="nv">onto</span><span class="w"> </span><span class="nv">df23917</span>
+#
+#<span class="w"> </span><span class="nv">Commands</span>:
+#<span class="w">  </span><span class="nv">p</span>,<span class="w"> </span><span class="nv">pick</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">use</span><span class="w"> </span><span class="nv">commit</span>
+#<span class="w">  </span><span class="nv">r</span>,<span class="w"> </span><span class="nv">reword</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">use</span><span class="w"> </span><span class="nv">commit</span>,<span class="w"> </span><span class="nv">but</span><span class="w"> </span><span class="nv">edit</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">commit</span><span class="w"> </span><span class="nv">message</span>
+#<span class="w">  </span><span class="nv">e</span>,<span class="w"> </span><span class="nv">edit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">use</span><span class="w"> </span><span class="nv">commit</span>,<span class="w"> </span><span class="nv">but</span><span class="w"> </span><span class="nv">stop</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">amending</span>
+#<span class="w">  </span><span class="nv">s</span>,<span class="w"> </span><span class="nv">squash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">use</span><span class="w"> </span><span class="nv">commit</span>,<span class="w"> </span><span class="nv">but</span><span class="w"> </span><span class="nv">meld</span><span class="w"> </span><span class="nv">into</span><span class="w"> </span><span class="nv">previous</span><span class="w"> </span><span class="nv">commit</span>
+#<span class="w">  </span><span class="nv">f</span>,<span class="w"> </span><span class="nv">fixup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">like</span><span class="w"> </span><span class="s2">"squash"</span>,<span class="w"> </span><span class="nv">but</span><span class="w"> </span><span class="nv">discard</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">commit</span><span class="err">'s log message</span>
+<span class="err">#</span>
+<span class="err"># If you remove a line here THAT COMMIT WILL BE LOST.</span>
+<span class="err"># However, if you remove everything, the rebase will be aborted.</span>
+<span class="err">#</span>
+</pre></div>
+
+<p>(Notice that this todo list is in the reverse order as compared with the
+output of <code>git log</code>.)</p>
+<p>Changing b’s <code>pick</code> to <code>squash</code> will result in the error you saw, but if
+instead you squash c into b (newer commit into the older or “squashing
+upward”) by changing the todo list to</p>
+<div class="code"><pre class="code literal-block">pick   b76d157 b
+squash a931ac7 c
+</pre></div>
+
+<p>and save-quitting your editor, you'll get another editor whose contents are</p>
+<div class="code"><pre class="code literal-block"># This is a combination of 2 commits.
+# The first commit's message is:
+
+b
+
+# This is the 2nd commit message:
+
+c
+</pre></div>
+
+<p>When you save and quit, the contents of the edited file become commit message
+of the new combined commit:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>log<span class="w"> </span>--pretty<span class="o">=</span>oneline
+18fd73d3ce748f2a58d1b566c03dd9dafe0b6b4f<span class="w"> </span>b<span class="w"> </span>and<span class="w"> </span>c
+df239176e1a2ffac927d8b496ea00d5488481db5<span class="w"> </span>a
+</pre></div>
+
+<h4>Note About Rewriting History</h4>
+<p>Interactive rebase rewrites history. Attempting to push to a remote that
+contains the old history will fail because it is not a fast-forward.</p>
+<p>If the branch you rebased is a topic or feature branch <em>in which you are
+working by yourself</em> , no big deal. Pushing to another repository will require
+the <code>--force</code> option, or alternatively you may be able, depending on the
+remote repository’s permissions, to first delete the old branch and then push
+the rebased version. Examples of those commands that will potentially destroy
+work is outside the scope of this answer.</p>
+<p>Rewriting already-published history on a branch in which you are working with
+other people without <em>very</em> good reason such as leaking a password or other
+sensitive details forces work onto your collaborators and is antisocial and
+will annoy other developers. The “Recovering From an Upstream Rebase” section
+in the <code>git rebase</code> documentation explains, with added emphasis.</p>
+<blockquote>
+<p>Rebasing (or any other form of rewriting) a branch that others have based
+work on is a bad idea: anyone downstream of it is forced to manually fix
+their history. This section explains how to do the fix from the downstream’s
+point of view. <strong>The real fix, however, would be to avoid rebasing the
+upstream in the first place.</strong> …</p>
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<p>If there are multiple commits, you can use <code>git rebase -i</code> to squash two
+commits into one.</p>
+<p>If there are only two commits you want to merge, and they are the "most recent
+two", the following commands can be used to combine the two commits into one:</p>
+<div class="code"><pre class="code literal-block">git reset --soft "HEAD^"
+git commit --amend
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/running-shell-command-and-capturing-the-output/" class="u-url">Running shell command and capturing the output</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -387,122 +523,6 @@ all installed <em>per user</em> site-packages.</p>
 </pre></div>
 
 <p>(or just first item with <code>site.getsitepackages()[0]</code>)</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/utf-8-all-the-way-through/" class="u-url">UTF-8 all the way through</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/utf-8-all-the-way-through/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T03:16:58+08:00" itemprop="datePublished" title="2023-02-17 03:16">2023-02-17 03:16</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm setting up a new server and want to support UTF-8 fully in my web
-application. I have tried this in the past on existing servers and always seem
-to end up having to fall back to ISO-8859-1.</p>
-<p>Where exactly do I need to set the encoding/charsets? I'm aware that I need to
-configure Apache, MySQL, and PHP to do this — is there some standard checklist
-I can follow, or perhaps troubleshoot where the mismatches occur?</p>
-<p>This is for a new Linux server, running MySQL 5, PHP, 5 and Apache 2.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><strong>Data Storage</strong> :</p>
-<ul>
-<li>
-<p>Specify the <code>utf8mb4</code> character set on all tables and text columns in your database. This makes MySQL physically store and retrieve values encoded natively in UTF-8. Note that MySQL will implicitly use <code>utf8mb4</code> encoding if a <code>utf8mb4_*</code> collation is specified (without any explicit character set).</p>
-</li>
-<li>
-<p>In older versions of MySQL (&lt; 5.5.3), you'll unfortunately be forced to use simply <code>utf8</code>, which only supports a subset of Unicode characters. I wish I were kidding.</p>
-</li>
-</ul>
-<p><strong>Data Access</strong> :</p>
-<ul>
-<li>
-<p>In your application code (e.g. PHP), in whatever DB access method you use, you'll need to set the connection charset to <code>utf8mb4</code>. This way, MySQL does no conversion from its native UTF-8 when it hands data off to your application and vice versa.</p>
-</li>
-<li>
-<p>Some drivers provide their own mechanism for configuring the connection character set, which both updates its own internal state and informs MySQL of the encoding to be used on the connection—this is usually the preferred approach. In PHP:</p>
-<ul>
-<li>
-<p>If you're using the PDO abstraction layer with PHP ≥ 5.3.6, you can specify <code>charset</code> in the DSN:</p>
-<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="o">$</span><span class="nt">dbh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">new</span><span class="w"> </span><span class="nt">PDO</span><span class="o">(</span><span class="s1">'mysql:charset=utf8mb4'</span><span class="o">);</span>
-</pre></div>
-
-</li>
-<li>
-<p>If you're using mysqli, you can call <code>set_charset()</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="w">      </span><span class="err">$</span><span class="n">mysqli</span><span class="o">-&gt;</span><span class="n">set_charset</span><span class="p">(</span><span class="s">'utf8mb4'</span><span class="p">);</span><span class="w">       </span><span class="c1">// object oriented style</span>
-</pre></div>
-
-<p>mysqli_set_charset($link, 'utf8mb4');  // procedural style</p>
-</li>
-<li>
-<p>If you're stuck with plain mysql but happen to be running PHP ≥ 5.2.3, you can call <code>mysql_set_charset</code>.</p>
-</li>
-</ul>
-</li>
-<li>
-<p>If the driver does not provide its own mechanism for setting the connection character set, you may have to issue a query to tell MySQL how your application expects data on the connection to be encoded: <code>SET NAMES 'utf8mb4'</code>.</p>
-</li>
-<li>
-<p>The same consideration regarding <code>utf8mb4</code>/<code>utf8</code> applies as above.</p>
-</li>
-</ul>
-<p><strong>Output</strong> :</p>
-<ul>
-<li>UTF-8 should be set in the HTTP header, such as <code>Content-Type: text/html; charset=utf-8</code>. You can achieve that either by setting <code>default_charset</code> in php.ini (preferred), or manually using <code>header()</code> function.</li>
-<li>If your application transmits text to other systems, they will also need to be informed of the character encoding. With web applications, the browser must be informed of the encoding in which data is sent (through HTTP response headers or HTML metadata).</li>
-<li>When encoding the output using <code>json_encode()</code>, add <code>JSON_UNESCAPED_UNICODE</code> as a second parameter.</li>
-</ul>
-<p><strong>Input</strong> :</p>
-<ul>
-<li>Browsers will submit data in the character set specified for the document, hence nothing particular has to be done on the input.</li>
-<li>In case you have doubts about request encoding (in case it could be tampered with), you may verify every received string as being valid UTF-8 before you try to store it or use it anywhere. PHP's <code>mb_check_encoding()</code> does the trick, but you have to use it religiously. There's really no way around this, as malicious clients can submit data in whatever encoding they want, and I haven't found a trick to get PHP to do this for you reliably.</li>
-</ul>
-<p><strong>Other Code Considerations</strong> :</p>
-<ul>
-<li>
-<p>Obviously enough, all files you'll be serving (PHP, HTML, JavaScript, etc.) should be encoded in valid UTF-8.</p>
-</li>
-<li>
-<p>You need to make sure that every time you process a UTF-8 string, you do so safely. This is, unfortunately, the hard part. You'll probably want to make extensive use of PHP's <code>mbstring</code> extension.</p>
-</li>
-<li>
-<p><strong>PHP's built-in string operations are <em>not</em> by default UTF-8 safe.</strong> There are some things you can safely do with normal PHP string operations (like concatenation), but for most things you should use the equivalent <code>mbstring</code> function.</p>
-</li>
-<li>
-<p>To know what you're doing (read: not mess it up), you really need to know UTF-8 and how it works on the lowest possible level. Check out any of the links from utf8.com for some good resources to learn everything you need to know.</p>
-</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I'd like to add one thing to chazomaticus' excellent answer:</p>
-<p>Don't forget the META tag either (like this, or the HTML4 or XHTML version of
-it):</p>
-<div class="code"><pre class="code literal-block">&lt;meta charset="utf-8"&gt;
-</pre></div>
-
-<p>That seems trivial, but IE7 has given me problems with that before.</p>
-<p>I was doing everything right; the database, database connection and Content-
-Type HTTP header were all set to UTF-8, and it worked fine in all other
-browsers, but Internet Explorer still insisted on using the "Western European"
-encoding.</p>
-<p>It turned out the page was missing the META tag. Adding that solved the
-problem.</p>
-<p><strong>Edit:</strong></p>
-<p>The W3C actually has a rather large section dedicated to I18N. They have a
-number of articles related to this issue – describing the HTTP, (X)HTML and
-CSS side of things:</p>
-<ul>
-<li>FAQ: Changing (X)HTML page encoding to UTF-8</li>
-<li>Declaring character encodings in HTML</li>
-<li>Tutorial: Character sets &amp; encodings in XHTML, HTML and CSS</li>
-<li>Setting the HTTP charset parameter</li>
-</ul>
-<p>They recommend using both the HTTP header and HTML meta tag (or XML
-declaration in case of XHTML served as XML).</p>
     </div>
     </article>
 </div>

@@ -108,7 +108,104 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-significance-of-1-1-1753-in-sql-server/" class="u-url">What is the significance of 1/1/1753 in SQL Server?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/return-value-in-a-bash-function/" class="u-url">Return value in a Bash function</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/return-value-in-a-bash-function/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T06:38:16+08:00" itemprop="datePublished" title="2023-02-18 06:38">2023-02-18 06:38</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I am working with a bash script and I want to execute a function to print a
+return value:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">function</span><span class="w"> </span><span class="nv">fun1</span><span class="ss">()</span>{
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">34</span>
+}
+<span class="nv">function</span><span class="w"> </span><span class="nv">fun2</span><span class="ss">()</span>{
+<span class="w">  </span><span class="nv">local</span><span class="w"> </span><span class="nv">res</span><span class="o">=</span>$<span class="ss">(</span><span class="nv">fun1</span><span class="ss">)</span>
+<span class="w">  </span><span class="nv">echo</span><span class="w"> </span>$<span class="nv">res</span>
+}
+</pre></div>
+
+<p>When I execute <code>fun2</code>, it does not print "34". Why is this the case?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Although Bash has a <code>return</code> statement, the only thing you can specify with it
+is the function's own <code>exit</code> status (a value between <code>0</code> and <code>255</code>, 0 meaning
+"success"). So <code>return</code> is not what you want.</p>
+<p>You might want to convert your <code>return</code> statement to an <code>echo</code> statement -
+that way your function output could be captured using <code>$()</code> braces, which
+seems to be exactly what you want.</p>
+<p>Here is an example:</p>
+<div class="code"><pre class="code literal-block">function fun1(){
+  echo 34
+}
+
+function fun2(){
+  local res=$(fun1)
+  echo $res
+}
+</pre></div>
+
+<p>Another way to get the return value (if you just want to return an integer
+0-255) is <code>$?</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">function</span><span class="w"> </span><span class="nv">fun1</span><span class="ss">()</span>{
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">34</span>
+}
+
+<span class="nv">function</span><span class="w"> </span><span class="nv">fun2</span><span class="ss">()</span>{
+<span class="w">  </span><span class="nv">fun1</span>
+<span class="w">  </span><span class="nv">local</span><span class="w"> </span><span class="nv">res</span><span class="o">=</span>$?
+<span class="w">  </span><span class="nv">echo</span><span class="w"> </span>$<span class="nv">res</span>
+}
+</pre></div>
+
+<p>Also, note that you can use the return value to use Boolean logic - like <code>fun1
+|| fun2</code> will only run <code>fun2</code> if <code>fun1</code> returns a non-<code>0</code> value. The default
+return value is the exit value of the last statement executed within the
+function.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Functions in Bash are not functions like in other languages; they're actually
+commands. So functions are used as if they were binaries or scripts fetched
+from your path. From the perspective of your program logic, there shouldn't
+really be any difference.</p>
+<p>Shell commands are connected by pipes (aka streams), and not fundamental or
+user-defined data types, as in "real" programming languages. There is no such
+thing like a return value for a command, maybe mostly because there's no real
+way to declare it. It could occur on the man-page, or the <code>--help</code> output of
+the command, but both are only human-readable and hence are written to the
+wind.</p>
+<p>When a command wants to get input it reads it from its input stream, or the
+argument list. In both cases text strings have to be parsed.</p>
+<p>When a command wants to return something, it has to <code>echo</code> it to its output
+stream. Another often practiced way is to store the return value in dedicated,
+global variables. Writing to the output stream is clearer and more flexible,
+because it can take also binary data. For example, you can return a BLOB
+easily:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">encrypt</span><span class="ss">()</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">gpg</span><span class="w"> </span><span class="o">-</span><span class="nv">c</span><span class="w"> </span><span class="o">-</span><span class="nv">o</span><span class="o">-</span><span class="w"> </span><span class="mh">$1</span><span class="w"> </span>#<span class="w"> </span><span class="nv">Encrypt</span><span class="w"> </span><span class="nv">data</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">filename</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">standard</span><span class="w"> </span><span class="nv">output</span><span class="w"> </span><span class="ss">(</span><span class="nv">asks</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">passphrase</span><span class="ss">)</span>
+}
+
+<span class="nv">encrypt</span><span class="w"> </span><span class="nv">public</span>.<span class="nv">dat</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">private</span>.<span class="nv">dat</span><span class="w"> </span>#<span class="w"> </span><span class="nv">Write</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">function</span><span class="w"> </span><span class="nb">result</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">file</span>
+</pre></div>
+
+<p>As others have written in this thread, the caller can also use command
+substitution <code>$()</code> to capture the output.</p>
+<p>Parallely, the function would "return" the exit code of <code>gpg</code> (GnuPG). Think
+of the exit code as a bonus that other languages don't have, or, depending on
+your temperament, as a "Schmutzeffekt" of shell functions. This status is, by
+convention, 0 on success or an integer in the range 1-255 for something else.
+To make this clear: <code>return</code> (like <code>exit</code>) can only take a value from 0-255,
+and values other than 0 are not necessarily errors, as is often asserted.</p>
+<p>When you don't provide an explicit value with <code>return</code>, the status is taken
+from the last command in a Bash statement/function/command and so forth. So
+there is always a status, and <code>return</code> is just an easy way to provide it.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-significance-of-1-1-1753-in-sql-server/" class="u-url">What is the significance of 1/1/1753 in SQL Server?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -257,79 +354,6 @@ inside <code>response.data</code> like so:</p>
     <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">reason</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
   <span class="p">})</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/angularjs-ngclass-conditional/" class="u-url">AngularJS ngClass conditional</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/angularjs-ngclass-conditional/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:36:56+08:00" itemprop="datePublished" title="2023-02-18 06:36">2023-02-18 06:36</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is there any way to make an expression for something like <code>ng-class</code> to be a
-conditional?</p>
-<p>For example, I have tried the following:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;span</span><span class="w"> </span><span class="na">ng-class=</span><span class="s">"{test: 'obj.value1 == \'someothervalue\''}"</span><span class="nt">&gt;</span>test<span class="nt">&lt;/span&gt;</span>
-</pre></div>
-
-<p>The issue with this code is that no matter what <code>obj.value1</code> is, the class
-test is always applied to the element. Doing this:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;span</span><span class="w"> </span><span class="na">ng-class=</span><span class="s">"{test: obj.value2}"</span><span class="nt">&gt;</span>test<span class="nt">&lt;/span&gt;</span>
-</pre></div>
-
-<p>As long as <code>obj.value2</code> does not equal a truthy value, the class in not
-applied. Now I can work around the issue in the first example by doing this:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;span</span><span class="w"> </span><span class="na">ng-class=</span><span class="s">"{test: checkValue1()}"</span><span class="nt">&gt;</span>test<span class="nt">&lt;/span&gt;</span>
-</pre></div>
-
-<p>Where the <code>checkValue1</code> function looks like this:</p>
-<div class="code"><pre class="code literal-block">$<span class="nv">scope</span>.<span class="nv">checkValue1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">function</span><span class="ss">()</span><span class="w"> </span>{
-<span class="w">  </span><span class="k">return</span><span class="w"> </span>$<span class="nv">scope</span>.<span class="nv">obj</span>.<span class="nv">value</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">'somevalue'</span><span class="c1">;</span>
-}
-</pre></div>
-
-<p>I am just wondering if this is how <code>ng-class</code> is supposed to work. I am also
-building a custom directive where I would like to do something similar to
-this. However, I can't find a way to watch an expression (and maybe that is
-impossible and the reason why it works like this).</p>
-<p>Here is a plnkr to show what I mean.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Your first attempt was almost right, It should work without the quotes.</p>
-<div class="code"><pre class="code literal-block">{test: obj.value1 == 'someothervalue'}
-</pre></div>
-
-<p>Here is a plnkr.</p>
-<p>The ngClass directive will work with any expression that evaluates truthy or
-falsey, a bit similar to Javascript expressions but with some differences, you
-can read about here. If your conditional is too complex, then you can use a
-function that returns truthy or falsey, as you did in your third attempt.</p>
-<p>Just to complement: You can also use logical operators to form logical
-expressions like</p>
-<div class="code"><pre class="code literal-block">ng-class="{'test': obj.value1 == 'someothervalue' || obj.value2 == 'somethingelse'}"
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Using ng-class inside ng-repeat</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;table&gt;</span>
-<span class="w">    </span><span class="nt">&lt;tbody&gt;</span>
-<span class="w">            </span><span class="nt">&lt;tr</span><span class="w"> </span><span class="na">ng-repeat=</span><span class="s">"task in todos"</span>
-<span class="w">                </span><span class="na">ng-class=</span><span class="s">"{'warning': task.status == 'Hold' , 'success': task.status == 'Completed',</span>
-<span class="s">              'active': task.status == 'Started', 'danger': task.status == 'Pending' } "</span><span class="nt">&gt;</span>
-<span class="w">                </span><span class="nt">&lt;td&gt;</span><span class="cp">{{</span><span class="err">$</span><span class="nv">index</span> <span class="o">+</span> <span class="m">1</span><span class="cp">}}</span><span class="nt">&lt;/td&gt;</span>
-<span class="w">                </span><span class="nt">&lt;td&gt;</span><span class="cp">{{</span><span class="nv">task.name</span><span class="cp">}}</span><span class="nt">&lt;/td&gt;</span>
-<span class="w">                </span><span class="nt">&lt;td&gt;</span><span class="cp">{{</span><span class="nv">task.date</span><span class="o">|</span><span class="nf">date</span><span class="s1">:'yyyy-MM-dd'</span><span class="cp">}}</span><span class="nt">&lt;/td&gt;</span>
-<span class="w">                </span><span class="nt">&lt;td&gt;</span><span class="cp">{{</span><span class="nv">task.status</span><span class="cp">}}</span><span class="nt">&lt;/td&gt;</span>
-<span class="w">            </span><span class="nt">&lt;/tr&gt;</span>
-<span class="w">    </span><span class="nt">&lt;/tbody&gt;</span>
-<span class="nt">&lt;/table&gt;</span>
-</pre></div>
-
-<p>For each status in task.status a different class is used for the row.</p>
     </div>
     </article>
 </div>

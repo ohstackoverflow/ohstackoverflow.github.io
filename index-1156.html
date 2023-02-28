@@ -108,7 +108,127 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-specify-multiple-return-types-using-type-hints/" class="u-url">How to specify multiple return types using type-hints</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-correctly-clean-up-a-python-object/" class="u-url">How do I correctly clean up a Python object?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-correctly-clean-up-a-python-object/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T02:35:43+08:00" itemprop="datePublished" title="2023-02-18 02:35">2023-02-18 02:35</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Package:</span>
+    <span class="n">def</span> <span class="n">__init__</span>(<span class="nb">self</span>):
+        <span class="nb">self</span>.<span class="n">files</span> = []
+
+    <span class="c1"># ...</span>
+
+    <span class="n">def</span> <span class="n">__del__</span>(<span class="nb">self</span>):
+        <span class="k">for</span> <span class="nb">file</span> <span class="nb">in</span> <span class="nb">self</span>.<span class="n">files:</span>
+            <span class="n">os</span>.<span class="nb">unlink</span>(<span class="nb">file</span>)
+</pre></div>
+
+<p><code>__del__(self)</code> above fails with an AttributeError exception. I understand
+Python doesn't guarantee the existence of "global variables" (member data in
+this context?) when <code>__del__()</code> is invoked. If that is the case and this is
+the reason for the exception, how do I make sure the object destructs
+properly?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I'd recommend using Python's <code>with</code> statement for managing resources that need
+to be cleaned up. The problem with using an explicit <code>close()</code> statement is
+that you have to worry about people forgetting to call it at all or forgetting
+to place it in a <code>finally</code> block to prevent a resource leak when an exception
+occurs.</p>
+<p>To use the <code>with</code> statement, create a class with the following methods:</p>
+<div class="code"><pre class="code literal-block">def __enter__(self)
+def __exit__(self, exc_type, exc_value, traceback)
+</pre></div>
+
+<p>In your example above, you'd use</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Package:</span>
+    <span class="n">def</span> <span class="n">__init__</span>(<span class="nb">self</span>):
+        <span class="nb">self</span>.<span class="n">files</span> = []
+
+    <span class="n">def</span> <span class="n">__enter__</span>(<span class="nb">self</span>):
+        <span class="k">return</span> <span class="nb">self</span>
+
+    <span class="c1"># ...</span>
+
+    <span class="n">def</span> <span class="n">__exit__</span>(<span class="nb">self</span>, <span class="n">exc_type</span>, <span class="n">exc_value</span>, <span class="n">traceback</span>):
+        <span class="k">for</span> <span class="nb">file</span> <span class="nb">in</span> <span class="nb">self</span>.<span class="n">files:</span>
+            <span class="n">os</span>.<span class="nb">unlink</span>(<span class="nb">file</span>)
+</pre></div>
+
+<p>Then, when someone wanted to use your class, they'd do the following:</p>
+<div class="code"><pre class="code literal-block">with Package() as package_obj:
+    # use package_obj
+</pre></div>
+
+<p>The variable package_obj will be an instance of type Package (it's the value
+returned by the <code>__enter__</code> method). Its <code>__exit__</code> method will automatically
+be called, regardless of whether or not an exception occurs.</p>
+<p>You could even take this approach a step further. In the example above,
+someone could still instantiate Package using its constructor without using
+the <code>with</code> clause. You don't want that to happen. You can fix this by creating
+a PackageResource class that defines the <code>__enter__</code> and <code>__exit__</code> methods.
+Then, the Package class would be defined strictly inside the <code>__enter__</code>
+method and returned. That way, the caller never could instantiate the Package
+class without using a <code>with</code> statement:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">PackageResource:</span>
+    <span class="n">def</span> <span class="n">__enter__</span>(<span class="nb">self</span>):
+        <span class="k">class</span> <span class="n">Package:</span>
+            ...
+        <span class="nb">self</span>.<span class="n">package_obj</span> = <span class="n">Package</span>()
+        <span class="k">return</span> <span class="nb">self</span>.<span class="n">package_obj</span>
+
+    <span class="n">def</span> <span class="n">__exit__</span>(<span class="nb">self</span>, <span class="n">exc_type</span>, <span class="n">exc_value</span>, <span class="n">traceback</span>):
+        <span class="nb">self</span>.<span class="n">package_obj</span>.<span class="nb">cleanup</span>()
+</pre></div>
+
+<p>You'd use this as follows:</p>
+<div class="code"><pre class="code literal-block">with PackageResource() as package_obj:
+    # use package_obj
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>The standard way is to use <code>atexit.register</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="c1"># package.py</span>
+<span class="kn">import</span> <span class="nn">atexit</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="k">class</span> <span class="nc">Package</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"Running cleanup..."</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">"Unlinking file: </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file</span><span class="p">))</span>
+            <span class="c1"># os.unlink(file)</span>
+</pre></div>
+
+<p>But you should keep in mind that this will persist all created instances of
+<code>Package</code> until Python is terminated.</p>
+<p>Demo using the code above saved as <em>package.py</em> :</p>
+<div class="code"><pre class="code literal-block"><span class="err">$</span> <span class="n">python</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span> <span class="nn">package</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Package</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">q</span> <span class="o">=</span> <span class="n">Package</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">q</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'a'</span><span class="p">,</span> <span class="s1">'b'</span><span class="p">,</span> <span class="s1">'c'</span><span class="p">]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">quit</span><span class="p">()</span>
+<span class="n">Running</span> <span class="n">cleanup</span><span class="o">...</span>
+<span class="n">Unlinking</span> <span class="n">file</span><span class="p">:</span> <span class="n">a</span>
+<span class="n">Unlinking</span> <span class="n">file</span><span class="p">:</span> <span class="n">b</span>
+<span class="n">Unlinking</span> <span class="n">file</span><span class="p">:</span> <span class="n">c</span>
+<span class="n">Running</span> <span class="n">cleanup</span><span class="o">...</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-specify-multiple-return-types-using-type-hints/" class="u-url">How to specify multiple return types using type-hints</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -221,80 +341,6 @@ the newly set value is returned?</p>
 <p>Textarea has no value attribute, its value comes between tags, i.e:
 <code>&lt;textarea&gt;my text&lt;/textarea&gt;</code>, it is not like the input field (<code>&lt;input
 value="my text" /&gt;</code>). That's why attr doesn't work :)</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-run-a-command-on-an-already-existing-docker-container/" class="u-url">How do I run a command on an already existing Docker container?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-run-a-command-on-an-already-existing-docker-container/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T02:34:23+08:00" itemprop="datePublished" title="2023-02-18 02:34">2023-02-18 02:34</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I created a container with <code>-d</code> so it's not interactive.</p>
-<div class="code"><pre class="code literal-block">docker run -d shykes/pybuilder bin/bash
-</pre></div>
-
-<p>I see that the container has exited:</p>
-<div class="code"><pre class="code literal-block">CONTAINER ID        IMAGE                     COMMAND             CREATED             STATUS                      PORTS               NAMES
-d6c45e8cc5f0        shykes/pybuilder:latest   "bin/bash"          41 minutes ago      Exited (0) 2 seconds ago                        clever_bardeen
-</pre></div>
-
-<p>Now I would like to run occasional commands on the machine and exit. Just to
-get the response.</p>
-<p>I tried to start the machine. I tried attaching. I thought I could call <code>run</code>
-with a container, but that does not seem to be allowed. Using <code>start</code> just
-seems to run and then exist quickly.</p>
-<p>I'd like to get back into interactive mode after exiting.</p>
-<p>I tried:</p>
-<div class="code"><pre class="code literal-block">docker attach d6c45e8cc5f0
-</pre></div>
-
-<p>But I get:</p>
-<div class="code"><pre class="code literal-block"><span class="mf">2014</span><span class="o">/</span><span class="mf">10</span><span class="o">/</span><span class="mf">01</span><span class="w"> </span><span class="mf">22</span><span class="p">:</span><span class="mf">33</span><span class="p">:</span><span class="mf">34</span><span class="w"> </span><span class="n">You</span><span class="w"> </span><span class="n">cannot</span><span class="w"> </span><span class="n">attach</span><span class="w"> </span><span class="kr">to</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="kr">stop</span><span class="n">ped</span><span class="w"> </span><span class="kr">cont</span><span class="n">ainer</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">first</span>
-</pre></div>
-
-<p>But if I start it, it exits anyway. Catch 22. I can't win.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>In October 2014 the Docker team introduced <code>docker exec</code> command:
-https://docs.docker.com/engine/reference/commandline/exec/</p>
-<p>So now you can run any command in a running container just knowing its ID (or
-name):</p>
-<div class="code"><pre class="code literal-block"><span class="nv">docker</span><span class="w"> </span><span class="k">exec</span><span class="w"> </span><span class="o">-</span><span class="nv">it</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">container_id_or_name</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">echo</span><span class="w"> </span><span class="s2">"Hello from container!"</span>
-</pre></div>
-
-<p>Note that <code>exec</code> command works only on already running container. If the
-container is currently stopped, you need to first run it with the following
-command:</p>
-<div class="code"><pre class="code literal-block">docker run -it -d shykes/pybuilder /bin/bash
-</pre></div>
-
-<p>The most important thing here is the <code>-d</code> option, which stands for <code>detached</code>.
-It means that the command you initially provided to the container
-(<code>/bin/bash</code>) will be run in the background and the container will not <em>stop
-immediately</em>.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Your container will <strong>exit</strong> as the command you gave it will end. Use the
-following options to keep it live:</p>
-<ul>
-<li>
-<code>-i</code> Keep STDIN open even if not attached.</li>
-<li>
-<code>-t</code> Allocate a pseudo-TTY.</li>
-</ul>
-<p>So your new <code>run</code> command is:</p>
-<div class="code"><pre class="code literal-block">docker run -it -d shykes/pybuilder bin/bash
-</pre></div>
-
-<p>If you would like to attach to an already running container:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">docker</span><span class="w"> </span><span class="k">exec</span><span class="w"> </span><span class="o">-</span><span class="nv">it</span><span class="w"> </span><span class="nv">CONTAINER_ID</span><span class="w"> </span><span class="o">/</span><span class="nv">bin</span><span class="o">/</span><span class="nv">bash</span>
-</pre></div>
-
-<p>In these examples <code>/bin/bash</code> is used as the command.</p>
     </div>
     </article>
 </div>

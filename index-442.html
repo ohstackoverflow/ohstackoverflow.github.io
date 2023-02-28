@@ -108,7 +108,448 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-calculate-the-number-of-lines-changed-between-two-commits-in-git/" class="u-url">How can I calculate the number of lines changed between two commits in Git?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-doesn-t-recyclerview-have-onitemclicklistener/" class="u-url">Why doesn't RecyclerView have onItemClickListener()?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-doesn-t-recyclerview-have-onitemclicklistener/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T06:58:00+08:00" itemprop="datePublished" title="2023-02-17 06:58">2023-02-17 06:58</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I was exploring <code>RecyclerView</code> and I was surprised to see that <code>RecyclerView</code>
+does not have <code>onItemClickListener()</code>.</p>
+<p>I've two question.</p>
+<h2>Main Question</h2>
+<p>I want to know why Google removed <code>onItemClickListener()</code>?</p>
+<p>Is there a performance issue or something else?</p>
+<h2>Secondary Question</h2>
+<p>I solved my problem by writing <code>onClick</code> in my <code>RecyclerView.Adapter</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ViewHolder</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">RecyclerView</span><span class="o">.</span><span class="n">ViewHolder</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">OnClickListener</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">TextView</span><span class="w"> </span><span class="n">txtViewTitle</span><span class="p">;</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">ImageView</span><span class="w"> </span><span class="n">imgViewIcon</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">ViewHolder</span><span class="p">(</span><span class="n">View</span><span class="w"> </span><span class="n">itemLayoutView</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="p">(</span><span class="n">itemLayoutView</span><span class="p">);</span>
+<span class="w">        </span><span class="n">txtViewTitle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">TextView</span><span class="p">)</span><span class="w"> </span><span class="n">itemLayoutView</span><span class="o">.</span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">item_title</span><span class="p">);</span>
+<span class="w">        </span><span class="n">imgViewIcon</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ImageView</span><span class="p">)</span><span class="w"> </span><span class="n">itemLayoutView</span><span class="o">.</span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">item_icon</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onClick</span><span class="p">(</span><span class="n">View</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Is this ok / is there any better way?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>tl;dr 2016</strong> Use RxJava and a PublishSubject to expose an Observable for the
+clicks.</p>
+<div class="code"><pre class="code literal-block"><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ReactiveAdapter</span><span class="w"> </span><span class="n">extends</span><span class="w"> </span><span class="n">RecyclerView</span><span class="p">.</span><span class="n">Adapter</span><span class="o">&lt;</span><span class="n">MyAdapter</span><span class="p">.</span><span class="n">ViewHolder</span><span class="o">&gt;</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">String</span><span class="err">[]</span><span class="w"> </span><span class="n">mDataset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="ss">"Data"</span><span class="p">,</span><span class="w"> </span><span class="ss">"In"</span><span class="p">,</span><span class="w"> </span><span class="ss">"Adapter"</span><span class="w"> </span><span class="err">}</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="n">PublishSubject</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">onClickSubject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PublishSubject</span><span class="p">.</span><span class="k">create</span><span class="p">();</span>
+
+<span class="w">    </span><span class="nv">@Override</span><span class="w"> </span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onBindViewHolder</span><span class="p">(</span><span class="n">final</span><span class="w"> </span><span class="n">ViewHolder</span><span class="w"> </span><span class="n">holder</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="k">position</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">final</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="k">element</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mDataset</span><span class="o">[</span><span class="n">position</span><span class="o">]</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">holder</span><span class="p">.</span><span class="n">itemView</span><span class="p">.</span><span class="n">setOnClickListener</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="k">View</span><span class="p">.</span><span class="n">OnClickListener</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="nv">@Override</span>
+<span class="w">            </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onClick</span><span class="p">(</span><span class="k">View</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">               </span><span class="n">onClickSubject</span><span class="p">.</span><span class="n">onNext</span><span class="p">(</span><span class="k">element</span><span class="p">);</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">        </span><span class="err">}</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Observable</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">getPositionClicks</span><span class="p">()</span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">onClickSubject</span><span class="p">.</span><span class="n">asObservable</span><span class="p">();</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><strong>Original Post:</strong></p>
+<p>Since the introduction of <code>ListView</code>, <code>onItemClickListener</code> has been
+problematic. The moment you have a click listener for any of the internal
+elements the callback would not be triggered but it wasn't notified or well
+documented (if at all) so there was a lot of confusion and SO questions about
+it.</p>
+<p>Given that <code>RecyclerView</code> takes it a step further and doesn't have a concept
+of a row/column, but rather an arbitrarily laid out amount of children, they
+have delegated the onClick to each one of them, or to programmer
+implementation.</p>
+<p>Think of <code>Recyclerview</code> not as a <code>ListView</code> 1:1 replacement but rather as a
+more flexible component for complex use cases. And as you say, your solution
+is what google expected of you. Now you have an adapter who can delegate
+onClick to an interface passed on the constructor, which is the correct
+pattern for both <code>ListView</code> and <code>Recyclerview</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ViewHolder</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">RecyclerView</span><span class="o">.</span><span class="n">ViewHolder</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">OnClickListener</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">TextView</span><span class="w"> </span><span class="n">txtViewTitle</span><span class="p">;</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">ImageView</span><span class="w"> </span><span class="n">imgViewIcon</span><span class="p">;</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">IMyViewHolderClicks</span><span class="w"> </span><span class="n">mListener</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">ViewHolder</span><span class="p">(</span><span class="n">View</span><span class="w"> </span><span class="n">itemLayoutView</span><span class="p">,</span><span class="w"> </span><span class="n">IMyViewHolderClicks</span><span class="w"> </span><span class="n">listener</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="p">(</span><span class="n">itemLayoutView</span><span class="p">);</span>
+<span class="w">        </span><span class="n">mListener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">listener</span><span class="p">;</span>
+<span class="w">        </span><span class="n">txtViewTitle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">TextView</span><span class="p">)</span><span class="w"> </span><span class="n">itemLayoutView</span><span class="o">.</span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">item_title</span><span class="p">);</span>
+<span class="w">        </span><span class="n">imgViewIcon</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ImageView</span><span class="p">)</span><span class="w"> </span><span class="n">itemLayoutView</span><span class="o">.</span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">item_icon</span><span class="p">);</span>
+<span class="w">        </span><span class="n">imgViewIcon</span><span class="o">.</span><span class="n">setOnClickListener</span><span class="p">(</span><span class="n">this</span><span class="p">);</span>
+<span class="w">        </span><span class="n">itemLayoutView</span><span class="o">.</span><span class="n">setOnClickListener</span><span class="p">(</span><span class="n">this</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onClick</span><span class="p">(</span><span class="n">View</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="n">instanceof</span><span class="w"> </span><span class="n">ImageView</span><span class="p">){</span>
+<span class="w">           </span><span class="n">mListener</span><span class="o">.</span><span class="n">onTomato</span><span class="p">((</span><span class="n">ImageView</span><span class="p">)</span><span class="n">v</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">           </span><span class="n">mListener</span><span class="o">.</span><span class="n">onPotato</span><span class="p">(</span><span class="n">v</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">interface</span><span class="w"> </span><span class="n">IMyViewHolderClicks</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onPotato</span><span class="p">(</span><span class="n">View</span><span class="w"> </span><span class="n">caller</span><span class="p">);</span>
+<span class="w">        </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onTomato</span><span class="p">(</span><span class="n">ImageView</span><span class="w"> </span><span class="n">callerImage</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="p">}</span>
+</pre></div>
+
+<p>and then on your adapter</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span> <span class="k">class</span> <span class="n">MyAdapter</span> <span class="n">extends</span> <span class="n">RecyclerView</span>.<span class="n">Adapter</span><span class="s">&lt;MyAdapter.ViewHolder&gt;</span> {
+
+   <span class="n">String</span>[] <span class="n">mDataset</span> = { <span class="s">"Data"</span> };
+
+   <span class="nv">@Override</span>
+   <span class="n">public</span> <span class="n">MyAdapter</span>.<span class="n">ViewHolder</span> <span class="n">onCreateViewHolder</span>(<span class="n">ViewGroup</span> <span class="nb">parent</span>, <span class="n">int</span> <span class="n">viewType</span>) {
+       <span class="n">View</span> <span class="n">v</span> = <span class="n">LayoutInflater</span>.<span class="nb">from</span>(<span class="nb">parent</span>.<span class="n">getContext</span>()).<span class="n">inflate</span>(<span class="n">R</span>.<span class="n">layout</span>.<span class="n">my_layout</span>, <span class="nb">parent</span>, <span class="n">false</span>);
+
+       <span class="n">MyAdapter</span>.<span class="n">ViewHolder</span> <span class="n">vh</span> = <span class="nb">new</span> <span class="n">ViewHolder</span>(<span class="n">v</span>, <span class="nb">new</span> <span class="n">MyAdapter</span>.<span class="n">ViewHolder</span>.<span class="n">IMyViewHolderClicks</span>() { 
+           <span class="n">public</span> <span class="n">void</span> <span class="n">onPotato</span>(<span class="n">View</span> <span class="n">caller</span>) { <span class="n">Log</span>.<span class="nb">d</span>(<span class="s">"VEGETABLES"</span>, <span class="s">"Poh-tah-tos"</span>); };
+           <span class="n">public</span> <span class="n">void</span> <span class="n">onTomato</span>(<span class="n">ImageView</span> <span class="n">callerImage</span>) { <span class="n">Log</span>.<span class="nb">d</span>(<span class="s">"VEGETABLES"</span>, <span class="s">"To-m8-tohs"</span>); }
+        });
+        <span class="k">return</span> <span class="n">vh</span>;
+    }
+
+    // <span class="n">Replace</span> <span class="n">the</span> <span class="nb">contents</span> <span class="nb">of</span> <span class="n">a</span> <span class="n">view</span> (<span class="n">invoked</span> <span class="n">by</span> <span class="n">the</span> <span class="n">layout</span> <span class="n">manager</span>) 
+    <span class="nv">@Override</span> 
+    <span class="n">public</span> <span class="n">void</span> <span class="n">onBindViewHolder</span>(<span class="n">ViewHolder</span> <span class="n">holder</span>, <span class="n">int</span> <span class="n">position</span>) {
+        // <span class="n">Get</span> <span class="n">element</span> <span class="nb">from</span> <span class="n">your</span> <span class="n">dataset</span> <span class="nb">at</span> <span class="n">this</span> <span class="n">position</span> 
+        // <span class="n">Replace</span> <span class="n">the</span> <span class="nb">contents</span> <span class="nb">of</span> <span class="n">the</span> <span class="n">view</span> <span class="k">with</span> <span class="n">that</span> <span class="n">element</span> 
+        // <span class="n">Clear</span> <span class="n">the</span> <span class="n">ones</span> <span class="n">that</span> <span class="n">won't</span> <span class="n">be</span> <span class="n">used</span>
+        <span class="n">holder</span>.<span class="n">txtViewTitle</span>.<span class="n">setText</span>(<span class="n">mDataset</span>[<span class="n">position</span>]);
+    }
+
+    // <span class="n">Return</span> <span class="n">the</span> <span class="n">size</span> <span class="nb">of</span> <span class="n">your</span> <span class="n">dataset</span> (<span class="n">invoked</span> <span class="n">by</span> <span class="n">the</span> <span class="n">layout</span> <span class="n">manager</span>) 
+    <span class="nv">@Override</span> 
+    <span class="n">public</span> <span class="n">int</span> <span class="n">getItemCount</span>() { 
+        <span class="k">return</span> <span class="n">mDataset</span>.<span class="n">length</span>;
+    } 
+  ...
+</pre></div>
+
+<p>Now look into that last piece of code: <code>onCreateViewHolder(ViewGroup parent,
+int viewType)</code> the signature already suggest different view types. For each
+one of them you'll require a different viewholder too, and subsequently each
+one of them can have a different set of clicks. Or you can just create a
+generic viewholder that takes any view and one <code>onClickListener</code> and applies
+accordingly. Or delegate up one level to the orchestrator so several
+fragments/activities have the same list with different click behaviour. Again,
+all flexibility is on your side.</p>
+<p>It is a really needed component and fairly close to what our internal
+implementations and improvements to <code>ListView</code> were until now. It's good that
+Google finally acknowledges it.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h2>Why the RecyclerView has no <code>onItemClickListener</code>
+</h2>
+<p>The <code>RecyclerView</code> is a toolbox, in contrast of the old <code>ListView</code> it has less
+build in features and more flexibility. The <code>onItemClickListener</code> is not the
+only feature being removed from ListView. But it has lot of listeners and
+method to extend it to your liking, it's far more powerful in the right hands
+;).</p>
+<p>In my opinion the most complex feature removed in <code>RecyclerView</code> is the <em>Fast
+Scroll</em>. Most of the other features can be easily re-implemented.</p>
+<p>If you want to know what other cool features <code>RecyclerView</code> added read this
+answer to another question.</p>
+<h2>Memory efficient - drop-in solution for onItemClickListener</h2>
+<p>This solution has been proposed by <em>Hugo Visser</em> , an Android GDE, right after
+<code>RecyclerView</code> was released. He made a licence-free class available for you to
+just drop in your code and use it.</p>
+<p>It showcase some of the versatility introduced with <code>RecyclerView</code> by making
+use of <code>RecyclerView.OnChildAttachStateChangeListener</code>.</p>
+<p><em><strong>Edit 2019</strong> : kotlin version by me, java one, from Hugo Visser, kept below</em></p>
+<h3>Kotlin / Java</h3>
+<p>Create a file <code>values/ids.xml</code> and put this in it:</p>
+<div class="code"><pre class="code literal-block"><span class="cp">&lt;?xml version="1.0" encoding="utf-8"?&gt;</span>
+<span class="nt">&lt;resources&gt;</span>
+<span class="w">    </span><span class="nt">&lt;item</span><span class="w"> </span><span class="na">name=</span><span class="s">"item_click_support"</span><span class="w"> </span><span class="na">type=</span><span class="s">"id"</span><span class="w"> </span><span class="nt">/&gt;</span>
+<span class="nt">&lt;/resources&gt;</span>
+</pre></div>
+
+<p>then add the code below to your source</p>
+<h3>Kotlin</h3>
+<p>Usage:</p>
+<div class="code"><pre class="code literal-block"><span class="n">recyclerView</span><span class="p">.</span><span class="n">onItemClick</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">recyclerView</span><span class="p">,</span><span class="w"> </span><span class="n">position</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">-&gt;</span>
+<span class="w">    </span><span class="c1">// do it</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>(it also support long item click and see below for another feature I've
+added).</p>
+<p>implementation (my adaptation to Hugo Visser Java code):</p>
+<div class="code"><pre class="code literal-block">typealias<span class="w"> </span>OnRecyclerViewItemClickListener<span class="w"> </span>=<span class="w"> </span>(recyclerView:<span class="w"> </span>RecyclerView,<span class="w"> </span>position:<span class="w"> </span>Int,<span class="w"> </span>v:<span class="w"> </span>View)<span class="w"> </span>-&gt;<span class="w"> </span>Unit
+typealias<span class="w"> </span>OnRecyclerViewItemLongClickListener<span class="w"> </span>=<span class="w"> </span>(recyclerView:<span class="w"> </span>RecyclerView,<span class="w"> </span>position:<span class="w"> </span>Int,<span class="w"> </span>v:<span class="w"> </span>View)<span class="w"> </span>-&gt;<span class="w"> </span>Boolean
+
+class<span class="w"> </span>ItemClickSupport<span class="w"> </span>private<span class="w"> </span>constructor(private<span class="w"> </span>val<span class="w"> </span>recyclerView:<span class="w"> </span>RecyclerView)<span class="w"> </span>{
+
+<span class="w">    </span>private<span class="w"> </span>var<span class="w"> </span>onItemClickListener:<span class="w"> </span>OnRecyclerViewItemClickListener?<span class="w"> </span>=<span class="w"> </span>null
+<span class="w">    </span>private<span class="w"> </span>var<span class="w"> </span>onItemLongClickListener:<span class="w"> </span>OnRecyclerViewItemLongClickListener?<span class="w"> </span>=<span class="w"> </span>null
+
+<span class="w">    </span>private<span class="w"> </span>val<span class="w"> </span>attachListener:<span class="w"> </span>RecyclerView.OnChildAttachStateChangeListener<span class="w"> </span>=<span class="w"> </span>object<span class="w"> </span>:<span class="w"> </span>RecyclerView.OnChildAttachStateChangeListener<span class="w"> </span>{
+<span class="w">        </span>override<span class="w"> </span>fun<span class="w"> </span>onChildViewAttachedToWindow(view:<span class="w"> </span>View)<span class="w"> </span>{
+<span class="w">            </span>//<span class="w"> </span>every<span class="w"> </span>time<span class="w"> </span>a<span class="w"> </span>new<span class="w"> </span>child<span class="w"> </span>view<span class="w"> </span>is<span class="w"> </span>attached<span class="w"> </span>add<span class="w"> </span>click<span class="w"> </span>listeners<span class="w"> </span>to<span class="w"> </span>it
+<span class="w">            </span>val<span class="w"> </span>holder<span class="w"> </span>=<span class="w"> </span>this@ItemClickSupport.recyclerView.getChildViewHolder(view)
+<span class="w">                    </span>.takeIf<span class="w"> </span>{<span class="w"> </span>it<span class="w"> </span>is<span class="w"> </span>ItemClickSupportViewHolder<span class="w"> </span>}<span class="w"> </span>as?<span class="w"> </span>ItemClickSupportViewHolder
+
+<span class="w">            </span>if<span class="w"> </span>(onItemClickListener<span class="w"> </span>!=<span class="w"> </span>null<span class="w"> </span><span class="err">&amp;&amp;</span><span class="w"> </span>holder?.isClickable<span class="w"> </span>!=<span class="w"> </span>false)<span class="w"> </span>{
+<span class="w">                </span>view.setOnClickListener(onClickListener)
+<span class="w">            </span>}
+<span class="w">            </span>if<span class="w"> </span>(onItemLongClickListener<span class="w"> </span>!=<span class="w"> </span>null<span class="w"> </span><span class="err">&amp;&amp;</span><span class="w"> </span>holder?.isLongClickable<span class="w"> </span>!=<span class="w"> </span>false)<span class="w"> </span>{
+<span class="w">                </span>view.setOnLongClickListener(onLongClickListener)
+<span class="w">            </span>}
+<span class="w">        </span>}
+
+<span class="w">        </span>override<span class="w"> </span>fun<span class="w"> </span>onChildViewDetachedFromWindow(view:<span class="w"> </span>View)<span class="w"> </span>{
+
+<span class="w">        </span>}
+<span class="w">    </span>}
+
+<span class="w">    </span>init<span class="w"> </span>{
+<span class="w">        </span>//<span class="w"> </span>the<span class="w"> </span>ID<span class="w"> </span>must<span class="w"> </span>be<span class="w"> </span>declared<span class="w"> </span>in<span class="w"> </span>XML,<span class="w"> </span>used<span class="w"> </span>to<span class="w"> </span>avoid
+<span class="w">        </span>//<span class="w"> </span>replacing<span class="w"> </span>the<span class="w"> </span>ItemClickSupport<span class="w"> </span>without<span class="w"> </span>removing
+<span class="w">        </span>//<span class="w"> </span>the<span class="w"> </span>old<span class="w"> </span>one<span class="w"> </span>from<span class="w"> </span>the<span class="w"> </span>RecyclerView
+<span class="w">        </span>this.recyclerView.setTag(R.id.item_click_support,<span class="w"> </span>this)
+<span class="w">        </span>this.recyclerView.addOnChildAttachStateChangeListener(attachListener)
+<span class="w">    </span>}
+
+<span class="w">    </span>companion<span class="w"> </span>object<span class="w"> </span>{
+<span class="w">        </span>fun<span class="w"> </span>addTo(view:<span class="w"> </span>RecyclerView):<span class="w"> </span>ItemClickSupport<span class="w"> </span>{
+<span class="w">            </span>//<span class="w"> </span>if<span class="w"> </span>there's<span class="w"> </span>already<span class="w"> </span>an<span class="w"> </span>ItemClickSupport<span class="w"> </span>attached
+<span class="w">            </span>//<span class="w"> </span>to<span class="w"> </span>this<span class="w"> </span>RecyclerView<span class="w"> </span>do<span class="w"> </span>not<span class="w"> </span>replace<span class="w"> </span>it,<span class="w"> </span>use<span class="w"> </span>it
+<span class="w">            </span>var<span class="w"> </span>support:<span class="w"> </span>ItemClickSupport?<span class="w"> </span>=<span class="w"> </span>view.getTag(R.id.item_click_support)<span class="w"> </span>as?<span class="w"> </span>ItemClickSupport
+<span class="w">            </span>if<span class="w"> </span>(support<span class="w"> </span>==<span class="w"> </span>null)<span class="w"> </span>{
+<span class="w">                </span>support<span class="w"> </span>=<span class="w"> </span>ItemClickSupport(view)
+<span class="w">            </span>}
+<span class="w">            </span>return<span class="w"> </span>support
+<span class="w">        </span>}
+
+<span class="w">        </span>fun<span class="w"> </span>removeFrom(view:<span class="w"> </span>RecyclerView):<span class="w"> </span>ItemClickSupport?<span class="w"> </span>{
+<span class="w">            </span>val<span class="w"> </span>support<span class="w"> </span>=<span class="w"> </span>view.getTag(R.id.item_click_support)<span class="w"> </span>as?<span class="w"> </span>ItemClickSupport
+<span class="w">            </span>support?.detach(view)
+<span class="w">            </span>return<span class="w"> </span>support
+<span class="w">        </span>}
+<span class="w">    </span>}
+
+<span class="w">    </span>private<span class="w"> </span>val<span class="w"> </span>onClickListener<span class="w"> </span>=<span class="w"> </span>View.OnClickListener<span class="w"> </span>{<span class="w"> </span>v<span class="w"> </span>-&gt;
+<span class="w">        </span>val<span class="w"> </span>listener<span class="w"> </span>=<span class="w"> </span>onItemClickListener<span class="w"> </span>?:<span class="w"> </span>return@OnClickListener
+<span class="w">        </span>//<span class="w"> </span>ask<span class="w"> </span>the<span class="w"> </span>RecyclerView<span class="w"> </span>for<span class="w"> </span>the<span class="w"> </span>viewHolder<span class="w"> </span>of<span class="w"> </span>this<span class="w"> </span>view.
+<span class="w">        </span>//<span class="w"> </span>then<span class="w"> </span>use<span class="w"> </span>it<span class="w"> </span>to<span class="w"> </span>get<span class="w"> </span>the<span class="w"> </span>position<span class="w"> </span>for<span class="w"> </span>the<span class="w"> </span>adapter
+<span class="w">        </span>val<span class="w"> </span>holder<span class="w"> </span>=<span class="w"> </span>this.recyclerView.getChildViewHolder(v)
+<span class="w">        </span>listener.invoke(this.recyclerView,<span class="w"> </span>holder.adapterPosition,<span class="w"> </span>v)
+<span class="w">    </span>}
+
+<span class="w">    </span>private<span class="w"> </span>val<span class="w"> </span>onLongClickListener<span class="w"> </span>=<span class="w"> </span>View.OnLongClickListener<span class="w"> </span>{<span class="w"> </span>v<span class="w"> </span>-&gt;
+<span class="w">        </span>val<span class="w"> </span>listener<span class="w"> </span>=<span class="w"> </span>onItemLongClickListener<span class="w"> </span>?:<span class="w"> </span>return@OnLongClickListener<span class="w"> </span>false
+<span class="w">        </span>val<span class="w"> </span>holder<span class="w"> </span>=<span class="w"> </span>this.recyclerView.getChildViewHolder(v)
+<span class="w">        </span>return@OnLongClickListener<span class="w"> </span>listener.invoke(this.recyclerView,<span class="w"> </span>holder.adapterPosition,<span class="w"> </span>v)
+<span class="w">    </span>}
+
+<span class="w">    </span>private<span class="w"> </span>fun<span class="w"> </span>detach(view:<span class="w"> </span>RecyclerView)<span class="w"> </span>{
+<span class="w">        </span>view.removeOnChildAttachStateChangeListener(attachListener)
+<span class="w">        </span>view.setTag(R.id.item_click_support,<span class="w"> </span>null)
+<span class="w">    </span>}
+
+<span class="w">    </span>fun<span class="w"> </span>onItemClick(listener:<span class="w"> </span>OnRecyclerViewItemClickListener?):<span class="w"> </span>ItemClickSupport<span class="w"> </span>{
+<span class="w">        </span>onItemClickListener<span class="w"> </span>=<span class="w"> </span>listener
+<span class="w">        </span>return<span class="w"> </span>this
+<span class="w">    </span>}
+
+<span class="w">    </span>fun<span class="w"> </span>onItemLongClick(listener:<span class="w"> </span>OnRecyclerViewItemLongClickListener?):<span class="w"> </span>ItemClickSupport<span class="w"> </span>{
+<span class="w">        </span>onItemLongClickListener<span class="w"> </span>=<span class="w"> </span>listener
+<span class="w">        </span>return<span class="w"> </span>this
+<span class="w">    </span>}
+
+}
+
+/**<span class="w"> </span>Give<span class="w"> </span>click-ability<span class="w"> </span>and<span class="w"> </span>long-click-ability<span class="w"> </span>control<span class="w"> </span>to<span class="w"> </span>the<span class="w"> </span>ViewHolder<span class="w"> </span>*/
+interface<span class="w"> </span>ItemClickSupportViewHolder<span class="w"> </span>{
+<span class="w">    </span>val<span class="w"> </span>isClickable:<span class="w"> </span>Boolean<span class="w"> </span>get()<span class="w"> </span>=<span class="w"> </span>true
+<span class="w">    </span>val<span class="w"> </span>isLongClickable:<span class="w"> </span>Boolean<span class="w"> </span>get()<span class="w"> </span>=<span class="w"> </span>true
+}
+
+//<span class="w"> </span>Extension<span class="w"> </span>function
+fun<span class="w"> </span>RecyclerView.addItemClickSupport(configuration:<span class="w"> </span>ItemClickSupport.()<span class="w"> </span>-&gt;<span class="w"> </span>Unit<span class="w"> </span>=<span class="w"> </span>{})<span class="w"> </span>=<span class="w"> </span>ItemClickSupport.addTo(this).apply(configuration)
+
+fun<span class="w"> </span>RecyclerView.removeItemClickSupport()<span class="w"> </span>=<span class="w"> </span>ItemClickSupport.removeFrom(this)
+
+fun<span class="w"> </span>RecyclerView.onItemClick(onClick:<span class="w"> </span>OnRecyclerViewItemClickListener)<span class="w"> </span>{
+<span class="w">    </span>addItemClickSupport<span class="w"> </span>{<span class="w"> </span>onItemClick(onClick)<span class="w"> </span>}
+}
+fun<span class="w"> </span>RecyclerView.onItemLongClick(onLongClick:<span class="w"> </span>OnRecyclerViewItemLongClickListener)<span class="w"> </span>{
+<span class="w">    </span>addItemClickSupport<span class="w"> </span>{<span class="w"> </span>onItemLongClick(onLongClick)<span class="w"> </span>}
+}
+</pre></div>
+
+<p>(Remember you also need to add an XML file, see above this section)</p>
+<h4>Bonus feature of Kotlin version</h4>
+<p>Sometimes you do not want all the items of the RecyclerView to be clickable.</p>
+<p>To handle this I've introduced the <code>ItemClickSupportViewHolder</code> interface that
+you can use on your <code>ViewHolder</code> to control which item is clickable.</p>
+<p>Example:</p>
+<div class="code"><pre class="code literal-block">class<span class="w"> </span>MyViewHolder(view):<span class="w"> </span>RecyclerView.ViewHolder(view),<span class="w"> </span>ItemClickSupportViewHolder<span class="w"> </span>{
+<span class="w">    </span>override<span class="w"> </span>val<span class="w"> </span>isClickable:<span class="w"> </span>Boolean<span class="w"> </span>get()<span class="w"> </span>=<span class="w"> </span>false
+<span class="w">    </span>override<span class="w"> </span>val<span class="w"> </span>isLongClickable:<span class="w"> </span>Boolean<span class="w"> </span>get()<span class="w"> </span>=<span class="w"> </span>false
+}
+</pre></div>
+
+<h3>Java</h3>
+<p>Usage:</p>
+<div class="code"><pre class="code literal-block"><span class="n">ItemClickSupport</span><span class="p">.</span><span class="n">addTo</span><span class="p">(</span><span class="n">mRecyclerView</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="n">setOnItemClickListener</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="p">.</span><span class="n">OnItemClickListener</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="nv">@Override</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onItemClicked</span><span class="p">(</span><span class="n">RecyclerView</span><span class="w"> </span><span class="n">recyclerView</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="k">position</span><span class="p">,</span><span class="w"> </span><span class="k">View</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">it</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span><span class="p">);</span>
+</pre></div>
+
+<p>(it also support long item click)</p>
+<p>Implementation (comments added by me):</p>
+<div class="code"><pre class="code literal-block"><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="n">RecyclerView</span><span class="w"> </span><span class="n">mRecyclerView</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">OnItemClickListener</span><span class="w"> </span><span class="n">mOnItemClickListener</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">OnItemLongClickListener</span><span class="w"> </span><span class="n">mOnItemLongClickListener</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">View</span><span class="p">.</span><span class="n">OnClickListener</span><span class="w"> </span><span class="n">mOnClickListener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">View</span><span class="p">.</span><span class="n">OnClickListener</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="nv">@Override</span>
+<span class="w">        </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onClick</span><span class="p">(</span><span class="k">View</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mOnItemClickListener</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="n">ask</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">RecyclerView</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">viewHolder</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">view</span><span class="p">.</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="k">get</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">position</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">adapter</span>
+<span class="w">                </span><span class="n">RecyclerView</span><span class="p">.</span><span class="n">ViewHolder</span><span class="w"> </span><span class="n">holder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mRecyclerView</span><span class="p">.</span><span class="n">getChildViewHolder</span><span class="p">(</span><span class="n">v</span><span class="p">);</span>
+<span class="w">                </span><span class="n">mOnItemClickListener</span><span class="p">.</span><span class="n">onItemClicked</span><span class="p">(</span><span class="n">mRecyclerView</span><span class="p">,</span><span class="w"> </span><span class="n">holder</span><span class="p">.</span><span class="n">getAdapterPosition</span><span class="p">(),</span><span class="w"> </span><span class="n">v</span><span class="p">);</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">View</span><span class="p">.</span><span class="n">OnLongClickListener</span><span class="w"> </span><span class="n">mOnLongClickListener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">View</span><span class="p">.</span><span class="n">OnLongClickListener</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="nv">@Override</span>
+<span class="w">        </span><span class="k">public</span><span class="w"> </span><span class="k">boolean</span><span class="w"> </span><span class="n">onLongClick</span><span class="p">(</span><span class="k">View</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mOnItemLongClickListener</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                </span><span class="n">RecyclerView</span><span class="p">.</span><span class="n">ViewHolder</span><span class="w"> </span><span class="n">holder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mRecyclerView</span><span class="p">.</span><span class="n">getChildViewHolder</span><span class="p">(</span><span class="n">v</span><span class="p">);</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">mOnItemLongClickListener</span><span class="p">.</span><span class="n">onItemLongClicked</span><span class="p">(</span><span class="n">mRecyclerView</span><span class="p">,</span><span class="w"> </span><span class="n">holder</span><span class="p">.</span><span class="n">getAdapterPosition</span><span class="p">(),</span><span class="w"> </span><span class="n">v</span><span class="p">);</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">RecyclerView</span><span class="p">.</span><span class="n">OnChildAttachStateChangeListener</span><span class="w"> </span><span class="n">mAttachListener</span>
+<span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">RecyclerView</span><span class="p">.</span><span class="n">OnChildAttachStateChangeListener</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="nv">@Override</span>
+<span class="w">        </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onChildViewAttachedToWindow</span><span class="p">(</span><span class="k">View</span><span class="w"> </span><span class="k">view</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="k">every</span><span class="w"> </span><span class="nc">time</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="k">view</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">attached</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">click</span><span class="w"> </span><span class="n">listeners</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">it</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mOnItemClickListener</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                </span><span class="k">view</span><span class="p">.</span><span class="n">setOnClickListener</span><span class="p">(</span><span class="n">mOnClickListener</span><span class="p">);</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mOnItemLongClickListener</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                </span><span class="k">view</span><span class="p">.</span><span class="n">setOnLongClickListener</span><span class="p">(</span><span class="n">mOnLongClickListener</span><span class="p">);</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">        </span><span class="err">}</span>
+
+<span class="w">        </span><span class="nv">@Override</span>
+<span class="w">        </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onChildViewDetachedFromWindow</span><span class="p">(</span><span class="k">View</span><span class="w"> </span><span class="k">view</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="p">(</span><span class="n">RecyclerView</span><span class="w"> </span><span class="n">recyclerView</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">mRecyclerView</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">recyclerView</span><span class="p">;</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">ID</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">declared</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">XML</span><span class="p">,</span><span class="w"> </span><span class="n">used</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">avoid</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">replacing</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="k">without</span><span class="w"> </span><span class="n">removing</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">old</span><span class="w"> </span><span class="n">one</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">RecyclerView</span>
+<span class="w">        </span><span class="n">mRecyclerView</span><span class="p">.</span><span class="n">setTag</span><span class="p">(</span><span class="n">R</span><span class="p">.</span><span class="n">id</span><span class="p">.</span><span class="n">item_click_support</span><span class="p">,</span><span class="w"> </span><span class="n">this</span><span class="p">);</span>
+<span class="w">        </span><span class="n">mRecyclerView</span><span class="p">.</span><span class="n">addOnChildAttachStateChangeListener</span><span class="p">(</span><span class="n">mAttachListener</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="n">addTo</span><span class="p">(</span><span class="n">RecyclerView</span><span class="w"> </span><span class="k">view</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">there</span><span class="err">'</span><span class="n">s</span><span class="w"> </span><span class="n">already</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="n">attached</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">RecyclerView</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nf">replace</span><span class="w"> </span><span class="n">it</span><span class="p">,</span><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="n">it</span>
+<span class="w">        </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="n">support</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ItemClickSupport</span><span class="p">)</span><span class="w"> </span><span class="k">view</span><span class="p">.</span><span class="n">getTag</span><span class="p">(</span><span class="n">R</span><span class="p">.</span><span class="n">id</span><span class="p">.</span><span class="n">item_click_support</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">support</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">support</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="p">(</span><span class="k">view</span><span class="p">);</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">support</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="n">removeFrom</span><span class="p">(</span><span class="n">RecyclerView</span><span class="w"> </span><span class="k">view</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="n">support</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ItemClickSupport</span><span class="p">)</span><span class="w"> </span><span class="k">view</span><span class="p">.</span><span class="n">getTag</span><span class="p">(</span><span class="n">R</span><span class="p">.</span><span class="n">id</span><span class="p">.</span><span class="n">item_click_support</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">support</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">support</span><span class="p">.</span><span class="n">detach</span><span class="p">(</span><span class="k">view</span><span class="p">);</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">support</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="n">setOnItemClickListener</span><span class="p">(</span><span class="n">OnItemClickListener</span><span class="w"> </span><span class="n">listener</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">mOnItemClickListener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">listener</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">ItemClickSupport</span><span class="w"> </span><span class="n">setOnItemLongClickListener</span><span class="p">(</span><span class="n">OnItemLongClickListener</span><span class="w"> </span><span class="n">listener</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">mOnItemLongClickListener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">listener</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">detach</span><span class="p">(</span><span class="n">RecyclerView</span><span class="w"> </span><span class="k">view</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">view</span><span class="p">.</span><span class="n">removeOnChildAttachStateChangeListener</span><span class="p">(</span><span class="n">mAttachListener</span><span class="p">);</span>
+<span class="w">        </span><span class="k">view</span><span class="p">.</span><span class="n">setTag</span><span class="p">(</span><span class="n">R</span><span class="p">.</span><span class="n">id</span><span class="p">.</span><span class="n">item_click_support</span><span class="p">,</span><span class="w"> </span><span class="k">null</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">interface</span><span class="w"> </span><span class="n">OnItemClickListener</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="n">void</span><span class="w"> </span><span class="n">onItemClicked</span><span class="p">(</span><span class="n">RecyclerView</span><span class="w"> </span><span class="n">recyclerView</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="k">position</span><span class="p">,</span><span class="w"> </span><span class="k">View</span><span class="w"> </span><span class="n">v</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">interface</span><span class="w"> </span><span class="n">OnItemLongClickListener</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="k">boolean</span><span class="w"> </span><span class="n">onItemLongClicked</span><span class="p">(</span><span class="n">RecyclerView</span><span class="w"> </span><span class="n">recyclerView</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="k">position</span><span class="p">,</span><span class="w"> </span><span class="k">View</span><span class="w"> </span><span class="n">v</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<h3>How it works (why it's efficient)</h3>
+<p>This class works by attaching a
+<code>RecyclerView.OnChildAttachStateChangeListener</code> to the <code>RecyclerView</code>. This
+listener is notified every time a child is attached or detached from the
+<code>RecyclerView</code>. The code use this to append a tap/long click listener to the
+view. That listener ask the <code>RecyclerView</code> for the <code>RecyclerView.ViewHolder</code>
+which contains the position.</p>
+<p>This is more efficient then other solutions because it avoid creating multiple
+listeners for each view and keep destroying and creating them while the
+<code>RecyclerView</code> is being scrolled.</p>
+<p>You could also adapt the code to give you back the holder itself if you need
+more.</p>
+<h2>Final remark</h2>
+<p>Keep in mind that it's COMPLETELY fine to handle it in your adapter by setting
+on each view of your list a click listener, like other answer proposed.</p>
+<p>It's just not the most efficient thing to do (you create a new listener every
+time you reuse a view) but it works and in most cases it's not an issue.</p>
+<p>It is also a bit against separation of concerns cause it's not really the Job
+of the Adapter to delegate click events.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-calculate-the-number-of-lines-changed-between-two-commits-in-git/" class="u-url">How can I calculate the number of lines changed between two commits in Git?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -352,53 +793,6 @@ loss</strong></em> , then you can delete unused (dangling) volumes (v1.9 and up)
 <li><code>docker volume rm</code></li>
 </ul>
 </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/find-all-files-in-a-directory-with-extension-txt-in-python/" class="u-url">Find all files in a directory with extension .txt in Python</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/find-all-files-in-a-directory-with-extension-txt-in-python/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T06:56:38+08:00" itemprop="datePublished" title="2023-02-17 06:56">2023-02-17 06:56</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p><strong>This question's answers are a community effort</strong>. Edit existing answers to
-improve this post. It is not currently accepting new answers or interactions.</p>
-<p>How can I find all the files in a directory having the extension <code>.txt</code> in
-python?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You can use <code>glob</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">glob</span><span class="o">,</span> <span class="nn">os</span>
-<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s2">"/mydir"</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">"*.txt"</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
-</pre></div>
-
-<p>or simply <code>os.listdir</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">os</span>
-<span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s2">"/mydir"</span><span class="p">):</span>
-    <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">".txt"</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">"/mydir"</span><span class="p">,</span> <span class="n">file</span><span class="p">))</span>
-</pre></div>
-
-<p>or if you want to traverse directory, use <code>os.walk</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">os</span>
-<span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s2">"/mydir"</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">".txt"</span><span class="p">):</span>
-             <span class="nb">print</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">file</span><span class="p">))</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Use glob.</p>
-<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">glob</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">'./*.txt'</span><span class="p">)</span>
-<span class="p">[</span><span class="s1">'./outline.txt'</span><span class="p">,</span> <span class="s1">'./pip-log.txt'</span><span class="p">,</span> <span class="s1">'./test.txt'</span><span class="p">,</span> <span class="s1">'./testingvim.txt'</span><span class="p">]</span>
-</pre></div>
-    </div>
     </article>
 </div>
 

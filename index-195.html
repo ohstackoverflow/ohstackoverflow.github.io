@@ -108,7 +108,111 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-a-lambda-expression-in-c-11/" class="u-url">What is a lambda expression in C++11?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/proper-way-to-declare-custom-exceptions-in-modern-python/" class="u-url">Proper way to declare custom exceptions in modern Python?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/proper-way-to-declare-custom-exceptions-in-modern-python/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T00:30:40+08:00" itemprop="datePublished" title="2023-02-17 00:30">2023-02-17 00:30</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What's the proper way to declare custom exception classes in modern Python? My
+primary goal is to follow whatever standard other exception classes have, so
+that (for instance) any extra string I include in the exception is printed out
+by whatever tool caught the exception.</p>
+<p>By "modern Python" I mean something that will run in Python 2.5 but be
+'correct' for the Python 2.6 and Python 3.* way of doing things. And by
+"custom" I mean an <code>Exception</code> object that can include extra data about the
+cause of the error: a string, maybe also some other arbitrary object relevant
+to the exception.</p>
+<p>I was tripped up by the following deprecation warning in Python 2.6.2:</p>
+<div class="code"><pre class="code literal-block">&gt;&gt;&gt; class MyError(Exception):
+...     def __init__(self, message):
+...         self.message = message
+... 
+&gt;&gt;&gt; MyError("foo")
+_sandbox.py:3: DeprecationWarning: BaseException.message has been deprecated as of Python 2.6
+</pre></div>
+
+<p>It seems crazy that <code>BaseException</code> has a special meaning for attributes named
+<code>message</code>. I gather from PEP-352 that attribute did have a special meaning in
+2.5 they're trying to deprecate away, so I guess that name (and that one
+alone) is now forbidden? Ugh.</p>
+<p>I'm also fuzzily aware that <code>Exception</code> has some magic parameter <code>args</code>, but
+I've never known how to use it. Nor am I sure it's the right way to do things
+going forward; a lot of the discussion I found online suggested they were
+trying to do away with args in Python 3.</p>
+<p>Update: two answers have suggested overriding <code>__init__</code>, and
+<code>__str__</code>/<code>__unicode__</code>/<code>__repr__</code>. That seems like a lot of typing, is it
+necessary?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Maybe I missed the question, but why not:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">MyException</span>(<span class="nb">Exception</span>):
+    <span class="nb">pass</span>
+</pre></div>
+
+<p>To override something (or pass extra args), do this:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">ValidationError</span><span class="p">(</span><span class="n">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="n">def</span><span class="w"> </span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">message</span><span class="p">,</span><span class="w"> </span><span class="n">errors</span><span class="p">):</span><span class="w">            </span>
+<span class="w">        </span><span class="c1"># Call the base class constructor with the parameters it needs</span>
+<span class="w">        </span><span class="n">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+<span class="w">        </span><span class="c1"># Now for your custom code...</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">errors</span>
+</pre></div>
+
+<p>That way you could pass dict of error messages to the second param, and get to
+it later with <code>e.errors</code>.</p>
+<p>In Python 2, you have to use this slightly more complex form of <code>super()</code>:</p>
+<div class="code"><pre class="code literal-block">super(ValidationError, self).__init__(message)
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>With modern Python Exceptions, you don't need to abuse <code>.message</code>, or override
+<code>.__str__()</code> or <code>.__repr__()</code> or any of it. If all you want is an informative
+message when your exception is raised, do this:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">MyException</span>(<span class="nb">Exception</span>):
+    <span class="nb">pass</span>
+
+<span class="n">raise</span> <span class="n">MyException</span>(<span class="s">"My hovercraft is full of eels"</span>)
+</pre></div>
+
+<p>That will give a traceback ending with <code>MyException: My hovercraft is full of
+eels</code>.</p>
+<p>If you want more flexibility from the exception, you could pass a dictionary
+as the argument:</p>
+<div class="code"><pre class="code literal-block">raise MyException({"message":"My hovercraft is full of animals", "animal":"eels"})
+</pre></div>
+
+<p>However, to get at those details in an <code>except</code> block is a bit more
+complicated. The details are stored in the <code>args</code> attribute, which is a list.
+You would need to do something like this:</p>
+<div class="code"><pre class="code literal-block"><span class="k">try</span><span class="o">:</span>
+<span class="w">    </span><span class="n">raise</span><span class="w"> </span><span class="n">MyException</span><span class="o">({</span><span class="s2">"message"</span><span class="o">:</span><span class="s2">"My hovercraft is full of animals"</span><span class="o">,</span><span class="w"> </span><span class="s2">"animal"</span><span class="o">:</span><span class="s2">"eels"</span><span class="o">})</span>
+<span class="n">except</span><span class="w"> </span><span class="n">MyException</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">e</span><span class="o">:</span>
+<span class="w">    </span><span class="n">details</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="na">args</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span>
+<span class="w">    </span><span class="n">print</span><span class="o">(</span><span class="n">details</span><span class="o">[</span><span class="s2">"animal"</span><span class="o">])</span>
+</pre></div>
+
+<p>It is still possible to pass in multiple items to the exception and access
+them via tuple indexes, but this is <em>highly discouraged</em> (and was even
+intended for deprecation a while back). If you do need more than a single
+piece of information and the above method is not sufficient for you, then you
+should subclass <code>Exception</code> as described in the tutorial.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">MyError</span>(<span class="nb">Exception</span>):
+    <span class="n">def</span> <span class="n">__init__</span>(<span class="nb">self</span>, <span class="nb">message</span>, <span class="n">animal</span>):
+        <span class="nb">self</span>.<span class="nb">message</span> = <span class="nb">message</span>
+        <span class="nb">self</span>.<span class="n">animal</span> = <span class="n">animal</span>
+    <span class="n">def</span> <span class="n">__str__</span>(<span class="nb">self</span>):
+        <span class="k">return</span> <span class="nb">self</span>.<span class="nb">message</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-a-lambda-expression-in-c-11/" class="u-url">What is a lambda expression in C++11?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -434,84 +538,6 @@ read an entire <code>File</code> into a <code>String</code> with one line of cod
     <span class="k">return</span> <span class="n">FileUtils</span><span class="o">.</span><span class="n">readFileToString</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">StandardCharsets</span><span class="o">.</span><span class="n">UTF_8</span><span class="p">);</span>
 <span class="p">}</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-meaning-of-single-and-double-underscore-before-an-object-name/" class="u-url">What is the meaning of single and double underscore before an object name?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-is-the-meaning-of-single-and-double-underscore-before-an-object-name/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T00:29:02+08:00" itemprop="datePublished" title="2023-02-17 00:29">2023-02-17 00:29</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What do single and double leading underscores before an object's name
-represent in Python?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h3>Single Underscore</h3>
-<p>In a class, names with a leading underscore indicate to other programmers that
-the attribute or method is intended to be be used inside that class. However,
-privacy is not <em>enforced</em> in any way. Using leading underscores for functions
-in a module indicates it should not be imported from somewhere else.</p>
-<p>From the PEP-8 style guide:</p>
-<blockquote>
-<p><code>_single_leading_underscore</code>: weak "internal use" indicator. E.g. <code>from M
-import *</code> does not import objects whose name starts with an underscore.</p>
-</blockquote>
-<h3>Double Underscore (Name Mangling)</h3>
-<p>From the Python docs:</p>
-<blockquote>
-<p>Any identifier of the form <code>__spam</code> (at least two leading underscores, at
-most one trailing underscore) is textually replaced with <code>_classname__spam</code>,
-where <code>classname</code> is the current class name with leading underscore(s)
-stripped. This mangling is done without regard to the syntactic position of
-the identifier, so it can be used to define class-private instance and class
-variables, methods, variables stored in globals, and even variables stored
-in instances. private to this class on instances of other classes.</p>
-</blockquote>
-<p>And a warning from the same page:</p>
-<blockquote>
-<p>Name mangling is intended to give classes an easy way to define “private”
-instance variables and methods, without having to worry about instance
-variables defined by derived classes, or mucking with instance variables by
-code outside the class. Note that the mangling rules are designed mostly to
-avoid accidents; <em>it still is possible for a determined soul to access or
-modify a variable that is considered private.</em></p>
-</blockquote>
-<h3>Example</h3>
-<div class="code"><pre class="code literal-block">&gt;&gt;&gt; class MyClass():
-...     def __init__(self):
-...             self.__superprivate = "Hello"
-...             self._semiprivate = ", world!"
-...
-&gt;&gt;&gt; mc = MyClass()
-&gt;&gt;&gt; print mc.__superprivate
-Traceback (most recent call last):
-  File "&lt;stdin&gt;", line 1, in &lt;module&gt;
-AttributeError: myClass instance has no attribute '__superprivate'
-&gt;&gt;&gt; print mc._semiprivate
-, world!
-&gt;&gt;&gt; print mc.__dict__
-{'_MyClass__superprivate': 'Hello', '_semiprivate': ', world!'}
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<ul>
-<li>
-<p><code>_foo</code>: Only a convention. A way for the programmer to indicate that the variable is private (whatever that means in Python).</p>
-</li>
-<li>
-<p><code>__foo</code>: This has real meaning. The interpreter replaces this name with <code>_classname__foo</code> as a way to ensure that the name will not overlap with a similar name in another class.</p>
-</li>
-<li>
-<p><code>__foo__</code>: Only a convention. A way for the Python system to use names that won't conflict with user names.</p>
-</li>
-</ul>
-<p>No other form of underscores have meaning in the Python world. Also, there's
-no difference between class, variable, global, etc in these conventions.</p>
     </div>
     </article>
 </div>

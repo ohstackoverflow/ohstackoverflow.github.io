@@ -108,7 +108,193 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/this-action-could-not-be-completed-try-again-22421/" class="u-url">This action could not be completed. Try Again (-22421)</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-expose-and-publish-in-docker/" class="u-url">What is the difference between "expose" and "publish" in Docker?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-is-the-difference-between-expose-and-publish-in-docker/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T17:12:52+08:00" itemprop="datePublished" title="2023-02-17 17:12">2023-02-17 17:12</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm experimenting with Dockerfiles, and I think I understand most of the
+logic. However, I don't see the difference between "exposing" and "publishing"
+a port in this context.</p>
+<p>All the tutorials I have seen first include the <code>EXPOSE</code> command in the
+Dockerfile:</p>
+<div class="code"><pre class="code literal-block">...
+EXPOSE 8080
+...
+</pre></div>
+
+<p>They then build an image from this Dockerfile:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>an_image<span class="w"> </span>-<span class="w"> </span>&lt;<span class="w"> </span>Dockerfile
+</pre></div>
+
+<p>And then <em>publish</em> the same port as above when running the image:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>-p<span class="w"> </span><span class="m">8080</span><span class="w"> </span>an_image
+</pre></div>
+
+<p>or publish all ports using</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>-P<span class="w"> </span>an_image
+</pre></div>
+
+<p>What is the point of exposing a port in the Dockerfile, if it will be
+published anyway? Would there ever be a need to expose a port first, and <em>not</em>
+publish it later? Effectively, I would like to specify all the ports that I
+will use in the Dockerfile when creating the image, and then not bother with
+them again, running them simply with:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>an_image
+</pre></div>
+
+<p>Is this possible?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Basically, you have three (four) options:</p>
+<ol>
+<li>Neither specify <code>EXPOSE</code> nor <code>-p</code>
+</li>
+<li>Only specify <code>EXPOSE</code>
+</li>
+<li>Specify <code>EXPOSE</code> and <code>-p</code>
+</li>
+<li>
+<p>Only specify <code>-p</code> which implicitly does <code>EXPOSE</code></p>
+</li>
+<li>
+<p>If you specify neither <code>EXPOSE</code> nor <code>-p</code>, the service in the container will only be accessible from <em>inside</em> the container itself.</p>
+</li>
+<li>
+<p>If you <code>EXPOSE</code> a port, the service in the container is not accessible from outside Docker, but from inside other Docker containers. So this is good for inter-container communication.</p>
+</li>
+<li>
+<p>If you <code>EXPOSE</code> and <code>-p</code> a port, the service in the container is accessible from anywhere, even outside Docker.</p>
+</li>
+<li>
+<p>If you do <code>-p</code>, but do not <code>EXPOSE</code>, Docker does an implicit <code>EXPOSE</code>. This is because if a port is open to the public, it is automatically also open to other Docker containers. Hence <code>-p</code> includes <code>EXPOSE</code>. This is effectively same as 3).</p>
+</li>
+</ol>
+<p>The reason why both are separated is IMHO because:</p>
+<ul>
+<li>choosing a host port depends on the host and hence does not belong to the Dockerfile (otherwise it would be depending on the host),</li>
+<li>and often it's enough if a service in a container is accessible from other containers.</li>
+</ul>
+<p>The documentation explicitly states:</p>
+<blockquote>
+<p>The <code>EXPOSE</code> instruction exposes ports for use within links.</p>
+</blockquote>
+<p>It also points you to how to link containers, which basically is the inter-
+container communication I talked about.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h2>Short answer:</h2>
+<ul>
+<li>
+<code>EXPOSE</code> is a way of <strong>documenting</strong>
+</li>
+<li>
+<code>--publish</code> (or <code>-p</code>) is a way of <strong>mapping</strong> a <em>host port</em> to a running <em>container port</em>
+</li>
+</ul>
+<hr>
+<p>Notice below that:</p>
+<ul>
+<li>
+<code>EXPOSE</code> is related to <code>Dockerfiles</code> ( <strong>documenting</strong> )</li>
+<li>
+<code>--publish</code> is related to <code>docker run ...</code> ( <strong>execution / run-time</strong> )</li>
+</ul>
+<blockquote>
+<h3>Exposing and publishing ports</h3>
+<p>In Docker networking, there are two different mechanisms that directly
+involve network ports: exposing and publishing ports. This applies to the
+default bridge network and user-defined bridge networks.</p>
+<ul>
+<li>
+<p>You expose ports using the <code>EXPOSE</code> keyword in the Dockerfile or the
+<code>--expose</code> flag to docker run. Exposing ports is a way of <strong>documenting</strong>
+which ports are used, <strong>but does not actually map or open any ports</strong>.
+Exposing ports is optional.</p>
+</li>
+<li>
+<p>You publish ports using the <code>--publish</code> or <code>--publish-all</code> flag to
+<code>docker run</code>. This tells Docker which ports to open on the container’s
+network interface. When a port is published, it is mapped to an available
+high-order port (higher than <code>30000</code>) on the host machine, unless you
+specify the port to map to on the host machine at runtime. You cannot
+specify the port to map to on the host machine when you build the image (in
+the Dockerfile), because there is <strong>no way to guarantee that the port will
+be available on the host machine where you run the image</strong>.</p>
+</li>
+</ul>
+<p>from: <del>Docker container networking</del></p>
+<p><strong>Update October 2019</strong> : the above piece of text is no longer in the docs
+but an archived version is here:
+docs.docker.com/v17.09/engine/userguide/networking/#exposing-and-publishing-
+ports</p>
+<p>Maybe the current documentation is the below:
+</p>
+<blockquote>
+<h3>Published ports</h3>
+<p>By default, when you create a container, it does not publish any of its
+ports to the outside world. To make a port available to services outside of
+Docker, or to Docker containers which are not connected to the container's
+network, use the <code>--publish</code> or <code>-p</code> flag. This creates a firewall rule which
+maps a container port to a port on the Docker host.</p>
+</blockquote>
+<p>and can be found here: docs.docker.com/config/containers/container-
+networking/#published-ports</p>
+</blockquote>
+<p>Also,</p>
+<blockquote>
+<h3>EXPOSE</h3>
+<p>...The <code>EXPOSE</code> instruction <strong>does not actually publish the port</strong>. It
+functions as a type of <strong>documentation</strong> between the person who builds the
+image and the person who runs the container, about which ports are intended
+to be published.</p>
+<p>from: Dockerfile reference</p>
+</blockquote>
+<hr>
+<h2>Service access when <code>EXPOSE</code> / <code>--publish</code> are not defined:</h2>
+<p>At @Golo Roden's answer it is stated that::</p>
+<blockquote>
+<p><em>"If you do not specify any of those, the service in the container will not
+be accessible from anywhere except from inside the container itself."</em></p>
+</blockquote>
+<p>Maybe that was the case at the time the answer was being written, but now it
+seems that even if you do not use <code>EXPOSE</code> or <code>--publish</code>, the <code>host</code> and
+other <code>containers</code> of the same network will be able to access a service you
+may start inside that container.</p>
+<h3>How to test this:</h3>
+<p>I've used the following <code>Dockerfile</code>. Basically, I start with ubuntu and
+install a tiny web-server:</p>
+<div class="code"><pre class="code literal-block">FROM ubuntu
+RUN apt-get update &amp;&amp; apt-get install -y mini-httpd
+</pre></div>
+
+<p>I <code>build</code> the image as "testexpose" and <code>run</code> a new container with:</p>
+<div class="code"><pre class="code literal-block">docker run --rm -it testexpose bash
+</pre></div>
+
+<p>Inside the container, I launch a few instances of <code>mini-httpd</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="n">root</span><span class="nv">@fb8f7dd1322d</span><span class="err">:</span><span class="o">/</span><span class="err">#</span><span class="w"> </span><span class="n">mini_httpd</span><span class="w"> </span><span class="o">-</span><span class="n">p</span><span class="w"> </span><span class="mi">80</span>
+<span class="n">root</span><span class="nv">@fb8f7dd1322d</span><span class="err">:</span><span class="o">/</span><span class="err">#</span><span class="w"> </span><span class="n">mini_httpd</span><span class="w"> </span><span class="o">-</span><span class="n">p</span><span class="w"> </span><span class="mi">8080</span>
+<span class="n">root</span><span class="nv">@fb8f7dd1322d</span><span class="err">:</span><span class="o">/</span><span class="err">#</span><span class="w"> </span><span class="n">mini_httpd</span><span class="w"> </span><span class="o">-</span><span class="n">p</span><span class="w"> </span><span class="mi">8090</span>
+</pre></div>
+
+<p>I am then able to use <code>curl</code> from the host or other containers to fetch the
+home page of <code>mini-httpd</code>.</p>
+<hr>
+<h2>Further reading</h2>
+<p>Very detailed articles on the subject by Ivan Pepelnjak:</p>
+<ul>
+<li>Exposed ports</li>
+<li>Published ports</li>
+</ul>
+</div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/this-action-could-not-be-completed-try-again-22421/" class="u-url">This action could not be completed. Try Again (-22421)</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -252,78 +438,6 @@ your component's constructor:</p>
 </pre></div>
 
 <p>Docs: https://angular.io/docs/ts/latest/api/core/index/ElementRef-class.html</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-store-node-js-deployment-settings-configuration-files/" class="u-url">How to store Node.js deployment settings/configuration files?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-store-node-js-deployment-settings-configuration-files/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T17:11:26+08:00" itemprop="datePublished" title="2023-02-17 17:11">2023-02-17 17:11</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have been working on a few Node apps, and I've been looking for a good
-pattern of storing deployment-related settings. In the Django world (where I
-come from), the common practise would be to have a <code>settings.py</code> file
-containing the standard settings (timezone, etc), and then a
-<code>local_settings.py</code> for deployment specific settings, ie. what database to
-talk to, what memcache socket, e-mail address for the admins and so on.</p>
-<p>I have been looking for similar patterns for Node. Just a config file would be
-nice, so it does not have to be jammed in with everything else in <code>app.js</code>,
-but I find it important to have a way to have server-specific configuration in
-a file that is not in source control. The same app could well be deployed
-across different servers with wildly different settings, and having to deal
-with merge conflicts and all that is not my idea of fun.</p>
-<p>So is there some kind of framework/tool for this, or does everyone just hack
-something together themselves?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Much later, I found a pretty good Node.js module for managing configuration:
-nconf.</p>
-<p>A simple example:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">nconf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'nconf'</span><span class="p">);</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">First</span><span class="w"> </span><span class="n">consider</span><span class="w"> </span><span class="n">commandline</span><span class="w"> </span><span class="n">arguments</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">environment</span><span class="w"> </span><span class="n">variables</span><span class="p">,</span><span class="w"> </span><span class="n">respectively</span><span class="o">.</span>
-<span class="n">nconf</span><span class="o">.</span><span class="n">argv</span><span class="p">()</span><span class="o">.</span><span class="n">env</span><span class="p">();</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">Then</span><span class="w"> </span><span class="nb">load</span><span class="w"> </span><span class="n">configuration</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">designated</span><span class="w"> </span><span class="n">file</span><span class="o">.</span>
-<span class="n">nconf</span><span class="o">.</span><span class="n">file</span><span class="p">({</span><span class="w"> </span><span class="n">file</span><span class="p">:</span><span class="w"> </span><span class="s1">'config.json'</span><span class="w"> </span><span class="p">});</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">Provide</span><span class="w"> </span><span class="n">default</span><span class="w"> </span><span class="n">values</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">provided</span><span class="w"> </span><span class="n">above</span><span class="o">.</span>
-<span class="n">nconf</span><span class="o">.</span><span class="n">defaults</span><span class="p">({</span>
-<span class="w">    </span><span class="s1">'http'</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="s1">'port'</span><span class="p">:</span><span class="w"> </span><span class="mi">1337</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">});</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">Once</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">place</span><span class="p">,</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">just</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="n">nconf</span><span class="o">.</span><span class="n">get</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">get</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">settings</span><span class="o">.</span>
-<span class="o">//</span><span class="w"> </span><span class="n">So</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">would</span><span class="w"> </span><span class="n">configure</span><span class="w"> </span><span class="err">`</span><span class="n">myApp</span><span class="err">`</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">listen</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">port</span><span class="w"> </span><span class="mi">1337</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">port</span>
-<span class="o">//</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">been</span><span class="w"> </span><span class="n">overridden</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">any</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">three</span><span class="w"> </span><span class="n">configuration</span><span class="w"> </span><span class="n">inputs</span>
-<span class="o">//</span><span class="w"> </span><span class="n">mentioned</span><span class="w"> </span><span class="n">above</span><span class="o">.</span>
-<span class="n">myApp</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">nconf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'http:port'</span><span class="p">));</span>
-</pre></div>
-
-<p>It also supports storing settings in Redis, writing configuration files, and
-has a fairly solid API, and is also backed by one of the more well-respected
-Node.js shops, Nodejitsu, as part of the Flatiron framework initiative, so it
-should be fairly future-proof.</p>
-<p>Check out nconf at Github.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You can require JSON files as of Node v0.5.x (referencing this answer)</p>
-<p>config.json:</p>
-<div class="code"><pre class="code literal-block">{
-    "username" : "root",
-    "password" : "foot"
-}
-</pre></div>
-
-<p>app.js:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'./config.json'</span><span class="p">);</span>
-<span class="n">log_in</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="o">.</span><span class="n">password</span><span class="p">);</span>
-</pre></div>
     </div>
     </article>
 </div>

@@ -108,7 +108,185 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-doesn-t-println-work-in-rust-unit-tests/" class="u-url">Why doesn't println! work in Rust unit tests?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-correctly-save-instance-state-of-fragments-in-back-stack/" class="u-url">How to correctly save instance state of Fragments in back stack?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-correctly-save-instance-state-of-fragments-in-back-stack/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T06:13:57+08:00" itemprop="datePublished" title="2023-02-18 06:13">2023-02-18 06:13</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have found many instances of a similar question on SO but no answer
+unfortunately meets my requirements.</p>
+<p>I have different layouts for portrait and landscape and I am using back stack,
+which both prevents me from using <code>setRetainState()</code> and tricks using
+configuration change routines.</p>
+<p>I show certain information to the user in TextViews, which do not get saved in
+the default handler. When writing my application solely using Activities, the
+following worked well:</p>
+<div class="code"><pre class="code literal-block"><span class="n">TextView</span><span class="w"> </span><span class="n">vstup</span><span class="p">;</span>
+
+<span class="nv">@Override</span>
+<span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onCreate</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">super</span><span class="p">.</span><span class="n">onCreate</span><span class="p">(</span><span class="n">savedInstanceState</span><span class="p">);</span>
+<span class="w">    </span><span class="n">setContentView</span><span class="p">(</span><span class="n">R</span><span class="p">.</span><span class="n">layout</span><span class="p">.</span><span class="n">whatever</span><span class="p">);</span>
+<span class="w">    </span><span class="n">vstup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">TextView</span><span class="p">)</span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="p">.</span><span class="n">id</span><span class="p">.</span><span class="n">whatever</span><span class="p">);</span>
+<span class="w">    </span><span class="cm">/* (...) */</span>
+<span class="err">}</span>
+
+<span class="nv">@Override</span>
+<span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="k">state</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">super</span><span class="p">.</span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="k">state</span><span class="p">);</span>
+<span class="w">    </span><span class="k">state</span><span class="p">.</span><span class="n">putCharSequence</span><span class="p">(</span><span class="n">App</span><span class="p">.</span><span class="n">VSTUP</span><span class="p">,</span><span class="w"> </span><span class="n">vstup</span><span class="p">.</span><span class="n">getText</span><span class="p">());</span>
+<span class="err">}</span>
+
+<span class="nv">@Override</span>
+<span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onRestoreInstanceState</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="k">state</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">super</span><span class="p">.</span><span class="n">onRestoreInstanceState</span><span class="p">(</span><span class="k">state</span><span class="p">);</span>
+<span class="w">    </span><span class="n">vstup</span><span class="p">.</span><span class="n">setText</span><span class="p">(</span><span class="k">state</span><span class="p">.</span><span class="n">getCharSequence</span><span class="p">(</span><span class="n">App</span><span class="p">.</span><span class="n">VSTUP</span><span class="p">));</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>With <code>Fragment</code>s, this works only in very specific situations. Specifically,
+what breaks horribly is replacing a fragment, putting it in the back stack and
+then rotating the screen while the new fragment is shown. From what I
+understood, the old fragment does not receive a call to
+<code>onSaveInstanceState()</code> when being replaced but stays somehow linked to the
+<code>Activity</code> and this method is called later when its <code>View</code> does not exist
+anymore, so looking for any of my <code>TextView</code>s results into a
+<code>NullPointerException</code>.</p>
+<p>Also, I found that keeping the reference to my <code>TextViews</code> is not a good idea
+with <code>Fragment</code>s, even if it was OK with <code>Activity</code>'s. In that case,
+<code>onSaveInstanceState()</code> actually saves the state but the problem reappears if
+I rotate the screen <em>twice</em> when the fragment is hidden, as its
+<code>onCreateView()</code> does not get called in the new instance.</p>
+<p>I thought of saving the state in <code>onDestroyView()</code> into some <code>Bundle</code>-type
+class member element (it's actually more data, not just one <code>TextView</code>) and
+saving <em>that</em> in <code>onSaveInstanceState()</code> but there are other drawbacks.
+Primarily, if the fragment <em>is</em> currently shown, the order of calling the two
+functions is reversed, so I'd need to account for two different situations.
+There must be a cleaner and correct solution!</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>To correctly save the instance state of <code>Fragment</code> you should do the
+following:</p>
+<p><strong>1.</strong> In the fragment, save instance state by overriding
+<code>onSaveInstanceState()</code> and restore in <code>onActivityCreated()</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">MyFragment</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Fragment</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onActivityCreated</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onActivityCreated</span><span class="p">(</span><span class="n">savedInstanceState</span><span class="p">);</span>
+<span class="w">        </span><span class="o">...</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">savedInstanceState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">//</span><span class="n">Restore</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">fragment</span><span class="s1">'s state here</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">...</span>
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">outState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">outState</span><span class="p">);</span>
+
+<span class="w">        </span><span class="o">//</span><span class="n">Save</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">fragment</span><span class="s1">'s state here</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>2.</strong> And <strong>important point</strong> , in the activity, you have to save the
+fragment's instance in <code>onSaveInstanceState()</code> and restore in <code>onCreate()</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">MyActivity</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Activity</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">MyFragment</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onCreate</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">...</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">savedInstanceState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">//</span><span class="n">Restore</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">fragment</span><span class="s1">'s instance</span>
+<span class="w">            </span><span class="n">mMyFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getSupportFragmentManager</span><span class="p">()</span><span class="o">.</span><span class="n">getFragment</span><span class="p">(</span><span class="n">savedInstanceState</span><span class="p">,</span><span class="w"> </span><span class="s2">"myFragmentName"</span><span class="p">);</span>
+<span class="w">            </span><span class="o">...</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="o">...</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">outState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">outState</span><span class="p">);</span>
+
+<span class="w">        </span><span class="o">//</span><span class="n">Save</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">fragment</span><span class="s1">'s instance</span>
+<span class="w">        </span><span class="n">getSupportFragmentManager</span><span class="p">()</span><span class="o">.</span><span class="n">putFragment</span><span class="p">(</span><span class="n">outState</span><span class="p">,</span><span class="w"> </span><span class="s2">"myFragmentName"</span><span class="p">,</span><span class="w"> </span><span class="n">mMyFragment</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="p">}</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<h3>This is a very old answer.</h3>
+<h5>I don't write for Android anymore so function in recent versions is not</h5>
+<p>guaranteed and there won't be any updates to it.</p>
+<p>This is the way I am using at this moment... it's very complicated but at
+least it handles all the possible situations. In case anyone is interested.</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">MyFragment</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Fragment</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">TextView</span><span class="w"> </span><span class="n">vstup</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">View</span><span class="w"> </span><span class="n">onCreateView</span><span class="p">(</span><span class="n">LayoutInflater</span><span class="w"> </span><span class="n">inflater</span><span class="p">,</span><span class="w"> </span><span class="n">ViewGroup</span><span class="w"> </span><span class="n">container</span><span class="p">,</span><span class="w"> </span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">View</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inflater</span><span class="o">.</span><span class="n">inflate</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">whatever</span><span class="p">,</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">);</span>
+<span class="w">        </span><span class="n">vstup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">TextView</span><span class="p">)</span><span class="n">v</span><span class="o">.</span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">whatever</span><span class="p">);</span>
+
+<span class="w">        </span><span class="o">/*</span><span class="w"> </span><span class="p">(</span><span class="o">...</span><span class="p">)</span><span class="w"> </span><span class="o">*/</span>
+
+<span class="w">        </span><span class="o">/*</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">Fragment</span><span class="w"> </span><span class="n">was</span><span class="w"> </span><span class="n">destroyed</span><span class="w"> </span><span class="n">inbetween</span><span class="w"> </span><span class="p">(</span><span class="n">screen</span><span class="w"> </span><span class="n">rotation</span><span class="p">),</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">need</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">recover</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">savedState</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">        </span><span class="o">/*</span><span class="w"> </span><span class="n">However</span><span class="p">,</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">was</span><span class="w"> </span><span class="ow">not</span><span class="p">,</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">stays</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">instance</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">last</span><span class="w"> </span><span class="n">onDestroyView</span><span class="p">()</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">don</span><span class="s1">'t want to overwrite it */</span>
+<span class="w">        </span><span class="k">if</span><span class="p">(</span><span class="n">savedInstanceState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">savedState</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">savedState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="o">.</span><span class="n">getBundle</span><span class="p">(</span><span class="n">App</span><span class="o">.</span><span class="n">STAV</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="p">(</span><span class="n">savedState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">vstup</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="n">savedState</span><span class="o">.</span><span class="n">getCharSequence</span><span class="p">(</span><span class="n">App</span><span class="o">.</span><span class="n">VSTUP</span><span class="p">));</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">savedState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">v</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onDestroyView</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onDestroyView</span><span class="p">();</span>
+<span class="w">        </span><span class="n">savedState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saveState</span><span class="p">();</span><span class="w"> </span><span class="o">/*</span><span class="w"> </span><span class="n">vstup</span><span class="w"> </span><span class="n">defined</span><span class="w"> </span><span class="n">here</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">sure</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">        </span><span class="n">vstup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">Bundle</span><span class="w"> </span><span class="n">saveState</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">/*</span><span class="w"> </span><span class="n">called</span><span class="w"> </span><span class="n">either</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">onDestroyView</span><span class="p">()</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">onSaveInstanceState</span><span class="p">()</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">        </span><span class="n">Bundle</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Bundle</span><span class="p">();</span>
+<span class="w">        </span><span class="n">state</span><span class="o">.</span><span class="n">putCharSequence</span><span class="p">(</span><span class="n">App</span><span class="o">.</span><span class="n">VSTUP</span><span class="p">,</span><span class="w"> </span><span class="n">vstup</span><span class="o">.</span><span class="n">getText</span><span class="p">());</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">state</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">outState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">outState</span><span class="p">);</span>
+<span class="w">        </span><span class="o">/*</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="n">onDestroyView</span><span class="p">()</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">called</span><span class="w"> </span><span class="n">first</span><span class="p">,</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">previously</span><span class="w"> </span><span class="n">savedState</span><span class="w"> </span><span class="n">but</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">can</span><span class="s1">'t call saveState() anymore */</span>
+<span class="w">        </span><span class="o">/*</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="n">onSaveInstanceState</span><span class="p">()</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">called</span><span class="w"> </span><span class="n">first</span><span class="p">,</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">don</span><span class="s1">'t have savedState, so we need to call saveState() */</span>
+<span class="w">        </span><span class="o">/*</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">(</span><span class="err">?</span><span class="p">:)</span><span class="w"> </span><span class="n">operator</span><span class="w"> </span><span class="n">inevitable</span><span class="o">!</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">        </span><span class="n">outState</span><span class="o">.</span><span class="n">putBundle</span><span class="p">(</span><span class="n">App</span><span class="o">.</span><span class="n">STAV</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">savedState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="n">savedState</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">saveState</span><span class="p">());</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">/*</span><span class="w"> </span><span class="p">(</span><span class="o">...</span><span class="p">)</span><span class="w"> </span><span class="o">*/</span>
+
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>Alternatively</strong> , it is always a possibility to keep the data displayed in
+passive <code>View</code>s in variables and using the <code>View</code>s only for displaying them,
+keeping the two things in sync. I don't consider the last part very clean,
+though.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-doesn-t-println-work-in-rust-unit-tests/" class="u-url">Why doesn't println! work in Rust unit tests?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -341,121 +519,6 @@ selectors, we can include a combinator.</p>
 <p><strong>Output:</strong></p>
 <p><img alt="enter image description here" src="images/rmrXI.png"></p>
 <p>More information about CSS Combinators</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/find-objects-between-two-dates-mongodb/" class="u-url">Find objects between two dates MongoDB</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/find-objects-between-two-dates-mongodb/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:12:34+08:00" itemprop="datePublished" title="2023-02-18 06:12">2023-02-18 06:12</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I've been playing around storing tweets inside mongodb, each object looks like
-this:</p>
-<div class="code"><pre class="code literal-block">{
-"_id" : ObjectId("4c02c58de500fe1be1000005"),
-"contributors" : null,
-"text" : "Hello world",
-"user" : {
-    "following" : null,
-    "followers_count" : 5,
-    "utc_offset" : null,
-    "location" : "",
-    "profile_text_color" : "000000",
-    "friends_count" : 11,
-    "profile_link_color" : "0000ff",
-    "verified" : false,
-    "protected" : false,
-    "url" : null,
-    "contributors_enabled" : false,
-    "created_at" : "Sun May 30 18:47:06 +0000 2010",
-    "geo_enabled" : false,
-    "profile_sidebar_border_color" : "87bc44",
-    "statuses_count" : 13,
-    "favourites_count" : 0,
-    "description" : "",
-    "notifications" : null,
-    "profile_background_tile" : false,
-    "lang" : "en",
-    "id" : 149978111,
-    "time_zone" : null,
-    "profile_sidebar_fill_color" : "e0ff92"
-},
-"geo" : null,
-"coordinates" : null,
-"in_reply_to_user_id" : 149183152,
-"place" : null,
-"created_at" : "Sun May 30 20:07:35 +0000 2010",
-"source" : "web",
-"in_reply_to_status_id" : {
-    "floatApprox" : 15061797850
-},
-"truncated" : false,
-"favorited" : false,
-"id" : {
-    "floatApprox" : 15061838001
-}
-</pre></div>
-
-<p>How would I write a query which checks the <em>created_at</em> and finds all objects
-between 18:47 and 19:00? Do I need to update my documents so the dates are
-stored in a specific format?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><del>Querying for a Date Range (Specific Month or Day)</del> in the <del>MongoDB
-Cookbook</del> has a very good explanation on the matter, but below is something I
-tried out myself and it seems to work.</p>
-<div class="code"><pre class="code literal-block">items.save({
-    name: "example",
-    created_at: ISODate("2010-04-30T00:00:00.000Z")
-})
-items.find({
-    created_at: {
-        $gte: ISODate("2010-04-29T00:00:00.000Z"),
-        $lt: ISODate("2010-05-01T00:00:00.000Z")
-    }
-})
-=&gt; { "_id" : ObjectId("4c0791e2b9ec877893f3363b"), "name" : "example", "created_at" : "Sun May 30 2010 00:00:00 GMT+0300 (EEST)" }
-</pre></div>
-
-<p>Based on my experiments you will need to serialize your dates into a format
-that MongoDB supports, because the following gave undesired search results.</p>
-<div class="code"><pre class="code literal-block">items.save({
-    name: "example",
-    created_at: "Sun May 30 18.49:00 +0000 2010"
-})
-items.find({
-    created_at: {
-        $gte:"Mon May 30 18:47:00 +0000 2015",
-        $lt: "Sun May 30 20:40:36 +0000 2010"
-    }
-})
-=&gt; { "_id" : ObjectId("4c079123b9ec877893f33638"), "name" : "example", "created_at" : "Sun May 30 18.49:00 +0000 2010" }
-</pre></div>
-
-<p>In the second example no results were expected, but there was still one
-gotten. This is because a basic string comparison is done.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>To clarify. What is important to know is that:</p>
-<ul>
-<li>Yes, you have to pass a Javascript Date object. </li>
-<li>Yes, it has to be ISODate friendly</li>
-<li>Yes, from my experience getting this to work, you need to manipulate the date to ISO</li>
-<li>Yes, working with dates is generally always a tedious process, and mongo is no exception</li>
-</ul>
-<p>Here is a working snippet of code, where we do a little bit of date
-manipulation to ensure Mongo (here i am using mongoose module and want results
-for rows whose date attribute is less than (before) the date given as myDate
-param) can handle it correctly:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">inputDate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Date</span><span class="p">(</span><span class="n">myDate</span><span class="o">.</span><span class="n">toISOString</span><span class="p">());</span>
-<span class="n">MyModel</span><span class="o">.</span><span class="n">find</span><span class="p">({</span>
-<span class="w">    </span><span class="s1">'date'</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">$</span><span class="n">lte</span><span class="p">:</span><span class="w"> </span><span class="n">inputDate</span><span class="w"> </span><span class="p">}</span>
-<span class="p">})</span>
-</pre></div>
     </div>
     </article>
 </div>

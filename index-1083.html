@@ -108,7 +108,167 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/a-non-blocking-read-on-a-subprocess-pipe-in-python/" class="u-url">A non-blocking read on a subprocess.PIPE in Python</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/uncatchable-chucknorrisexception/" class="u-url">Uncatchable ChuckNorrisException</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/uncatchable-chucknorrisexception/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:49:16+08:00" itemprop="datePublished" title="2023-02-18 00:49">2023-02-18 00:49</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is it possible to construct a snippet of code in Java that would make a
+hypothetical <code>java.lang.ChuckNorrisException</code> uncatchable?</p>
+<p>Thoughts that came to mind are using for example interceptors or aspect-
+oriented programming.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I haven't tried this, so I don't know if the JVM would restrict something like
+this, but maybe you could compile code which throws <code>ChuckNorrisException</code>,
+but at runtime provide a class definition of <code>ChuckNorrisException</code> which
+<em>does not extend Throwable</em>.</p>
+<p>UPDATE:</p>
+<p>It doesn't work. It generates a verifier error:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">Exception</span><span class="w"> </span><span class="nt">in</span><span class="w"> </span><span class="nt">thread</span><span class="w"> </span><span class="s2">"main"</span><span class="w"> </span><span class="nt">java</span><span class="p">.</span><span class="nc">lang</span><span class="p">.</span><span class="nc">VerifyError</span><span class="o">:</span><span class="w"> </span><span class="o">(</span><span class="nt">class</span><span class="o">:</span><span class="w"> </span><span class="nt">TestThrow</span><span class="o">,</span><span class="w"> </span><span class="nt">method</span><span class="o">:</span><span class="w"> </span><span class="nt">ma</span><span class="err">\</span>
+<span class="nt">in</span><span class="w"> </span><span class="nt">signature</span><span class="o">:</span><span class="w"> </span><span class="o">(</span><span class="cp">[</span><span class="nx">Ljava</span><span class="p">/</span><span class="nx">lang</span><span class="p">/</span><span class="nb">String</span><span class="p">;)</span><span class="nx">V</span><span class="p">)</span><span class="w"> </span><span class="nx">Can</span><span class="w"> </span><span class="nx">only</span><span class="w"> </span><span class="nx">throw</span><span class="w"> </span><span class="nx">Throwable</span><span class="w"> </span><span class="nx">objects</span>
+<span class="nx">Could</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nx">find</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">main</span><span class="w"> </span><span class="nx">class</span><span class="p">:</span><span class="w"> </span><span class="nx">TestThrow.</span><span class="w">  </span><span class="nx">Program</span><span class="w"> </span><span class="nx">will</span><span class="w"> </span><span class="nx">exit.</span>
+</pre></div>
+
+<p>UPDATE 2:</p>
+<p>Actually, you can get this to work if you disable the byte code verifier!
+(<code>-Xverify:none</code>)</p>
+<p>UPDATE 3:</p>
+<p>For those following from home, here is the full script:</p>
+<p>Create the following classes:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ChuckNorrisException</span>
+<span class="w">    </span><span class="k">extends</span><span class="w"> </span><span class="n">RuntimeException</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">Comment</span><span class="w"> </span><span class="n">out</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">compilation</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">ChuckNorrisException</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">TestVillain</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="nb nb-Type">String</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ChuckNorrisException</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">catch</span><span class="p">(</span><span class="n">Throwable</span><span class="w"> </span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">System</span><span class="o">.</span><span class="n">out</span><span class="o">.</span><span class="n">println</span><span class="p">(</span><span class="s2">"Gotcha!"</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">finally</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">System</span><span class="o">.</span><span class="n">out</span><span class="o">.</span><span class="n">println</span><span class="p">(</span><span class="s2">"The end."</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Compile classes:</p>
+<div class="code"><pre class="code literal-block">javac -cp . TestVillain.java ChuckNorrisException.java
+</pre></div>
+
+<p>Run:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">java</span><span class="w"> </span><span class="o">-</span><span class="nv">cp</span><span class="w"> </span>.<span class="w"> </span><span class="nv">TestVillain</span>
+<span class="nv">Gotcha</span><span class="o">!</span>
+<span class="nv">The</span><span class="w"> </span><span class="k">end</span>.
+</pre></div>
+
+<p>Comment out "extends RuntimeException" and
+<em>recompile<code>ChuckNorrisException.java</code> only</em> :</p>
+<div class="code"><pre class="code literal-block">javac -cp . ChuckNorrisException.java
+</pre></div>
+
+<p>Run:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">java</span><span class="w"> </span><span class="nt">-cp</span><span class="w"> </span><span class="o">.</span><span class="w"> </span><span class="nt">TestVillain</span>
+<span class="nt">Exception</span><span class="w"> </span><span class="nt">in</span><span class="w"> </span><span class="nt">thread</span><span class="w"> </span><span class="s2">"main"</span><span class="w"> </span><span class="nt">java</span><span class="p">.</span><span class="nc">lang</span><span class="p">.</span><span class="nc">VerifyError</span><span class="o">:</span><span class="w"> </span><span class="o">(</span><span class="nt">class</span><span class="o">:</span><span class="w"> </span><span class="nt">TestVillain</span><span class="o">,</span><span class="w"> </span><span class="nt">method</span><span class="o">:</span><span class="w"> </span><span class="nt">main</span><span class="w"> </span><span class="nt">signature</span><span class="o">:</span><span class="w"> </span><span class="o">(</span><span class="cp">[</span><span class="nx">Ljava</span><span class="p">/</span><span class="nx">lang</span><span class="p">/</span><span class="nb">String</span><span class="p">;)</span><span class="nx">V</span><span class="p">)</span><span class="w"> </span><span class="nx">Can</span><span class="w"> </span><span class="nx">only</span><span class="w"> </span><span class="nx">throw</span><span class="w"> </span><span class="nx">Throwable</span><span class="w"> </span><span class="nx">objects</span>
+<span class="nx">Could</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nx">find</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">main</span><span class="w"> </span><span class="nx">class</span><span class="p">:</span><span class="w"> </span><span class="nx">TestVillain.</span><span class="w">  </span><span class="nx">Program</span><span class="w"> </span><span class="nx">will</span><span class="w"> </span><span class="nx">exit.</span>
+</pre></div>
+
+<p>Run without verification:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">java</span><span class="w"> </span><span class="o">-</span><span class="nv">Xverify</span>:<span class="nv">none</span><span class="w"> </span><span class="o">-</span><span class="nv">cp</span><span class="w"> </span>.<span class="w"> </span><span class="nv">TestVillain</span>
+<span class="nv">The</span><span class="w"> </span><span class="k">end</span>.
+<span class="nv">Exception</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">thread</span><span class="w"> </span><span class="s2">"main"</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>After having pondered this, I have successfully created an uncatchable
+exception. I chose to name it <code>JulesWinnfield</code>, however, rather than Chuck,
+because it is one mushroom-cloud-laying-mother-exception. Furthermore, it
+might not be exactly what you had in mind, but it certainly can't be caught.
+Observe:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">JulesWinnfield</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Exception</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">JulesWinnfield</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">System</span><span class="o">.</span><span class="n">err</span><span class="o">.</span><span class="n">println</span><span class="p">(</span><span class="s2">"Say 'What' again! I dare you! I double dare you!"</span><span class="p">);</span>
+<span class="w">        </span><span class="n">System</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">25</span><span class="o">-</span><span class="mi">17</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">And</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">shall</span><span class="w"> </span><span class="n">know</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">am</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">LORD</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+
+<span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="nb nb-Type">String</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
+<span class="p">{</span><span class="w">       </span>
+<span class="w">    </span><span class="n">try</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">JulesWinnfield</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span>
+<span class="w">    </span><span class="n">catch</span><span class="p">(</span><span class="n">JulesWinnfield</span><span class="w"> </span><span class="n">jw</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">System</span><span class="o">.</span><span class="n">out</span><span class="o">.</span><span class="n">println</span><span class="p">(</span><span class="s2">"There's a word for that Jules - a bum"</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><em>Et voila!</em> Uncaught exception.</p>
+<p>Output:</p>
+<blockquote>
+<p>run:</p>
+<p>Say 'What' again! I dare you! I double dare you!</p>
+<p>Java Result: 8</p>
+<p>BUILD SUCCESSFUL (total time: 0 seconds)</p>
+</blockquote>
+<p>When I have a little more time, I'll see if I can't come up with something
+else, as well.</p>
+<p>Also, check this out:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">JulesWinnfield</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Exception</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">JulesWinnfield</span><span class="p">()</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="n">JulesWinnfield</span><span class="p">,</span><span class="w"> </span><span class="n">VincentVega</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">VincentVega</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">VincentVega</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Exception</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">VincentVega</span><span class="p">()</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="n">JulesWinnfield</span><span class="p">,</span><span class="w"> </span><span class="n">VincentVega</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">JulesWinnfield</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+
+<span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="nb nb-Type">String</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="n">VincentVega</span>
+<span class="p">{</span>
+
+<span class="w">    </span><span class="n">try</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">JulesWinnfield</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">catch</span><span class="p">(</span><span class="n">JulesWinnfield</span><span class="w"> </span><span class="n">jw</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">catch</span><span class="p">(</span><span class="n">VincentVega</span><span class="w"> </span><span class="n">vv</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Causes a stack overflow - again, exceptions remain uncaught.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/a-non-blocking-read-on-a-subprocess-pipe-in-python/" class="u-url">A non-blocking read on a subprocess.PIPE in Python</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -526,77 +686,6 @@ technique a lot with Java projects (JSF), e.g:</p>
 <p>Mind you, I usually take models, views and services to module level and
 separate even further depending on the project's size</p>
 </blockquote>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-replace-all-occurrences-of-a-character-in-string/" class="u-url">How to replace all occurrences of a character in string?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-replace-all-occurrences-of-a-character-in-string/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T00:47:48+08:00" itemprop="datePublished" title="2023-02-18 00:47">2023-02-18 00:47</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What is the effective way to replace all occurrences of a character with
-another character in <code>std::string</code>?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><code>std::string</code> doesn't contain such function but you could use stand-alone
-<code>replace</code> function from <code>algorithm</code> header.</p>
-<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;algorithm&gt;</span>
-<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string&gt;</span>
-
-<span class="kr">void</span><span class="w"> </span><span class="nf">some_func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="kr">string</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"example string"</span><span class="p">;</span>
-<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">replace</span><span class="p">(</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="nf">begin</span><span class="p">(),</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="nf">end</span><span class="p">(),</span><span class="w"> </span><span class="sc">'x'</span><span class="p">,</span><span class="w"> </span><span class="sc">'y'</span><span class="p">);</span><span class="w"> </span><span class="c1">// replace all 'x' to 'y'</span>
-<span class="p">}</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>The question is centered on <code>character</code> replacement, but, as I found this page
-very useful (especially Konrad's remark), I'd like to share this more
-generalized implementation, which allows to deal with <code>substrings</code> as well:</p>
-<div class="code"><pre class="code literal-block"><span class="n">std</span><span class="p">::</span><span class="n">string</span><span class="w"> </span><span class="n">ReplaceAll</span><span class="p">(</span><span class="n">std</span><span class="p">::</span><span class="n">string</span><span class="w"> </span><span class="nb">str</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">from</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">to</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">size_t</span><span class="w"> </span><span class="n">start_pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="w">    </span><span class="k">while</span><span class="p">((</span><span class="n">start_pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">str</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">from</span><span class="p">,</span><span class="w"> </span><span class="n">start_pos</span><span class="p">))</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">string</span><span class="p">::</span><span class="n">npos</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nb">str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">start_pos</span><span class="p">,</span><span class="w"> </span><span class="n">from</span><span class="o">.</span><span class="n">length</span><span class="p">(),</span><span class="w"> </span><span class="n">to</span><span class="p">);</span>
-<span class="w">        </span><span class="n">start_pos</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">to</span><span class="o">.</span><span class="n">length</span><span class="p">();</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Handles</span><span class="w"> </span><span class="n">case</span><span class="w"> </span><span class="n">where</span><span class="w"> </span><span class="s1">'to'</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">substring</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="s1">'from'</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">str</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>Usage:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">std</span><span class="p">::</span><span class="nd">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nt">ReplaceAll</span><span class="o">(</span><span class="nt">string</span><span class="o">(</span><span class="s2">"Number Of Beans"</span><span class="o">),</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">string</span><span class="o">(</span><span class="s2">" "</span><span class="o">),</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">string</span><span class="o">(</span><span class="s2">"_"</span><span class="o">))</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">endl</span><span class="o">;</span>
-<span class="nt">std</span><span class="p">::</span><span class="nd">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nt">ReplaceAll</span><span class="o">(</span><span class="nt">string</span><span class="o">(</span><span class="s2">"ghghjghugtghty"</span><span class="o">),</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">string</span><span class="o">(</span><span class="s2">"gh"</span><span class="o">),</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">string</span><span class="o">(</span><span class="s2">"X"</span><span class="o">))</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">endl</span><span class="o">;</span>
-<span class="nt">std</span><span class="p">::</span><span class="nd">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nt">ReplaceAll</span><span class="o">(</span><span class="nt">string</span><span class="o">(</span><span class="s2">"ghghjghugtghty"</span><span class="o">),</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">string</span><span class="o">(</span><span class="s2">"gh"</span><span class="o">),</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">string</span><span class="o">(</span><span class="s2">"h"</span><span class="o">))</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">endl</span><span class="o">;</span>
-</pre></div>
-
-<p>Outputs:</p>
-<blockquote>
-<p>Number_Of_Beans</p>
-<p>XXjXugtXty</p>
-<p>hhjhugthty</p>
-</blockquote>
-<hr>
-<p><strong>EDIT:</strong></p>
-<p><em>The above can be implemented in a more suitable way, in case performance is
-of your concern, by returning nothing (<code>void</code>) and performing the changes "in-
-place"; that is, by directly modifying the string argument <code>str</code>, passed <strong>by
-reference</strong> instead of <strong>by value</strong>. This would avoid an extra costly copy of
-the original string by overwriting it.</em></p>
-<p><em>Code :</em></p>
-<div class="code"><pre class="code literal-block"><span class="k">static</span><span class="w"> </span><span class="n">inline</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">ReplaceAll2</span><span class="p">(</span><span class="n">std</span><span class="p">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">from</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">to</span><span class="p">)</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Same</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="n">code</span><span class="o">...</span>
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">No</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">statement</span>
-<span class="p">}</span>
-</pre></div>
-
-<hr>
-<p>Hope this will be helpful for some others...</p>
     </div>
     </article>
 </div>

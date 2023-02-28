@@ -108,7 +108,156 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/rollback-to-an-old-git-commit-in-a-public-repo/" class="u-url">Rollback to an old Git commit in a public repo</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-join-to-first-row/" class="u-url">How to Join to first row</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-join-to-first-row/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T09:34:45+08:00" itemprop="datePublished" title="2023-02-17 09:34">2023-02-17 09:34</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'll use a concrete, but hypothetical, example.</p>
+<p>Each <strong>Order</strong> normally has only one <strong>line item</strong> :</p>
+<p><strong>Orders:</strong></p>
+<div class="code"><pre class="code literal-block">OrderGUID   OrderNumber
+=========   ============
+{FFB2...}   STL-7442-1      
+{3EC6...}   MPT-9931-8A
+</pre></div>
+
+<p><strong>LineItems:</strong></p>
+<div class="code"><pre class="code literal-block">LineItemGUID   Order ID Quantity   Description
+============   ======== ========   =================================
+{098FBE3...}   1        7          prefabulated amulite
+{1609B09...}   2        32         spurving bearing
+</pre></div>
+
+<p>But occasionally there will be an order with two line items:</p>
+<div class="code"><pre class="code literal-block">LineItemID   Order ID    Quantity   Description
+==========   ========    ========   =================================
+{A58A1...}   6,784,329   5          pentametric fan
+{0E9BC...}   6,784,329   5          differential girdlespring
+</pre></div>
+
+<p>Normally when showing the orders to the user:</p>
+<div class="code"><pre class="code literal-block">SELECT Orders.OrderNumber, LineItems.Quantity, LineItems.Description
+FROM Orders
+    INNER JOIN LineItems 
+    ON Orders.OrderID = LineItems.OrderID
+</pre></div>
+
+<p>I want to show the single item on the order. But with this occasional order
+containing two (or more) items, the orders would <em>appear</em> be <strong>duplicated</strong> :</p>
+<div class="code"><pre class="code literal-block">OrderNumber   Quantity   Description
+===========   ========   ====================
+STL-7442-1    7          prefabulated amulite
+MPT-9931-8A   32         spurving bearing
+KSG-0619-81   5          panametric fan
+KSG-0619-81   5          differential girdlespring
+</pre></div>
+
+<p>What I really want is to have SQL Server <em>just pick one</em> , as it will be <em>good
+enough</em> :</p>
+<div class="code"><pre class="code literal-block">OrderNumber   Quantity   Description
+===========   ========   ====================
+STL-7442-1    7          prefabulated amulite
+MPT-9931-8A   32         differential girdlespring
+KSG-0619-81   5          panametric fan
+</pre></div>
+
+<p>If I get adventurous, I might show the user, an ellipsis to indicate that
+there's more than one:</p>
+<div class="code"><pre class="code literal-block">OrderNumber   Quantity   Description
+===========   ========   ====================
+STL-7442-1    7          prefabulated amulite
+MPT-9931-8A   32         differential girdlespring
+KSG-0619-81   5          panametric fan, ...
+</pre></div>
+
+<p>So the question is how to either</p>
+<ul>
+<li>eliminate "duplicate" rows</li>
+<li>only join to one of the rows, to avoid duplication</li>
+</ul>
+<h3>First attempt</h3>
+<p>My first naive attempt was to only join to the " <strong>TOP 1</strong> " line items:</p>
+<div class="code"><pre class="code literal-block">SELECT Orders.OrderNumber, LineItems.Quantity, LineItems.Description
+FROM Orders
+    INNER JOIN (
+       SELECT TOP 1 LineItems.Quantity, LineItems.Description
+       FROM LineItems
+       WHERE LineItems.OrderID = Orders.OrderID) LineItems2
+    ON 1=1
+</pre></div>
+
+<p>But that gives the error:</p>
+<blockquote>
+<p>The column or prefix 'Orders' does not<br>
+ match with a table name or alias name<br>
+ used in the query.</p>
+</blockquote>
+<p>Presumably because the inner select doesn't see the outer table.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<div class="code"><pre class="code literal-block">SELECT   Orders.OrderNumber, LineItems.Quantity, LineItems.Description
+FROM     Orders
+JOIN     LineItems
+ON       LineItems.LineItemGUID =
+         (
+         SELECT  TOP 1 LineItemGUID 
+         FROM    LineItems
+         WHERE   OrderID = Orders.OrderID
+         )
+</pre></div>
+
+<p>In SQL Server 2005 and above, you could just replace <code>INNER JOIN</code> with <code>CROSS
+APPLY</code>:</p>
+<div class="code"><pre class="code literal-block">SELECT  Orders.OrderNumber, LineItems2.Quantity, LineItems2.Description
+FROM    Orders
+CROSS APPLY
+        (
+        SELECT  TOP 1 LineItems.Quantity, LineItems.Description
+        FROM    LineItems
+        WHERE   LineItems.OrderID = Orders.OrderID
+        ) LineItems2
+</pre></div>
+
+<p>Please note that <code>TOP 1</code> without <code>ORDER BY</code> is not deterministic: this query
+you will get you one line item per order, but it is not defined which one will
+it be.</p>
+<p>Multiple invocations of the query can give you different line items for the
+same order, even if the underlying did not change.</p>
+<p>If you want deterministic order, you should add an <code>ORDER BY</code> clause to the
+innermost query.</p>
+<p>Example sqlfiddle</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I know this question was answered a while ago, but when dealing with large
+data sets, nested queries can be costly. Here is a different solution where
+the nested query will only be ran once, instead of for each row returned.</p>
+<div class="code"><pre class="code literal-block">SELECT 
+  Orders.OrderNumber,
+  LineItems.Quantity, 
+  LineItems.Description
+FROM 
+  Orders
+  INNER JOIN (
+    SELECT
+      Orders.OrderNumber,
+      Max(LineItem.LineItemID) AS LineItemID
+    FROM
+      Orders INNER JOIN LineItems
+      ON Orders.OrderNumber = LineItems.OrderNumber
+    GROUP BY Orders.OrderNumber
+  ) AS Items ON Orders.OrderNumber = Items.OrderNumber
+  INNER JOIN LineItems 
+  ON Items.LineItemID = LineItems.LineItemID
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/rollback-to-an-old-git-commit-in-a-public-repo/" class="u-url">Rollback to an old Git commit in a public repo</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -197,53 +346,6 @@ package and classes.</p>
 package and classes.</p>
 <p><code>smack.jar</code> and <code>android_maps_lib-1.0.2</code></p>
 <p>Deleting this package from one of the JAR files solved the problem.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-change-the-remote-a-branch-is-tracking/" class="u-url">How to change the remote a branch is tracking?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-change-the-remote-a-branch-is-tracking/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T09:33:04+08:00" itemprop="datePublished" title="2023-02-17 09:33">2023-02-17 09:33</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>The <code>central</code> repository had to be set up on a new server, so I created a new
-remote on my local repo, and pushed to that.</p>
-<p>But now when I do <code>git pull</code>, it claims I am up to date. It's wrong—it's
-telling me about the <em>old</em> remote branch, not the new one, which I know for a
-fact has new commits to fetch.</p>
-<p>How do I change my local branch to track a different remote?</p>
-<p>I can see this in the git config file but I don't want to mess things up.</p>
-<div class="code"><pre class="code literal-block"><span class="k">[branch "master"]</span>
-<span class="w">    </span><span class="na">remote</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">oldserver</span>
-<span class="w">    </span><span class="na">merge</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">refs/heads/master</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<h3>Using <strong>git v1.8.0</strong> or later:</h3>
-<div class="code"><pre class="code literal-block">git branch branch_name --set-upstream-to your_new_remote/branch_name
-</pre></div>
-
-<h3>Or you can use the <code>-u</code> switch</h3>
-<div class="code"><pre class="code literal-block">git branch branch_name -u your_new_remote/branch_name
-</pre></div>
-
-<h4>Using git <strong>v1.7.12</strong> or earlier</h4>
-<div class="code"><pre class="code literal-block">git branch --set-upstream branch_name your_new_remote/branch_name
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>For me the fix was:</p>
-<div class="code"><pre class="code literal-block">git remote set-url origin https://some_url/some_repo
-</pre></div>
-
-<p>Then:</p>
-<div class="code"><pre class="code literal-block">git push
-</pre></div>
     </div>
     </article>
 </div>

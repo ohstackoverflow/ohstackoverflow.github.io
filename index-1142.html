@@ -108,7 +108,148 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/cosmic-rays-what-is-the-probability-they-will-affect-a-program/" class="u-url">Cosmic Rays: what is the probability they will affect a program?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/error-1698-28000-access-denied-for-user-root-localhost/" class="u-url">ERROR 1698 (28000): Access denied for user 'root'@'localhost'</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/error-1698-28000-access-denied-for-user-root-localhost/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T02:15:52+08:00" itemprop="datePublished" title="2023-02-18 02:15">2023-02-18 02:15</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm setting up a new server and keep running into this problem.</p>
+<p>When I try to log into the MySQL database with the root user, I get the error:</p>
+<blockquote>
+<p>ERROR 1698 (28000): Access denied for user 'root'@'localhost'</p>
+</blockquote>
+<p>It doesn't matter if I connect through the terminal (SSH), through phpMyAdmin
+or a MySQL client, e.g., Navicat. They all fail.</p>
+<p>I looked in the <em>mysql.user</em> table and get the following:</p>
+<div class="code"><pre class="code literal-block">+------------------+-------------------+
+| user             | host              |
++------------------+-------------------+
+| root             | %                 |
+| root             | 127.0.0.1         |
+| amavisd          | localhost         |
+| debian-sys-maint | localhost         |
+| iredadmin        | localhost         |
+| iredapd          | localhost         |
+| mysql.sys        | localhost         |
+| phpmyadmin       | localhost         |
+| root             | localhost         |
+| roundcube        | localhost         |
+| vmail            | localhost         |
+| vmailadmin       | localhost         |
+| amavisd          | test4.folkmann.it |
+| iredadmin        | test4.folkmann.it |
+| iredapd          | test4.folkmann.it |
+| roundcube        | test4.folkmann.it |
+| vmail            | test4.folkmann.it |
+| vmailadmin       | test4.folkmann.it |
++------------------+-------------------+
+</pre></div>
+
+<p>As you can see, user <em>root</em> should have access.</p>
+<p>The Server is quite simple, as I have tried to troubleshoot this for a while
+now.</p>
+<p>It's running Ubuntu 16.04.1 LTS (Xenial Xerus) with Apache, MySQL and PHP, so
+that it can host websites, and iRedMail 0.9.5-1, so that it can host mail.</p>
+<p>Log into the MySQL database works fine before I installed iRedMail. I also
+tried just installing iRedMail, but then root also doesn't work.</p>
+<p>How can I fix my MySQL login problem or how can I install iRedMail over an
+existing MySQL install? And yes, I tried the Installation Tips and I can't
+find those variables in the configuration files.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>On some systems, like Ubuntu, MySQL is using the Unix auth_socket plugin by
+default.</p>
+<p>Basically it means that: <em>db_users using it, will be "authenticated" by <strong>the
+system user credentials.</strong></em> You can see if your <code>root</code> user is set up like
+this by doing the following:</p>
+<div class="code"><pre class="code literal-block"><span class="c">sudo mysql </span><span class="nb">-</span><span class="c">u root # I had to use "sudo" since it was a new installation</span>
+
+<span class="c">mysql</span><span class="nv">&gt;</span><span class="c"> USE mysql;</span>
+<span class="c">mysql</span><span class="nv">&gt;</span><span class="c"> SELECT User</span><span class="nt">,</span><span class="c"> Host</span><span class="nt">,</span><span class="c"> plugin FROM mysql</span><span class="nt">.</span><span class="c">user;</span>
+
+<span class="nb">+------------------+-----------------------+</span>
+<span class="c">| User             | plugin                |</span>
+<span class="nb">+------------------+-----------------------+</span>
+<span class="c">| root             | auth_socket           |</span>
+<span class="c">| mysql</span><span class="nt">.</span><span class="c">sys        | mysql_native_password |</span>
+<span class="c">| debian</span><span class="nb">-</span><span class="c">sys</span><span class="nb">-</span><span class="c">maint | mysql_native_password |</span>
+<span class="nb">+------------------+-----------------------+</span>
+</pre></div>
+
+<p>As you can see in the query, the <code>root</code> user is using the <code>auth_socket</code>
+plugin.</p>
+<p>There are two ways to solve this:</p>
+<ol>
+<li>You can set the <em>root</em> user to use the <code>mysql_native_password</code> plugin</li>
+<li>You can create a new <code>db_user</code> with you <code>system_user</code> (recommended)</li>
+</ol>
+<p><strong>Option 1:</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">sudo</span><span class="w"> </span><span class="nv">mysql</span><span class="w"> </span><span class="o">-</span><span class="nv">u</span><span class="w"> </span><span class="nv">root</span><span class="w"> </span>#<span class="w"> </span><span class="nv">I</span><span class="w"> </span><span class="nv">had</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">use</span><span class="w"> </span><span class="s2">"sudo"</span><span class="w"> </span><span class="nv">since</span><span class="w"> </span><span class="nv">it</span><span class="w"> </span><span class="nv">was</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">installation</span>
+
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">USE</span><span class="w"> </span><span class="nv">mysql</span><span class="c1">;</span>
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">UPDATE</span><span class="w"> </span><span class="nv">user</span><span class="w"> </span><span class="nv">SET</span><span class="w"> </span><span class="nv">plugin</span><span class="o">=</span><span class="s1">'mysql_native_password'</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">User</span><span class="o">=</span><span class="s1">'root'</span><span class="c1">;</span>
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">FLUSH</span><span class="w"> </span><span class="nv">PRIVILEGES</span><span class="c1">;</span>
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="k">exit</span><span class="c1">;</span>
+
+<span class="nv">sudo</span><span class="w"> </span><span class="nv">service</span><span class="w"> </span><span class="nv">mysql</span><span class="w"> </span><span class="nv">restart</span>
+</pre></div>
+
+<p><strong>Option 2:</strong> (replace YOUR_SYSTEM_USER with the username you have)</p>
+<div class="code"><pre class="code literal-block"><span class="nv">sudo</span><span class="w"> </span><span class="nv">mysql</span><span class="w"> </span><span class="o">-</span><span class="nv">u</span><span class="w"> </span><span class="nv">root</span><span class="w"> </span>#<span class="w"> </span><span class="nv">I</span><span class="w"> </span><span class="nv">had</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">use</span><span class="w"> </span><span class="s2">"sudo"</span><span class="w"> </span><span class="nv">since</span><span class="w"> </span><span class="nv">it</span><span class="w"> </span><span class="nv">was</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">installation</span>
+
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">USE</span><span class="w"> </span><span class="nv">mysql</span><span class="c1">;</span>
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">CREATE</span><span class="w"> </span><span class="nv">USER</span><span class="w"> </span><span class="s1">'YOUR_SYSTEM_USER'</span>@<span class="s1">'localhost'</span><span class="w"> </span><span class="nv">IDENTIFIED</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="s1">'YOUR_PASSWD'</span><span class="c1">;</span>
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">GRANT</span><span class="w"> </span><span class="nv">ALL</span><span class="w"> </span><span class="nv">PRIVILEGES</span><span class="w"> </span><span class="nv">ON</span><span class="w"> </span><span class="o">*</span>.<span class="o">*</span><span class="w"> </span><span class="nv">TO</span><span class="w"> </span><span class="s1">'YOUR_SYSTEM_USER'</span>@<span class="s1">'localhost'</span><span class="c1">;</span>
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">UPDATE</span><span class="w"> </span><span class="nv">user</span><span class="w"> </span><span class="nv">SET</span><span class="w"> </span><span class="nv">plugin</span><span class="o">=</span><span class="s1">'auth_socket'</span><span class="w"> </span><span class="nv">WHERE</span><span class="w"> </span><span class="nv">User</span><span class="o">=</span><span class="s1">'YOUR_SYSTEM_USER'</span><span class="c1">;</span>
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">FLUSH</span><span class="w"> </span><span class="nv">PRIVILEGES</span><span class="c1">;</span>
+<span class="nv">mysql</span><span class="o">&gt;</span><span class="w"> </span><span class="k">exit</span><span class="c1">;</span>
+
+<span class="nv">sudo</span><span class="w"> </span><span class="nv">service</span><span class="w"> </span><span class="nv">mysql</span><span class="w"> </span><span class="nv">restart</span>
+</pre></div>
+
+<p>Remember that if you use option #2 you'll have to connect to MySQL as your
+system username (<code>mysql -u YOUR_SYSTEM_USER</code>).</p>
+<p><strong>Note:</strong> On some systems (e.g., Debian 9 (Stretch)) the 'auth_socket' plugin
+is called 'unix_socket', so the corresponding SQL command should be: <code>UPDATE
+user SET plugin='unix_socket' WHERE User='YOUR_SYSTEM_USER';</code></p>
+<p>From andy's comment it seems that MySQL 8.x.x updated/replaced the
+<code>auth_socket</code> for <code>caching_sha2_password</code>. I don't have a system setup with
+MySQL 8.x.x to test this. However, the steps above should help you to
+understand the issue. Here's the reply:</p>
+<p><em>One change as of MySQL 8.0.4 is that the new default authentication plugin is
+'caching_sha2_password'. The new 'YOUR_SYSTEM_USER' will have this
+authentication plugin and you can log in from the Bash shell now with "mysql
+-u YOUR_SYSTEM_USER -p" and provide the password for this user on the prompt.
+There isn’t any need for the "UPDATE user SET plugin" step.</em></p>
+<p><em>For the 8.0.4 default authentication plugin update, see</em> <em><strong>MySQL 8.0.4: New
+Default Authentication Plugin: caching_sha2_password</strong></em>.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h4>A <em>new</em> version of MySQL does it this way</h4>
+<p>In the new MySQL client, if the password is left empty while installing then,
+it is based on the <code>auth_socket</code> plugin.</p>
+<p>The correct way is to log in to MySQL with the <code>sudo</code> privilege.</p>
+<div class="code"><pre class="code literal-block">sudo mysql -u root -p
+</pre></div>
+
+<p>And then updating the password using:</p>
+<div class="code"><pre class="code literal-block">ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'new-password';
+</pre></div>
+
+<p>Once this is done, <em>stop and start</em> the MySQL server.</p>
+<div class="code"><pre class="code literal-block">sudo service mysql stop
+sudo service mysql start
+</pre></div>
+
+<p>For complete details, you can refer to this link.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/cosmic-rays-what-is-the-probability-they-will-affect-a-program/" class="u-url">Cosmic Rays: what is the probability they will affect a program?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -191,338 +332,6 @@ set()
 
 <p>this is basically a more condensed way of doing <code>{_ for _ in ()}</code>, but, don't
 do this.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-does-jquery-or-a-dom-method-such-as-getelementbyid-not-find-the-element/" class="u-url">Why does jQuery or a DOM method such as getElementById not find the element?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/why-does-jquery-or-a-dom-method-such-as-getelementbyid-not-find-the-element/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T02:14:35+08:00" itemprop="datePublished" title="2023-02-18 02:14">2023-02-18 02:14</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What are the possible reasons for <code>document.getElementById</code>, <code>$("#id")</code> or any
-other DOM method / jQuery selector not finding the elements?</p>
-<p>Example problems include:</p>
-<ul>
-<li>jQuery silently failing to bind an event handler</li>
-<li>jQuery "getter" methods (<code>.val()</code>, <code>.html()</code>, <code>.text()</code>) returning <code>undefined</code>
-</li>
-<li>A standard DOM method returning <code>null</code> resulting in any of several errors:</li>
-</ul>
-<blockquote>
-<p>Uncaught TypeError: Cannot set property '...' of null<br>
- Uncaught TypeError: Cannot set properties of null (setting '...')<br>
- Uncaught TypeError: Cannot read property '...' of null<br>
- Uncaught TypeError: Cannot read properties of null (reading '...')</p>
-</blockquote>
-<p>The most common forms are:</p>
-<blockquote>
-<p>Uncaught TypeError: Cannot set property 'onclick' of null<br>
- Uncaught TypeError: Cannot read property 'addEventListener' of null<br>
- Uncaught TypeError: Cannot read property 'style' of null</p>
-</blockquote>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The element you were trying to find wasn’t in the DOM when your script ran.</p>
-<p>The position of your DOM-reliant script can have a profound effect on its
-behavior. Browsers parse HTML documents from top to bottom. Elements are added
-to the DOM and scripts are (generally) executed as they're encountered. <strong>This
-means that order matters.</strong> Typically, scripts can't find elements that appear
-later in the markup because those elements have yet to be added to the DOM.</p>
-<p>Consider the following markup; script #1 fails to find the <code>&lt;div&gt;</code> while
-script #2 succeeds:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script&gt;</span>
-<span class="w">  </span>console.log("script<span class="w"> </span>#1:",<span class="w"> </span>document.getElementById("test"));<span class="w"> </span>//<span class="w"> </span>null
-<span class="nt">&lt;/script&gt;</span>
-<span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>test<span class="w"> </span>div<span class="nt">&lt;/div&gt;</span>
-<span class="nt">&lt;script&gt;</span>
-<span class="w">  </span>console.log("script<span class="w"> </span>#2:",<span class="w"> </span>document.getElementById("test"));<span class="w"> </span>//<span class="w"> </span><span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="w"> </span><span class="err">...</span>
-<span class="err">&lt;/script</span><span class="nt">&gt;</span>
-</pre></div>
-
-<p>So, what should you do? You've got a few options:</p>
-<hr>
-<h3>Option 1: Move your script</h3>
-<p>Given what we've seen in the example above, an intuitive solution might be to
-simply move your script down the markup, past the elements you'd like to
-access. In fact, for a long time, placing scripts at the bottom of the page
-was considered a best practice for a variety of reasons. Organized in this
-fashion, the rest of the document would be parsed before executing your
-script:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;body&gt;</span>
-<span class="w">  </span><span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
-<span class="w">  </span><span class="nt">&lt;script&gt;</span>
-<span class="w">    </span>document.getElementById("test").addEventListener("click",<span class="w"> </span>function()<span class="w"> </span>{
-<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
-<span class="w">    </span>});
-<span class="w">  </span><span class="nt">&lt;/script&gt;</span>
-<span class="nt">&lt;/body&gt;</span><span class="cm">&lt;!-- closing body tag --&gt;</span>
-</pre></div>
-
-<p>While this makes sense and is a solid option for legacy browsers, it's limited
-and there are more flexible, modern approaches available.</p>
-<hr>
-<h3>Option 2: The <code>defer</code> attribute</h3>
-<p>While we did say that scripts are, <em>"(generally) executed as they're
-encountered,"</em> modern browsers allow you to specify a different behavior. If
-you're linking an external script, you can make use of the <code>defer</code> attribute.</p>
-<blockquote>
-<p>[<code>defer</code>, a Boolean attribute,] is set to indicate to a browser that the
-script is meant to be executed after the document has been parsed, but
-before firing <code>DOMContentLoaded</code>.</p>
-</blockquote>
-<p>This means that you can place a script tagged with <code>defer</code> anywhere, even the
-<code>&lt;head&gt;</code>, and it should have access to the fully realized DOM.</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://gh-canon.github.io/misc-demos/log-test-click.js"</span><span class="w"> </span><span class="err">defer</span><span class="nt">&gt;&lt;/script&gt;</span>
-<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
-</pre></div>
-
-<p>Just keep in mind...</p>
-<ol>
-<li>
-<code>defer</code> can only be used for external scripts, i.e.: those having a <code>src</code> attribute.</li>
-<li>be aware of browser support, i.e.: buggy implementation in IE &lt; 10</li>
-</ol>
-<hr>
-<h3>Option 3: Modules</h3>
-<p>Depending upon your requirements, you may be able to utilize JavaScript
-modules. Among other important distinctions from standard scripts (noted
-here), modules are deferred automatically and are not limited to external
-sources.</p>
-<p>Set your script's <code>type</code> to <code>module</code>, e.g.:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">type=</span><span class="s">"module"</span><span class="nt">&gt;</span>
-<span class="w">  </span>document.getElementById("test").addEventListener("click",<span class="w"> </span>function(e)<span class="w"> </span>{
-<span class="w">    </span>console.log("clicked:<span class="w"> </span>",<span class="w"> </span>this);
-<span class="w">  </span>});
-<span class="nt">&lt;/script&gt;</span>
-<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
-</pre></div>
-
-<hr>
-<h3>Option 4: Defer with event handling</h3>
-<p>Add a listener to an event that fires after your document has been parsed.</p>
-<h4>DOMContentLoaded event</h4>
-<p><code>DOMContentLoaded</code> fires after the DOM has been completely constructed from
-the initial parse, without waiting for things like stylesheets or images to
-load.</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script&gt;</span>
-<span class="w">  </span>document.addEventListener("DOMContentLoaded",<span class="w"> </span>function(e){
-<span class="w">    </span>document.getElementById("test").addEventListener("click",<span class="w"> </span>function(e)<span class="w"> </span>{
-<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
-<span class="w">    </span>});
-<span class="w">  </span>});
-<span class="nt">&lt;/script&gt;</span>
-<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
-</pre></div>
-
-<h4>Window: load event</h4>
-<p>The <code>load</code> event fires after <code>DOMContentLoaded</code> and additional resources like
-stylesheets and images have been loaded. For that reason, it fires later than
-desired for our purposes. Still, if you're considering older browsers like
-IE8, the support is nearly universal. Granted, you may want a polyfill for
-<code>addEventListener()</code>.</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script&gt;</span>
-<span class="w">  </span>window.addEventListener("load",<span class="w"> </span>function(e){
-<span class="w">    </span>document.getElementById("test").addEventListener("click",<span class="w"> </span>function(e)<span class="w"> </span>{
-<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
-<span class="w">    </span>});
-<span class="w">  </span>});
-<span class="nt">&lt;/script&gt;</span>
-<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
-</pre></div>
-
-<h4>jQuery's <code>ready()</code>
-</h4>
-<p><code>DOMContentLoaded</code> and <code>window:load</code> each have their caveats. jQuery's
-<code>ready()</code> delivers a hybrid solution, using <code>DOMContentLoaded</code> when possible,
-failing over to <code>window:load</code> when necessary, and firing its callback
-immediately if the DOM is already complete.</p>
-<p>You can pass your ready handler directly to jQuery as <code>$( _handler_ )</code>, e.g.:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://code.jquery.com/jquery-3.6.0.js"</span><span class="w"> </span><span class="na">integrity=</span><span class="s">"sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="</span><span class="w"> </span><span class="na">crossorigin=</span><span class="s">"anonymous"</span><span class="nt">&gt;&lt;/script&gt;</span>
-<span class="nt">&lt;script&gt;</span>
-<span class="w">  </span>$(function()<span class="w"> </span>{
-<span class="w">    </span>$("#test").click(function()<span class="w"> </span>{
-<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
-<span class="w">    </span>});
-<span class="w">  </span>});
-<span class="nt">&lt;/script&gt;</span>
-<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
-</pre></div>
-
-<hr>
-<h3>Option 5: Event Delegation</h3>
-<p>Delegate the event handling to an ancestor of the target element.</p>
-<p>When an element raises an event (provided that it's a bubbling event and
-nothing stops its propagation), each parent in that element's ancestry, all
-the way up to <code>window</code>, receives the event as well. That allows us to attach a
-handler to an existing element and sample events as they bubble up from its
-descendants... even from descendants added after the handler was attached. All
-we have to do is check the event to see whether it was raised by the desired
-element and, if so, run our code.</p>
-<p>Typically, this pattern is reserved for elements that don't exist at load time
-or to avoid attaching a large number of duplicate handlers. For efficiency,
-select the nearest reliable ancestor of the target element rather than
-attaching it to the <code>document</code>.</p>
-<h4>Native JavaScript</h4>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"ancestor"</span><span class="nt">&gt;</span><span class="cm">&lt;!-- nearest ancestor available to our script --&gt;</span>
-<span class="w">  </span><span class="nt">&lt;script&gt;</span>
-<span class="w">    </span>document.getElementById("ancestor").addEventListener("click",<span class="w"> </span>function(e)<span class="w"> </span>{
-<span class="w">      </span>if<span class="w"> </span>(e.target.id<span class="w"> </span>===<span class="w"> </span>"descendant")<span class="w"> </span>{
-<span class="w">        </span>console.log("clicked:",<span class="w"> </span>e.target);
-<span class="w">      </span>}
-<span class="w">    </span>});
-<span class="w">  </span><span class="nt">&lt;/script&gt;</span>
-<span class="w">  </span><span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"descendant"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
-<span class="nt">&lt;/div&gt;</span>
-</pre></div>
-
-<h4>jQuery's <code>on()</code>
-</h4>
-<p>jQuery makes this functionality available through <code>on()</code>. Given an event name,
-a selector for the desired descendant, and an event handler, it will resolve
-your delegated event handling and manage your <code>this</code> context:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://code.jquery.com/jquery-3.6.0.js"</span><span class="w"> </span><span class="na">integrity=</span><span class="s">"sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="</span><span class="w"> </span><span class="na">crossorigin=</span><span class="s">"anonymous"</span><span class="nt">&gt;&lt;/script&gt;</span>
-<span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"ancestor"</span><span class="nt">&gt;</span><span class="cm">&lt;!-- nearest ancestor available to our script --&gt;</span>
-<span class="w">  </span><span class="nt">&lt;script&gt;</span>
-<span class="w">    </span>$("#ancestor").on("click",<span class="w"> </span>"#descendant",<span class="w"> </span>function(e)<span class="w"> </span>{
-<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
-<span class="w">    </span>});
-<span class="w">  </span><span class="nt">&lt;/script&gt;</span>
-<span class="w">  </span><span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"descendant"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
-<span class="nt">&lt;/div&gt;</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p><strong>Short and simple:</strong> Because the elements you are looking for do not exist in
-the document (yet).</p>
-<hr>
-<p><em>For the remainder of this answer I will use<code>getElementById</code> for examples, but
-the same applies to <code>getElementsByTagName</code>, <code>querySelector</code>, and any other DOM
-method that selects elements.</em></p>
-<p><strong>Possible Reasons</strong></p>
-<p>There are three reasons why an element might not exist:</p>
-<ol>
-<li>An element with the passed ID really does not exist in the document. You should double check that the ID you pass to <code>getElementById</code> really matches an ID of an existing element in the (generated) HTML and that you have not <em>misspelled</em> the ID (IDs are <em>case-sensitive</em>!).</li>
-</ol>
-<p>If you're using <code>getElementById</code>, be sure you're <strong>only</strong> giving the ID of the
-element (e.g., <code>document.getElemntById("the-id")</code>). If you're using a method
-that accepts a CSS selector (like <code>querySelector</code>), be sure you're including
-the <code>#</code> before the ID to indicate you're looking for an ID (e.g.,
-<code>document.querySelector("#the-id")</code>). You must <strong>not</strong> use the <code>#</code> with
-<code>getElementById</code>, and <strong>must</strong> use it with <code>querySelector</code> and similar. Also
-note that if the ID has characters in it that aren't valid in CSS identifiers
-(such as a <code>.</code>; <code>id</code> attributes containing <code>.</code> characters are poor practice,
-but valid), you have to escape those when using <code>querySelector</code>
-(<code>document.querySelector("#the\\.id")</code>)) but not when using <code>getElementById</code>
-(<code>document.getElementById("the.id")</code>).</p>
-<ol>
-<li>
-<p>The element does not exist <em>at the moment</em> you call <code>getElementById</code>.</p>
-</li>
-<li>
-<p>The element isn't in the document you're querying even though you can see it on the page, because it's in an <code>iframe</code> (which is its own document). Elements in <code>iframes</code> aren't searched when you search the document that contains them.</p>
-</li>
-</ol>
-<p>If the problem is reason 3 (it's in an <code>iframe</code> or similar), you need to look
-through the document in the <code>iframe</code>, not the parent document, perhaps by
-getting the <code>iframe</code> element and using its <code>contentDocument</code> property to
-access its document (same-origin only). The rest of this answer addresses the
-first two reasons.</p>
-<p>The second reason — it's not there <em>yet</em> — is quite common. Browsers parse and
-process the HTML from top to bottom. That means that any call to a DOM element
-which occurs before that DOM element appears in the HTML, will fail.</p>
-<p>Consider the following example:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script&gt;</span>
-<span class="w">    </span>var<span class="w"> </span>element<span class="w"> </span>=<span class="w"> </span>document.getElementById('my_element');
-<span class="nt">&lt;/script&gt;</span>
-
-<span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"my_element"</span><span class="nt">&gt;&lt;/div&gt;</span>
-</pre></div>
-
-<p>The <code>div</code> appears <em>after</em> the <code>script</code>. At the moment the script is executed,
-the element does not exist <em>yet</em> and <code>getElementById</code> will return <code>null</code>.</p>
-<p><strong>jQuery</strong></p>
-<p>The same applies to all selectors with jQuery. jQuery won't find elements if
-you <em>misspelled</em> your selector or you are trying to select them <em>before they
-actually exist</em>.</p>
-<p>An added twist is when jQuery is not found because you have loaded the script
-without protocol and are running from file system:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"//somecdn.somewhere.com/jquery.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
-</pre></div>
-
-<p>this syntax is used to allow the script to load via HTTPS on a page with
-protocol https:// and to load the HTTP version on a page with protocol http://</p>
-<p>It has the unfortunate side effect of attempting and failing to load
-<code>file://somecdn.somewhere.com...</code></p>
-<hr>
-<p><strong>Solutions</strong></p>
-<p>Before you make a call to <code>getElementById</code> (or any DOM method for that
-matter), make sure the elements you want to access exist, i.e. the DOM is
-loaded.</p>
-<p>This can be ensured by simply putting your JavaScript <em>after</em> the
-corresponding DOM element</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"my_element"</span><span class="nt">&gt;&lt;/div&gt;</span>
-
-<span class="nt">&lt;script&gt;</span>
-<span class="w">    </span>var<span class="w"> </span>element<span class="w"> </span>=<span class="w"> </span>document.getElementById('my_element');
-<span class="nt">&lt;/script&gt;</span>
-</pre></div>
-
-<p>in which case you can also put the code just before the closing body tag
-(<code>&lt;/body&gt;</code>) (all DOM elements will be available at the time the script is
-executed).</p>
-<p>Other solutions include listening to the <code>load</code> <em>[MDN]</em> or <code>DOMContentLoaded</code>
-<em>[MDN]</em> events. In these cases it does not matter where in the document you
-place the JavaScript code, you just have to remember to put all DOM processing
-code in the event handlers.</p>
-<p>Example:</p>
-<div class="code"><pre class="code literal-block"><span class="n">window</span><span class="o">.</span><span class="n">onload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="n">DOM</span><span class="w"> </span><span class="n">elements</span><span class="w"> </span><span class="n">here</span>
-<span class="p">};</span>
-
-<span class="o">//</span><span class="w"> </span><span class="ow">or</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">does</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">work</span><span class="w"> </span><span class="n">IE</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">below</span>
-<span class="n">document</span><span class="o">.</span><span class="n">addEventListener</span><span class="p">(</span><span class="s1">'DOMContentLoaded'</span><span class="p">,</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="n">DOM</span><span class="w"> </span><span class="n">elements</span><span class="w"> </span><span class="n">here</span>
-<span class="p">});</span>
-</pre></div>
-
-<p>Please see the articles at quirksmode.org for more information regarding event
-handling and browser differences.</p>
-<p><strong>jQuery</strong></p>
-<p>First make sure that jQuery is loaded properly. Use the browser's developer
-tools to find out whether the jQuery file was found and correct the URL if it
-wasn't (e.g. add the <code>http:</code> or <code>https:</code> scheme at the beginning, adjust the
-path, etc.)</p>
-<p>Listening to the <code>load</code>/<code>DOMContentLoaded</code> events is exactly what jQuery is
-doing with <code>.ready()</code> <em>[docs]</em>. All your jQuery code that affects DOM element
-should be inside that event handler.</p>
-<p>In fact, the jQuery tutorial explicitly states:</p>
-<blockquote>
-<p>As almost everything we do when using jQuery reads or manipulates the
-document object model (DOM), we need to make sure that we start adding
-events etc. as soon as the DOM is ready.</p>
-<p>To do this, we register a ready event for the document.</p>
-<div class="code"><pre class="code literal-block">$(document).ready(function() {
-</pre></div>
-
-</blockquote>
-<div class="code"><pre class="code literal-block"><span class="w">   </span><span class="c1">// do stuff when DOM is ready</span>
-<span class="p">});</span>
-</pre></div>
-
-<p>Alternatively you can also use the shorthand syntax:</p>
-<div class="code"><pre class="code literal-block">$<span class="ss">(</span><span class="nv">function</span><span class="ss">()</span><span class="w"> </span>{
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">stuff</span><span class="w"> </span><span class="nv">when</span><span class="w"> </span><span class="nv">DOM</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">ready</span>
-}<span class="ss">)</span><span class="c1">;</span>
-</pre></div>
-
-<p>Both are equivalent.</p>
     </div>
     </article>
 </div>

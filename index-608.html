@@ -108,7 +108,92 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-set-the-figure-title-and-axes-labels-font-size/" class="u-url">How do I set the figure title and axes labels font size?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-get-a-class-instance-of-generic-type-t/" class="u-url">How do I get a class instance of generic type T?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-get-a-class-instance-of-generic-type-t/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T11:14:15+08:00" itemprop="datePublished" title="2023-02-17 11:14">2023-02-17 11:14</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a generics class, <code>Foo&lt;T&gt;</code>. In a method of <code>Foo</code>, I want to get the
+class instance of type <code>T</code>, but I just can't call <code>T.class</code>.</p>
+<p>What is the preferred way to get around it using <code>T.class</code>?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The short answer is, that there is no way to find out the runtime type of
+generic type parameters in Java. I suggest reading the chapter about type
+erasure in the Java Tutorial for more details.</p>
+<p>A popular solution to this is to pass the <code>Class</code> of the type parameter into
+the constructor of the generic type, e.g.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Foo</span><span class="s">&lt;T&gt; {</span>
+<span class="s">    final Class&lt;T&gt;</span> <span class="n">typeParameterClass</span>;
+
+    <span class="n">public</span> <span class="n">Foo</span>(<span class="n">Class</span><span class="o">&lt;</span><span class="n">T</span>&gt; <span class="n">typeParameterClass</span>) {
+        <span class="n">this</span>.<span class="n">typeParameterClass</span> = <span class="n">typeParameterClass</span>;
+    }
+
+    <span class="n">public</span> <span class="n">void</span> <span class="n">bar</span>() {
+        // <span class="n">you</span> <span class="nb">can</span> <span class="n">access</span> <span class="n">the</span> <span class="n">typeParameterClass</span> <span class="n">here</span> <span class="o">and</span> <span class="nb">do</span> <span class="n">whatever</span> <span class="n">you</span> <span class="nb">like</span>
+    }
+}
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>I was looking for a way to do this myself without adding an extra dependency
+to the classpath. After some investigation I found that it <em><strong>is</strong></em> possible
+as long as you have a generic supertype. This was OK for me as I was working
+with a DAO layer with a generic layer supertype. If this fits your scenario
+then it's the neatest approach IMHO.</p>
+<p>Most generics use cases I've come across have some kind of generic supertype
+e.g. <code>List&lt;T&gt;</code> for <code>ArrayList&lt;T&gt;</code> or <code>GenericDAO&lt;T&gt;</code> for <code>DAO&lt;T&gt;</code>, etc.</p>
+<h4>Pure Java solution</h4>
+<p>The article <em>Accessing generic types at runtime in Java</em> explains how you can
+do it using pure Java.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@SuppressWarnings</span><span class="p">(</span><span class="ss">"unchecked"</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="n">GenericJpaDao</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">  </span><span class="n">this</span><span class="p">.</span><span class="n">entityBeanType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="k">Class</span><span class="p">)</span><span class="w"> </span><span class="p">((</span><span class="n">ParameterizedType</span><span class="p">)</span><span class="w"> </span><span class="n">getClass</span><span class="p">()</span>
+<span class="w">      </span><span class="p">.</span><span class="n">getGenericSuperclass</span><span class="p">()).</span><span class="n">getActualTypeArguments</span><span class="p">()</span><span class="o">[</span><span class="n">0</span><span class="o">]</span><span class="p">);</span>
+<span class="err">}</span>
+</pre></div>
+
+<h4>Spring solution</h4>
+<p>My project was using Spring which is even better as Spring has a handy utility
+method for finding the type. This is the best approach for me as it looks
+neatest. I guess if you weren't using Spring you could write your own utility
+method.</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">org.springframework.core.GenericTypeResolver</span><span class="p">;</span>
+
+<span class="n">public</span> <span class="n">abstract</span> <span class="k">class</span> <span class="nc">AbstractHibernateDao</span><span class="o">&lt;</span><span class="n">T</span> <span class="n">extends</span> <span class="n">DomainObject</span><span class="o">&gt;</span> <span class="n">implements</span> <span class="n">DataAccessObject</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span>
+<span class="p">{</span>
+
+    <span class="nd">@Autowired</span>
+    <span class="n">private</span> <span class="n">SessionFactory</span> <span class="n">sessionFactory</span><span class="p">;</span>
+
+    <span class="n">private</span> <span class="n">final</span> <span class="n">Class</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">genericType</span><span class="p">;</span>
+
+    <span class="n">private</span> <span class="n">final</span> <span class="n">String</span> <span class="n">RECORD_COUNT_HQL</span><span class="p">;</span>
+    <span class="n">private</span> <span class="n">final</span> <span class="n">String</span> <span class="n">FIND_ALL_HQL</span><span class="p">;</span>
+
+    <span class="nd">@SuppressWarnings</span><span class="p">(</span><span class="s2">"unchecked"</span><span class="p">)</span>
+    <span class="n">public</span> <span class="n">AbstractHibernateDao</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">genericType</span> <span class="o">=</span> <span class="p">(</span><span class="n">Class</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">)</span> <span class="n">GenericTypeResolver</span><span class="o">.</span><span class="n">resolveTypeArgument</span><span class="p">(</span><span class="n">getClass</span><span class="p">(),</span> <span class="n">AbstractHibernateDao</span><span class="o">.</span><span class="n">class</span><span class="p">);</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">RECORD_COUNT_HQL</span> <span class="o">=</span> <span class="s2">"select count(*) from "</span> <span class="o">+</span> <span class="n">this</span><span class="o">.</span><span class="n">genericType</span><span class="o">.</span><span class="n">getName</span><span class="p">();</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">FIND_ALL_HQL</span> <span class="o">=</span> <span class="s2">"from "</span> <span class="o">+</span> <span class="n">this</span><span class="o">.</span><span class="n">genericType</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span> <span class="o">+</span> <span class="s2">" t "</span><span class="p">;</span>
+    <span class="p">}</span>
+</pre></div>
+
+<h4>Full code example</h4>
+<p>Some people are struggling in the comments to get this working so I wrote a
+small application to show both approaches in action.
+https://github.com/benthurley82/generic-type-resolver-test</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-set-the-figure-title-and-axes-labels-font-size/" class="u-url">How do I set the figure title and axes labels font size?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -225,68 +310,6 @@ invocations / at least x / never", and the <code>never</code> javadoc is here.</
 <p>Use the second argument on the <code>Mockito.verify</code> method, as in:</p>
 <div class="code"><pre class="code literal-block">Mockito.verify(dependency, Mockito.times(0)).someMethod()
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/print-string-to-text-file/" class="u-url">Print string to text file</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/print-string-to-text-file/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T11:12:09+08:00" itemprop="datePublished" title="2023-02-17 11:12">2023-02-17 11:12</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm using Python to open a text document:</p>
-<div class="code"><pre class="code literal-block">text_file = open("Output.txt", "w")
-
-text_file.write("Purchase Amount: " 'TotalAmount')
-
-text_file.close()
-</pre></div>
-
-<p>I want to substitute the value of a string variable <code>TotalAmount</code> into the
-text document. Can someone please let me know how to do this?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>It is strongly advised to use a context manager. As an advantage, it is made
-sure the file is always closed, no matter what:</p>
-<div class="code"><pre class="code literal-block">with open("Output.txt", "w") as text_file:
-    text_file.write("Purchase Amount: %s" % TotalAmount)
-</pre></div>
-
-<p>This is the explicit version (but always remember, the context manager version
-from above should be preferred):</p>
-<div class="code"><pre class="code literal-block">text_file = open("Output.txt", "w")
-text_file.write("Purchase Amount: %s" % TotalAmount)
-text_file.close()
-</pre></div>
-
-<p>If you're using Python2.6 or higher, it's preferred to use <code>str.format()</code></p>
-<div class="code"><pre class="code literal-block">with open("Output.txt", "w") as text_file:
-    text_file.write("Purchase Amount: {0}".format(TotalAmount))
-</pre></div>
-
-<p>For python2.7 and higher you can use <code>{}</code> instead of <code>{0}</code></p>
-<p>In Python3, there is an optional <code>file</code> parameter to the <code>print</code> function</p>
-<div class="code"><pre class="code literal-block">with open("Output.txt", "w") as text_file:
-    print("Purchase Amount: {}".format(TotalAmount), file=text_file)
-</pre></div>
-
-<p>Python3.6 introduced f-strings for another alternative</p>
-<div class="code"><pre class="code literal-block">with open("Output.txt", "w") as text_file:
-    print(f"Purchase Amount: {TotalAmount}", file=text_file)
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>In case you want to pass multiple arguments you can use a tuple</p>
-<div class="code"><pre class="code literal-block">price = 33.3
-with open("Output.txt", "w") as text_file:
-    text_file.write("Purchase Amount: %s price %f" % (TotalAmount, price))
-</pre></div>
-
-<p>More: Print multiple arguments in python</p>
     </div>
     </article>
 </div>

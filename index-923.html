@@ -108,7 +108,152 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/differences-between-socket-io-and-websockets/" class="u-url">Differences between socket.io and websockets</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-check-if-any-value-is-nan-in-a-pandas-dataframe/" class="u-url">How to check if any value is NaN in a Pandas DataFrame</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-check-if-any-value-is-nan-in-a-pandas-dataframe/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T19:37:50+08:00" itemprop="datePublished" title="2023-02-17 19:37">2023-02-17 19:37</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>In Python Pandas, what's the best way to check whether a DataFrame has one (or
+more) NaN values?</p>
+<p>I know about the function <code>pd.isnan</code>, but this returns a DataFrame of booleans
+for each element. This post right here doesn't exactly answer my question
+either.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>jwilner's response is spot on. I was exploring to see if there's a faster
+option, since in my experience, summing flat arrays is (strangely) faster than
+counting. This code seems faster:</p>
+<div class="code"><pre class="code literal-block">df.isnull().values.any()
+</pre></div>
+
+<p><img alt="enter image description here" src="images/7l80g.png"></p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">perfplot</span>
+
+
+<span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+    <span class="n">df</span><span class="p">[</span><span class="n">df</span> <span class="o">&gt;</span> <span class="mf">0.9</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">nan</span>
+    <span class="k">return</span> <span class="n">df</span>
+
+
+<span class="k">def</span> <span class="nf">isnull_any</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="kp">any</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">isnull_values_sum</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="kp">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+
+<span class="k">def</span> <span class="nf">isnull_sum</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="kp">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+
+<span class="k">def</span> <span class="nf">isnull_values_any</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="kp">any</span><span class="p">()</span>
+
+
+<span class="n">perfplot</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
+    <span class="s2">"out.png"</span><span class="p">,</span>
+    <span class="n">setup</span><span class="o">=</span><span class="n">setup</span><span class="p">,</span>
+    <span class="n">kernels</span><span class="o">=</span><span class="p">[</span><span class="n">isnull_any</span><span class="p">,</span> <span class="n">isnull_values_sum</span><span class="p">,</span> <span class="n">isnull_sum</span><span class="p">,</span> <span class="n">isnull_values_any</span><span class="p">],</span>
+    <span class="n">n_range</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span> <span class="o">**</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">25</span><span class="p">)],</span>
+<span class="p">)</span>
+</pre></div>
+
+<p><code>df.isnull().sum().sum()</code> is a bit slower, but of course, has additional
+information -- the number of <code>NaNs</code>.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>You have a couple of options.</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">6</span><span class="p">))</span>
+<span class="c1"># Make a few areas have NaN values</span>
+<span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">nan</span>
+<span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">nan</span>
+<span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">7</span><span class="p">:</span><span class="mi">9</span><span class="p">,</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">nan</span>
+</pre></div>
+
+<p>Now the data frame looks something like this:</p>
+<div class="code"><pre class="code literal-block">          0         1         2         3         4         5
+0  0.520113  0.884000  1.260966 -0.236597  0.312972 -0.196281
+1 -0.837552       NaN  0.143017  0.862355  0.346550  0.842952
+2 -0.452595       NaN -0.420790  0.456215  1.203459  0.527425
+3  0.317503 -0.917042  1.780938 -1.584102  0.432745  0.389797
+4 -0.722852  1.704820 -0.113821 -1.466458  0.083002  0.011722
+5 -0.622851 -0.251935 -1.498837       NaN  1.098323  0.273814
+6  0.329585  0.075312 -0.690209 -3.807924  0.489317 -0.841368
+7 -1.123433 -1.187496  1.868894 -2.046456 -0.949718       NaN
+8  1.133880 -0.110447  0.050385 -1.158387  0.188222       NaN
+9 -0.513741  1.196259  0.704537  0.982395 -0.585040 -1.693810
+</pre></div>
+
+<ul>
+<li>
+<strong>Option 1</strong> : <code>df.isnull().any().any()</code> - This returns a boolean value</li>
+</ul>
+<p>You know of the <code>isnull()</code> which would return a dataframe like this:</p>
+<div class="code"><pre class="code literal-block">       0      1      2      3      4      5
+0  False  False  False  False  False  False
+1  False   True  False  False  False  False
+2  False   True  False  False  False  False
+3  False  False  False  False  False  False
+4  False  False  False  False  False  False
+5  False  False  False   True  False  False
+6  False  False  False  False  False  False
+7  False  False  False  False  False   True
+8  False  False  False  False  False   True
+9  False  False  False  False  False  False
+</pre></div>
+
+<p>If you make it <code>df.isnull().any()</code>, you can find just the columns that have
+<code>NaN</code> values:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">0</span><span class="w">    </span><span class="n">False</span>
+<span class="mf">1</span><span class="w">     </span><span class="n">True</span>
+<span class="mf">2</span><span class="w">    </span><span class="n">False</span>
+<span class="mf">3</span><span class="w">     </span><span class="n">True</span>
+<span class="mf">4</span><span class="w">    </span><span class="n">False</span>
+<span class="mf">5</span><span class="w">     </span><span class="n">True</span>
+<span class="n">dtype</span><span class="p">:</span><span class="w"> </span><span class="n">bool</span>
+</pre></div>
+
+<p>One more <code>.any()</code> will tell you if any of the above are <code>True</code></p>
+<div class="code"><pre class="code literal-block">&gt; df.isnull().any().any()
+True
+</pre></div>
+
+<ul>
+<li>
+<strong>Option 2</strong> : <code>df.isnull().sum().sum()</code> - This returns an integer of the total number of <code>NaN</code> values:</li>
+</ul>
+<p>This operates the same way as the <code>.any().any()</code> does, by first giving a
+summation of the number of <code>NaN</code> values in a column, then the summation of
+those values:</p>
+<div class="code"><pre class="code literal-block">df.isnull().sum()
+0    0
+1    2
+2    0
+3    1
+4    0
+5    2
+dtype: int64
+</pre></div>
+
+<p>Finally, to get the total number of NaN values in the DataFrame:</p>
+<div class="code"><pre class="code literal-block">df.isnull().sum().sum()
+5
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/differences-between-socket-io-and-websockets/" class="u-url">Differences between socket.io and websockets</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -244,123 +389,6 @@ Safari don't support it).</p>
 <span class="n">Click</span><span class="w"> </span><span class="n">me</span><span class="w"> </span><span class="n">then</span><span class="w"> </span><span class="n">press</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">Escape</span><span class="w"> </span><span class="n">key</span>
 </pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-completely-rename-an-xcode-project-i-e-inclusive-of-folders/" class="u-url">How do I completely rename an Xcode project (i.e. inclusive of folders)?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-completely-rename-an-xcode-project-i-e-inclusive-of-folders/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T19:36:23+08:00" itemprop="datePublished" title="2023-02-17 19:36">2023-02-17 19:36</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a project named <code>XXX</code>. I want to rename this project to <code>YYY</code>.</p>
-<p>Note that <code>XXX</code> is an extremely common term (for e.g. "data", or simply
-"project"), and thus a simple RegEx search-and-replace is not possible, out of
-risk of corrupting the project configuration files.</p>
-<p>My current project directory contains the following items:</p>
-<ul>
-<li><code>XXX</code></li>
-<li><code>XXXTests</code></li>
-<li><code>XXX.xcodeproj</code></li>
-</ul>
-<p>and I want to rename them to:</p>
-<ul>
-<li><code>YYY</code></li>
-<li><code>YYYTests</code></li>
-<li><code>YYY.xcodeproj</code></li>
-</ul>
-<p>... respectively, with the necessary changes being reflected in my project
-file.</p>
-<p>How can I accomplish this without having to manually create and populate a new
-project?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h4>Step 1 - Rename the project</h4>
-<ol>
-<li>Click on the project you want to rename in the "Project navigator" in the left panel of the Xcode window.</li>
-<li>In the right panel, select the "File inspector", and the name of your project should be found under "Identity and Type". Change it to your new name.</li>
-<li>When the dialog asks whether to rename or not rename the project's content items, click "Rename". Say yes to any warning about uncommitted changes.</li>
-</ol>
-<h4>Step 2 - Rename the scheme</h4>
-<p><em>Note: for <strong>Xcode 14</strong> , Sept. 2022: in some cases Xcode now automatically
-renames the scheme, when Xcode performs Step 1 above. If so, there is nothing
-to do in Step 2.</em></p>
-<ol>
-<li>At the top middle of the window, to the left of the active device/simulator, there is a scheme for your product under its old name; click &amp; hold on it, then choose "Manage Schemes…".</li>
-<li>Click on the old name in the scheme (similar to renaming files in Xcode) and it will become editable; change the name and click "Close".</li>
-</ol>
-<h4>Step 3 - Rename the folder with your assets</h4>
-<ol>
-<li>Quit Xcode. Rename the master folder that contains all your project files.</li>
-<li>In the correctly-named master folder, beside your newly-named .xcodeproj file, there is probably a wrongly-named OLD folder containing your source files. Rename the OLD folder to your new name. {If you use git you could use <code>git mv oldname newname</code>. Note that when using <code>git mv old new</code> you generally must (i) completely commit all other changes (ii) only then <code>git mv old new</code> (iii) commit that (iv) only then make further changes. If steps i-ii-iii-iv are followed, git will maintain history through the rename.}</li>
-<li>Re-open the project in Xcode. If you see a warning "The folder OLD does not exist", dismiss the warning. The source files in the renamed folder will have red names because the path to them has broken.</li>
-<li>In the "Project navigator" in the left-hand panel, click on the top-level folder representing the OLD folder you renamed.</li>
-<li>In the right-hand panel, under "Identity and Type", change the "Name" field from the OLD name to the new name.</li>
-<li>Just below that field is a "Location" menu. If the full path has not corrected itself, click on the nearby folder icon and choose the renamed folder. You may have to perform this fix for each source file if the links to them remain broken.</li>
-</ol>
-<h4>Step 4 - Rename the Build plist data</h4>
-<ol>
-<li>Click on the project in the "Project navigator" on the left, and in the main panel select "Build Settings".</li>
-<li>Search for "plist" in the settings.</li>
-<li>In the Packaging section, you will see fields for <code>Info.plist</code> and <code>Product Bundle Identifier</code>.</li>
-<li>If there is a file name entered in <code>Info.plist</code>, update it (it may have been updated automatically in Step 1).</li>
-<li>Do the same for <code>Product Bundle Identifier</code>, unless it is utilizing the ${PRODUCT_NAME} variable. In that case, search for "product" in the settings and update <code>Product Name</code>. If <code>Product Name</code> is based on ${TARGET_NAME}, click on the actual target item in the TARGETS list on the left of the settings pane and edit it, and all related settings will update immediately.</li>
-<li>Search the settings for "prefix" and ensure that <code>Prefix Header</code>'s path is also updated to the new name.</li>
-<li>If you use SwiftUI, search for "Development Assets" and update the path. Enclose in double-quotes (<code>""</code>) quotes if the path contains a space (<code></code>).</li>
-<li>If you have an entitlements file, search for "signing" and update <code>Code Signing Entitlements</code>. Accordingly, rename the actual entitlements file in the Project Navigator also. (Side note: In Xcode 13 entitlements files have a yellow checkmark icon in the Project Navigator; you may have created one if e.g. you use shared containers/App Groups.)</li>
-</ol>
-<h4>Step 5 - Repeat step 3 for tests (if you have them)</h4>
-<h4>Step 6 - Repeat step 3 for core data if its name matches project name (if</h4>
-<p>you have it)</p>
-<h4>Step 7 - Clean and rebuild your project</h4>
-<ol>
-<li>
-<code>Command</code> + <code>Shift</code> + <code>K</code> to clean</li>
-<li>
-<code>Command</code> + <code>B</code> to build</li>
-</ol>
-<p><strong>Further points.</strong></p>
-<ul>
-<li>If the project has <strong>storyboards</strong>.</li>
-</ul>
-<p>At this stage, open the overall folder simply in the Mac finder. Type the old
-name in the file text search. You will see that the old name appears very
-often as <code>customModule="OldName"</code> in all storyboard files. (Explanation.)
-These can be fixed, in Xcode, one by one, on each storyboard: Tap on the view
-controller in the file inspector, and be sure to tap on the actual storyboard
-in the white column on the left of the actual storyboard panel. Tap on the
-Identity Inspector (4th small button) in the right hand panel. Look at the
-Custom Class -&gt; Module field. <strong>Notice it <em>seemingly</em> shows NewName in gray</strong>.
-However (still as of Xcode14.2) <em><strong>it is incorrect</strong></em>. Simply tap the drop-
-down, and explicitly select the new name. (If you now review that storyboard
-file with a text editor, you will see it is fixed.) You may prefer to change
-them all just using a plain text editor.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>To add to luke-west's excellent answer:</p>
-<h2>When using CocoaPods</h2>
-<h3>After step 2:</h3>
-<ol>
-<li>Quit Xcode.</li>
-<li>In the master folder, rename <code>OLD.xcworkspace</code> to <code>NEW.xcworkspace</code>.</li>
-</ol>
-<h3>After step 4:</h3>
-<ol>
-<li>In Xcode: choose and edit <code>Podfile</code> from the project navigator. You should see a <code>target</code> clause with the OLD name. Change it to NEW.</li>
-<li>Quit Xcode.</li>
-<li>In the project folder, delete the <code>OLD.podspec</code> file.</li>
-<li><code>rm -rf Pods/</code></li>
-<li>Run <code>pod install</code>.</li>
-<li>Open Xcode.</li>
-<li>Click on your project name in the project navigator.</li>
-<li>In the main pane, switch to the <code>Build Phases</code> tab.</li>
-<li>Under <code>Link Binary With Libraries</code>, look for <code>libPods-OLD.a</code> and delete it.</li>
-<li>If you have an objective-c Bridging header go to Build settings and change the location of the header from OLD/OLD-Bridging-Header.h to NEW/NEW-Bridging-Header.h</li>
-<li>Clean and run.</li>
-</ol>
-</div>
     </article>
 </div>
 

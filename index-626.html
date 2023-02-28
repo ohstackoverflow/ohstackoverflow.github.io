@@ -108,7 +108,94 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-isn-t-sizeof-for-a-struct-equal-to-the-sum-of-sizeof-of-each-member/" class="u-url">Why isn't sizeof for a struct equal to the sum of sizeof of each member?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-avoid-reverse-engineering-of-an-apk-file/" class="u-url">How to avoid reverse engineering of an APK file</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-avoid-reverse-engineering-of-an-apk-file/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T11:42:23+08:00" itemprop="datePublished" title="2023-02-17 11:42">2023-02-17 11:42</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I am developing a <strong>payment processing app</strong> for Android, and I want to
+prevent a hacker from accessing any resources, assets or source code from the
+APK file.</p>
+<p>If someone changes the .apk extension to .zip then they can unzip it and
+easily access all the app's resources and assets, and using dex2jar and a Java
+decompiler, they can also access the source code. It's very easy to reverse
+engineer an Android APK file - for more details see Stack Overflow question
+<em>Reverse engineering from an APK file to a project</em>.</p>
+<p>I have used the Proguard tool provided with the Android SDK. When I reverse
+engineer an APK file generated using a signed keystore and Proguard, I get
+obfuscated code.</p>
+<p>However, the names of Android components remain unchanged and some code, like
+key-values used in the app, remains unchanged. As per Proguard documentation
+the tool can't obfuscate components mentioned in the Manifest file.</p>
+<p>Now my questions are:</p>
+<ol>
+<li>How can I <strong>completely prevent</strong> reverse engineering of an Android APK? Is this possible?</li>
+<li>How can I protect all the app's resources, assets and source code so that hackers can't hack the APK file in any way?</li>
+<li>
+<strong>Is there a way to make hacking more tough or even impossible?</strong> What more can I do to protect the source code in my APK file?</li>
+</ol>
+<p><br><br></p>
+<h2>Answer</h2>
+<blockquote>
+<p>1. How can I completely avoid reverse engineering of an Android APK? Is
+this possible?</p>
+</blockquote>
+<p>AFAIK, there is not any trick for complete avoidance of reverse engineering.</p>
+<p>And also very well said by @inazaruk: <em>Whatever you do to your code, a
+potential attacker is able to change it in any way she or he finds it
+feasible</em>. You basically can't protect your application from being modified.
+And any protection you put in there can be disabled/removed.</p>
+<blockquote>
+<p>2. How can I protect all the app's resources, assets and source code so
+that hackers can't hack the APK file in any way?</p>
+</blockquote>
+<p>You can do different tricks to make hacking harder though. For example, use
+obfuscation (if it's Java code). This usually slows down reverse engineering
+significantly.</p>
+<blockquote>
+<p>3. Is there a way to make hacking more tough or even impossible? What more
+can I do to protect the source code in my APK file?</p>
+</blockquote>
+<p>As everyone says, and as you probably know, there's no 100% security. But the
+place to start for Android, that Google has built in, is ProGuard. If you have
+the option of including <strong>shared libraries</strong> , you can include the needed code
+in C++ to verify file sizes, integration, etc. If you need to add an external
+native library to your APK's library folder on every build, then you can use
+it by the below suggestion.</p>
+<p>Put the library in the native library path which defaults to "libs" in your
+project folder. If you built the native code for the <strong>'armeabi'</strong> target then
+put it under <strong>libs/armeabi</strong>. If it was built with <strong>armeabi-v7a</strong> then put
+it under <strong>libs/armeabi-v7a.</strong></p>
+<div class="code"><pre class="code literal-block">&lt;project&gt;/libs/armeabi/libstuff.so
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>AFAIK, you cannot protect the files in the /res directory anymore than they
+are protected right now.</p>
+<p>However, there are steps you can take to protect your source code, or at least
+what it does if not everything.</p>
+<ol>
+<li>Use tools like ProGuard. These will obfuscate your code, and make it harder to read when decompiled, if not impossible.</li>
+<li>Move the most critical parts of the service out of the app, and into a webservice, hidden behind a server side language like PHP. For example, if you have an algorithm that's taken you a million dollars to write. You obviously don't want people stealing it out of your app. Move the algorithm and have it process the data on a remote server, and use the app to simply provide it with the data. Or use the NDK to write them natively into .so files, which are much less likely to be decompiled than apks. I don't think a decompiler for .so files even exists as of now (and even if it did, it wouldn't be as good as the Java decompilers). Additionally, as @nikolay mentioned in the comments, you should use SSL when interacting between the server and device.</li>
+<li>When storing values on the device, don't store them in a raw format. For example, if you have a game, and you're storing the amount of in game currency the user has in SharedPreferences. Let's assume it's <code>10000</code> coins. Instead of saving <code>10000</code> directly, save it using an algorithm like <code>((currency*2)+1)/13</code>. So instead of <code>10000</code>, you save <code>1538.53846154</code> into the SharedPreferences. However, the above example isn't perfect, and you'll have to work to come up with an equation that won't lose currency to rounding errors etc.</li>
+<li>You can do a similar thing for server side tasks. Now for an example, let's actually take your payment processing app. Let's say the user has to make a payment of <code>$200</code>. Instead of sending a raw <code>$200</code> value to the server, send a series of smaller, predefined, values that add up to <code>$200</code>. For example, have a file or table on your server that equates words with values. So let's say that <code>Charlie</code> corresponds to <code>$47</code>, and <code>John</code> to <code>$3</code>. So instead of sending <code>$200</code>, you can send <code>Charlie</code> four times and <code>John</code> four times. On the server, interpret what they mean and add it up. This prevents a hacker from sending arbitrary values to your server, as they do not know what word corresponds to what value. As an added measure of security, you could have an equation similar to point 3 for this as well, and change the keywords every <code>n</code> number of days.</li>
+<li>Finally, you can insert random useless source code into your app, so that the hacker is looking for a needle in a haystack. Insert random classes containing snippets from the internet, or just functions for calculating random things like the Fibonacci sequence. Make sure these classes compile, but aren't used by the actual functionality of the app. Add enough of these false classes, and the hacker would have a tough time finding your real code.</li>
+</ol>
+<p>All in all, there's no way to protect your app 100%. You can make it harder,
+but not impossible. Your web server could be compromised, the hacker could
+figure out your keywords by monitoring multiple transaction amounts and the
+keywords you send for it, the hacker could painstakingly go through the source
+and figure out which code is a dummy.</p>
+<p>You can only fight back, but never win.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-isn-t-sizeof-for-a-struct-equal-to-the-sum-of-sizeof-of-each-member/" class="u-url">Why isn't sizeof for a struct equal to the sum of sizeof of each member?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -313,57 +400,6 @@ referencing the prior exported object. By setting both you use <code>exports</co
 shorthand and avoid potential bugs later on down the road.</p>
 <p>Using <code>exports.prop = true</code> instead of <code>module.exports.prop = true</code> saves
 characters and avoids confusion.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-drop-a-table-if-it-exists/" class="u-url">How to drop a table if it exists?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-drop-a-table-if-it-exists/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T11:40:37+08:00" itemprop="datePublished" title="2023-02-17 11:40">2023-02-17 11:40</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>The table name is <code>Scores</code>.</p>
-<p>Is it correct to do the following?</p>
-<div class="code"><pre class="code literal-block"><span class="k">IF</span><span class="w"> </span><span class="nv">EXISTS</span><span class="ss">(</span><span class="nv">SELECT</span><span class="w"> </span><span class="o">*</span>
-<span class="w">          </span><span class="nv">FROM</span><span class="w">   </span><span class="nv">dbo</span>.<span class="nv">Scores</span><span class="ss">)</span>
-<span class="w">  </span><span class="nv">DROP</span><span class="w"> </span><span class="nv">TABLE</span><span class="w"> </span><span class="nv">dbo</span>.<span class="nv">Scores</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<blockquote>
-<p>Is it correct to do the following?</p>
-<div class="code"><pre class="code literal-block"><span class="k">IF</span><span class="w"> </span><span class="nv">EXISTS</span><span class="ss">(</span><span class="nv">SELECT</span><span class="w"> </span><span class="o">*</span>
-<span class="w">          </span><span class="nv">FROM</span><span class="w">   </span><span class="nv">dbo</span>.<span class="nv">Scores</span><span class="ss">)</span>
-<span class="w">  </span><span class="nv">DROP</span><span class="w"> </span><span class="nv">TABLE</span><span class="w"> </span><span class="nv">dbo</span>.<span class="nv">Scores</span>
-</pre></div>
-
-</blockquote>
-<p><strong>No.</strong> That will drop the table only if it contains any rows (and will raise
-an error if the table does not exist).</p>
-<p><strong>Instead, for a permanent table you can use</strong></p>
-<div class="code"><pre class="code literal-block"><span class="k">IF</span><span class="w"> </span><span class="nv">OBJECT_ID</span><span class="ss">(</span><span class="s1">'dbo.Scores'</span>,<span class="w"> </span><span class="s1">'U'</span><span class="ss">)</span><span class="w"> </span><span class="nv">IS</span><span class="w"> </span><span class="nv">NOT</span><span class="w"> </span><span class="nv">NULL</span><span class="w"> </span>
-<span class="w">  </span><span class="nv">DROP</span><span class="w"> </span><span class="nv">TABLE</span><span class="w"> </span><span class="nv">dbo</span>.<span class="nv">Scores</span><span class="c1">;</span>
-</pre></div>
-
-<p><strong>Or, for a temporary table you can use</strong></p>
-<div class="code"><pre class="code literal-block"><span class="k">IF</span><span class="w"> </span><span class="nv">OBJECT_ID</span><span class="ss">(</span><span class="s1">'tempdb.dbo.#TempTableName'</span>,<span class="w"> </span><span class="s1">'U'</span><span class="ss">)</span><span class="w"> </span><span class="nv">IS</span><span class="w"> </span><span class="nv">NOT</span><span class="w"> </span><span class="nv">NULL</span>
-<span class="w">  </span><span class="nv">DROP</span><span class="w"> </span><span class="nv">TABLE</span><span class="w"> </span>#<span class="nv">TempTableName</span><span class="c1">;</span>
-</pre></div>
-
-<p>SQL Server 2016+ has a better way, using <code>DROP TABLE IF EXISTS …</code>. See the
-answer by @Jovan.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>From SQL Server 2016 you can use</p>
-<div class="code"><pre class="code literal-block"><span class="nv">DROP</span><span class="w"> </span><span class="nv">TABLE</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="nv">EXISTS</span><span class="w"> </span><span class="nv">dbo</span>.<span class="nv">Scores</span>
-</pre></div>
-
-<p>Reference: DROP IF EXISTS - new thing in SQL Server 2016</p>
-<p>It will be in SQL Azure Database soon.</p>
     </div>
     </article>
 </div>

@@ -108,7 +108,96 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-stop-tracking-and-ignore-changes-to-a-file-in-git/" class="u-url">How to stop tracking and ignore changes to a file in Git?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-effect-of-extern-c-in-c/" class="u-url">What is the effect of extern "C" in C++?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-is-the-effect-of-extern-c-in-c/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T22:59:40+08:00" itemprop="datePublished" title="2023-02-16 22:59">2023-02-16 22:59</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What exactly does putting <code>extern "C"</code> into C++ code do?</p>
+<p>For example:</p>
+<div class="code"><pre class="code literal-block">extern "C" {
+   void foo();
+}
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p><code>extern "C"</code> makes a function-name in C++ have C linkage (compiler does not
+mangle the name) so that client C code can link to (use) your function using a
+C compatible header file that contains just the declaration of your function.
+Your function definition is contained in a binary format (that was compiled by
+your C++ compiler) that the client C linker will then link to using the C
+name.</p>
+<p>Since C++ has overloading of function names and C does not, the C++ compiler
+cannot just use the function name as a unique id to link to, so it mangles the
+name by adding information about the arguments. A C compiler does not need to
+mangle the name since you can not overload function names in C. When you state
+that a function has <code>extern "C"</code> linkage in C++, the C++ compiler does not add
+argument/parameter type information to the name used for linkage.</p>
+<p>Just so you know, you can specify <code>extern "C"</code> linkage to each individual
+declaration/definition explicitly or use a block to group a sequence of
+declarations/definitions to have a certain linkage:</p>
+<div class="code"><pre class="code literal-block">extern "C" void foo(int);
+extern "C"
+{
+   void g(char);
+   int i;
+}
+</pre></div>
+
+<p>If you care about the technicalities, they are listed in section 7.5 of the
+C++03 standard, here is a brief summary (with emphasis on <code>extern "C"</code>):</p>
+<ul>
+<li>
+<code>extern "C"</code> is a linkage-specification</li>
+<li>Every compiler is <em>required</em> to provide "C" linkage</li>
+<li>A linkage specification shall occur only in namespace scope</li>
+<li>
+<del>All function types, function names and variable names have a language linkage</del> <strong>See Richard's Comment:</strong> Only function names and variable names with external linkage have a language linkage</li>
+<li>Two function types with distinct language linkages are distinct types even if otherwise identical</li>
+<li>Linkage specs nest, inner one determines the final linkage</li>
+<li>
+<code>extern "C"</code> is ignored for class members</li>
+<li>At most one function with a particular name can have "C" linkage (regardless of namespace)</li>
+<li>
+<del><code>extern "C"</code> forces a function to have external linkage (cannot make it static) </del> <strong>See Richard's comment:</strong> <code>static</code> inside <code>extern "C"</code> is valid; an entity so declared has internal linkage, and so does not have a language linkage</li>
+<li>Linkage from C++ to objects defined in other languages and to objects defined in C++ from other languages is implementation-defined and language-dependent. Only where the object layout strategies of two language implementations are similar enough can such linkage be achieved</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Just wanted to add a bit of info, since I haven't seen it posted yet.</p>
+<p>You'll very often see code in C headers like so:</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#ifdef __cplusplus</span>
+<span class="k">extern</span><span class="w"> </span><span class="s">"C"</span><span class="w"> </span><span class="p">{</span>
+<span class="cp">#endif</span>
+
+<span class="c1">// all of your legacy C code here</span>
+
+<span class="cp">#ifdef __cplusplus</span>
+<span class="p">}</span>
+<span class="cp">#endif</span>
+</pre></div>
+
+<p>What this accomplishes is that it allows you to use that C header file with
+your C++ code, because the macro <code>__cplusplus</code> will be defined. But you can
+<em>also</em> still use it with your legacy C code, where the macro is <em>NOT</em> defined,
+so it won't see the uniquely C++ construct.</p>
+<p>Although, I have also seen C++ code such as:</p>
+<div class="code"><pre class="code literal-block"><span class="k">extern</span><span class="w"> </span><span class="s">"C"</span><span class="w"> </span><span class="p">{</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">"legacy_C_header.h"</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>which I imagine accomplishes much the same thing.</p>
+<p>Not sure which way is better, but I have seen both.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-stop-tracking-and-ignore-changes-to-a-file-in-git/" class="u-url">How to stop tracking and ignore changes to a file in Git?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -272,86 +361,6 @@ SSTR() macro in a central header of my C++ sources:</p>
 does not need any third-party includes (if you cannot use Boost
 <code>lexical_cast&lt;&gt;</code>); both these other solutions have a better performance
 though.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-check-if-a-variable-is-an-array-in-javascript/" class="u-url">How do I check if a variable is an array in JavaScript?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-check-if-a-variable-is-an-array-in-javascript/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-16T22:56:38+08:00" itemprop="datePublished" title="2023-02-16 22:56">2023-02-16 22:56</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do I check if a variable is an array in JavaScript?</p>
-<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">variable</span><span class="o">.</span><span class="n">constructor</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb nb-Type">Array</span><span class="p">)</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>There are several ways of checking if an variable is an array or not. The best
-solution is the one you have chosen.</p>
-<div class="code"><pre class="code literal-block"><span class="n">variable</span><span class="o">.</span><span class="n">constructor</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nb nb-Type">Array</span>
-</pre></div>
-
-<p>This is the fastest method on Chrome, and most likely all other browsers. All
-arrays are objects, so checking the constructor property is a fast process for
-JavaScript engines.</p>
-<p>If you are having issues with finding out if an objects property is an array,
-you must first check if the property is there.</p>
-<div class="code"><pre class="code literal-block"><span class="n">variable</span><span class="o">.</span><span class="n">prop</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">variable</span><span class="o">.</span><span class="n">prop</span><span class="o">.</span><span class="n">constructor</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nb nb-Type">Array</span>
-</pre></div>
-
-<p>Some other ways are:</p>
-<div class="code"><pre class="code literal-block"><span class="nb nb-Type">Array</span><span class="o">.</span><span class="n">isArray</span><span class="p">(</span><span class="n">variable</span><span class="p">)</span>
-</pre></div>
-
-<p><strong>Update May 23, 2019 using Chrome 75, shout out to @AnduAndrici for having me
-revisit this with his question</strong> This last one is, in my opinion the ugliest,
-and it is one of the <del>slowest</del> fastest. <del>Running about 1/5 the speed as the
-first example.</del> This guy is about 2-5% slower, but it's pretty hard to tell.
-Solid to use! Quite impressed by the outcome. Array.prototype, is actually an
-array. you can read more about it here https://developer.mozilla.org/en-
-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray</p>
-<div class="code"><pre class="code literal-block"><span class="n">variable</span><span class="w"> </span><span class="n">instanceof</span><span class="w"> </span><span class="nb nb-Type">Array</span>
-</pre></div>
-
-<p>This method runs about <del>1/3 the speed</del> as the first example. Still pretty
-solid, looks cleaner, if you're all about pretty code and not so much on
-performance. Note that checking for numbers does not work as <code>variable
-instanceof Number</code> always returns <code>false</code>. <strong>Update:<code>instanceof</code> now goes 2/3
-the speed!</strong></p>
-<p><strong>So yet another update</strong></p>
-<div class="code"><pre class="code literal-block"><span class="n">Object</span><span class="p">.</span><span class="n">prototype</span><span class="p">.</span><span class="n">toString</span><span class="p">.</span><span class="n">call</span><span class="p">(</span><span class="n">variable</span><span class="p">)</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="err">'</span><span class="p">[</span><span class="n">object</span><span class="w"> </span><span class="n">Array</span><span class="p">]</span><span class="err">'</span><span class="p">;</span>
-</pre></div>
-
-<p>This guy is the slowest for trying to check for an Array. However, this is a
-one stop shop for any type you're looking for. However, since you're looking
-for an array, just use the fastest method above.</p>
-<p>Also, I ran some test: http://jsperf.com/instanceof-array-vs-array-isarray/35
-So have some fun and check it out.</p>
-<p>Note: @EscapeNetscape has created another test as jsperf.com is down.
-http://jsben.ch/#/QgYAV I wanted to make sure the original link stay for
-whenever jsperf comes back online.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You could also use:</p>
-<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">value</span><span class="w"> </span><span class="nv">instanceof</span><span class="w"> </span><span class="nv">Array</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">  </span><span class="nv">alert</span><span class="ss">(</span><span class="s1">'value is Array!'</span><span class="ss">)</span><span class="c1">;</span>
-}<span class="w"> </span><span class="k">else</span><span class="w"> </span>{
-<span class="w">  </span><span class="nv">alert</span><span class="ss">(</span><span class="s1">'Not an array'</span><span class="ss">)</span><span class="c1">;</span>
-}
-</pre></div>
-
-<p>This seems to me a pretty elegant solution, but to each his own.</p>
-<p>Edit:</p>
-<p>As of ES5 there is now also:</p>
-<div class="code"><pre class="code literal-block">Array.isArray(value);
-</pre></div>
-
-<p>But this will break on older browsers, unless you are using polyfills
-(basically... IE8 or similar).</p>
     </div>
     </article>
 </div>

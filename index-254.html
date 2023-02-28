@@ -108,7 +108,154 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/check-if-checkbox-is-checked-with-jquery/" class="u-url">Check if checkbox is checked with jQuery</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/find-when-a-file-was-deleted-in-git/" class="u-url">Find when a file was deleted in Git</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/find-when-a-file-was-deleted-in-git/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T02:12:07+08:00" itemprop="datePublished" title="2023-02-17 02:12">2023-02-17 02:12</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a Git repository with n commits.</p>
+<p>I have a file that I need, and that used to be in the repository, and that I
+suddenly look for and think "Oh! Where'd that file go?"</p>
+<p>Is there a (series of) Git command(s) that will tell me that "file
+really_needed.txt was deleted at commit n-13"?</p>
+<p>In other words, without looking at every individual commit, and knowing that
+my Git repo has every change of every file, can I quickly find the last commit
+that HAS that file, so I can get it back?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>To show the commits that changed a file, even if the file was deleted, run
+this command:</p>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">log</span><span class="w"> </span><span class="o">--</span><span class="n">full</span><span class="o">-</span><span class="n">history</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="p">[</span><span class="n">file</span><span class="w"> </span><span class="n">path</span><span class="p">]</span>
+</pre></div>
+
+<p>If you want to see only the last commit, which deleted the file, use <code>-1</code> in
+addition to the command above:</p>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">log</span><span class="w"> </span><span class="o">--</span><span class="n">full</span><span class="o">-</span><span class="n">history</span><span class="w"> </span><span class="mi">-1</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="p">[</span><span class="n">file</span><span class="w"> </span><span class="n">path</span><span class="p">]</span>
+</pre></div>
+
+<p>See also my article: Which commit deleted a file.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h4>Short answer:</h4>
+<div class="code"><pre class="code literal-block">git log --full-history -- your_file
+</pre></div>
+
+<p>will show you <em>all</em> commits in your repo's history, including merge commits,
+that touched <code>your_file</code>. The last (top) one is the one that deleted the file.</p>
+<h4>Some explanation:</h4>
+<p>The <code>--full-history</code> flag here is important. Without it, Git performs "history
+simplification" when you ask it for the log of a file. The docs are light on
+details about exactly how this works and I lack the grit and courage required
+to try to figure it out from the source code, but the git-log docs have this
+much to say:</p>
+<blockquote>
+<h4>Default mode</h4>
+<p>Simplifies the history to the simplest history explaining the final state of
+the tree. Simplest because it prunes some side branches if the end result is
+the same (i.e. merging branches with the same content)</p>
+</blockquote>
+<p>This is obviously concerning when the file whose history we want is <em>deleted</em>
+, since the simplest history explaining the final state of a deleted file is
+<em>no history</em>. Is there a risk that <code>git log</code> without <code>--full-history</code> will
+simply claim that the file was never created? Unfortunately, yes. Here's a
+demonstration:</p>
+<div class="code"><pre class="code literal-block"><span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="n">init_</span><span class="o">**</span>
+<span class="n">Initialised</span><span class="w"> </span><span class="n">empty</span><span class="w"> </span><span class="n">Git</span><span class="w"> </span><span class="n">repository</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">mark</span><span class="o">/</span><span class="n">example</span><span class="o">/</span><span class="p">.</span><span class="n">git</span><span class="o">/</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_touch</span><span class="w"> </span><span class="n">foo</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">foo</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="k">commit</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="ss">"Added foo"</span><span class="n">_</span><span class="o">**</span>
+<span class="o">[</span><span class="n">master (root-commit) ddff7a7</span><span class="o">]</span><span class="w"> </span><span class="n">Added</span><span class="w"> </span><span class="n">foo</span>
+<span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">file</span><span class="w"> </span><span class="n">changed</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insertions</span><span class="p">(</span><span class="o">+</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">deletions</span><span class="p">(</span><span class="o">-</span><span class="p">)</span>
+<span class="w"> </span><span class="k">create</span><span class="w"> </span><span class="n">mode</span><span class="w"> </span><span class="mi">100644</span><span class="w"> </span><span class="n">foo</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="n">checkout</span><span class="w"> </span><span class="o">-</span><span class="n">b</span><span class="w"> </span><span class="n">newbranch_</span><span class="o">**</span>
+<span class="n">Switched</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="s1">'newbranch'</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_touch</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="k">commit</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="ss">"Added bar"</span><span class="n">_</span><span class="o">**</span>
+<span class="o">[</span><span class="n">newbranch 7f9299a</span><span class="o">]</span><span class="w"> </span><span class="n">Added</span><span class="w"> </span><span class="n">bar</span>
+<span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">file</span><span class="w"> </span><span class="n">changed</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insertions</span><span class="p">(</span><span class="o">+</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">deletions</span><span class="p">(</span><span class="o">-</span><span class="p">)</span>
+<span class="w"> </span><span class="k">create</span><span class="w"> </span><span class="n">mode</span><span class="w"> </span><span class="mi">100644</span><span class="w"> </span><span class="n">bar</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="n">checkout</span><span class="w"> </span><span class="n">master_</span><span class="o">**</span>
+<span class="n">Switched</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="s1">'master'</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="n">rm</span><span class="w"> </span><span class="n">foo</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="k">commit</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="ss">"Deleted foo"</span><span class="n">_</span><span class="o">**</span>
+<span class="n">rm</span><span class="w"> </span><span class="s1">'foo'</span>
+<span class="o">[</span><span class="n">master 7740344</span><span class="o">]</span><span class="w"> </span><span class="n">Deleted</span><span class="w"> </span><span class="n">foo</span>
+<span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">file</span><span class="w"> </span><span class="n">changed</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insertions</span><span class="p">(</span><span class="o">+</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">deletions</span><span class="p">(</span><span class="o">-</span><span class="p">)</span>
+<span class="w"> </span><span class="k">delete</span><span class="w"> </span><span class="n">mode</span><span class="w"> </span><span class="mi">100644</span><span class="w"> </span><span class="n">foo</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="n">checkout</span><span class="w"> </span><span class="n">newbranch_</span><span class="o">**</span>
+<span class="n">Switched</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="s1">'newbranch'</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="n">rm</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="k">commit</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="ss">"Deleted bar"</span><span class="n">_</span><span class="o">**</span>
+<span class="n">rm</span><span class="w"> </span><span class="s1">'bar'</span>
+<span class="o">[</span><span class="n">newbranch 873ed35</span><span class="o">]</span><span class="w"> </span><span class="n">Deleted</span><span class="w"> </span><span class="n">bar</span>
+<span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">file</span><span class="w"> </span><span class="n">changed</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insertions</span><span class="p">(</span><span class="o">+</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">deletions</span><span class="p">(</span><span class="o">-</span><span class="p">)</span>
+<span class="w"> </span><span class="k">delete</span><span class="w"> </span><span class="n">mode</span><span class="w"> </span><span class="mi">100644</span><span class="w"> </span><span class="n">bar</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="n">checkout</span><span class="w"> </span><span class="n">master_</span><span class="o">**</span>
+<span class="n">Switched</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="s1">'master'</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="k">merge</span><span class="w"> </span><span class="n">newbranch_</span><span class="o">**</span>
+<span class="n">Already</span><span class="w"> </span><span class="n">up</span><span class="o">-</span><span class="k">to</span><span class="o">-</span><span class="nc">date</span><span class="err">!</span>
+<span class="k">Merge</span><span class="w"> </span><span class="n">made</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="s1">'recursive'</span><span class="w"> </span><span class="n">strategy</span><span class="p">.</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="nf">log</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="n">foo_</span><span class="o">**</span>
+<span class="k">commit</span><span class="w"> </span><span class="mi">77403443</span><span class="n">a13a93073289f95a782307b1ebc21162</span>
+<span class="nl">Author</span><span class="p">:</span><span class="w"> </span><span class="n">Mark</span><span class="w"> </span><span class="n">Amery</span><span class="w"> </span>
+<span class="nc">Date</span><span class="err">:</span><span class="w">   </span><span class="n">Tue</span><span class="w"> </span><span class="n">Jan</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">22</span><span class="err">:</span><span class="mi">50</span><span class="err">:</span><span class="mi">50</span><span class="w"> </span><span class="mi">2016</span><span class="w"> </span><span class="o">+</span><span class="mi">0000</span>
+
+<span class="w">    </span><span class="n">Deleted</span><span class="w"> </span><span class="n">foo</span>
+
+<span class="k">commit</span><span class="w"> </span><span class="n">ddff7a78068aefb7a4d19c82e718099cf57be694</span>
+<span class="nl">Author</span><span class="p">:</span><span class="w"> </span><span class="n">Mark</span><span class="w"> </span><span class="n">Amery</span><span class="w"> </span>
+<span class="nc">Date</span><span class="err">:</span><span class="w">   </span><span class="n">Tue</span><span class="w"> </span><span class="n">Jan</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">22</span><span class="err">:</span><span class="mi">50</span><span class="err">:</span><span class="mi">19</span><span class="w"> </span><span class="mi">2016</span><span class="w"> </span><span class="o">+</span><span class="mi">0000</span>
+
+<span class="w">    </span><span class="n">Added</span><span class="w"> </span><span class="n">foo</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="nf">log</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="n">bar_</span><span class="o">**</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="nf">log</span><span class="w"> </span><span class="o">--</span><span class="k">full</span><span class="o">-</span><span class="n">history</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="n">foo_</span><span class="o">**</span>
+<span class="k">commit</span><span class="w"> </span><span class="mf">2463e56</span><span class="n">a21e8ee529a59b63f2c6fcc9914a2b37c</span>
+<span class="k">Merge</span><span class="err">:</span><span class="w"> </span><span class="mi">7740344</span><span class="w"> </span><span class="mi">873</span><span class="n">ed35</span>
+<span class="nl">Author</span><span class="p">:</span><span class="w"> </span><span class="n">Mark</span><span class="w"> </span><span class="n">Amery</span><span class="w"> </span>
+<span class="nc">Date</span><span class="err">:</span><span class="w">   </span><span class="n">Tue</span><span class="w"> </span><span class="n">Jan</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">22</span><span class="err">:</span><span class="mi">51</span><span class="err">:</span><span class="mi">36</span><span class="w"> </span><span class="mi">2016</span><span class="w"> </span><span class="o">+</span><span class="mi">0000</span>
+
+<span class="w">    </span><span class="k">Merge</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="s1">'newbranch'</span>
+
+<span class="k">commit</span><span class="w"> </span><span class="mi">77403443</span><span class="n">a13a93073289f95a782307b1ebc21162</span>
+<span class="nl">Author</span><span class="p">:</span><span class="w"> </span><span class="n">Mark</span><span class="w"> </span><span class="n">Amery</span><span class="w"> </span>
+<span class="nc">Date</span><span class="err">:</span><span class="w">   </span><span class="n">Tue</span><span class="w"> </span><span class="n">Jan</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">22</span><span class="err">:</span><span class="mi">50</span><span class="err">:</span><span class="mi">50</span><span class="w"> </span><span class="mi">2016</span><span class="w"> </span><span class="o">+</span><span class="mi">0000</span>
+
+<span class="w">    </span><span class="n">Deleted</span><span class="w"> </span><span class="n">foo</span>
+
+<span class="k">commit</span><span class="w"> </span><span class="n">ddff7a78068aefb7a4d19c82e718099cf57be694</span>
+<span class="nl">Author</span><span class="p">:</span><span class="w"> </span><span class="n">Mark</span><span class="w"> </span><span class="n">Amery</span><span class="w"> </span>
+<span class="nc">Date</span><span class="err">:</span><span class="w">   </span><span class="n">Tue</span><span class="w"> </span><span class="n">Jan</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">22</span><span class="err">:</span><span class="mi">50</span><span class="err">:</span><span class="mi">19</span><span class="w"> </span><span class="mi">2016</span><span class="w"> </span><span class="o">+</span><span class="mi">0000</span>
+
+<span class="w">    </span><span class="n">Added</span><span class="w"> </span><span class="n">foo</span>
+<span class="n">mark</span><span class="nv">@lunchbox</span><span class="err">:</span><span class="o">~/</span><span class="n">example</span><span class="err">$</span><span class="w"> </span><span class="o">**</span><span class="n">_git</span><span class="w"> </span><span class="nf">log</span><span class="w"> </span><span class="o">--</span><span class="k">full</span><span class="o">-</span><span class="n">history</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="n">bar_</span><span class="o">**</span>
+<span class="k">commit</span><span class="w"> </span><span class="mi">873</span><span class="n">ed352c5e0f296b26d1582b3b0b2d99e40d37c</span>
+<span class="nl">Author</span><span class="p">:</span><span class="w"> </span><span class="n">Mark</span><span class="w"> </span><span class="n">Amery</span><span class="w"> </span>
+<span class="nc">Date</span><span class="err">:</span><span class="w">   </span><span class="n">Tue</span><span class="w"> </span><span class="n">Jan</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">22</span><span class="err">:</span><span class="mi">51</span><span class="err">:</span><span class="mi">29</span><span class="w"> </span><span class="mi">2016</span><span class="w"> </span><span class="o">+</span><span class="mi">0000</span>
+
+<span class="w">    </span><span class="n">Deleted</span><span class="w"> </span><span class="n">bar</span>
+
+<span class="k">commit</span><span class="w"> </span><span class="mi">7</span><span class="n">f9299a80cc9114bf9f415e1e9a849f5d02f94ec</span>
+<span class="nl">Author</span><span class="p">:</span><span class="w"> </span><span class="n">Mark</span><span class="w"> </span><span class="n">Amery</span><span class="w"> </span>
+<span class="nc">Date</span><span class="err">:</span><span class="w">   </span><span class="n">Tue</span><span class="w"> </span><span class="n">Jan</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">22</span><span class="err">:</span><span class="mi">50</span><span class="err">:</span><span class="mi">38</span><span class="w"> </span><span class="mi">2016</span><span class="w"> </span><span class="o">+</span><span class="mi">0000</span>
+
+<span class="w">    </span><span class="n">Added</span><span class="w"> </span><span class="n">bar</span>
+</pre></div>
+
+<p>Notice how <code>git log -- bar</code> in the terminal dump above resulted in literally
+no output; Git is "simplifying" history down into a fiction where <code>bar</code> never
+existed. <code>git log --full-history -- bar</code>, on the other hand, gives us the
+commit that created <code>bar</code> and the commit that deleted it.</p>
+<p>To be clear: this issue isn't merely theoretical. I only looked into the docs
+and discovered the <code>--full-history</code> flag because <code>git log -- some_file</code> was
+failing for me in a real repository where I was trying to track a deleted file
+down. History simplification might sometimes be helpful when you're trying to
+understand how a <em>currently-existing</em> file came to be in its current state,
+but when trying to track down a file <em>deletion</em> it's more likely to screw you
+over by hiding the commit you care about. Always use the <code>--full-history</code> flag
+for this use case.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/check-if-checkbox-is-checked-with-jquery/" class="u-url">Check if checkbox is checked with jQuery</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -264,232 +411,6 @@ bad things might happen.</p>
 <div class="code"><pre class="code literal-block">git push --force
 </pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-function-pointers-in-c-work/" class="u-url">How do function pointers in C work?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-function-pointers-in-c-work/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T02:10:45+08:00" itemprop="datePublished" title="2023-02-17 02:10">2023-02-17 02:10</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I had some experience lately with function pointers in C.</p>
-<p>So going on with the tradition of answering your own questions, I decided to
-make a small summary of the very basics, for those who need a quick dive-in to
-the subject.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h2>Function pointers in C</h2>
-<p>Let's start with a basic function which we will be <em>pointing to</em> :</p>
-<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">addInt</span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">n</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">m</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">n</span><span class="o">+</span><span class="nv">m</span><span class="c1">;</span>
-}
-</pre></div>
-
-<p>First thing, let's define a pointer to a function which receives 2 <code>int</code>s and
-returns an <code>int</code>:</p>
-<div class="code"><pre class="code literal-block">int (*functionPtr)(int,int);
-</pre></div>
-
-<p>Now we can safely point to our function:</p>
-<div class="code"><pre class="code literal-block"><span class="n">functionPtr</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">addInt</span><span class="p">;</span>
-</pre></div>
-
-<p>Now that we have a pointer to the function, let's use it:</p>
-<div class="code"><pre class="code literal-block">int sum = (*functionPtr)(2, 3); // sum == 5
-</pre></div>
-
-<p>Passing the pointer to another function is basically the same:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">add2to3</span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="ss">(</span><span class="o">*</span><span class="nv">functionPtr</span><span class="ss">)(</span><span class="nv">int</span>,<span class="w"> </span><span class="nv">int</span><span class="ss">))</span><span class="w"> </span>{
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="ss">(</span><span class="o">*</span><span class="nv">functionPtr</span><span class="ss">)(</span><span class="mi">2</span>,<span class="w"> </span><span class="mi">3</span><span class="ss">)</span><span class="c1">;</span>
-}
-</pre></div>
-
-<p>We can use function pointers in return values as well (try to keep up, it gets
-messy):</p>
-<div class="code"><pre class="code literal-block"><span class="c1">// this is a function called functionFactory which receives parameter n</span>
-<span class="c1">// and returns a pointer to another function which receives two ints</span>
-<span class="c1">// and it returns another int</span>
-<span class="nb">int</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">functionFactory</span><span class="p">(</span><span class="nb">int</span><span class="w"> </span><span class="n">n</span><span class="p">))(</span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="nb">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nb">printf</span><span class="p">(</span><span class="s">"Got parameter %d"</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
-<span class="w">    </span><span class="nb">int</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">functionPtr</span><span class="p">)(</span><span class="nb">int</span><span class="p">,</span><span class="nb">int</span><span class="p">)</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">addInt</span><span class="p">;</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">functionPtr</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>But it's much nicer to use a <code>typedef</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">typedef</span><span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="ss">(</span><span class="o">*</span><span class="nv">myFuncDef</span><span class="ss">)(</span><span class="nv">int</span>,<span class="w"> </span><span class="nv">int</span><span class="ss">)</span><span class="c1">;</span>
-<span class="o">//</span><span class="w"> </span><span class="nv">note</span><span class="w"> </span><span class="nv">that</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">typedef</span><span class="w"> </span><span class="nv">name</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">indeed</span><span class="w"> </span><span class="nv">myFuncDef</span>
-
-<span class="nv">myFuncDef</span><span class="w"> </span><span class="nv">functionFactory</span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">n</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">    </span><span class="nv">printf</span><span class="ss">(</span><span class="s2">"Got parameter %d"</span>,<span class="w"> </span><span class="nv">n</span><span class="ss">)</span><span class="c1">;</span>
-<span class="w">    </span><span class="nv">myFuncDef</span><span class="w"> </span><span class="nv">functionPtr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nv">addInt</span><span class="c1">;</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">functionPtr</span><span class="c1">;</span>
-}
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p><strong>Function pointers in C can be used to perform object-oriented programming in
-C.</strong></p>
-<p>For example, the following lines is written in C:</p>
-<div class="code"><pre class="code literal-block"><span class="kt">String</span><span class="w"> </span><span class="n">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newString</span><span class="p">();</span>
-<span class="n">s1</span><span class="o">-&gt;</span><span class="nf">set</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span><span class="w"> </span><span class="s">"hello"</span><span class="p">);</span>
-</pre></div>
-
-<p>Yes, the <code>-&gt;</code> and the lack of a <code>new</code> operator is a dead give away, but it
-sure seems to imply that we're setting the text of some <code>String</code> class to be
-<code>"hello"</code>.</p>
-<p>By using function pointers, <strong>it is possible to emulate methods in C</strong>.</p>
-<p>How is this accomplished?</p>
-<p>The <code>String</code> class is actually a <code>struct</code> with a bunch of function pointers
-which act as a way to simulate methods. The following is a partial declaration
-of the <code>String</code> class:</p>
-<div class="code"><pre class="code literal-block"><span class="n">typedef</span><span class="w"> </span><span class="n">struct</span><span class="w"> </span><span class="n">String_Struct</span><span class="o">*</span><span class="w"> </span><span class="nb nb-Type">String</span><span class="p">;</span>
-
-<span class="n">struct</span><span class="w"> </span><span class="n">String_Struct</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">get</span><span class="p">)(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">);</span>
-<span class="w">    </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">set</span><span class="p">)(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
-<span class="w">    </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">length</span><span class="p">)(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">);</span>
-<span class="p">};</span>
-
-<span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">getString</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">);</span>
-<span class="nb nb-Type">void</span><span class="w"> </span><span class="n">setString</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
-<span class="nb nb-Type">int</span><span class="w"> </span><span class="n">lengthString</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">);</span>
-
-<span class="nb nb-Type">String</span><span class="w"> </span><span class="n">newString</span><span class="p">();</span>
-</pre></div>
-
-<p>As can be seen, the methods of the <code>String</code> class are actually function
-pointers to the declared function. In preparing the instance of the <code>String</code>,
-the <code>newString</code> function is called in order to set up the function pointers to
-their respective functions:</p>
-<div class="code"><pre class="code literal-block"><span class="kt">String</span><span class="w"> </span><span class="n">newString</span><span class="p">()</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="kt">String</span><span class="w"> </span><span class="kr">self</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">String</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="nf">sizeof</span><span class="p">(</span><span class="n">struct</span><span class="w"> </span><span class="n">String_Struct</span><span class="p">));</span>
-
-<span class="w">    </span><span class="kr">self</span><span class="o">-&gt;</span><span class="n">get</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">getString</span><span class="p">;</span>
-<span class="w">    </span><span class="kr">self</span><span class="o">-&gt;</span><span class="nf">set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">setString</span><span class="p">;</span>
-<span class="w">    </span><span class="kr">self</span><span class="o">-&gt;</span><span class="nf">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">lengthString</span><span class="p">;</span>
-
-<span class="w">    </span><span class="kr">self</span><span class="o">-&gt;</span><span class="nf">set</span><span class="p">(</span><span class="kr">self</span><span class="p">,</span><span class="w"> </span><span class="s">""</span><span class="p">);</span>
-
-<span class="w">    </span><span class="kr">return</span><span class="w"> </span><span class="kr">self</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>For example, the <code>getString</code> function that is called by invoking the <code>get</code>
-method is defined as the following:</p>
-<div class="code"><pre class="code literal-block"><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">getString</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="n">self_obj</span><span class="p">)</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">((</span><span class="nb nb-Type">String</span><span class="p">)</span><span class="n">self_obj</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">internal</span><span class="o">-&gt;</span><span class="n">value</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>One thing that can be noticed is that there is no concept of an instance of an
-object and having methods that are actually a part of an object, so a "self
-object" must be passed in on each invocation. (And the <code>internal</code> is just a
-hidden <code>struct</code> which was omitted from the code listing earlier -- it is a way
-of performing information hiding, but that is not relevant to function
-pointers.)</p>
-<p>So, rather than being able to do <code>s1-&gt;set("hello");</code>, one must pass in the
-object to perform the action on <code>s1-&gt;set(s1, "hello")</code>.</p>
-<p>With that minor explanation having to pass in a reference to yourself out of
-the way, we'll move to the next part, which is <strong>inheritance in C</strong>.</p>
-<p>Let's say we want to make a subclass of <code>String</code>, say an <code>ImmutableString</code>. In
-order to make the string immutable, the <code>set</code> method will not be accessible,
-while maintaining access to <code>get</code> and <code>length</code>, and force the "constructor" to
-accept a <code>char*</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="n">typedef</span><span class="w"> </span><span class="n">struct</span><span class="w"> </span><span class="n">ImmutableString_Struct</span><span class="o">*</span><span class="w"> </span><span class="n">ImmutableString</span><span class="p">;</span>
-
-<span class="n">struct</span><span class="w"> </span><span class="n">ImmutableString_Struct</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">base</span><span class="p">;</span>
-
-<span class="w">    </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">get</span><span class="p">)(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">);</span>
-<span class="w">    </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">length</span><span class="p">)(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">);</span>
-<span class="p">};</span>
-
-<span class="n">ImmutableString</span><span class="w"> </span><span class="n">newImmutableString</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
-</pre></div>
-
-<p>Basically, for all subclasses, the available methods are once again function
-pointers. This time, the declaration for the <code>set</code> method is not present,
-therefore, it cannot be called in a <code>ImmutableString</code>.</p>
-<p>As for the implementation of the <code>ImmutableString</code>, the only relevant code is
-the "constructor" function, the <code>newImmutableString</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="n">ImmutableString</span><span class="w"> </span><span class="n">newImmutableString</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">value</span><span class="p">)</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="n">ImmutableString</span><span class="w"> </span><span class="bp">self</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ImmutableString</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="n">sizeof</span><span class="p">(</span><span class="n">struct</span><span class="w"> </span><span class="n">ImmutableString_Struct</span><span class="p">));</span>
-
-<span class="w">    </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newString</span><span class="p">();</span>
-
-<span class="w">    </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">get</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="o">-&gt;</span><span class="n">get</span><span class="p">;</span>
-<span class="w">    </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">;</span>
-
-<span class="w">    </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="o">-&gt;</span><span class="n">set</span><span class="p">(</span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nb">char</span><span class="o">*</span><span class="p">)</span><span class="n">value</span><span class="p">);</span>
-
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="bp">self</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>In instantiating the <code>ImmutableString</code>, the function pointers to the <code>get</code> and
-<code>length</code> methods actually refer to the <code>String.get</code> and <code>String.length</code>
-method, by going through the <code>base</code> variable which is an internally stored
-<code>String</code> object.</p>
-<p>The use of a function pointer can achieve inheritance of a method from a
-superclass.</p>
-<p>We can further continue to <strong>polymorphism in C</strong>.</p>
-<p>If for example we wanted to change the behavior of the <code>length</code> method to
-return <code>0</code> all the time in the <code>ImmutableString</code> class for some reason, all
-that would have to be done is to:</p>
-<ol>
-<li>Add a function that is going to serve as the overriding <code>length</code> method.</li>
-<li>Go to the "constructor" and set the function pointer to the overriding <code>length</code> method.</li>
-</ol>
-<p>Adding an overriding <code>length</code> method in <code>ImmutableString</code> may be performed by
-adding an <code>lengthOverrideMethod</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">lengthOverrideMethod</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>Then, the function pointer for the <code>length</code> method in the constructor is
-hooked up to the <code>lengthOverrideMethod</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="n">ImmutableString</span><span class="w"> </span><span class="n">newImmutableString</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">value</span><span class="p">)</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="n">ImmutableString</span><span class="w"> </span><span class="bp">self</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ImmutableString</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="n">sizeof</span><span class="p">(</span><span class="n">struct</span><span class="w"> </span><span class="n">ImmutableString_Struct</span><span class="p">));</span>
-
-<span class="w">    </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newString</span><span class="p">();</span>
-
-<span class="w">    </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">get</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="o">-&gt;</span><span class="n">get</span><span class="p">;</span>
-<span class="w">    </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">lengthOverrideMethod</span><span class="p">;</span>
-
-<span class="w">    </span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="o">-&gt;</span><span class="n">set</span><span class="p">(</span><span class="bp">self</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nb">char</span><span class="o">*</span><span class="p">)</span><span class="n">value</span><span class="p">);</span>
-
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="bp">self</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>Now, rather than having an identical behavior for the <code>length</code> method in
-<code>ImmutableString</code> class as the <code>String</code> class, now the <code>length</code> method will
-refer to the behavior defined in the <code>lengthOverrideMethod</code> function.</p>
-<p>I must add a disclaimer that I am still learning how to write with an object-
-oriented programming style in C, so there probably are points that I didn't
-explain well, or may just be off mark in terms of how best to implement OOP in
-C. But my purpose was to try to illustrate one of many uses of function
-pointers.</p>
-<p>For more information on how to perform object-oriented programming in C,
-please refer to the following questions:</p>
-<ul>
-<li>Object-Orientation in C?</li>
-<li>Can you write object oriented code in C?</li>
-</ul>
-</div>
     </article>
 </div>
 

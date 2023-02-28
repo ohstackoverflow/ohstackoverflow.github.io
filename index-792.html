@@ -108,7 +108,114 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/vim-delete-blank-lines/" class="u-url">Vim delete blank lines</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/get-top-1-row-of-each-group/" class="u-url">Get top 1 row of each group</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/get-top-1-row-of-each-group/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T16:06:34+08:00" itemprop="datePublished" title="2023-02-17 16:06">2023-02-17 16:06</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a table which I want to get the latest entry for each group. Here's the
+table:</p>
+<p><code>DocumentStatusLogs</code> Table</p>
+<div class="code"><pre class="code literal-block">|ID| DocumentID | Status | DateCreated |
+| 2| 1          | S1     | 7/29/2011   |
+| 3| 1          | S2     | 7/30/2011   |
+| 6| 1          | S1     | 8/02/2011   |
+| 1| 2          | S1     | 7/28/2011   |
+| 4| 2          | S2     | 7/30/2011   |
+| 5| 2          | S3     | 8/01/2011   |
+| 6| 3          | S1     | 8/02/2011   |
+</pre></div>
+
+<p>The table will be grouped by <code>DocumentID</code> and sorted by <code>DateCreated</code> in
+descending order. For each <code>DocumentID</code>, I want to get the latest status.</p>
+<p>My preferred output:</p>
+<div class="code"><pre class="code literal-block">| DocumentID | Status | DateCreated |
+| 1          | S1     | 8/02/2011   |
+| 2          | S3     | 8/01/2011   |
+| 3          | S1     | 8/02/2011   |
+</pre></div>
+
+<ul>
+<li>
+<p>Is there any aggregate function to get only the top from each group? See pseudo-code <code>GetOnlyTheTop</code> below:</p>
+<div class="code"><pre class="code literal-block">SELECT
+</pre></div>
+
+<p>DocumentID,
+  GetOnlyTheTop(Status),
+  GetOnlyTheTop(DateCreated)
+FROM DocumentStatusLogs
+GROUP BY DocumentID
+ORDER BY DateCreated DESC</p>
+</li>
+<li>
+<p>If such function doesn't exist, is there any way I can achieve the output I want?</p>
+</li>
+<li>
+<p>Or at the first place, could this be caused by unnormalized database? I'm thinking, since what I'm looking for is just one row, should that <code>status</code> also be located in the parent table?</p>
+</li>
+</ul>
+<p>Please see the parent table for more information:</p>
+<p>Current <code>Documents</code> Table</p>
+<div class="code"><pre class="code literal-block">| DocumentID | Title  | Content  | DateCreated |
+| 1          | TitleA | ...      | ...         |
+| 2          | TitleB | ...      | ...         |
+| 3          | TitleC | ...      | ...         |
+</pre></div>
+
+<p>Should the parent table be like this so that I can easily access its status?</p>
+<div class="code"><pre class="code literal-block">| DocumentID | Title  | Content  | DateCreated | CurrentStatus |
+| 1          | TitleA | ...      | ...         | s1            |
+| 2          | TitleB | ...      | ...         | s3            |
+| 3          | TitleC | ...      | ...         | s1            |
+</pre></div>
+
+<p><strong>UPDATE</strong> I just learned how to use "apply" which makes it easier to address
+such problems.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<div class="code"><pre class="code literal-block">;WITH cte AS
+(
+   SELECT *,
+         ROW_NUMBER() OVER (PARTITION BY DocumentID ORDER BY DateCreated DESC) AS rn
+   FROM DocumentStatusLogs
+)
+SELECT *
+FROM cte
+WHERE rn = 1
+</pre></div>
+
+<p>If you expect 2 entries per day, then this will arbitrarily pick one. To get
+both entries for a day, use DENSE_RANK instead</p>
+<p>As for normalised or not, it depends if you want to:</p>
+<ul>
+<li>maintain status in 2 places</li>
+<li>preserve status history</li>
+<li>...</li>
+</ul>
+<p>As it stands, you preserve status history. If you want latest status in the
+parent table too (which is denormalisation) you'd need a trigger to maintain
+"status" in the parent. or drop this status history table.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I just learned how to use <code>cross apply</code>. Here's how to use it in this
+scenario:</p>
+<div class="code"><pre class="code literal-block"> select d.DocumentID, ds.Status, ds.DateCreated 
+ from Documents as d 
+ cross apply 
+     (select top 1 Status, DateCreated
+      from DocumentStatusLogs 
+      where DocumentID = d.DocumentId
+      order by DateCreated desc) as ds
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/vim-delete-blank-lines/" class="u-url">Vim delete blank lines</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -239,44 +346,6 @@ jQuery wrapper.</p>
 
 <span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">foundPresent</span><span class="p">,</span><span class="w"> </span><span class="n">foundNotPresent</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="bp">true</span><span class="w"> </span><span class="bp">false</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-remove-delete-a-virtualenv/" class="u-url">How do I remove/delete a virtualenv?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-remove-delete-a-virtualenv/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T16:05:17+08:00" itemprop="datePublished" title="2023-02-17 16:05">2023-02-17 16:05</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I created an environment with the following command: <code>virtualenv venv
---distribute</code></p>
-<p>I cannot remove it with the following command: <code>rmvirtualenv venv</code> - <strong>This
-is part of virtualenvwrapper as mentioned in answer below for
-virtualenvwrapper</strong></p>
-<p>I do an <code>ls</code>on my current directory and I still see venv</p>
-<p>The only way I can remove it seems to be: <code>sudo rm -rf venv</code></p>
-<p>Note that the environment is not active. I'm running Ubuntu 11.10. Any ideas?
-I've tried rebooting my system to no avail.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<blockquote>
-<p>" <em>The only way I can remove it seems to be:<code>sudo rm -rf venv</code></em>"</p>
-</blockquote>
-<p>That's it! There is no command for deleting your virtual environment. Simply
-deactivate it and rid your application of its artifacts by recursively
-removing it.</p>
-<p>Note that this is the same regardless of what kind of virtual environment you
-are using. <code>virtualenv</code>, <code>venv</code>, Anaconda environment, <code>pyenv</code>, <code>pipenv</code> are
-all based the same principle here.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Just to echo what @skytreader had previously commented, <code>rmvirtualenv</code> is a
-command provided by <code>virtualenvwrapper</code>, not <code>virtualenv</code>. Maybe you didn't
-have <code>virtualenvwrapper</code> installed?</p>
-<p>See VirtualEnvWrapper Command Reference for more details.</p>
     </div>
     </article>
 </div>

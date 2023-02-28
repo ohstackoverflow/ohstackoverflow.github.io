@@ -108,7 +108,160 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/javascript-promises-reject-vs-throw/" class="u-url">JavaScript Promises - reject vs. throw</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-should-java-8-s-optional-not-be-used-in-arguments/" class="u-url">Why should Java 8's Optional not be used in arguments</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-should-java-8-s-optional-not-be-used-in-arguments/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:17:19+08:00" itemprop="datePublished" title="2023-02-18 00:17">2023-02-18 00:17</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I've read on many Web sites Optional should be used as a return type only, and
+not used in method arguments. I'm struggling to find a logical reason why. For
+example I have a piece of logic which has 2 optional parameters. Therefore I
+think it would make sense to write my method signature like this (solution 1):</p>
+<div class="code"><pre class="code literal-block">public int calculateSomething(Optional&lt;String&gt; p1, Optional&lt;BigDecimal&gt; p2) {
+    // my logic
+}
+</pre></div>
+
+<p>Many web pages specify Optional should not be used as method arguments. With
+this in mind, I could use the following method signature and add a clear
+Javadoc comment to specify that the arguments may be null, hoping future
+maintainers will read the Javadoc and therefore always carry out null checks
+prior to using the arguments (solution 2):</p>
+<div class="code"><pre class="code literal-block">public int calculateSomething(String p1, BigDecimal p2) {
+    // my logic
+}
+</pre></div>
+
+<p>Alternatively I could replace my method with four public methods to provide a
+nicer interface and make it more obvious p1 and p2 are optional (solution 3):</p>
+<div class="code"><pre class="code literal-block">public int calculateSomething() {
+    calculateSomething(null, null);
+}
+
+public int calculateSomething(String p1) {
+    calculateSomething(p1, null);
+}
+
+public int calculateSomething(BigDecimal p2) {
+    calculateSomething(null, p2);
+}
+
+public int calculateSomething(String p1, BigDecimal p2) {
+    // my logic
+}
+</pre></div>
+
+<p>Now I try writing the code of the class which invokes this piece of logic for
+each approach. I first retrieve the two input parameters from another object
+which returns <code>Optional</code>s and then, I invoke <code>calculateSomething</code>. Therefore,
+if solution 1 is used the calling code would look like this:</p>
+<div class="code"><pre class="code literal-block">Optional&lt;String&gt; p1 = otherObject.getP1();
+Optional&lt;BigInteger&gt; p2 = otherObject.getP2();
+int result = myObject.calculateSomething(p1, p2);
+</pre></div>
+
+<p>if solution 2 is used, the calling code would look like this:</p>
+<div class="code"><pre class="code literal-block">Optional&lt;String&gt; p1 = otherObject.getP1();
+Optional&lt;BigInteger&gt; p2 = otherObject.getP2();
+int result = myObject.calculateSomething(p1.orElse(null), p2.orElse(null));
+</pre></div>
+
+<p>if solution 3 is applied, I could use the code above or I could use the
+following (but it's significantly more code):</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Optional</span><span class="o">&lt;</span><span class="nv">String</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">p1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">otherObject</span>.<span class="nv">getP1</span><span class="ss">()</span><span class="c1">;</span>
+<span class="nv">Optional</span><span class="o">&lt;</span><span class="nv">BigInteger</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">p2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">otherObject</span>.<span class="nv">getP2</span><span class="ss">()</span><span class="c1">;</span>
+<span class="nv">int</span><span class="w"> </span><span class="nb">result</span><span class="c1">;</span>
+<span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">p1</span>.<span class="nv">isPresent</span><span class="ss">())</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">p2</span>.<span class="nv">isPresent</span><span class="ss">())</span><span class="w"> </span>{
+<span class="w">        </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">myObject</span>.<span class="nv">calculateSomething</span><span class="ss">(</span><span class="nv">p1</span>,<span class="w"> </span><span class="nv">p2</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span>}<span class="w"> </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">        </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">myObject</span>.<span class="nv">calculateSomething</span><span class="ss">(</span><span class="nv">p1</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span>}
+}<span class="w"> </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">p2</span>.<span class="nv">isPresent</span><span class="ss">())</span><span class="w"> </span>{
+<span class="w">        </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">myObject</span>.<span class="nv">calculateSomething</span><span class="ss">(</span><span class="nv">p2</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span>}<span class="w"> </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">        </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">myObject</span>.<span class="nv">calculateSomething</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">    </span>}
+}
+</pre></div>
+
+<p><strong>So my question is: Why is it considered bad practice to use<code>Optional</code>s as
+method arguments (see solution 1)?</strong> It looks like the most readable solution
+to me and makes it most obvious that the parameters could be empty/null to
+future maintainers. (I'm aware the designers of <code>Optional</code> intended it to only
+be used as a return type, but I can't find any logical reasons not to use it
+in this scenario).</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Oh, those coding styles are to be taken with a bit of salt.</p>
+<ol>
+<li>(+) Passing an Optional result to another method, without any semantic analysis; leaving that to the method, is quite alright.</li>
+<li>(-) Using Optional parameters causing conditional logic inside the methods is literally contra-productive.</li>
+<li>(-) Needing to pack an argument in an Optional, is suboptimal for the compiler, and does an unnecessary wrapping.</li>
+<li>(-) In comparison to nullable parameters Optional is more costly.</li>
+<li>(-) The risk of someone passing the Optional as null in actual parameters.</li>
+</ol>
+<p>In general: Optional unifies two states, which have to be unraveled. Hence
+better suited for result than input, for the complexity of the data flow.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>The best post I've seen on the topic was written by Daniel Olszewski:</p>
+<blockquote>
+<p>Although it might be tempting to consider Optional for not mandatory method
+parameters, such a solution pale in comparison with other possible
+alternatives. To illustrate the problem, examine the following constructor
+declaration:</p>
+<div class="code"><pre class="code literal-block">public SystemMessage(String title, String content, Optional&lt;Attachment&gt;
+</pre></div>
+
+<p>attachment) {
+        // assigning field values
+    }</p>
+<p>At first glance it may look as a right design decision. After all, we
+explicitly marked the attachment parameter as optional. However, as for
+calling the constructor, client code can become a little bit clumsy.</p>
+<div class="code"><pre class="code literal-block">SystemMessage withoutAttachment = new SystemMessage("title", "content",
+</pre></div>
+
+<p>Optional.empty());
+    Attachment attachment = new Attachment();
+    SystemMessage withAttachment = new SystemMessage("title", "content",
+Optional.ofNullable(attachment));</p>
+<p>Instead of providing clarity, the factory methods of the Optional class only
+distract the reader. Note there’s only one optional parameter, but imagine
+having two or three. Uncle Bob definitely wouldn’t be proud of such code 😉</p>
+<p><strong>When a method can accept optional parameters, it’s preferable to adopt the
+well-proven approach and design such case using method overloading.</strong> In the
+example of the SystemMessage class, declaring two separate constructors are
+superior to using Optional.</p>
+<div class="code"><pre class="code literal-block">public SystemMessage(String title, String content) {
+    this(title, content, null);
+}
+
+public SystemMessage(String title, String content, Attachment
+</pre></div>
+
+<p>attachment) {
+        // assigning field values
+    }</p>
+<p>That change makes client code much simpler and easier to read.</p>
+<div class="code"><pre class="code literal-block">SystemMessage withoutAttachment = new SystemMessage("title", "content");
+Attachment attachment = new Attachment();
+SystemMessage withAttachment = new SystemMessage("title", "content",
+</pre></div>
+
+<p>attachment);
+</p>
+</blockquote>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/javascript-promises-reject-vs-throw/" class="u-url">JavaScript Promises - reject vs. throw</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -244,83 +397,6 @@ in which scenario?</p>
 <h3>Suggest</h3>
 <p><code>target</code> = element that triggered event.</p>
 <p><code>currentTarget</code> = element that has the event listener.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-update-nested-state-properties-in-react/" class="u-url">How to update nested state properties in React</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-update-nested-state-properties-in-react/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T00:15:23+08:00" itemprop="datePublished" title="2023-02-18 00:15">2023-02-18 00:15</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm trying to organize my state by using nested property like this:</p>
-<div class="code"><pre class="code literal-block">this.state = {
-   someProperty: {
-      flag:true
-   }
-}
-</pre></div>
-
-<p>But updating state like this,</p>
-<div class="code"><pre class="code literal-block"><span class="nt">this</span><span class="p">.</span><span class="nc">setState</span><span class="o">(</span><span class="p">{</span><span class="w"> </span><span class="err">someProperty.</span><span class="n">flag</span><span class="p">:</span><span class="w"> </span><span class="n">false</span><span class="w"> </span><span class="p">}</span><span class="o">);</span>
-</pre></div>
-
-<p>doesn't work. How can this be done correctly?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>In order to <code>setState</code> for a nested object you can follow the below approach
-as I think setState doesn't handle nested updates.</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">someProperty</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="o">...</span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">someProperty</span><span class="p">}</span>
-<span class="n">someProperty</span><span class="o">.</span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span>
-<span class="n">this</span><span class="o">.</span><span class="n">setState</span><span class="p">({</span><span class="n">someProperty</span><span class="p">})</span>
-</pre></div>
-
-<p>The idea is to create a dummy object perform operations on it and then replace
-the component's state with the updated object</p>
-<p>Now, the spread operator creates only one level nested copy of the object. If
-your state is highly nested like:</p>
-<div class="code"><pre class="code literal-block">this.state = {
-   someProperty: {
-      someOtherProperty: {
-          anotherProperty: {
-             flag: true
-          }
-          ..
-      }
-      ...
-   }
-   ...
-}
-</pre></div>
-
-<p>You could setState using spread operator at each level like</p>
-<div class="code"><pre class="code literal-block">this.setState(prevState =&gt; ({
-    ...prevState,
-    someProperty: {
-        ...prevState.someProperty,
-        someOtherProperty: {
-            ...prevState.someProperty.someOtherProperty, 
-            anotherProperty: {
-               ...prevState.someProperty.someOtherProperty.anotherProperty,
-               flag: false
-            }
-        }
-    }
-}))
-</pre></div>
-
-<p>However the above syntax get every ugly as the state becomes more and more
-nested and hence I recommend you to use <code>immutability-helper</code> package to
-update the state.</p>
-<p>See this answer on how to update state with <code>immutability-helper</code>.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>To write it in one line</p>
-<div class="code"><pre class="code literal-block"><span class="nt">this</span><span class="p">.</span><span class="nc">setState</span><span class="o">(</span><span class="p">{</span><span class="w"> </span><span class="n">someProperty</span><span class="p">:</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="o">...</span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">someProperty</span><span class="p">,</span><span class="w"> </span><span class="n">flag</span><span class="o">:</span><span class="w"> </span><span class="n">false</span><span class="p">}</span><span class="w"> </span><span class="err">}</span><span class="o">);</span>
-</pre></div>
     </div>
     </article>
 </div>

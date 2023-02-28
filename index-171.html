@@ -108,7 +108,81 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/transitions-on-the-css-display-property/" class="u-url">Transitions on the CSS display property</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-get-a-list-of-git-branches-ordered-by-most-recent-commit/" class="u-url">How can I get a list of Git branches, ordered by most recent commit?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-can-i-get-a-list-of-git-branches-ordered-by-most-recent-commit/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T23:46:31+08:00" itemprop="datePublished" title="2023-02-16 23:46">2023-02-16 23:46</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I want to get a list of all the branches in a Git repository with the
+"freshest" branches at the top, where the "freshest" branch is the one that's
+been committed to most recently (and is, therefore, more likely to be one I
+want to pay attention to).</p>
+<p>Is there a way I can use Git to either (a) sort the list of branches by latest
+commit, or (b) get a list of branches together with each one's last-commit
+date, in some kind of machine-readable format?</p>
+<p>Worst case, I could always run <code>git branch</code> to get a list of all the branches,
+parse its output, and then <code>git log -n 1 branchname --format=format:%ci</code> for
+each one, to get each branch's commit date. But this will run on a Windows
+box, where spinning up a new process is relatively expensive, so launching the
+Git executable once per branch could get slow if there are a lot of branches.
+Is there a way to do all this with a single command?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Use the <strong><code>--sort=-committerdate</code></strong> option of <code>git for-each-ref</code>;</p>
+<p>Also available since Git 2.7.0 for <code>git branch</code>:</p>
+<h2>Basic Usage:</h2>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">for</span><span class="o">-</span><span class="nv">each</span><span class="o">-</span><span class="nv">ref</span><span class="w"> </span><span class="o">--</span><span class="nv">sort</span><span class="o">=-</span><span class="nv">committerdate</span><span class="w"> </span><span class="nv">refs</span><span class="o">/</span><span class="nv">heads</span><span class="o">/</span>
+
+#<span class="w"> </span><span class="nv">Or</span><span class="w"> </span><span class="nv">using</span><span class="w"> </span><span class="nv">git</span><span class="w"> </span><span class="nv">branch</span><span class="w"> </span><span class="ss">(</span><span class="nv">since</span><span class="w"> </span><span class="nv">version</span><span class="w"> </span><span class="mi">2</span>.<span class="mi">7</span>.<span class="mi">0</span><span class="ss">)</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">branch</span><span class="w"> </span><span class="o">--</span><span class="nv">sort</span><span class="o">=-</span><span class="nv">committerdate</span><span class="w">  </span>#<span class="w"> </span><span class="nv">DESC</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">branch</span><span class="w"> </span><span class="o">--</span><span class="nv">sort</span><span class="o">=</span><span class="nv">committerdate</span><span class="w">  </span>#<span class="w"> </span><span class="nv">ASC</span>
+</pre></div>
+
+<h4>Result:</h4>
+<p><img alt="Result" src="https://i.imgur.com/AlaP8dD.png"></p>
+<h2>Advanced Usage:</h2>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">for</span><span class="o">-</span><span class="nv">each</span><span class="o">-</span><span class="nv">ref</span><span class="w"> </span><span class="o">--</span><span class="nv">sort</span><span class="o">=</span><span class="nv">committerdate</span><span class="w"> </span><span class="nv">refs</span><span class="o">/</span><span class="nv">heads</span><span class="o">/</span><span class="w"> </span><span class="o">--</span><span class="nv">format</span><span class="o">=</span><span class="s1">'%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(color:red)%(objectname:short)%(color:reset) - %(contents:subject) - %(authorname) (%(color:green)%(committerdate:relative)%(color:reset))'</span>
+</pre></div>
+
+<h4>Result:</h4>
+<p><img alt="Result" src="https://i.imgur.com/tDCTiZx.png"></p>
+<h2>Pro Usage (Unix):</h2>
+<p>You can put the following snippet in your <code>~/.gitconfig</code>. The recentb alias
+accepts two arguments:</p>
+<ul>
+<li>
+<code>refbranch</code>: which branch the <em>ahead</em> and <em>behind</em> columns are calculated against. Default <em>master</em>
+</li>
+<li>
+<p><code>count</code>: how many recent branches to show. Default <em>20</em></p>
+<p>[alias]
+    # ATTENTION: All aliases prefixed with ! run in /bin/sh make sure you use sh syntax, not bash/zsh or whatever
+    recentb = "!r() { refbranch=$1 count=$2; git for-each-ref --sort=-committerdate refs/heads --format='%(refname:short)|%(HEAD)%(color:yellow)%(refname:short)|%(color:bold green)%(committerdate:relative)|%(color:blue)%(subject)|%(color:magenta)%(authorname)%(color:reset)' --color=always --count=${count:-20} | while read line; do branch=$(echo \"$line\" | awk 'BEGIN { FS = \"|\" }; { print $1 }' | tr -d '<em>'); ahead=$(git rev-list --count \"${refbranch:-origin/master}..${branch}\"); behind=$(git rev-list --count \"${branch}..${refbranch:-origin/master}\"); colorline=$(echo \"$line\" | sed 's/^[^|]</em>|//'); echo \"$ahead|$behind|$colorline\" | awk -F'|' -vOFS='|' '{$5=substr($5,1,70)}1' ; done | ( echo \"ahead|behind||branch|lastcommit|message|author\n\" &amp;&amp; cat) | column -ts'|';}; r"</p>
+</li>
+</ul>
+<h4>Result:</h4>
+<p><img alt="Recentb alias result" src="images/Q8Buq.png"></p>
+<p><br></p>
+<h3>Suggest</h3>
+<h2>List of Git branch names, ordered by most recent commit…</h2>
+<p><em>Expanding on Jakub’s answer and Joe’s tip, the following will strip out the
+"refs/heads/" so the output only displays the branch names:</em></p>
+<hr>
+<h3>Command:</h3>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">for</span><span class="o">-</span><span class="nv">each</span><span class="o">-</span><span class="nv">ref</span><span class="w"> </span><span class="o">--</span><span class="nv">count</span><span class="o">=</span><span class="mi">30</span><span class="w"> </span><span class="o">--</span><span class="nv">sort</span><span class="o">=-</span><span class="nv">committerdate</span><span class="w"> </span><span class="nv">refs</span><span class="o">/</span><span class="nv">heads</span><span class="o">/</span><span class="w"> </span><span class="o">--</span><span class="nv">format</span><span class="o">=</span><span class="s1">'%(refname:short)'</span>
+</pre></div>
+
+<hr>
+<h3>Result:</h3>
+<p><img alt="Recent Git branches" src="images/MYOCB.png"></p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/transitions-on-the-css-display-property/" class="u-url">Transitions on the CSS display property</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -268,107 +342,6 @@ way to go.</p>
 any new functionality or anything like that.</p>
 <p>The syntax is (beside other redirection syntax) described in the Bash hackers
 wiki.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-split-the-definition-of-a-long-string-over-multiple-lines/" class="u-url">How do I split the definition of a long string over multiple lines?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-split-the-definition-of-a-long-string-over-multiple-lines/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-16T23:44:07+08:00" itemprop="datePublished" title="2023-02-16 23:44">2023-02-16 23:44</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a very long query. I would like to split it in several lines in Python.
-A way to do it in JavaScript would be using several sentences and joining them
-with a <code>+</code> operator (I know, maybe it's not the most efficient way to do it,
-but I'm not really concerned about performance in this stage, just code
-readability). Example:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">long_string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'some text not important. just garbage to'</span><span class="w"> </span><span class="o">+</span>
-<span class="w">                      </span><span class="s1">'illustrate my example'</span><span class="p">;</span>
-</pre></div>
-
-<p>I tried doing something similar in Python, but it didn't work, so I used <code>\</code>
-to split the long string. However, I'm not sure if this is the
-only/best/pythonicest way of doing it. It looks awkward. Actual code:</p>
-<div class="code"><pre class="code literal-block">query = 'SELECT action.descr as "action", '\
-    'role.id as role_id,'\
-    'role.descr as role'\
-    'FROM '\
-    'public.role_action_def,'\
-    'public.role,'\
-    'public.record_def, '\
-    'public.action'\
-    'WHERE role.id = role_action_def.role_id AND'\
-    'record_def.id = role_action_def.def_id AND'\
-    'action.id = role_action_def.action_id AND'\
-    'role_action_def.account_id = ' + account_id + ' AND'\
-    'record_def.account_id=' + account_id + ' AND'\
-    'def_id=' + def_id
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Are you talking about multi-line strings? Easy, use triple quotes to start and
-end them.</p>
-<div class="code"><pre class="code literal-block"><span class="nv">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">""</span><span class="err">" this is a very</span>
-<span class="err">        long string if I had the</span>
-<span class="w">        </span><span class="nv">energy</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">type</span><span class="w"> </span><span class="nv">more</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">more</span><span class="w"> </span>...<span class="s2">""</span><span class="err">"</span>
-</pre></div>
-
-<p>You can use single quotes too (3 of them of course at start and end) and treat
-the resulting string <code>s</code> just like any other string.</p>
-<p><strong>NOTE</strong> : Just as with any string, anything between the starting and ending
-quotes becomes part of the string, so this example has a leading blank (as
-pointed out by @root45). This string will also contain both blanks and
-newlines.</p>
-<p>I.e.,:</p>
-<div class="code"><pre class="code literal-block"><span class="s1">' this is a very\n        long string if I had the\n        energy to type more and more ...'</span>
-</pre></div>
-
-<p>Finally, one can also construct long lines in Python like this:</p>
-<div class="code"><pre class="code literal-block"><span class="w"> </span><span class="nv">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="s2">"this is a very"</span>
-<span class="w">      </span><span class="s2">"long string too"</span>
-<span class="w">      </span><span class="s2">"for sure ..."</span>
-<span class="w">     </span><span class="ss">)</span>
-</pre></div>
-
-<p>which will <strong>not</strong> include any extra blanks or newlines (this is a deliberate
-example showing what the effect of skipping blanks will result in):</p>
-<div class="code"><pre class="code literal-block">'this is a verylong string toofor sure ...'
-</pre></div>
-
-<p>No commas required, simply place the strings to be joined together into a pair
-of parenthesis and be sure to account for any needed blanks and newlines.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>If you don't want a multiline string, but just have a long single line string,
-you can use parentheses. Just make sure you don't include commas between the
-string segments (then it will be a tuple).</p>
-<div class="code"><pre class="code literal-block">query = ('SELECT   action.descr as "action", '
-         'role.id as role_id,'
-         'role.descr as role'
-         ' FROM '
-         'public.role_action_def,'
-         'public.role,'
-         'public.record_def, '
-         'public.action'
-         ' WHERE role.id = role_action_def.role_id AND'
-         ' record_def.id = role_action_def.def_id AND'
-         ' action.id = role_action_def.action_id AND'
-         ' role_action_def.account_id = '+account_id+' AND'
-         ' record_def.account_id='+account_id+' AND'
-         ' def_id='+def_id)
-</pre></div>
-
-<p>In a SQL statement like what you're constructing, multiline strings would also
-be fine. But if the extra white space a multiline string would contain would
-be a problem, then this would be a good way to achieve what you want.</p>
-<p>As noted in the comments, <strong>concatenating SQL queries in this way is a SQL
-injection security risk waiting to happen</strong> , so use your database's
-parameterized queries feature to prevent this. However, I'm leaving the answer
-as-is otherwise as it directly answers the question asked.</p>
     </div>
     </article>
 </div>

@@ -108,7 +108,122 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-take-backup-of-a-single-table-in-a-mysql-database/" class="u-url">How to take backup of a single table in a MySQL database?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/find-objects-between-two-dates-mongodb/" class="u-url">Find objects between two dates MongoDB</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/find-objects-between-two-dates-mongodb/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T06:12:34+08:00" itemprop="datePublished" title="2023-02-18 06:12">2023-02-18 06:12</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I've been playing around storing tweets inside mongodb, each object looks like
+this:</p>
+<div class="code"><pre class="code literal-block">{
+"_id" : ObjectId("4c02c58de500fe1be1000005"),
+"contributors" : null,
+"text" : "Hello world",
+"user" : {
+    "following" : null,
+    "followers_count" : 5,
+    "utc_offset" : null,
+    "location" : "",
+    "profile_text_color" : "000000",
+    "friends_count" : 11,
+    "profile_link_color" : "0000ff",
+    "verified" : false,
+    "protected" : false,
+    "url" : null,
+    "contributors_enabled" : false,
+    "created_at" : "Sun May 30 18:47:06 +0000 2010",
+    "geo_enabled" : false,
+    "profile_sidebar_border_color" : "87bc44",
+    "statuses_count" : 13,
+    "favourites_count" : 0,
+    "description" : "",
+    "notifications" : null,
+    "profile_background_tile" : false,
+    "lang" : "en",
+    "id" : 149978111,
+    "time_zone" : null,
+    "profile_sidebar_fill_color" : "e0ff92"
+},
+"geo" : null,
+"coordinates" : null,
+"in_reply_to_user_id" : 149183152,
+"place" : null,
+"created_at" : "Sun May 30 20:07:35 +0000 2010",
+"source" : "web",
+"in_reply_to_status_id" : {
+    "floatApprox" : 15061797850
+},
+"truncated" : false,
+"favorited" : false,
+"id" : {
+    "floatApprox" : 15061838001
+}
+</pre></div>
+
+<p>How would I write a query which checks the <em>created_at</em> and finds all objects
+between 18:47 and 19:00? Do I need to update my documents so the dates are
+stored in a specific format?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><del>Querying for a Date Range (Specific Month or Day)</del> in the <del>MongoDB
+Cookbook</del> has a very good explanation on the matter, but below is something I
+tried out myself and it seems to work.</p>
+<div class="code"><pre class="code literal-block">items.save({
+    name: "example",
+    created_at: ISODate("2010-04-30T00:00:00.000Z")
+})
+items.find({
+    created_at: {
+        $gte: ISODate("2010-04-29T00:00:00.000Z"),
+        $lt: ISODate("2010-05-01T00:00:00.000Z")
+    }
+})
+=&gt; { "_id" : ObjectId("4c0791e2b9ec877893f3363b"), "name" : "example", "created_at" : "Sun May 30 2010 00:00:00 GMT+0300 (EEST)" }
+</pre></div>
+
+<p>Based on my experiments you will need to serialize your dates into a format
+that MongoDB supports, because the following gave undesired search results.</p>
+<div class="code"><pre class="code literal-block">items.save({
+    name: "example",
+    created_at: "Sun May 30 18.49:00 +0000 2010"
+})
+items.find({
+    created_at: {
+        $gte:"Mon May 30 18:47:00 +0000 2015",
+        $lt: "Sun May 30 20:40:36 +0000 2010"
+    }
+})
+=&gt; { "_id" : ObjectId("4c079123b9ec877893f33638"), "name" : "example", "created_at" : "Sun May 30 18.49:00 +0000 2010" }
+</pre></div>
+
+<p>In the second example no results were expected, but there was still one
+gotten. This is because a basic string comparison is done.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>To clarify. What is important to know is that:</p>
+<ul>
+<li>Yes, you have to pass a Javascript Date object. </li>
+<li>Yes, it has to be ISODate friendly</li>
+<li>Yes, from my experience getting this to work, you need to manipulate the date to ISO</li>
+<li>Yes, working with dates is generally always a tedious process, and mongo is no exception</li>
+</ul>
+<p>Here is a working snippet of code, where we do a little bit of date
+manipulation to ensure Mongo (here i am using mongoose module and want results
+for rows whose date attribute is less than (before) the date given as myDate
+param) can handle it correctly:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">inputDate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Date</span><span class="p">(</span><span class="n">myDate</span><span class="o">.</span><span class="n">toISOString</span><span class="p">());</span>
+<span class="n">MyModel</span><span class="o">.</span><span class="n">find</span><span class="p">({</span>
+<span class="w">    </span><span class="s1">'date'</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">$</span><span class="n">lte</span><span class="p">:</span><span class="w"> </span><span class="n">inputDate</span><span class="w"> </span><span class="p">}</span>
+<span class="p">})</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-take-backup-of-a-single-table-in-a-mysql-database/" class="u-url">How to take backup of a single table in a MySQL database?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -355,65 +470,6 @@ you put in there comes back out, as long as you possess the key with which it
 was locked up in the first place. It's a symmetric operation. Given a key and
 some input, you get a certain output. Given that output, and the same key,
 you'll get back the original input. It's a 1:1 mapping.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-is-the-java-main-method-static/" class="u-url">Why is the Java main method static?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/why-is-the-java-main-method-static/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:11:03+08:00" itemprop="datePublished" title="2023-02-18 06:11">2023-02-18 06:11</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>The method signature of a Java <code>main</code>method is:</p>
-<div class="code"><pre class="code literal-block">public static void main(String[] args) {
-    ...
-}
-</pre></div>
-
-<p><strong>Is there a reason why this method must be static?</strong></p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The method is static because otherwise there would be ambiguity: which
-constructor should be called? Especially if your class looks like this:</p>
-<div class="code"><pre class="code literal-block">public class JavaClass{
-  protected JavaClass(int x){}
-  public void main(String[] args){
-  }
-}
-</pre></div>
-
-<p>Should the JVM call <code>new JavaClass(int)</code>? What should it pass for <code>x</code>?</p>
-<p>If not, should the JVM instantiate <code>JavaClass</code> without running any constructor
-method? I think it shouldn't, because that will special-case your entire class
-- sometimes you have an instance that hasn't been initialized, and you have to
-check for it in every method that could be called.</p>
-<p>There are just too many edge cases and ambiguities for it to make sense for
-the JVM to have to instantiate a class before the entry point is called.
-That's why <code>main</code> is static.</p>
-<p>I have no idea why <code>main</code> is always marked <code>public</code> though.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>The method is static because otherwise there would be ambiguity: which
-constructor should be called? Especially if your class looks like this:</p>
-<div class="code"><pre class="code literal-block">public class JavaClass{
-  protected JavaClass(int x){}
-  public void main(String[] args){
-  }
-}
-</pre></div>
-
-<p>Should the JVM call <code>new JavaClass(int)</code>? What should it pass for <code>x</code>?</p>
-<p>If not, should the JVM instantiate <code>JavaClass</code> without running any constructor
-method? I think it shouldn't, because that will special-case your entire class
-- sometimes you have an instance that hasn't been initialized, and you have to
-check for it in every method that could be called.</p>
-<p>There are just too many edge cases and ambiguities for it to make sense for
-the JVM to have to instantiate a class before the entry point is called.
-That's why <code>main</code> is static.</p>
-<p>I have no idea why <code>main</code> is always marked <code>public</code> though.</p>
     </div>
     </article>
 </div>

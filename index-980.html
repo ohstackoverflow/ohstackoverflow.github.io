@@ -108,7 +108,377 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-prevent-auto-closing-of-console-after-the-execution-of-batch-file/" class="u-url">How to prevent auto-closing of console after the execution of batch file</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-purpose-of-wrapping-whole-javascript-files-in-anonymous-functions-like-function/" class="u-url">What is the purpose of wrapping whole Javascript files in anonymous functions like “(function(){ … })()”?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-is-the-purpose-of-wrapping-whole-javascript-files-in-anonymous-functions-like-function/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T21:27:03+08:00" itemprop="datePublished" title="2023-02-17 21:27">2023-02-17 21:27</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have been reading a lot of Javascript lately and I have been noticing that
+the whole file is wrapped like the following in the .js files to be imported.</p>
+<div class="code"><pre class="code literal-block">(function() {
+    ... 
+    code
+    ...
+})();
+</pre></div>
+
+<p>What is the reason for doing this rather than a simple set of constructor
+functions?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>It's usually to namespace (see later) and control the visibility of member
+functions and/or variables. Think of it like an object definition. The
+technical name for it is an <strong>Immediately Invoked Function Expression</strong>
+(IIFE). jQuery plugins are usually written like this.</p>
+<p>In Javascript, you can nest functions. So, the following is legal:</p>
+<div class="code"><pre class="code literal-block">function outerFunction() {
+   function innerFunction() {
+      // code
+   }
+}
+</pre></div>
+
+<p>Now you can call <code>outerFunction()</code>, but the visiblity of <code>innerFunction()</code> is
+limited to the scope of <code>outerFunction()</code>, meaning it is private to
+<code>outerFunction()</code>. It basically follows the same principle as variables in
+Javascript:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">globalVariable</span><span class="p">;</span>
+
+<span class="n">function</span><span class="w"> </span><span class="n">someFunction</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="k">var</span><span class="w"> </span><span class="n">localVariable</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Correspondingly:</p>
+<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">globalFunction</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">   </span><span class="k">var</span><span class="w"> </span><span class="n">localFunction1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">       </span><span class="o">//</span><span class="n">I</span><span class="s1">'m anonymous! But localFunction1 is a reference to me!</span>
+<span class="w">   </span><span class="p">};</span>
+
+<span class="w">   </span><span class="n">function</span><span class="w"> </span><span class="n">localFunction2</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">//</span><span class="n">I</span><span class="s1">'m named!</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>In the above scenario, you can call <code>globalFunction()</code> from anywhere, but you
+cannot call <code>localFunction1</code> or <code>localFunction2</code>.</p>
+<p>What you're doing when you write <code>(function() { ... })()</code>, is you're making
+the code inside the first set of parentheses a function literal (meaning the
+whole "object" is actually a function). After that, you're self-invoking the
+function (the final <code>()</code>) that you just defined. So the major advantage of
+this as I mentioned before, is that you can have private methods/functions and
+properties:</p>
+<div class="code"><pre class="code literal-block"><span class="p">(</span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="k">var</span><span class="w"> </span><span class="n">private_var</span><span class="p">;</span>
+
+<span class="w">   </span><span class="n">function</span><span class="w"> </span><span class="n">private_function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">     </span><span class="o">//</span><span class="n">code</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="p">})();</span>
+</pre></div>
+
+<p>In the first example, you would explicitly invoke <code>globalFunction</code> by name to
+run it. That is, you would just do <code>globalFunction()</code> to run it. But in the
+above example, you're not just defining a function; you're defining <em>and</em>
+invoking it in one go. This means that when the your JavaScript file is
+loaded, it is immediately executed. Of course, you could do:</p>
+<div class="code"><pre class="code literal-block">function globalFunction() {
+    // code
+}
+globalFunction();
+</pre></div>
+
+<p>The behavior would largely be the same except for one significant difference:
+you avoid polluting the global scope when you use an IIFE (as a consequence it
+also means that you cannot invoke the function multiple times since it doesn't
+have a name, but since this function is only meant to be executed once it
+really isn't an issue).</p>
+<p>The neat thing with IIFEs is that you can also define things inside and only
+expose the parts that you want to the outside world so (an example of
+namespacing so you can basically create your own library/plugin):</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">myPlugin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">private_var</span><span class="p">;</span>
+
+<span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">private_function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w"> </span><span class="p">}</span>
+
+<span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">public_function1</span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="n">public_function2</span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w"> </span><span class="p">}</span>
+<span class="p">})()</span>
+</pre></div>
+
+<p>Now you can call <code>myPlugin.public_function1()</code>, but you cannot access
+<code>private_function()</code>! So pretty similar to a class definition. To understand
+this better, I recommend the following links for some further reading:</p>
+<ul>
+<li>Namespacing your Javascript</li>
+<li>Private members in Javascript (by Douglas Crockford)</li>
+</ul>
+<p><strong>EDIT</strong></p>
+<p>I forgot to mention. In that final <code>()</code>, you can pass anything you want
+inside. For example, when you create jQuery plugins, you pass in <code>jQuery</code> or
+<code>$</code> like so:</p>
+<div class="code"><pre class="code literal-block">(function(jQ) { ... code ... })(jQuery)
+</pre></div>
+
+<p>So what you're doing here is defining a function that takes in one parameter
+(called <code>jQ</code>, a local variable, and known <em>only</em> to that function). Then
+you're self-invoking the function and passing in a parameter (also called
+<code>jQuery</code>, but <em>this</em> one is from the outside world and a reference to the
+actual jQuery itself). There is no pressing need to do this, but there are
+some advantages:</p>
+<ul>
+<li>You can redefine a global parameter and give it a name that makes sense in the local scope.</li>
+<li>There is a slight performance advantage since it is faster to look things up in the local scope instead of having to walk up the scope chain into the global scope.</li>
+<li>There are benefits for compression (minification).</li>
+</ul>
+<p>Earlier I described how these functions run automatically at startup, but if
+they run automatically who is passing in the arguments? This technique assumes
+that all the parameters you need are already defined as global variables. So
+if jQuery wasn't already defined as a global variable this example would not
+work. As you might guess, one things jquery.js does during its initialization
+is define a 'jQuery' global variable, as well as its more famous '$' global
+variable, which allows this code to work after jQuery has been included.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h2>In short</h2>
+<h3>Summary</h3>
+<p>In its simplest form, this technique aims to wrap code inside a <strong>function
+scope</strong>.</p>
+<p>It helps decreases chances of:</p>
+<ul>
+<li>clashing with other applications/libraries</li>
+<li>polluting superior (global most likely) scope</li>
+</ul>
+<p>It <strong>does not</strong> detect when the document is ready - it is not some kind of
+<code>document.onload</code> nor <code>window.onload</code></p>
+<p>It is commonly known as an <code>Immediately Invoked Function Expression (IIFE)</code> or
+<code>Self Executing Anonymous Function</code>.</p>
+<h3>Code Explained</h3>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">someFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'wagwan!'</span><span class="p">);</span><span class="w"> </span><span class="p">};</span>
+
+<span class="p">(</span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">                   </span><span class="o">/*</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">scope</span><span class="w"> </span><span class="n">starts</span><span class="w"> </span><span class="n">here</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'start of IIFE'</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">             </span><span class="o">/*</span><span class="w"> </span><span class="n">number</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">declaration</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w">  </span><span class="o">/*</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">declaration</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span>
+<span class="w">  </span><span class="p">};</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w">              </span><span class="o">/*</span><span class="w"> </span><span class="n">object</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">declaration</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">    </span><span class="n">anotherNumber</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1001</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">anotherFunc</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">};</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'end of IIFE'</span><span class="p">);</span>
+<span class="p">})();</span><span class="w">                           </span><span class="o">/*</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">scope</span><span class="w"> </span><span class="n">ends</span><span class="w"> </span><span class="o">*/</span>
+
+<span class="n">someFunction</span><span class="p">();</span><span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">reachable</span><span class="p">,</span><span class="w"> </span><span class="n">hence</span><span class="w"> </span><span class="n">works</span><span class="p">:</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">myFunction</span><span class="p">();</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">myObject</span><span class="o">.</span><span class="n">anotherFunc</span><span class="p">();</span><span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+</pre></div>
+
+<p>In the example above, any variable defined in the function (i.e. declared
+using <code>var</code>) will be "private" and accessible within the function scope ONLY
+(as Vivin Paliath puts it). In other words, these variables are not
+visible/reachable outside the function. See live demo.</p>
+<p>Javascript has function scoping. "Parameters and variables defined in a
+function are not visible outside of the function, and that a variable defined
+anywhere within a function is visible everywhere within the function." (from
+"Javascript: The Good Parts").</p>
+<hr>
+<h2>More details</h2>
+<h3>Alternative Code</h3>
+<p>In the end, the code posted before could also be done as follows:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">someFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'wagwan!'</span><span class="p">);</span><span class="w"> </span><span class="p">};</span>
+
+<span class="k">var</span><span class="w"> </span><span class="n">myMainFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'start of IIFE'</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span><span class="p">};</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span>
+<span class="w">    </span><span class="n">anotherNumber</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1001</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">anotherFunc</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">};</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'end of IIFE'</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="n">myMainFunction</span><span class="p">();</span><span class="w">          </span><span class="o">//</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">CALL</span><span class="w"> </span><span class="s2">"myMainFunction"</span><span class="w"> </span><span class="n">FUNCTION</span><span class="w"> </span><span class="n">HERE</span>
+<span class="n">someFunction</span><span class="p">();</span><span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">reachable</span><span class="p">,</span><span class="w"> </span><span class="n">hence</span><span class="w"> </span><span class="n">works</span><span class="p">:</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">myFunction</span><span class="p">();</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">myObject</span><span class="o">.</span><span class="n">anotherFunc</span><span class="p">();</span><span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+</pre></div>
+
+<p>See live demo.</p>
+<hr>
+<h3>The Roots</h3>
+<h4>Iteration 1</h4>
+<p>One day, someone probably thought "there must be a way to avoid naming
+'myMainFunction', since all we want is to execute it immediately."</p>
+<p>If you go back to the basics, you find out that:</p>
+<ul>
+<li>
+<code>expression</code>: something evaluating to a value. i.e. <code>3+11/x</code>
+</li>
+<li>
+<code>statement</code>: line(s) of code doing something BUT it does <strong>not</strong> evaluate to a value. i.e. <code>if(){}</code>
+</li>
+</ul>
+<p>Similarly, function expressions evaluate to a value. And one consequence (I
+assume?) is that they can be immediately invoked:</p>
+<div class="code"><pre class="code literal-block"><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">italianSayinSomething</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'mamamia!'</span><span class="p">);</span><span class="w"> </span><span class="p">}();</span>
+</pre></div>
+
+<p>So our more complex example becomes:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">someFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'wagwan!'</span><span class="p">);</span><span class="w"> </span><span class="p">};</span>
+
+<span class="k">var</span><span class="w"> </span><span class="n">myMainFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'start of IIFE'</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span><span class="p">};</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span>
+<span class="w">    </span><span class="n">anotherNumber</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1001</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">anotherFunc</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">};</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'end of IIFE'</span><span class="p">);</span>
+<span class="p">}();</span>
+
+<span class="n">someFunction</span><span class="p">();</span><span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">reachable</span><span class="p">,</span><span class="w"> </span><span class="n">hence</span><span class="w"> </span><span class="n">works</span><span class="p">:</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">myFunction</span><span class="p">();</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">myObject</span><span class="o">.</span><span class="n">anotherFunc</span><span class="p">();</span><span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+</pre></div>
+
+<p>See live demo.</p>
+<h4>Iteration 2</h4>
+<p>The next step is the thought "why have <code>var myMainFunction =</code> if we don't even
+use it!?".</p>
+<p>The answer is simple: try removing this, such as below:</p>
+<div class="code"><pre class="code literal-block"> function(){ console.log('mamamia!'); }();
+</pre></div>
+
+<p>See live demo.</p>
+<p>It won't work because <strong>"function declarations are not invokable"</strong>.</p>
+<p>The trick is that by removing <code>var myMainFunction =</code> we transformed the
+<strong>function expression</strong> into a <strong>function declaration</strong>. See the links in
+"Resources" for more details on this.</p>
+<p>The next question is "why can't I keep it as a function expression with
+something other than <code>var myMainFunction =</code>?</p>
+<p>The answer is "you can", and there are actually many ways you could do this:
+adding a <code>+</code>, a <code>!</code>, a <code>-</code>, or maybe wrapping in a pair of parenthesis (as
+it's now done by convention), and more I believe. As example:</p>
+<div class="code"><pre class="code literal-block"> (function(){ console.log('mamamia!'); })(); // live demo: jsbin.com/zokuwodoco/1/edit?js,console.
+</pre></div>
+
+<p>or</p>
+<div class="code"><pre class="code literal-block"> +function(){ console.log('mamamia!'); }(); // live demo: jsbin.com/wuwipiyazi/1/edit?js,console
+</pre></div>
+
+<p>or</p>
+<div class="code"><pre class="code literal-block"> -function(){ console.log('mamamia!'); }(); // live demo: jsbin.com/wejupaheva/1/edit?js,console
+</pre></div>
+
+<ul>
+<li>What does the exclamation mark do before the function?</li>
+<li>JavaScript plus sign in front of function name</li>
+</ul>
+<p>So once the relevant modification is added to what was once our "Alternative
+Code", we return to the exact same code as the one used in the "Code
+Explained" example</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">someFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'wagwan!'</span><span class="p">);</span><span class="w"> </span><span class="p">};</span>
+
+<span class="p">(</span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'start of IIFE'</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span><span class="p">};</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span>
+<span class="w">    </span><span class="n">anotherNumber</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1001</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">anotherFunc</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">};</span>
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'end of IIFE'</span><span class="p">);</span>
+<span class="p">})();</span>
+
+<span class="n">someFunction</span><span class="p">();</span><span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">reachable</span><span class="p">,</span><span class="w"> </span><span class="n">hence</span><span class="w"> </span><span class="n">works</span><span class="p">:</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">myFunction</span><span class="p">();</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">myObject</span><span class="o">.</span><span class="n">anotherFunc</span><span class="p">();</span><span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+</pre></div>
+
+<p>Read more about <code>Expressions vs Statements</code>:</p>
+<ul>
+<li>developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Expressions_and_Operators</li>
+<li>developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions#Function_constructor_vs._function_declaration_vs._function_expression</li>
+<li>Javascript: difference between a statement and an expression?</li>
+<li>Expression Versus Statement</li>
+</ul>
+<hr>
+<h3>Demystifying Scopes</h3>
+<p>One thing one might wonder is "what happens when you do NOT define the
+variable 'properly' inside the function -- i.e. do a simple assignment
+instead?"</p>
+<div class="code"><pre class="code literal-block"><span class="p">(</span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">             </span><span class="o">/*</span><span class="w"> </span><span class="n">number</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">declaration</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w">  </span><span class="o">/*</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">declaration</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span>
+<span class="w">  </span><span class="p">};</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">myObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w">              </span><span class="o">/*</span><span class="w"> </span><span class="n">object</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">declaration</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">    </span><span class="n">anotherNumber</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1001</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">anotherFunc</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'formidable!'</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">};</span>
+<span class="w">  </span><span class="n">myOtherFunction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(){</span><span class="w">  </span><span class="o">/*</span><span class="w"> </span><span class="n">oops</span><span class="p">,</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">assignment</span><span class="w"> </span><span class="n">instead</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">declaration</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'haha. got ya!'</span><span class="p">);</span>
+<span class="w">  </span><span class="p">};</span>
+<span class="p">})();</span>
+<span class="n">myOtherFunction</span><span class="p">();</span><span class="w">         </span><span class="o">//</span><span class="w"> </span><span class="n">reachable</span><span class="p">,</span><span class="w"> </span><span class="n">hence</span><span class="w"> </span><span class="n">works</span><span class="p">:</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+<span class="n">window</span><span class="o">.</span><span class="n">myOtherFunction</span><span class="p">();</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">works</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">browser</span><span class="p">,</span><span class="w"> </span><span class="n">myOtherFunction</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">then</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">global</span><span class="w"> </span><span class="n">scope</span>
+<span class="n">myFunction</span><span class="p">();</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="n">unreachable</span><span class="p">,</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">console</span>
+</pre></div>
+
+<p>See live demo.</p>
+<p>Basically, if a variable that was not declared in its current scope is
+assigned a value, then "a look up the scope chain occurs until it finds the
+variable or hits the global scope (at which point it will create it)".</p>
+<p>When in a browser environment (vs a server environment like nodejs) the global
+scope is defined by the <code>window</code> object. Hence we can do
+<code>window.myOtherFunction()</code>.</p>
+<p>My "Good practices" tip on this topic is to <strong>always use<code>var</code> when defining
+anything</strong>: whether it's a number, object or function, &amp; even when in the
+global scope. This makes the code much simpler.</p>
+<p>Note:</p>
+<ul>
+<li>javascript does <strong>not</strong> have <code>block scope</code> (Update: block scope local variables added in ES6.)</li>
+<li>javascript has only <code>function scope</code> &amp; <code>global scope</code> (<code>window</code> scope in a browser environment)</li>
+</ul>
+<p>Read more about <code>Javascript Scopes</code>:</p>
+<ul>
+<li>What is the purpose of the var keyword and when to use it (or omit it)?</li>
+<li>What is the scope of variables in JavaScript?</li>
+</ul>
+<hr>
+<h2>Resources</h2>
+<ul>
+<li>youtu.be/i_qE1iAmjFg?t=2m15s - Paul Irish presents the IIFE at min 2:15, do watch this!</li>
+<li>developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions</li>
+<li>Book: Javascript, the good parts - highly recommended</li>
+<li>youtu.be/i_qE1iAmjFg?t=4m36s - Paul Irish presents the module pattern at 4:36</li>
+</ul>
+<hr>
+<h2>Next Steps</h2>
+<p>Once you get this <code>IIFE</code> concept, it leads to the <code>module pattern</code>, which is
+commonly done by leveraging this IIFE pattern. Have fun :)</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-prevent-auto-closing-of-console-after-the-execution-of-batch-file/" class="u-url">How to prevent auto-closing of console after the execution of batch file</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -315,52 +685,6 @@ delete/create a new view each time you want to update some value.</strong></p>
 want to update one value periodically. With the approaches explained before,
 this means you are removing and instantiating 100 <code>TextView</code>s on each update.
 It does not make sense...</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/recover-from-losing-uncommitted-changes-by-git-reset-hard/" class="u-url">Recover from losing uncommitted changes by "git reset --hard"</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/recover-from-losing-uncommitted-changes-by-git-reset-hard/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T21:25:04+08:00" itemprop="datePublished" title="2023-02-17 21:25">2023-02-17 21:25</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is there any way to recover uncommitted changes to the working directory from
-a <code>git reset --hard HEAD</code>?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You <em>cannot</em> get back uncommitted changes in general.</p>
-<p>Previously staged changes (<code>git add</code>) should be recoverable from index
-objects, so if you did, use <code>git fsck --lost-found</code> to locate the objects
-related to it. (This writes the objects to the <code>.git/lost-found/</code> directory;
-from there you can use <code>git show &lt;filename&gt;</code> to see the contents of each
-file.)</p>
-<p>If not, the answer here would be: look at your backup. <strong>Perhaps your
-editor/IDE stores temp copies</strong> under /tmp or C:\TEMP and things like that.[1]</p>
-<div class="code"><pre class="code literal-block">git reset HEAD@{1}
-</pre></div>
-
-<p>This will restore to the previous HEAD</p>
-<p>[1] <strong>vim</strong> e.g. optionally stores persistent undo, <strong>eclipse</strong> IDE stores
-<em>local history</em> ; such features might save your a**</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You <em>cannot</em> get back uncommitted changes in general.</p>
-<p>Previously staged changes (<code>git add</code>) should be recoverable from index
-objects, so if you did, use <code>git fsck --lost-found</code> to locate the objects
-related to it. (This writes the objects to the <code>.git/lost-found/</code> directory;
-from there you can use <code>git show &lt;filename&gt;</code> to see the contents of each
-file.)</p>
-<p>If not, the answer here would be: look at your backup. <strong>Perhaps your
-editor/IDE stores temp copies</strong> under /tmp or C:\TEMP and things like that.[1]</p>
-<div class="code"><pre class="code literal-block">git reset HEAD@{1}
-</pre></div>
-
-<p>This will restore to the previous HEAD</p>
-<p>[1] <strong>vim</strong> e.g. optionally stores persistent undo, <strong>eclipse</strong> IDE stores
-<em>local history</em> ; such features might save your a**</p>
     </div>
     </article>
 </div>

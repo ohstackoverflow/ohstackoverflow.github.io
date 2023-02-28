@@ -108,7 +108,222 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-overlay-one-div-over-another-div/" class="u-url">How to overlay one div over another div</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-s-the-difference-between-utf8-general-ci-and-utf8-unicode-ci/" class="u-url">What's the difference between utf8_general_ci and utf8_unicode_ci?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-s-the-difference-between-utf8-general-ci-and-utf8-unicode-ci/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:51:45+08:00" itemprop="datePublished" title="2023-02-17 03:51">2023-02-17 03:51</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Between <code>utf8_general_ci</code> and <code>utf8_unicode_ci</code>, are there any differences in
+terms of performance?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>For those people still arriving at this question in 2020 or later, there are
+newer options that may be better than <em>both</em> of these. For example,
+<code>utf8_unicode_520_ci</code>.</strong></p>
+<p>All these collations are for the UTF-8 character encoding. The differences are
+in how text is sorted and compared.</p>
+<p><code>_unicode_ci</code> and <code>_general_ci</code> are two different sets of rules for sorting
+and comparing text according to the way we expect. Newer versions of MySQL
+introduce new sets of rules, too, such as <code>_unicode_520_ci</code> for equivalent
+rules based on Unicode 5.2, or the MySQL 8.x specific <code>_0900_ai_ci</code> for
+equivalent rules based on Unicode 9.0 (and with no equivalent <code>_general_ci</code>
+variant). People reading this now should probably use one of these newer
+collations instead of either <code>_unicode_ci</code> or <code>_general_ci</code>. The description
+of those older collations below is provided for interest only.</p>
+<p><em>MySQL is currently transitioning away from an older, flawed UTF-8
+implementation. For now, you need to use<code>utf8mb4</code> instead of <code>utf8</code> for the
+character encoding part, to ensure you are getting the fixed version. The
+flawed version remains for backward compatibility, though it is being
+deprecated.</em></p>
+<p><strong>Key differences</strong></p>
+<ul>
+<li>
+<p><code>utf8mb4_unicode_ci</code> is based on the official Unicode rules for universal sorting and comparison, which sorts accurately in a wide range of languages.</p>
+</li>
+<li>
+<p><code>utf8mb4_general_ci</code> is a simplified set of sorting rules which aims to do as well as it can while taking many short-cuts designed to improve speed. It does not follow the Unicode rules and will result in undesirable sorting or comparison in some situations, such as when using particular languages or characters.</p>
+</li>
+</ul>
+<p>On modern servers, this performance boost will be all but negligible. It was
+devised in a time when servers had a tiny fraction of the CPU performance of
+today's computers.</p>
+<p><strong>Benefits of<code>utf8mb4_unicode_ci</code> over <code>utf8mb4_general_ci</code></strong></p>
+<p><code>utf8mb4_unicode_ci</code>, which uses the Unicode rules for sorting and comparison,
+employs a fairly complex algorithm for correct sorting in a wide range of
+languages and when using a wide range of special characters. These rules need
+to take into account language-specific conventions; not everybody sorts their
+characters in what we would call 'alphabetical order'.</p>
+<p>As far as Latin (ie "European") languages go, there is not much difference
+between the Unicode sorting and the simplified <code>utf8mb4_general_ci</code> sorting in
+MySQL, but there are still a few differences:</p>
+<ul>
+<li>
+<p>For examples, the Unicode collation sorts "ß" like "ss", and "Œ" like "OE" as people using those characters would normally want, whereas <code>utf8mb4_general_ci</code> sorts them as single characters (presumably like "s" and "e" respectively).</p>
+</li>
+<li>
+<p>Some Unicode characters are defined as ignorable, which means they shouldn't count toward the sort order and the comparison should move on to the next character instead. <code>utf8mb4_unicode_ci</code> handles these properly.</p>
+</li>
+</ul>
+<p>In non-latin languages, such as Asian languages or languages with different
+alphabets, there may be a lot <em>more</em> differences between Unicode sorting and
+the simplified <code>utf8mb4_general_ci</code> sorting. The suitability of
+<code>utf8mb4_general_ci</code> will depend heavily on the language used. For some
+languages, it'll be quite inadequate.</p>
+<p><strong>What should you use?</strong></p>
+<p>There is almost certainly no reason to use <code>utf8mb4_general_ci</code> anymore, as we
+have left behind the point where CPU speed is low enough that the performance
+difference would be important. Your database will almost certainly be limited
+by other bottlenecks than this.</p>
+<p>In the past, some people recommended to use <code>utf8mb4_general_ci</code> except when
+accurate sorting was going to be important enough to justify the performance
+cost. Today, that performance cost has all but disappeared, and developers are
+treating internationalization more seriously.</p>
+<p>There's an argument to be made that if speed is more important to you than
+accuracy, you may as well not do any sorting at all. It's trivial to make an
+algorithm faster if you do not need it to be accurate. So,
+<code>utf8mb4_general_ci</code> is a compromise that's probably not needed for speed
+reasons and probably also not suitable for accuracy reasons.</p>
+<p>One other thing I'll add is that even if you know your application only
+supports the English language, it may still need to deal with people's names,
+which can often contain characters used in other languages in which it is just
+as important to sort correctly. Using the Unicode rules for everything helps
+add peace of mind that the very smart Unicode people have worked very hard to
+make sorting work properly.</p>
+<p><strong>What the parts mean</strong></p>
+<p>Firstly, <code>ci</code> is for <em>case-insensitive</em> sorting and comparison. This means
+it's suitable for textual data, and case is not important. The other types of
+collation are <code>cs</code> (case-sensitive) for textual data where case is important,
+and <code>bin</code>, for where the encoding needs to match, bit for bit, which is
+suitable for fields which are really encoded binary data (including, for
+example, Base64). Case-sensitive sorting leads to some weird results and case-
+sensitive comparison can result in duplicate values differing only in letter
+case, so case-sensitive collations are falling out of favor for textual data -
+if case is significant to you, then otherwise ignorable punctuation and so on
+is probably also significant, and a binary collation might be more
+appropriate.</p>
+<p>Next, <code>unicode</code> or <code>general</code> refers to the specific sorting and comparison
+rules - in particular, the way text is normalized or compared. There are many
+different sets of rules for the utf8mb4 character encoding, with <code>unicode</code> and
+<code>general</code> being two that attempt to work well in all possible languages rather
+than one specific one. The differences between these two sets of rules are the
+subject of this answer. Note that <code>unicode</code> uses rules from Unicode 4.0.
+Recent versions of MySQL and MariaDB add the rulesets <code>unicode_520</code> using
+rules from Unicode 5.2, and MySQL 8.x adds <code>0900</code> (dropping the "unicode_"
+part) using rules from Unicode 9.0.</p>
+<p>And lastly, <code>utf8mb4</code> is of course the character encoding used internally. In
+this answer I'm talking only about Unicode based encodings.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I wanted to know what is the performance difference between using
+<code>utf8_general_ci</code> and <code>utf8_unicode_ci</code>, but I did not find any benchmarks
+listed on the internet, so I decided to create benchmarks myself.</p>
+<p>I created a very simple table with 500,000 rows:</p>
+<div class="code"><pre class="code literal-block">CREATE TABLE test(
+  ID INT(11) DEFAULT NULL,
+  Description VARCHAR(20) DEFAULT NULL
+)
+ENGINE = INNODB
+CHARACTER SET utf8
+COLLATE utf8_general_ci;
+</pre></div>
+
+<p>Then I filled it with random data by running this stored procedure:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">CREATE</span><span class="w"> </span><span class="nt">PROCEDURE</span><span class="w"> </span><span class="nt">randomizer</span><span class="o">()</span>
+<span class="nt">BEGIN</span>
+<span class="w">  </span><span class="nt">DECLARE</span><span class="w"> </span><span class="nt">i</span><span class="w"> </span><span class="nt">INT</span><span class="w"> </span><span class="nt">DEFAULT</span><span class="w"> </span><span class="nt">0</span><span class="o">;</span>
+<span class="w">  </span><span class="nt">DECLARE</span><span class="w"> </span><span class="nt">random</span><span class="w"> </span><span class="nt">CHAR</span><span class="o">(</span><span class="nt">20</span><span class="o">)</span><span class="w"> </span><span class="o">;</span>
+<span class="w">  </span><span class="nt">theloop</span><span class="o">:</span><span class="w"> </span><span class="nt">loop</span>
+<span class="w">    </span><span class="nt">SET</span><span class="w"> </span><span class="nt">random</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">CONV</span><span class="o">(</span><span class="nt">FLOOR</span><span class="o">(</span><span class="nt">RAND</span><span class="o">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nt">99999999999999</span><span class="o">),</span><span class="w"> </span><span class="nt">20</span><span class="o">,</span><span class="w"> </span><span class="nt">36</span><span class="o">);</span>
+<span class="w">    </span><span class="nt">INSERT</span><span class="w"> </span><span class="nt">INTO</span><span class="w"> </span><span class="nt">test</span><span class="w"> </span><span class="nt">VALUES</span><span class="w"> </span><span class="o">(</span><span class="nt">i</span><span class="o">+</span><span class="nt">1</span><span class="o">,</span><span class="w"> </span><span class="nt">random</span><span class="o">);</span>
+<span class="w">    </span><span class="nt">SET</span><span class="w"> </span><span class="nt">i</span><span class="o">=</span><span class="nt">i</span><span class="o">+</span><span class="nt">1</span><span class="o">;</span>
+<span class="w">    </span><span class="nt">IF</span><span class="w"> </span><span class="nt">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">500000</span><span class="w"> </span><span class="nt">THEN</span>
+<span class="w">      </span><span class="nt">LEAVE</span><span class="w"> </span><span class="nt">theloop</span><span class="o">;</span>
+<span class="w">    </span><span class="nt">END</span><span class="w"> </span><span class="nt">IF</span><span class="o">;</span>
+<span class="w">  </span><span class="nt">END</span><span class="w"> </span><span class="nt">LOOP</span><span class="w"> </span><span class="nt">theloop</span><span class="o">;</span>
+<span class="nt">END</span>
+</pre></div>
+
+<p>Then I created the following stored procedures to benchmark simple <code>SELECT</code>,
+<code>SELECT</code> with <code>LIKE</code>, and sorting (<code>SELECT</code> with <code>ORDER BY</code>):</p>
+<div class="code"><pre class="code literal-block">CREATE<span class="w"> </span>PROCEDURE<span class="w"> </span>benchmark_simple_select()
+BEGIN
+<span class="w">  </span>DECLARE<span class="w"> </span>i<span class="w"> </span>INT<span class="w"> </span>DEFAULT<span class="w"> </span><span class="m">0</span>;
+<span class="w">  </span>theloop:<span class="w"> </span>loop
+<span class="w">    </span>SELECT<span class="w"> </span>*
+<span class="w">    </span>FROM<span class="w"> </span>test
+<span class="w">    </span>WHERE<span class="w"> </span>Description<span class="w"> </span>=<span class="w"> </span>'test'<span class="w"> </span>COLLATE<span class="w"> </span>utf8_general_ci;
+<span class="w">    </span>SET<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span>i<span class="w"> </span>+<span class="w"> </span><span class="m">1</span>;
+<span class="w">    </span>IF<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span><span class="m">30</span><span class="w"> </span>THEN
+<span class="w">      </span>LEAVE<span class="w"> </span>theloop;
+<span class="w">    </span>END<span class="w"> </span>IF;
+<span class="w">  </span>END<span class="w"> </span>LOOP<span class="w"> </span>theloop;
+END;
+
+CREATE<span class="w"> </span>PROCEDURE<span class="w"> </span>benchmark_select_like()
+BEGIN
+<span class="w">  </span>DECLARE<span class="w"> </span>i<span class="w"> </span>INT<span class="w"> </span>DEFAULT<span class="w"> </span><span class="m">0</span>;
+<span class="w">  </span>theloop:<span class="w"> </span>loop
+<span class="w">    </span>SELECT<span class="w"> </span>*
+<span class="w">    </span>FROM<span class="w"> </span>test
+<span class="w">    </span>WHERE<span class="w"> </span>Description<span class="w"> </span>LIKE<span class="w"> </span>'%test'<span class="w"> </span>COLLATE<span class="w"> </span>utf8_general_ci;
+<span class="w">    </span>SET<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span>i<span class="w"> </span>+<span class="w"> </span><span class="m">1</span>;
+<span class="w">    </span>IF<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span><span class="m">30</span><span class="w"> </span>THEN
+<span class="w">      </span>LEAVE<span class="w"> </span>theloop;
+<span class="w">    </span>END<span class="w"> </span>IF;
+<span class="w">  </span>END<span class="w"> </span>LOOP<span class="w"> </span>theloop;
+END;
+
+CREATE<span class="w"> </span>PROCEDURE<span class="w"> </span>benchmark_order_by()
+BEGIN
+<span class="w">  </span>DECLARE<span class="w"> </span>i<span class="w"> </span>INT<span class="w"> </span>DEFAULT<span class="w"> </span><span class="m">0</span>;
+<span class="w">  </span>theloop:<span class="w"> </span>loop
+<span class="w">    </span>SELECT<span class="w"> </span>*
+<span class="w">    </span>FROM<span class="w"> </span>test
+<span class="w">    </span>WHERE<span class="w"> </span>ID<span class="w"> </span>&gt;<span class="w"> </span>FLOOR(<span class="m">1</span><span class="w"> </span>+<span class="w"> </span>RAND()<span class="w"> </span>*<span class="w"> </span>(<span class="m">400000</span><span class="w"> </span>-<span class="w"> </span><span class="m">1</span>))
+<span class="w">    </span>ORDER<span class="w"> </span>BY<span class="w"> </span>Description<span class="w"> </span>COLLATE<span class="w"> </span>utf8_general_ci<span class="w"> </span>LIMIT<span class="w"> </span><span class="m">1000</span>;
+<span class="w">    </span>SET<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span>i<span class="w"> </span>+<span class="w"> </span><span class="m">1</span>;
+<span class="w">    </span>IF<span class="w"> </span>i<span class="w"> </span>=<span class="w"> </span><span class="m">10</span><span class="w"> </span>THEN
+<span class="w">      </span>LEAVE<span class="w"> </span>theloop;
+<span class="w">    </span>END<span class="w"> </span>IF;
+<span class="w">  </span>END<span class="w"> </span>LOOP<span class="w"> </span>theloop;
+END;
+</pre></div>
+
+<p>In the stored procedures above <code>utf8_general_ci</code> collation is used, but of
+course during the tests I used both <code>utf8_general_ci</code> and <code>utf8_unicode_ci</code>.</p>
+<p>I called each stored procedure 5 times for each collation (5 times for
+<code>utf8_general_ci</code> and 5 times for <code>utf8_unicode_ci</code>) and then calculated the
+average values.</p>
+<p>My results are:</p>
+<p><strong><code>benchmark_simple_select()</code></strong></p>
+<ul>
+<li>with <code>utf8_general_ci</code>: 9,957 ms </li>
+<li>with <code>utf8_unicode_ci</code>: 10,271 ms </li>
+</ul>
+<p>In this benchmark using <code>utf8_unicode_ci</code> is slower than <code>utf8_general_ci</code> by
+3.2%.</p>
+<p><strong><code>benchmark_select_like()</code></strong></p>
+<ul>
+<li>with <code>utf8_general_ci</code>: 11,441 ms </li>
+<li>with <code>utf8_unicode_ci</code>: 12,811 ms </li>
+</ul>
+<p>In this benchmark using <code>utf8_unicode_ci</code> is slower than <code>utf8_general_ci</code> by
+12%.</p>
+<p><strong><code>benchmark_order_by()</code></strong></p>
+<ul>
+<li>with <code>utf8_general_ci</code>: 11,944 ms </li>
+<li>with <code>utf8_unicode_ci</code>: 12,887 ms </li>
+</ul>
+<p>In this benchmark using <code>utf8_unicode_ci</code> is slower than <code>utf8_general_ci</code> by
+7.9%.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-overlay-one-div-over-another-div/" class="u-url">How to overlay one div over another div</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -525,217 +740,6 @@ It is fully specified behavior. This is likely to be <strong>faster</strong> tha
 proposed method here, since the removal of old children and addition of new
 children is done without requiring <code>innerHTML</code>, and in one step instead of
 multiple.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-limit-the-number-of-rows-returned-by-an-oracle-query-after-ordering/" class="u-url">How do I limit the number of rows returned by an Oracle query after ordering?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-limit-the-number-of-rows-returned-by-an-oracle-query-after-ordering/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T03:50:20+08:00" itemprop="datePublished" title="2023-02-17 03:50">2023-02-17 03:50</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is there a way to make an <code>Oracle</code> query behave like it contains a MySQL
-<code>limit</code> clause?</p>
-<p>In MySQL, I can do this:</p>
-<div class="code"><pre class="code literal-block">select * 
-from sometable
-order by name
-limit 20,10
-</pre></div>
-
-<p>to get the 21st to the 30th rows (skip the first 20, give the next 10). The
-rows are selected after the <code>order by</code>, so it really starts on the 20th name
-alphabetically.</p>
-<p>In Oracle, the only thing people mention is the <code>rownum</code> pseudo-column, but it
-is evaluated <em>before</em> <code>order by</code>, which means this:</p>
-<div class="code"><pre class="code literal-block">select * 
-from sometable
-where rownum &lt;= 10
-order by name
-</pre></div>
-
-<p>will return a random set of ten rows ordered by name, which is not usually
-what I want. It also doesn't allow for specifying an offset.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You can use a subquery for this like</p>
-<div class="code"><pre class="code literal-block">select *
-from  
-( select * 
-  from emp 
-  order by sal desc ) 
-where ROWNUM &lt;= 5;
-</pre></div>
-
-<p>Have also a look at the topic On ROWNUM and limiting results at Oracle/AskTom
-for more information.</p>
-<p><strong>Update</strong> : To limit the result with both lower and upper bounds things get a
-bit more bloated with</p>
-<div class="code"><pre class="code literal-block">select * from 
-( select a.*, ROWNUM rnum from 
-  ( &lt;your_query_goes_here, with order by&gt; ) a 
-  where ROWNUM &lt;= :MAX_ROW_TO_FETCH )
-where rnum  &gt;= :MIN_ROW_TO_FETCH;
-</pre></div>
-
-<p>(Copied from specified AskTom-article)</p>
-<p><strong>Update 2</strong> : Starting with Oracle 12c (12.1) there is a syntax available to
-limit rows or start at offsets.</p>
-<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span>
-<span class="nv">FROM</span><span class="w">   </span><span class="nv">sometable</span>
-<span class="nv">ORDER</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">name</span>
-<span class="nv">OFFSET</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">FETCH</span><span class="w"> </span><span class="k">NEXT</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">ONLY</span><span class="c1">;</span>
-</pre></div>
-
-<p>See this answer for more examples. Thanks to Krumia for the hint.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Starting from Oracle 12c R1 (12.1), there <em>is</em> a row limiting clause. It does
-not use familiar <code>LIMIT</code> syntax, but it can do the job better with more
-options. You can find the full syntax here. (Also read more on how this works
-internally in Oracle in this answer).</p>
-<p>To answer the original question, here's the query:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span>
-<span class="nv">FROM</span><span class="w">   </span><span class="nv">sometable</span>
-<span class="nv">ORDER</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">name</span>
-<span class="nv">OFFSET</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">FETCH</span><span class="w"> </span><span class="k">NEXT</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">ONLY</span><span class="c1">;</span>
-</pre></div>
-
-<p>(For earlier Oracle versions, please refer to other answers in this question)</p>
-<hr>
-<h3>Examples:</h3>
-<p>Following examples were quoted from linked page, in the hope of preventing
-link rot.</p>
-<h4>Setup</h4>
-<div class="code"><pre class="code literal-block"><span class="nv">CREATE</span><span class="w"> </span><span class="nv">TABLE</span><span class="w"> </span><span class="nv">rownum_order_test</span><span class="w"> </span><span class="ss">(</span>
-<span class="w">  </span><span class="nv">val</span><span class="w">  </span><span class="nv">NUMBER</span>
-<span class="ss">)</span><span class="c1">;</span>
-
-<span class="nv">INSERT</span><span class="w"> </span><span class="nv">ALL</span>
-<span class="w">  </span><span class="nv">INTO</span><span class="w"> </span><span class="nv">rownum_order_test</span>
-<span class="nv">SELECT</span><span class="w"> </span><span class="nv">level</span>
-<span class="nv">FROM</span><span class="w">   </span><span class="nv">dual</span>
-<span class="k">CONNECT</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">level</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">10</span><span class="c1">;</span>
-
-<span class="nv">COMMIT</span><span class="c1">;</span>
-</pre></div>
-
-<h4>What's in the table?</h4>
-<div class="code"><pre class="code literal-block">SELECT val
-FROM   rownum_order_test
-ORDER BY val;
-
-       VAL
-----------
-         1
-         1
-         2
-         2
-         3
-         3
-         4
-         4
-         5
-         5
-         6
-         6
-         7
-         7
-         8
-         8
-         9
-         9
-        10
-        10
-
-20 rows selected.
-</pre></div>
-
-<h4>Get first <code>N</code> rows</h4>
-<div class="code"><pre class="code literal-block">SELECT val
-FROM   rownum_order_test
-ORDER BY val DESC
-FETCH FIRST 5 ROWS ONLY;
-
-       VAL
-----------
-        10
-        10
-         9
-         9
-         8
-
-5 rows selected.
-</pre></div>
-
-<h4>Get first <code>N</code> rows, if <code>N</code>th row has ties, get all the tied rows</h4>
-<div class="code"><pre class="code literal-block">SELECT val
-FROM   rownum_order_test
-ORDER BY val DESC
-FETCH FIRST 5 ROWS WITH TIES;
-
-       VAL
-----------
-        10
-        10
-         9
-         9
-         8
-         8
-
-6 rows selected.
-</pre></div>
-
-<h4>Top <code>x</code>% of rows</h4>
-<div class="code"><pre class="code literal-block">SELECT val
-FROM   rownum_order_test
-ORDER BY val
-FETCH FIRST 20 PERCENT ROWS ONLY;
-
-       VAL
-----------
-         1
-         1
-         2
-         2
-
-4 rows selected.
-</pre></div>
-
-<h4>Using an offset, very useful for pagination</h4>
-<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="nv">val</span>
-<span class="nv">FROM</span><span class="w">   </span><span class="nv">rownum_order_test</span>
-<span class="nv">ORDER</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">val</span>
-<span class="nv">OFFSET</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">FETCH</span><span class="w"> </span><span class="k">NEXT</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">ONLY</span><span class="c1">;</span>
-
-<span class="w">       </span><span class="nv">VAL</span>
-<span class="o">----------</span>
-<span class="w">         </span><span class="mi">3</span>
-<span class="w">         </span><span class="mi">3</span>
-<span class="w">         </span><span class="mi">4</span>
-<span class="w">         </span><span class="mi">4</span>
-
-<span class="mi">4</span><span class="w"> </span><span class="nv">rows</span><span class="w"> </span><span class="nv">selected</span>.
-</pre></div>
-
-<h4>You can combine offset with percentages</h4>
-<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="nv">val</span>
-<span class="nv">FROM</span><span class="w">   </span><span class="nv">rownum_order_test</span>
-<span class="nv">ORDER</span><span class="w"> </span><span class="nv">BY</span><span class="w"> </span><span class="nv">val</span>
-<span class="nv">OFFSET</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">FETCH</span><span class="w"> </span><span class="k">NEXT</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="nv">PERCENT</span><span class="w"> </span><span class="nv">ROWS</span><span class="w"> </span><span class="nv">ONLY</span><span class="c1">;</span>
-
-<span class="w">       </span><span class="nv">VAL</span>
-<span class="o">----------</span>
-<span class="w">         </span><span class="mi">3</span>
-<span class="w">         </span><span class="mi">3</span>
-<span class="w">         </span><span class="mi">4</span>
-<span class="w">         </span><span class="mi">4</span>
-
-<span class="mi">4</span><span class="w"> </span><span class="nv">rows</span><span class="w"> </span><span class="nv">selected</span>.
-</pre></div>
     </div>
     </article>
 </div>

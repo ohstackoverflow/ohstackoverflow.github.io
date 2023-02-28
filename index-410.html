@@ -108,7 +108,74 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/randomize-a-list-t/" class="u-url">Randomize a List&lt;T&gt;</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/stringbuilder-vs-string-concatenation-in-tostring-in-java/" class="u-url">StringBuilder vs String concatenation in toString() in Java</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/stringbuilder-vs-string-concatenation-in-tostring-in-java/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T06:08:42+08:00" itemprop="datePublished" title="2023-02-17 06:08">2023-02-17 06:08</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Given the 2 <code>toString()</code> implementations below, which one is preferred:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">public</span><span class="w"> </span><span class="nt">String</span><span class="w"> </span><span class="nt">toString</span><span class="o">()</span><span class="p">{</span>
+<span class="w">    </span><span class="err">return</span><span class="w"> </span><span class="err">"{</span><span class="n">a</span><span class="p">:</span><span class="s2">"+ a + "</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="o">:</span><span class="s2">" + b + "</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="o">:</span><span class="w"> </span><span class="s2">" + c +"</span><span class="p">}</span><span class="err">"</span><span class="o">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>or</p>
+<div class="code"><pre class="code literal-block"><span class="nt">public</span><span class="w"> </span><span class="nt">String</span><span class="w"> </span><span class="nt">toString</span><span class="o">()</span><span class="p">{</span>
+<span class="w">    </span><span class="err">StringBuilder</span><span class="w"> </span><span class="err">sb</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">new</span><span class="w"> </span><span class="err">StringBuilder(100)</span><span class="p">;</span>
+<span class="w">    </span><span class="err">return</span><span class="w"> </span><span class="err">sb.append("{</span><span class="n">a</span><span class="p">:</span><span class="s2">").append(a)</span>
+<span class="s2">          .append("</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="o">:</span><span class="s2">").append(b)</span>
+<span class="s2">          .append("</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="o">:</span><span class="s2">").append(c)</span>
+<span class="s2">          .append("</span><span class="p">}</span><span class="err">"</span><span class="o">)</span>
+<span class="w">          </span><span class="p">.</span><span class="nc">toString</span><span class="o">();</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>?</p>
+<p>More importantly, given we have only 3 properties it might not make a
+difference, but at what point would you switch from <code>+</code> concat to
+<code>StringBuilder</code>?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Version 1 is preferable because it is shorter and the compiler will in fact
+turn it into version 2 - no performance difference whatsoever.</p>
+<blockquote>
+<p>More importantly given we have only 3 properties it might not make a
+difference, but at what point do you switch from concat to builder?</p>
+</blockquote>
+<p>At the point where you're concatenating in a loop - that's usually when the
+compiler can't substitute <code>StringBuilder</code> by itself.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>The key is whether you are writing a single concatenation all in one place or
+accumulating it over time.</p>
+<p>For the example you gave, there's no point in explicitly using StringBuilder.
+(Look at the compiled code for your first case.)</p>
+<p>But if you are building a string e.g. inside a loop, use StringBuilder.</p>
+<p>To clarify, assuming that hugeArray contains thousands of strings, code like
+this:</p>
+<div class="code"><pre class="code literal-block">...
+<span class="nv">String</span><span class="w"> </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">""</span><span class="c1">;</span>
+<span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">String</span><span class="w"> </span><span class="nv">s</span><span class="w"> </span>:<span class="w"> </span><span class="nv">hugeArray</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">result</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">s</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>is very time- and memory-wasteful compared with:</p>
+<div class="code"><pre class="code literal-block">...
+<span class="nv">StringBuilder</span><span class="w"> </span><span class="nv">sb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">StringBuilder</span><span class="ss">()</span><span class="c1">;</span>
+<span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">String</span><span class="w"> </span><span class="nv">s</span><span class="w"> </span>:<span class="w"> </span><span class="nv">hugeArray</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">sb</span>.<span class="nv">append</span><span class="ss">(</span><span class="nv">s</span><span class="ss">)</span><span class="c1">;</span>
+}
+<span class="nv">String</span><span class="w"> </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">sb</span>.<span class="nv">toString</span><span class="ss">()</span><span class="c1">;</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/randomize-a-list-t/" class="u-url">Randomize a List&lt;T&gt;</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -510,119 +577,6 @@ label<span class="w"> </span>{
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/update-git-submodule-to-latest-commit-on-origin/" class="u-url">Update Git submodule to latest commit on origin</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/update-git-submodule-to-latest-commit-on-origin/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T06:07:12+08:00" itemprop="datePublished" title="2023-02-17 06:07">2023-02-17 06:07</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a project with a Git submodule. It is from an ssh://... URL, and is on
-commit A. Commit B has been pushed to that URL, and I want the submodule to
-retrieve the commit, and change to it.</p>
-<p>Now, my understanding is that <code>git submodule update</code> should do this, but it
-doesn't. It doesn't do anything (no output, success exit code). Here's an
-example:</p>
-<div class="code"><pre class="code literal-block">$<span class="w"> </span>mkdir<span class="w"> </span>foo
-$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>foo
-$<span class="w"> </span>git<span class="w"> </span>init<span class="w"> </span>.
-Initialized<span class="w"> </span>empty<span class="w"> </span>Git<span class="w"> </span>repository<span class="w"> </span><span class="k">in</span><span class="w"> </span>/.../foo/.git/
-$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>add<span class="w"> </span>ssh://user@host/git/mod<span class="w"> </span>mod
-Cloning<span class="w"> </span>into<span class="w"> </span>mod...
-user@host<span class="s1">'s password: hunter2</span>
-<span class="s1">remote: Counting objects: 131, done.</span>
-<span class="s1">remote: Compressing objects: 100% (115/115), done.</span>
-<span class="s1">remote: Total 131 (delta 54), reused 0 (delta 0)</span>
-<span class="s1">Receiving objects: 100% (131/131), 16.16 KiB, done.</span>
-<span class="s1">Resolving deltas: 100% (54/54), done.</span>
-<span class="s1">$ git commit -m "Hello world."</span>
-<span class="s1">[master (root-commit) 565b235] Hello world.</span>
-<span class="s1"> 2 files changed, 4 insertions(+), 0 deletions(-)</span>
-<span class="s1"> create mode 100644 .gitmodules</span>
-<span class="s1"> create mode 160000 mod</span>
-<span class="s1"># At this point, ssh://user@host/git/mod changes; submodule needs to change too.</span>
-<span class="s1">$ git submodule init</span>
-<span class="s1">Submodule '</span>mod<span class="s1">' (ssh://user@host/git/mod) registered for path '</span>mod<span class="s1">'</span>
-<span class="s1">$ git submodule update</span>
-<span class="s1">$ git submodule sync</span>
-<span class="s1">Synchronizing submodule url for '</span>mod<span class="err">'</span>
-$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update
-$<span class="w"> </span>man<span class="w"> </span>git-submodule<span class="w"> </span>
-$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--rebase
-$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update
-$<span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="nv">$?</span>
-<span class="m">0</span>
-$<span class="w"> </span>git<span class="w"> </span>status
-<span class="c1"># On branch master</span>
-nothing<span class="w"> </span>to<span class="w"> </span>commit<span class="w"> </span><span class="o">(</span>working<span class="w"> </span>directory<span class="w"> </span>clean<span class="o">)</span>
-$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>mod
-$<span class="w"> </span>...
-</pre></div>
-
-<p>I've also tried <code>git fetch mod</code>, which appears to do a fetch (but can't
-possibly, because it's not prompting for a password!), but <code>git log</code> and <code>git
-show</code> deny the existence of new commits. Thus far I've just been <code>rm</code>-ing the
-module and re-adding it, but this is both wrong in principle and tedious in
-practice.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The <code>git submodule update</code> command actually tells Git that you want your
-submodules to each check out the commit already specified in the index of the
-superproject. If you want to <em>update</em> your submodules to the latest commit
-available from their remote, you will need to do this directly in the
-submodules.</p>
-<p>So in summary:</p>
-<div class="code"><pre class="code literal-block"># Get the submodule initially
-git submodule add ssh://bla submodule_dir
-git submodule init
-
-# Time passes, submodule upstream is updated
-# and you now want to update
-
-# Change to the submodule directory
-cd submodule_dir
-
-# Checkout desired branch
-git checkout master
-
-# Update
-git pull
-
-# Get back to your project root
-cd ..
-
-# Now the submodules are in the state you want, so
-git commit -am "Pulled down update to submodule_dir"
-</pre></div>
-
-<p>Or, if you're a busy person:</p>
-<div class="code"><pre class="code literal-block">git submodule foreach git pull origin master
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Git 1.8.2 features a new option, <code>--remote</code>, that will enable exactly this
-behavior. Running</p>
-<div class="code"><pre class="code literal-block">git submodule update --remote --merge
-</pre></div>
-
-<p>will fetch the latest changes from upstream in each submodule, merge them in,
-and check out the latest revision of the submodule. As the documentation puts
-it:</p>
-<blockquote>
-<h4>--remote</h4>
-<p>This option is only valid for the update command. Instead of using the
-superproject’s recorded SHA-1 to update the submodule, use the status of the
-submodule’s remote-tracking branch.</p>
-</blockquote>
-<p>This is equivalent to running <code>git pull &lt;remote&gt; &lt;default_branch&gt;</code> (usually
-<code>git pull origin master</code> or <code>git pull origin main</code>) in each submodule, which
-is generally exactly what you want.</p>
     </div>
     </article>
 </div>

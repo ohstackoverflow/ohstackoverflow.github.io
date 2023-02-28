@@ -108,7 +108,102 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/where-to-place-the-assets-folder-in-android-studio/" class="u-url">Where to place the 'assets' folder in Android Studio?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-rename-a-database-column-in-a-ruby-on-rails-migration/" class="u-url">How can I rename a database column in a Ruby on Rails migration?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-can-i-rename-a-database-column-in-a-ruby-on-rails-migration/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:36:27+08:00" itemprop="datePublished" title="2023-02-17 01:36">2023-02-17 01:36</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I wrongly named a column <code>hased_password</code> instead of <code>hashed_password</code>.</p>
+<p>How do I update the database schema, using migration to rename this column?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<div class="code"><pre class="code literal-block"><span class="n">rename_column</span><span class="w"> </span><span class="o">:</span><span class="n">table</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">old_column</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">new_column</span>
+</pre></div>
+
+<p>You'll probably want to create a separate migration to do this. (Rename
+<code>FixColumnName</code> as you will.):</p>
+<div class="code"><pre class="code literal-block">bin/rails generate migration FixColumnName
+# creates  db/migrate/xxxxxxxxxx_fix_column_name.rb
+</pre></div>
+
+<p>Then edit the migration to do your will:</p>
+<div class="code"><pre class="code literal-block"><span class="c1"># db/migrate/xxxxxxxxxx_fix_column_name.rb</span>
+<span class="k">class</span> <span class="n">FixColumnName</span> &lt; <span class="n">ActiveRecord::Migration</span>
+  <span class="n">def</span> <span class="nb">self</span>.<span class="n">up</span>
+    <span class="n">rename_column</span> :<span class="n">table_name</span>, :<span class="n">old_column</span>, :<span class="n">new_column</span>
+  <span class="nb">end</span>
+
+  <span class="n">def</span> <span class="nb">self</span>.<span class="n">down</span>
+    <span class="c1"># rename back if you need or do something else or do nothing</span>
+  <span class="nb">end</span>
+<span class="nb">end</span>
+</pre></div>
+
+<hr>
+<p>For Rails 3.1 use:</p>
+<p>While, the <code>up</code> and <code>down</code> methods still apply, Rails 3.1 receives a <code>change</code>
+method that "knows how to migrate your database and reverse it when the
+migration is rolled back without the need to write a separate down method".</p>
+<p>See "Active Record Migrations" for more information.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">rails</span><span class="w"> </span><span class="nv">g</span><span class="w"> </span><span class="nv">migration</span><span class="w"> </span><span class="nv">FixColumnName</span>
+
+<span class="nv">class</span><span class="w"> </span><span class="nv">FixColumnName</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nv">ActiveRecord</span>::<span class="nv">Migration</span>
+<span class="w">  </span><span class="nv">def</span><span class="w"> </span><span class="nv">change</span>
+<span class="w">    </span><span class="nv">rename_column</span><span class="w"> </span>:<span class="nv">table_name</span>,<span class="w"> </span>:<span class="nv">old_column</span>,<span class="w"> </span>:<span class="nv">new_column</span>
+<span class="w">  </span><span class="k">end</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>If you happen to have a whole bunch of columns to rename, or something that
+would have required repeating the table name over and over again:</p>
+<div class="code"><pre class="code literal-block"><span class="n">rename_column</span><span class="w"> </span><span class="o">:</span><span class="n">table_name</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">old_column1</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">new_column1</span>
+<span class="n">rename_column</span><span class="w"> </span><span class="o">:</span><span class="n">table_name</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">old_column2</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">new_column2</span>
+<span class="o">...</span>
+</pre></div>
+
+<p>You could use <code>change_table</code> to keep things a little neater:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">FixColumnNames</span> &lt; <span class="n">ActiveRecord::Migration</span>
+  <span class="n">def</span> <span class="n">change</span>
+    <span class="n">change_table</span> :<span class="n">table_name</span> <span class="nb">do</span> |<span class="nb">t</span>|
+      <span class="nb">t</span>.<span class="nb">rename</span> :<span class="n">old_column1</span>, :<span class="n">new_column1</span>
+      <span class="nb">t</span>.<span class="nb">rename</span> :<span class="n">old_column2</span>, :<span class="n">new_column2</span>
+      ...
+    <span class="nb">end</span>
+  <span class="nb">end</span>
+<span class="nb">end</span>
+</pre></div>
+
+<p>Then just <code>db:migrate</code> as usual or however you go about your business.</p>
+<hr>
+<p>For Rails 4:</p>
+<p>While creating a <code>Migration</code> for renaming a column, Rails 4 generates a
+<code>change</code> method instead of <code>up</code> and <code>down</code> as mentioned in the above section.
+The generated <code>change</code> method is:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>&gt;<span class="w"> </span>rails<span class="w"> </span>g<span class="w"> </span>migration<span class="w"> </span>ChangeColumnName
+</pre></div>
+
+<p>which will create a migration file similar to:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">ChangeColumnName</span> &lt; <span class="n">ActiveRecord::Migration</span>
+  <span class="n">def</span> <span class="n">change</span>
+    <span class="n">rename_column</span> :<span class="n">table_name</span>, :<span class="n">old_column</span>, :<span class="n">new_column</span>
+  <span class="nb">end</span>
+<span class="nb">end</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>In my opinion, in this case, it's better to use <code>rake db:rollback</code>, then edit
+your migration and again run <code>rake db:migrate</code>.</p>
+<p>However, if you have data in the column you don't want to lose, then use
+<code>rename_column</code>.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/where-to-place-the-assets-folder-in-android-studio/" class="u-url">Where to place the 'assets' folder in Android Studio?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -325,171 +420,6 @@ for example:</p>
 
 <span class="n">cleanArray</span><span class="p">(</span><span class="o">[</span><span class="n">1, 2,, 3,, 3,,,,,, 4,, 4,, 5,, 6,,,,</span><span class="o">]</span><span class="p">);</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/does-javascript-have-a-method-like-range-to-generate-a-range-within-the-supplied-bounds/" class="u-url">Does JavaScript have a method like "range()" to generate a range within the supplied bounds?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/does-javascript-have-a-method-like-range-to-generate-a-range-within-the-supplied-bounds/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T01:33:48+08:00" itemprop="datePublished" title="2023-02-17 01:33">2023-02-17 01:33</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>In PHP, you can do...</p>
-<div class="code"><pre class="code literal-block">range(1, 3); // Array(1, 2, 3)
-range("A", "C"); // Array("A", "B", "C")
-</pre></div>
-
-<p>That is, there is a function that lets you get a range of numbers or
-characters by passing the upper and lower bounds.</p>
-<p>Is there anything built-in to JavaScript natively for this? If not, how would
-I implement it?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>It works for characters and numbers, going forwards or backwards with an
-optional step.</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="nb">range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">end</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nb">range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">typeofStart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">typeof</span><span class="w"> </span><span class="n">start</span><span class="p">;</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">typeofEnd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">typeof</span><span class="w"> </span><span class="n">end</span><span class="p">;</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Step cannot be zero."</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">typeofStart</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"undefined"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">typeofEnd</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"undefined"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Must pass start and end arguments."</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">typeofStart</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">typeofEnd</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Start and end arguments must be of same type."</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="nb">typeof</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"undefined"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">end</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">start</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="n">step</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">typeofStart</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"number"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-
-<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">start</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="nb">range</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">start</span><span class="p">);</span>
-<span class="w">            </span><span class="n">start</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">step</span><span class="p">;</span>
-<span class="w">        </span><span class="p">}</span>
-
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">typeofStart</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"string"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">start</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">end</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Only strings with one character are supported."</span><span class="p">);</span>
-<span class="w">        </span><span class="p">}</span>
-
-<span class="w">        </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start</span><span class="o">.</span><span class="n">charCodeAt</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
-<span class="w">        </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end</span><span class="o">.</span><span class="n">charCodeAt</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
-
-<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">start</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="nb">range</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="nb nb-Type">String</span><span class="o">.</span><span class="n">fromCharCode</span><span class="p">(</span><span class="n">start</span><span class="p">));</span>
-<span class="w">            </span><span class="n">start</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">step</span><span class="p">;</span>
-<span class="w">        </span><span class="p">}</span>
-
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Only string and number types are supported"</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">range</span><span class="p">;</span>
-
-<span class="p">}</span>
-</pre></div>
-
-<p>jsFiddle.</p>
-<p>If augmenting native types is your thing, then assign it to <code>Array.range</code>.</p>
-<p>Show code snippet</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="nb">range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">end</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="nb">range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">typeofStart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">typeof</span><span class="w"> </span><span class="n">start</span><span class="p">;</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">typeofEnd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">typeof</span><span class="w"> </span><span class="n">end</span><span class="p">;</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Step cannot be zero."</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">typeofStart</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"undefined"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">typeofEnd</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"undefined"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Must pass start and end arguments."</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">typeofStart</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">typeofEnd</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Start and end arguments must be of same type."</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="nb">typeof</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"undefined"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">end</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">start</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="n">step</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">typeofStart</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"number"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-
-<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">start</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="nb">range</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">start</span><span class="p">);</span>
-<span class="w">            </span><span class="n">start</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">step</span><span class="p">;</span>
-<span class="w">        </span><span class="p">}</span>
-
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">typeofStart</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"string"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">start</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">end</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Only strings with one character are supported."</span><span class="p">);</span>
-<span class="w">        </span><span class="p">}</span>
-
-<span class="w">        </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start</span><span class="o">.</span><span class="n">charCodeAt</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
-<span class="w">        </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end</span><span class="o">.</span><span class="n">charCodeAt</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
-
-<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">start</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="nb">range</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="nb nb-Type">String</span><span class="o">.</span><span class="n">fromCharCode</span><span class="p">(</span><span class="n">start</span><span class="p">));</span>
-<span class="w">            </span><span class="n">start</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">step</span><span class="p">;</span>
-<span class="w">        </span><span class="p">}</span>
-
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">TypeError</span><span class="p">(</span><span class="s2">"Only string and number types are supported"</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">range</span><span class="p">;</span>
-
-<span class="p">}</span>
-
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="s2">"A"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Z"</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="s2">"Z"</span><span class="p">,</span><span class="w"> </span><span class="s2">"A"</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="s2">"A"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Z"</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">));</span>
-
-
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">25</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
-
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">25</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">));</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">));</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>For numbers you can use ES6 <code>Array.from()</code>, which works in everything these
-days except IE:</p>
-<p>Shorter version:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">Array</span><span class="p">.</span><span class="nc">from</span><span class="o">(</span><span class="p">{</span><span class="n">length</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">}</span><span class="o">,</span><span class="w"> </span><span class="o">(</span><span class="nt">x</span><span class="o">,</span><span class="w"> </span><span class="nt">i</span><span class="o">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nt">i</span><span class="o">);</span>
-</pre></div>
-
-<p>Longer version:</p>
-<div class="code"><pre class="code literal-block">Array.from(new Array(20), (x, i) =&gt; i);​​​​​​
-</pre></div>
-
-<p>which creates an array from 0 to 19 inclusive. This can be further shortened
-to one of these forms:</p>
-<div class="code"><pre class="code literal-block">Array.from(Array(20).keys());
-// or
-[...Array(20).keys()];
-</pre></div>
-
-<p>Lower and upper bounds can be specified too, for example:</p>
-<div class="code"><pre class="code literal-block">Array.from(new Array(20), (x, i) =&gt; i + *lowerBound*);
-</pre></div>
-
-<p>An article describing this in more detail:
-http://www.2ality.com/2014/05/es6-array-methods.html</p>
     </div>
     </article>
 </div>

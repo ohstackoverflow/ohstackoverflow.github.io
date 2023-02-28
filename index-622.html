@@ -108,7 +108,152 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/finding-what-branch-a-git-commit-came-from/" class="u-url">Finding what branch a Git commit came from</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-print-a-circular-structure-in-a-json-like-format/" class="u-url">How can I print a circular structure in a JSON-like format?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-can-i-print-a-circular-structure-in-a-json-like-format/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T11:36:18+08:00" itemprop="datePublished" title="2023-02-17 11:36">2023-02-17 11:36</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a big object I want to convert to JSON and send. However it has
+circular structure, so if I try to use <code>JSON.stringify()</code> I'll get:</p>
+<blockquote>
+<p>TypeError: Converting circular structure to JSON</p>
+</blockquote>
+<p>or</p>
+<blockquote>
+<p>TypeError: cyclic object value</p>
+</blockquote>
+<p>I want to toss whatever circular references exist and send whatever can be
+stringified. How do I do that?</p>
+<p>Thanks.</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">a</span><span class="p">:</span><span class="w"> </span><span class="s2">"foo"</span><span class="p">,</span>
+<span class="w">  </span><span class="n">b</span><span class="p">:</span><span class="w"> </span><span class="n">obj</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>I want to stringify obj into:</p>
+<div class="code"><pre class="code literal-block">{"a":"foo"}
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Use <code>JSON.stringify</code> with a custom replacer. For example:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Demo</span><span class="p">:</span><span class="w"> </span><span class="n">Circular</span><span class="w"> </span><span class="n">reference</span>
+<span class="k">var</span><span class="w"> </span><span class="n">circ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{};</span>
+<span class="n">circ</span><span class="o">.</span><span class="n">circ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">circ</span><span class="p">;</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Note</span><span class="p">:</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="n">should</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">used</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">repeated</span><span class="w"> </span><span class="n">calls</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">JSON</span><span class="o">.</span><span class="n">stringify</span><span class="o">.</span>
+<span class="k">var</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
+<span class="n">JSON</span><span class="o">.</span><span class="n">stringify</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nb">typeof</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">'object'</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Duplicate</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="n">found</span><span class="p">,</span><span class="w"> </span><span class="n">discard</span><span class="w"> </span><span class="n">key</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="n">includes</span><span class="p">(</span><span class="n">value</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Store</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">our</span><span class="w"> </span><span class="n">collection</span>
+<span class="w">    </span><span class="n">cache</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
+<span class="p">});</span>
+<span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Enable</span><span class="w"> </span><span class="n">garbage</span><span class="w"> </span><span class="n">collection</span>
+</pre></div>
+
+<p>The replacer in this example is not 100% correct (depending on your definition
+of "duplicate"). In the following case, a value is discarded:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">b</span><span class="p">:</span><span class="mi">1</span><span class="p">}</span>
+<span class="k">var</span><span class="w"> </span><span class="n">o</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{};</span>
+<span class="n">o</span><span class="o">.</span><span class="n">one</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">;</span>
+<span class="n">o</span><span class="o">.</span><span class="n">two</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">;</span>
+<span class="o">//</span><span class="w"> </span><span class="n">one</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">two</span><span class="w"> </span><span class="n">point</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="n">object</span><span class="p">,</span><span class="w"> </span><span class="n">but</span><span class="w"> </span><span class="n">two</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">discarded</span><span class="p">:</span>
+<span class="n">JSON</span><span class="o">.</span><span class="n">stringify</span><span class="p">(</span><span class="n">o</span><span class="p">,</span><span class="w"> </span><span class="o">...</span><span class="p">);</span>
+</pre></div>
+
+<p>But the concept stands: Use a custom replacer, and keep track of the parsed
+object values.</p>
+<p>As a utility function written in es6:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">safely</span><span class="w"> </span><span class="n">handles</span><span class="w"> </span><span class="n">circular</span><span class="w"> </span><span class="n">references</span>
+<span class="n">JSON</span><span class="o">.</span><span class="n">safeStringify</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">obj</span><span class="p">,</span><span class="w"> </span><span class="n">indent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">let</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">retVal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">JSON</span><span class="o">.</span><span class="n">stringify</span><span class="p">(</span>
+<span class="w">    </span><span class="n">obj</span><span class="p">,</span>
+<span class="w">    </span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
+<span class="w">      </span><span class="nb">typeof</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"object"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nb nb-Type">null</span>
+<span class="w">        </span><span class="err">?</span><span class="w"> </span><span class="n">cache</span><span class="o">.</span><span class="n">includes</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+<span class="w">          </span><span class="err">?</span><span class="w"> </span><span class="n">undefined</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Duplicate</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="n">found</span><span class="p">,</span><span class="w"> </span><span class="n">discard</span><span class="w"> </span><span class="n">key</span>
+<span class="w">          </span><span class="p">:</span><span class="w"> </span><span class="n">cache</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Store</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">our</span><span class="w"> </span><span class="n">collection</span>
+<span class="w">        </span><span class="p">:</span><span class="w"> </span><span class="n">value</span><span class="p">,</span>
+<span class="w">    </span><span class="n">indent</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="w">  </span><span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">retVal</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Example</span><span class="p">:</span>
+<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'options'</span><span class="p">,</span><span class="w"> </span><span class="n">JSON</span><span class="o">.</span><span class="n">safeStringify</span><span class="p">(</span><span class="n">options</span><span class="p">))</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Use <code>JSON.stringify</code> with a custom replacer. For example:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Demo</span><span class="p">:</span><span class="w"> </span><span class="n">Circular</span><span class="w"> </span><span class="n">reference</span>
+<span class="k">var</span><span class="w"> </span><span class="n">circ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{};</span>
+<span class="n">circ</span><span class="o">.</span><span class="n">circ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">circ</span><span class="p">;</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Note</span><span class="p">:</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="n">should</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">used</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">repeated</span><span class="w"> </span><span class="n">calls</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">JSON</span><span class="o">.</span><span class="n">stringify</span><span class="o">.</span>
+<span class="k">var</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
+<span class="n">JSON</span><span class="o">.</span><span class="n">stringify</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nb">typeof</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">'object'</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Duplicate</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="n">found</span><span class="p">,</span><span class="w"> </span><span class="n">discard</span><span class="w"> </span><span class="n">key</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="n">includes</span><span class="p">(</span><span class="n">value</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Store</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">our</span><span class="w"> </span><span class="n">collection</span>
+<span class="w">    </span><span class="n">cache</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
+<span class="p">});</span>
+<span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Enable</span><span class="w"> </span><span class="n">garbage</span><span class="w"> </span><span class="n">collection</span>
+</pre></div>
+
+<p>The replacer in this example is not 100% correct (depending on your definition
+of "duplicate"). In the following case, a value is discarded:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">b</span><span class="p">:</span><span class="mi">1</span><span class="p">}</span>
+<span class="k">var</span><span class="w"> </span><span class="n">o</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{};</span>
+<span class="n">o</span><span class="o">.</span><span class="n">one</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">;</span>
+<span class="n">o</span><span class="o">.</span><span class="n">two</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">;</span>
+<span class="o">//</span><span class="w"> </span><span class="n">one</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">two</span><span class="w"> </span><span class="n">point</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="n">object</span><span class="p">,</span><span class="w"> </span><span class="n">but</span><span class="w"> </span><span class="n">two</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">discarded</span><span class="p">:</span>
+<span class="n">JSON</span><span class="o">.</span><span class="n">stringify</span><span class="p">(</span><span class="n">o</span><span class="p">,</span><span class="w"> </span><span class="o">...</span><span class="p">);</span>
+</pre></div>
+
+<p>But the concept stands: Use a custom replacer, and keep track of the parsed
+object values.</p>
+<p>As a utility function written in es6:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">safely</span><span class="w"> </span><span class="n">handles</span><span class="w"> </span><span class="n">circular</span><span class="w"> </span><span class="n">references</span>
+<span class="n">JSON</span><span class="o">.</span><span class="n">safeStringify</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">obj</span><span class="p">,</span><span class="w"> </span><span class="n">indent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">let</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">retVal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">JSON</span><span class="o">.</span><span class="n">stringify</span><span class="p">(</span>
+<span class="w">    </span><span class="n">obj</span><span class="p">,</span>
+<span class="w">    </span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
+<span class="w">      </span><span class="nb">typeof</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"object"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nb nb-Type">null</span>
+<span class="w">        </span><span class="err">?</span><span class="w"> </span><span class="n">cache</span><span class="o">.</span><span class="n">includes</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+<span class="w">          </span><span class="err">?</span><span class="w"> </span><span class="n">undefined</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Duplicate</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="n">found</span><span class="p">,</span><span class="w"> </span><span class="n">discard</span><span class="w"> </span><span class="n">key</span>
+<span class="w">          </span><span class="p">:</span><span class="w"> </span><span class="n">cache</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Store</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">our</span><span class="w"> </span><span class="n">collection</span>
+<span class="w">        </span><span class="p">:</span><span class="w"> </span><span class="n">value</span><span class="p">,</span>
+<span class="w">    </span><span class="n">indent</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="w">  </span><span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">retVal</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Example</span><span class="p">:</span>
+<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">'options'</span><span class="p">,</span><span class="w"> </span><span class="n">JSON</span><span class="o">.</span><span class="n">safeStringify</span><span class="p">(</span><span class="n">options</span><span class="p">))</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/finding-what-branch-a-git-commit-came-from/" class="u-url">Finding what branch a Git commit came from</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -232,39 +377,6 @@ string assemblyVersion = Assembly.LoadFile("your assembly file").GetName().Versi
 string fileVersion = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion; 
 string productVersion = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).ProductVersion;
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-access-the-contents-of-an-iframe-with-javascript-jquery/" class="u-url">How can I access the contents of an iframe with JavaScript/jQuery?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-can-i-access-the-contents-of-an-iframe-with-javascript-jquery/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T11:34:47+08:00" itemprop="datePublished" title="2023-02-17 11:34">2023-02-17 11:34</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I would like to manipulate the HTML inside an iframe using jQuery.</p>
-<p>I thought I'd be able to do this by setting the context of the jQuery function
-to be the document of the iframe, something like:</p>
-<div class="code"><pre class="code literal-block">$(function(){ //document ready
-    $('some selector', frames['nameOfMyIframe'].document).doStuff()
-});
-</pre></div>
-
-<p>However this doesn't seem to work. A bit of inspection shows me that the
-variables in <code>frames['nameOfMyIframe']</code> are <code>undefined</code> unless I wait a while
-for the iframe to load. However, when the iframe loads the variables are not
-accessible (I get <code>permission denied</code>-type errors).</p>
-<p>Does anyone know of a work-around to this?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I think what you are doing is subject to the same origin policy. This should
-be the reason why you are getting <em>permission denied type</em> errors.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I think what you are doing is subject to the same origin policy. This should
-be the reason why you are getting <em>permission denied type</em> errors.</p>
     </div>
     </article>
 </div>

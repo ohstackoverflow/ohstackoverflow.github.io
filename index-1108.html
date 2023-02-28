@@ -108,7 +108,107 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-there-a-short-contains-function-for-lists/" class="u-url">Is there a short contains function for lists?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-do-the-makefile-symbols-and-mean/" class="u-url">What do the makefile symbols $@ and $&lt; mean?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-do-the-makefile-symbols-and-mean/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T01:26:41+08:00" itemprop="datePublished" title="2023-02-18 01:26">2023-02-18 01:26</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <div class="code"><pre class="code literal-block"><span class="nf">CC</span><span class="err">=</span><span class="no">g</span><span class="err">++</span>
+<span class="nf">CFLAGS</span><span class="err">=</span><span class="p">-</span><span class="no">c</span><span class="w"> </span><span class="p">-</span><span class="no">Wall</span>
+<span class="nf">LDFLAGS</span><span class="err">=</span>
+<span class="nf">SOURCES</span><span class="err">=</span><span class="no">main.cpp</span><span class="w"> </span><span class="no">hello.cpp</span><span class="w"> </span><span class="no">factorial.cpp</span>
+<span class="nf">OBJECTS</span><span class="err">=</span><span class="no">$</span><span class="p">(</span><span class="no">SOURCES</span><span class="p">:.</span><span class="no">cpp</span><span class="err">=</span><span class="no">.o</span><span class="p">)</span>
+<span class="nf">EXECUTABLE</span><span class="err">=</span><span class="no">hello</span>
+
+<span class="nl">all:</span><span class="w"> </span><span class="nf">$</span><span class="p">(</span><span class="no">SOURCES</span><span class="p">)</span><span class="w"> </span><span class="no">$</span><span class="p">(</span><span class="no">EXECUTABLE</span><span class="p">)</span>
+
+<span class="nf">$</span><span class="p">(</span><span class="no">EXECUTABLE</span><span class="p">):</span><span class="w"> </span><span class="no">$</span><span class="p">(</span><span class="no">OBJECTS</span><span class="p">)</span>
+<span class="w">    </span><span class="nf">$</span><span class="p">(</span><span class="no">CC</span><span class="p">)</span><span class="w"> </span><span class="no">$</span><span class="p">(</span><span class="no">LDFLAGS</span><span class="p">)</span><span class="w"> </span><span class="no">$</span><span class="p">(</span><span class="no">OBJECTS</span><span class="p">)</span><span class="w"> </span><span class="p">-</span><span class="no">o</span><span class="w"> </span><span class="no">$@</span>
+
+<span class="nl">.cpp.o:</span>
+<span class="w">    </span><span class="nf">$</span><span class="p">(</span><span class="no">CC</span><span class="p">)</span><span class="w"> </span><span class="no">$</span><span class="p">(</span><span class="no">CFLAGS</span><span class="p">)</span><span class="w"> </span><span class="no">$</span><span class="err">&lt;</span><span class="w"> </span><span class="p">-</span><span class="no">o</span><span class="w"> </span><span class="no">$@</span>
+</pre></div>
+
+<p>What do the <code>$@</code> and <code>$&lt;</code> do exactly?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><code>$@</code> is the name of the target being generated, and <code>$&lt;</code> the first
+prerequisite (usually a source file). You can find a list of all these special
+variables in the GNU Make manual.</p>
+<p>For example, consider the following declaration:</p>
+<div class="code"><pre class="code literal-block"><span class="n">all</span><span class="o">:</span><span class="w"> </span><span class="n">library</span><span class="o">.</span><span class="na">cpp</span><span class="w"> </span><span class="n">main</span><span class="o">.</span><span class="na">cpp</span>
+</pre></div>
+
+<p>In this case:</p>
+<ul>
+<li>
+<code>$@</code> evaluates to <code>all</code>
+</li>
+<li>
+<code>$&lt;</code> evaluates to <code>library.cpp</code>
+</li>
+<li>
+<code>$^</code> evaluates to <code>library.cpp main.cpp</code>
+</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>From Managing Projects with GNU Make, 3rd Edition, p. 16 (it's under <em>GNU Free
+Documentation License</em> ):</p>
+<blockquote>
+<p><em>Automatic variables</em> are set by <code>make</code> after a rule is matched. They
+provide access to elements from the target and prerequisite lists so you
+don’t have to explicitly specify any filenames. They are very useful for
+avoiding code duplication, but are critical when defining more general
+pattern rules.</p>
+<p>There are seven “core” automatic variables:</p>
+<ul>
+<li>
+<p><code>$@</code>: The filename representing the target.</p>
+</li>
+<li>
+<p><code>$%</code>: The filename element of an archive member specification.</p>
+</li>
+<li>
+<p><code>$&lt;</code>: The filename of the first prerequisite.</p>
+</li>
+<li>
+<p><code>$?</code>: The names of all prerequisites that are newer than the target,
+separated by spaces.</p>
+</li>
+<li>
+<p><code>$^</code>: The filenames of all the prerequisites, separated by spaces. This
+list has duplicate filenames removed since for most uses, such as compiling,
+copying, etc., duplicates are not wanted.</p>
+</li>
+<li>
+<p><code>$+</code>: Similar to <code>$^</code>, this is the names of all the prerequisites
+separated by spaces, except that <code>$+</code> includes duplicates. This variable was
+created for specific situations such as arguments to linkers where duplicate
+values have meaning.</p>
+</li>
+<li>
+<p><code>$*</code>: The stem of the target filename. A stem is typically a filename
+without its suffix. Its use outside of pattern rules is discouraged.</p>
+</li>
+</ul>
+<p>In addition, each of the above variables has two variants for compatibility
+with other makes. One variant returns only the directory portion of the
+value. This is indicated by appending a “D” to the symbol, <code>$(@D)</code>, <code>$(&lt;D)</code>,
+etc. The other variant returns only the file portion of the value. This is
+indicated by appending an “F” to the symbol, <code>$(@F)</code>, <code>$(&lt;F)</code>, etc. Note
+that these variant names are more than one character long and so must be
+enclosed in parentheses. GNU make provides a more readable alternative with
+the dir and notdir functions.</p>
+</blockquote>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-there-a-short-contains-function-for-lists/" class="u-url">Is there a short contains function for lists?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -214,122 +314,6 @@ this<span class="w"> </span>is<span class="w"> </span>a<span class="w"> </span>t
 <p>Easier in my opinion, because you don't have to insert stuff within the
 string; just wrap it once and it keeps all your line-breaks.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-read-a-large-file-line-by-line/" class="u-url">How to read a large file - line by line?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-read-a-large-file-line-by-line/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T01:25:28+08:00" itemprop="datePublished" title="2023-02-18 01:25">2023-02-18 01:25</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I want to iterate over each line of an entire file. One way to do this is by
-reading the entire file, saving it to a list, then going over the line of
-interest. This method uses a lot of memory, so I am looking for an
-alternative.</p>
-<p>My code so far:</p>
-<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="nv">each_line</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">fileinput</span>.<span class="nv">input</span><span class="ss">(</span><span class="nv">input_file</span><span class="ss">)</span>:
-<span class="w">    </span><span class="nv">do_something</span><span class="ss">(</span><span class="nv">each_line</span><span class="ss">)</span>
-
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nv">each_line_again</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">fileinput</span>.<span class="nv">input</span><span class="ss">(</span><span class="nv">input_file</span><span class="ss">)</span>:
-<span class="w">        </span><span class="nv">do_something</span><span class="ss">(</span><span class="nv">each_line_again</span><span class="ss">)</span>
-</pre></div>
-
-<p>Executing this code gives an error message: <code>device active</code>.</p>
-<p>Any suggestions?</p>
-<p>The purpose is to calculate pair-wise string similarity, meaning for each line
-in file, I want to calculate the Levenshtein distance with every other line.</p>
-<p>Nov. 2022 Edit: A related question that was asked 8 months after this question
-has many useful answers and comments. To get a deeper understanding of python
-logic, do also read this related question How should I read a file line-by-
-line in Python?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The correct, fully Pythonic way to read a file is the following:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">with</span><span class="w"> </span><span class="nv">open</span><span class="ss">(</span>...<span class="ss">)</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">f</span>:
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nv">line</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">f</span>:
-<span class="w">        </span>#<span class="w"> </span><span class="k">Do</span><span class="w"> </span><span class="nv">something</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="s1">'line'</span>
-</pre></div>
-
-<p>The <code>with</code> statement handles opening and closing the file, including if an
-exception is raised in the inner block. The <code>for line in f</code> treats the file
-object <code>f</code> as an iterable, which automatically uses buffered I/O and memory
-management so you don't have to worry about large files.</p>
-<blockquote>
-<p>There should be one -- and preferably only one -- obvious way to do it.</p>
-</blockquote>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Two memory efficient ways in ranked order (first is best) -</p>
-<ol>
-<li>use of <code>with</code> - supported from python 2.5 and above</li>
-<li>use of <code>yield</code> if you really want to have control over how much to read</li>
-</ol>
-<h3>1. use of <code>with</code>
-</h3>
-<p><code>with</code> is the nice and efficient pythonic way to read large files. advantages
-- 1) file object is automatically closed after exiting from <code>with</code> execution
-block. 2) exception handling inside the <code>with</code> block. 3) memory <code>for</code> loop
-iterates through the <code>f</code> file object line by line. internally it does buffered
-IO (to optimized on costly IO operations) and memory management.</p>
-<div class="code"><pre class="code literal-block"><span class="nv">with</span><span class="w"> </span><span class="nv">open</span><span class="ss">(</span><span class="s2">"x.txt"</span><span class="ss">)</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">f</span>:
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nv">line</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">f</span>:
-<span class="w">        </span><span class="k">do</span><span class="w"> </span><span class="nv">something</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="nv">data</span>
-</pre></div>
-
-<h3>2. use of <code>yield</code>
-</h3>
-<p>Sometimes one might want more fine-grained control over how much to read in
-each iteration. In that case use iter &amp; yield. Note with this method one
-explicitly needs close the file at the end.</p>
-<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">readInChunks</span><span class="ss">(</span><span class="nv">fileObj</span>,<span class="w"> </span><span class="nv">chunkSize</span><span class="o">=</span><span class="mi">2048</span><span class="ss">)</span>:
-<span class="w">    </span><span class="s2">""</span><span class="err">"</span>
-<span class="err">    Lazy function to read a file piece by piece.</span>
-<span class="err">    Default chunk size: 2kB.</span>
-
-<span class="w">    </span><span class="s2">""</span><span class="err">"</span>
-<span class="err">    while True:</span>
-<span class="err">        data = fileObj.read(chunkSize)</span>
-<span class="err">        if not data:</span>
-<span class="err">            break</span>
-<span class="err">        yield data</span>
-
-<span class="err">f = open('bigFile')</span>
-<span class="err">for chunk in readInChunks(f):</span>
-<span class="err">    do_something(chunk)</span>
-<span class="err">f.close()</span>
-</pre></div>
-
-<hr>
-<p><strong>Pitfalls and for the sake of completeness</strong> - below methods are not as good
-or not as elegant for reading large files but please read to get rounded
-understanding.</p>
-<p>In Python, the most common way to read lines from a file is to do the
-following:</p>
-<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="nv">line</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">open</span><span class="ss">(</span><span class="s1">'myfile'</span>,<span class="s1">'r'</span><span class="ss">)</span>.<span class="nv">readlines</span><span class="ss">()</span>:
-<span class="w">    </span><span class="nv">do_something</span><span class="ss">(</span><span class="nv">line</span><span class="ss">)</span>
-</pre></div>
-
-<p>When this is done, however, the <code>readlines()</code> function (same applies for
-<code>read()</code> function) loads the entire file into memory, then iterates over it. A
-slightly better approach (the first mentioned two methods above are the best)
-for large files is to use the <code>fileinput</code> module, as follows:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">fileinput</span>
-
-<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fileinput</span><span class="o">.</span><span class="n">input</span><span class="p">([</span><span class="s1">'myfile'</span><span class="p">]):</span>
-    <span class="n">do_something</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
-</pre></div>
-
-<p>the <code>fileinput.input()</code> call reads lines sequentially, but doesn't keep them
-in memory after they've been read or even simply so this, since <code>file</code> in
-python is iterable.</p>
-<h3>References</h3>
-<ol>
-<li>Python with statement</li>
-</ol>
-</div>
     </article>
 </div>
 

@@ -108,7 +108,182 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jquery-disable-enable-submit-button/" class="u-url">jQuery disable/enable submit button</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-recover-stashed-uncommitted-changes/" class="u-url">How to recover stashed uncommitted changes</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-recover-stashed-uncommitted-changes/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T08:35:45+08:00" itemprop="datePublished" title="2023-02-17 08:35">2023-02-17 08:35</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I had some uncommitted changes in my development branch and I stashed them
+using <code>git stash</code>, but there were some changes which were very important among
+those stashed ones. Is there any way to get back those changes?</p>
+<p>Also, I have made some changes on top of the stashed code files since.</p>
+<p>Is there any chance I can retrieve the stashed changes to a new branch if
+possible?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>The easy answer to the easy question is <code>git stash apply</code>
+</h3>
+<p>Just check out the branch you want your changes on, and then <code>git stash
+apply</code>. Then use <code>git diff</code> to see the result.</p>
+<p>After you're all done with your changes—the <code>apply</code> looks good and you're sure
+you don't need the stash any more— <em>then</em> use <code>git stash drop</code> to get rid of
+it.</p>
+<p>I always suggest using <code>git stash apply</code> rather than <code>git stash pop</code>. The
+difference is that <code>apply</code> leaves the stash around for easy re-try of the
+<code>apply</code>, or for looking at, etc. If <code>pop</code> is able to extract the stash, it
+will immediately also <code>drop</code> it, and if you subsequently realize that you
+wanted to extract it somewhere else (in a different branch), or with
+<code>--index</code>, or some such, that's not so easy. If you <code>apply</code>, <em>you</em> get to
+choose when to <code>drop</code>.</p>
+<p>It's all pretty minor one way or the other though, and for a newbie to Git, it
+should be about the same. (And you can skip all the rest of this!)</p>
+<hr>
+<h3>What if you're doing more-advanced or more-complicated stuff?</h3>
+<p>There are at least three or four different "ways to use git stash", as it
+were. The above is for "way 1", the "easy way":</p>
+<ol>
+<li>You started with a clean branch, were working on some changes, and then realized you were doing them in the wrong branch. You just want to take the changes you have now and "move" them to another branch.</li>
+</ol>
+<p>This is the easy case, described above. Run <code>git stash save</code> (or plain <code>git
+stash</code>, same thing). Check out the other branch and use <code>git stash apply</code>.
+This gets Git to merge in your earlier changes, using Git's rather powerful
+merge mechanism. <em>Inspect the results carefully</em> (with <code>git diff</code>) to see if
+you like them, and if you do, use <code>git stash drop</code> to drop the stash. You're
+done!</p>
+<ol>
+<li>You started some changes and stashed them. Then you switched to another branch and started more changes, forgetting that you had the stashed ones.</li>
+</ol>
+<p>Now you want to keep, or even move, <em>these</em> changes, <em>and</em> apply your stash
+too.</p>
+<p>You can in fact <code>git stash save</code> again, as <code>git stash</code> makes a "stack" of
+changes. If you do that, you have two stashes, one just called <code>stash</code>—but you
+can also write <code>stash@{0}</code>—and one spelled <code>stash@{1}</code>. Use <code>git stash list</code>
+(at any time) to see them all. The newest is always the lowest-numbered. When
+you <code>git stash drop</code>, it drops the newest, and the one that was <code>stash@{1}</code>
+moves to the top of the stack. If you had, even more, the one that was
+<code>stash@{2}</code> becomes <code>stash@{1}</code>, and so on.</p>
+<p>You can <code>apply</code> and then <code>drop</code> a specific stash, too: <code>git stash apply
+stash@{2}</code>, and so on. Dropping a specific stash renumbers only the higher-
+numbered ones. Again, the one without a number is also <code>stash@{0}</code>.</p>
+<p>If you pile up a lot of stashes, it can get fairly messy (was the stash I
+wanted <code>stash@{7}</code> or was it <code>stash@{4}</code>? Wait, I just pushed another, now
+they're 8 and 5?). I personally prefer to transfer these changes to a new
+branch, because branches have names, and <code>cleanup-attempt-in-December</code> means a
+lot more to me than <code>stash@{12}</code>. (The <code>git stash</code> command takes an optional
+save-message, and those can help, but somehow, all my stashes just wind up
+named <code>WIP on branch</code>.)</p>
+<ol>
+<li>
+<p>(Extra-advanced) You've used <code>git stash save -p</code>, or carefully <code>git add</code>-ed and/or <code>git rm</code>-ed specific bits of your code before running <code>git stash save</code>. You had one version in the stashed index/staging area and another (different) version in the working tree. You want to preserve all this. So now you use <code>git stash apply --index</code>, and that sometimes fails with:</p>
+<div class="code"><pre class="code literal-block">Conflicts in index.  Try without --index.
+</pre></div>
+
+</li>
+<li>
+<p>You're using <code>git stash save --keep-index</code> in order to test "what will be committed". This one is beyond the scope of this answer; see this other StackOverflow answer instead.</p>
+</li>
+</ol>
+<p>For complicated cases, I recommend starting in a "clean" working tree first,
+by committing any changes you have now (on a new branch if you like). That way
+the "somewhere" that you are applying them, has nothing else in it, and you'll
+just be trying the stashed changes:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="nv">status</span><span class="w">               </span>#<span class="w"> </span><span class="nv">see</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">there</span><span class="err">'s anything you need to commit</span>
+<span class="w">                         </span>#<span class="w"> </span><span class="nv">uh</span><span class="w"> </span><span class="nv">oh</span>,<span class="w"> </span><span class="nv">there</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">let</span><span class="err">'s put it on a new temp branch</span>
+<span class="err">git checkout -b temp     # create new temp branch to save stuff</span>
+<span class="err">git add ...              # add (and/or remove) stuff as needed</span>
+<span class="err">git commit               # save first set of changes</span>
+</pre></div>
+
+<p>Now you're on a "clean" starting point. Or maybe it goes more like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">git</span><span class="w"> </span><span class="nt">status</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="nt">see</span><span class="w"> </span><span class="nt">if</span><span class="w"> </span><span class="nt">there</span><span class="err">'</span><span class="nt">s</span><span class="w"> </span><span class="nt">anything</span><span class="w"> </span><span class="nt">you</span><span class="w"> </span><span class="nt">need</span><span class="w"> </span><span class="nt">to</span><span class="w"> </span><span class="nt">commit</span>
+<span class="w">                         </span><span class="err">#</span><span class="w"> </span><span class="nt">status</span><span class="w"> </span><span class="nt">says</span><span class="w"> </span><span class="s2">"nothing to commit"</span>
+<span class="nt">git</span><span class="w"> </span><span class="nt">checkout</span><span class="w"> </span><span class="nt">-b</span><span class="w"> </span><span class="nt">temp</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="nt">optional</span><span class="o">:</span><span class="w"> </span><span class="nt">create</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="nt">new</span><span class="w"> </span><span class="nt">branch</span><span class="w"> </span><span class="nt">for</span><span class="w"> </span><span class="s2">"apply"</span>
+<span class="nt">git</span><span class="w"> </span><span class="nt">stash</span><span class="w"> </span><span class="nt">apply</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="nt">apply</span><span class="w"> </span><span class="nt">stashed</span><span class="w"> </span><span class="nt">changes</span><span class="o">;</span><span class="w"> </span><span class="nt">see</span><span class="w"> </span><span class="nt">below</span><span class="w"> </span><span class="nt">about</span><span class="w"> </span><span class="nt">--index</span>
+</pre></div>
+
+<p>The main thing to remember is that the "stash" <em>is</em> a commit, it's just a
+slightly "funny/weird" commit that's not "on a branch". The <code>apply</code> operation
+looks at what the commit changed and tries to repeat it wherever you are now.
+The stash will still be there (<code>apply</code> keeps it around), so you can look at it
+more, or decide this was the wrong place to <code>apply</code> it and try again
+differently, or whatever.</p>
+<hr>
+<p>Any time you have a stash, you can use <code>git stash show -p</code> to see a simplified
+version of what's in the stash. (This simplified version looks only at the
+"final work tree" changes, <em>not</em> the saved index changes that <code>--index</code>
+restores separately.) The command <code>git stash apply</code>, without <code>--index</code>, just
+tries to make those <em>same</em> changes in your working tree now.</p>
+<p>This is true even if you already have some changes. The <code>apply</code> command is
+happy to apply a stash to a <em>modified</em> working tree (or at least, to try to
+apply it). You can, for instance, do this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="nv">stash</span><span class="w"> </span><span class="nv">apply</span><span class="w"> </span><span class="nv">stash</span><span class="w">      </span>#<span class="w"> </span><span class="nv">apply</span><span class="w"> </span><span class="nv">top</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">stash</span><span class="w"> </span><span class="nv">stack</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">stash</span><span class="w"> </span><span class="nv">apply</span><span class="w"> </span><span class="nv">stash</span>@{<span class="mi">1</span>}<span class="w">  </span>#<span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">mix</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="k">next</span><span class="w"> </span><span class="nv">stash</span><span class="w"> </span><span class="nv">stack</span><span class="w"> </span><span class="nv">entry</span><span class="w"> </span><span class="nv">too</span>
+</pre></div>
+
+<p>You can choose the "apply" order here, picking out particular stashes to apply
+in a particular sequence. Note, however, that each time you're basically doing
+a "git merge", and as the merge documentation warns:</p>
+<blockquote>
+<p>Running git merge with non-trivial uncommitted changes is discouraged: while
+possible, it may leave you in a state that is hard to back out of in the
+case of a conflict.</p>
+</blockquote>
+<p><strong>If you start with a clean tree</strong> and are just doing several <code>git apply</code>
+operations, it's easy to back out: use <code>git reset --hard</code> to get back to the
+clean state, and change your <code>apply</code> operations. (That's why I recommend
+starting in a clean working tree first, for these complicated cases.)</p>
+<hr>
+<h3>What about the very worst possible case?</h3>
+<p>Let's say you're doing Lots Of Advanced Git Stuff, and you've made a stash,
+and want to <code>git stash apply --index</code>, but it's no longer possible to apply
+the saved stash with <code>--index</code> because the branch has diverged too much since
+the time you saved it.</p>
+<p>This is what <code>git stash branch</code> is for.</p>
+<p>If you:</p>
+<ol>
+<li>check out the <em>exact commit</em> you were on when you did the original <code>stash</code>, then</li>
+<li>create a new branch, and finally</li>
+<li><code>git stash apply --index</code></li>
+</ol>
+<p>the attempt to re-create the changes definitely <em>will</em> work. This is what <code>git
+stash branch _newbranch_</code> does. (And it then drops the stash since it was
+successfully applied.)</p>
+<hr>
+<h3>Some final words about <code>--index</code> (what the heck is it?)</h3>
+<p>What the <code>--index</code> does is simple to explain, but a bit complicated
+internally:</p>
+<ul>
+<li>When you have changes, you have to <code>git add</code> (or "stage") them before <code>commit</code>-ing.</li>
+<li>Thus, when you ran <code>git stash</code>, you <em>might</em> have edited both files <code>foo</code> and <code>zorg</code>, but only staged one of those.</li>
+<li>So when you ask to get the stash back, it might be nice if it <code>git add</code>s the <code>added</code> things and does <em>not</em> <code>git add</code> the non-added things. That is, if you are <code>add</code>-ed <code>foo</code> but not <code>zorg</code> back before you did the <code>stash</code>, it might be nice to have that exact same setup. What was staged, should again be staged; what was modified but not staged, should again be modified but not staged.</li>
+</ul>
+<p>The <code>--index</code> flag to <code>apply</code> tries to set things up this way. If your working
+tree is clean, this usually just works. If your working tree already has stuff
+<code>add</code>-ed, though, you can see how there might be some problems here. If you
+leave out <code>--index</code>, the <code>apply</code> operation does not attempt to preserve the
+whole staged/unstaged setup. Instead, it just invokes Git's merge machinery,
+using the working tree commit in the "stash bag". If you don't care about
+preserving staged/unstaged, leaving out <code>--index</code> makes it a lot easier for
+<code>git stash apply</code> to do its thing.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<div class="code"><pre class="code literal-block">git stash pop
+</pre></div>
+
+<p>will get everything back in place</p>
+<p>as suggested in the comments, you can use <code>git stash branch newbranch</code> to
+apply the stash to a new branch, which is the same as running:</p>
+<div class="code"><pre class="code literal-block">git checkout -b newbranch
+git stash pop
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jquery-disable-enable-submit-button/" class="u-url">jQuery disable/enable submit button</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -410,66 +585,6 @@ useful:</p>
 <p>1. Vertically align an image inside a div with responsive height 2. It's
 better to use an additional class in order not to alter Twitter Bootstrap's
 default <code>.row</code>.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jquery-get-value-of-select-onchange/" class="u-url">jQuery get value of select onChange</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/jquery-get-value-of-select-onchange/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T08:34:22+08:00" itemprop="datePublished" title="2023-02-17 08:34">2023-02-17 08:34</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I was under the impression that I could get the value of a select input by
-doing this <code>$(this).val();</code> and applying the <code>onchange</code> parameter to the
-select field.</p>
-<p>It would appear it only works if I reference the ID.</p>
-<p>How do I do it using this.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Try this-</p>
-<div class="code"><pre class="code literal-block">$('select').on('change',<span class="w"> </span>function()<span class="w"> </span>{
-<span class="w">  </span>alert(<span class="w"> </span>this.value<span class="w"> </span>);
-});
-
-
-<span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
-
-<span class="nt">&lt;select&gt;</span>
-<span class="w">    </span><span class="nt">&lt;option</span><span class="w"> </span><span class="na">value=</span><span class="s">"1"</span><span class="nt">&gt;</span>One<span class="nt">&lt;/option&gt;</span>
-<span class="w">    </span><span class="nt">&lt;option</span><span class="w"> </span><span class="na">value=</span><span class="s">"2"</span><span class="nt">&gt;</span>Two<span class="nt">&lt;/option&gt;</span>
-<span class="nt">&lt;/select&gt;</span>
-</pre></div>
-
-<p>You can also reference with onchange event-</p>
-<div class="code"><pre class="code literal-block"><span class="k">function</span><span class="w"> </span><span class="nf">getval</span><span class="p">(</span>sel<span class="p">)</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="n">alert</span><span class="p">(</span><span class="n">sel</span><span class="p">.</span><span class="n">value</span><span class="p">);</span>
-<span class="p">}</span>
-
-
-<span class="o">&lt;</span><span class="n">select</span><span class="w"> </span><span class="n">onchange</span><span class="p">=</span><span class="s">"getval(this);"</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="n">option</span><span class="w"> </span><span class="n">value</span><span class="p">=</span><span class="s">"1"</span><span class="o">&gt;</span><span class="n">One</span><span class="o">&lt;/</span><span class="n">option</span><span class="o">&gt;</span>
-<span class="w">    </span><span class="o">&lt;</span><span class="n">option</span><span class="w"> </span><span class="n">value</span><span class="p">=</span><span class="s">"2"</span><span class="o">&gt;</span><span class="n">Two</span><span class="o">&lt;/</span><span class="n">option</span><span class="o">&gt;</span>
-<span class="o">&lt;/</span><span class="n">select</span><span class="o">&gt;</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>This is helped for me.</p>
-<p>For select:</p>
-<div class="code"><pre class="code literal-block">$('select_tags').on('change', function() {
-    alert( $(this).find(":selected").val() );
-});
-</pre></div>
-
-<p>For radio/checkbox:</p>
-<div class="code"><pre class="code literal-block">$('radio_tags').on('change', function() {
-    alert( $(this).find(":checked").val() );
-});
-</pre></div>
     </div>
     </article>
 </div>

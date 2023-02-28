@@ -108,7 +108,339 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-are-the-advantages-of-list-initialization-using-curly-braces/" class="u-url">What are the advantages of list initialization (using curly braces)?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-does-jquery-or-a-dom-method-such-as-getelementbyid-not-find-the-element/" class="u-url">Why does jQuery or a DOM method such as getElementById not find the element?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-does-jquery-or-a-dom-method-such-as-getelementbyid-not-find-the-element/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T02:14:35+08:00" itemprop="datePublished" title="2023-02-18 02:14">2023-02-18 02:14</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What are the possible reasons for <code>document.getElementById</code>, <code>$("#id")</code> or any
+other DOM method / jQuery selector not finding the elements?</p>
+<p>Example problems include:</p>
+<ul>
+<li>jQuery silently failing to bind an event handler</li>
+<li>jQuery "getter" methods (<code>.val()</code>, <code>.html()</code>, <code>.text()</code>) returning <code>undefined</code>
+</li>
+<li>A standard DOM method returning <code>null</code> resulting in any of several errors:</li>
+</ul>
+<blockquote>
+<p>Uncaught TypeError: Cannot set property '...' of null<br>
+ Uncaught TypeError: Cannot set properties of null (setting '...')<br>
+ Uncaught TypeError: Cannot read property '...' of null<br>
+ Uncaught TypeError: Cannot read properties of null (reading '...')</p>
+</blockquote>
+<p>The most common forms are:</p>
+<blockquote>
+<p>Uncaught TypeError: Cannot set property 'onclick' of null<br>
+ Uncaught TypeError: Cannot read property 'addEventListener' of null<br>
+ Uncaught TypeError: Cannot read property 'style' of null</p>
+</blockquote>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The element you were trying to find wasn’t in the DOM when your script ran.</p>
+<p>The position of your DOM-reliant script can have a profound effect on its
+behavior. Browsers parse HTML documents from top to bottom. Elements are added
+to the DOM and scripts are (generally) executed as they're encountered. <strong>This
+means that order matters.</strong> Typically, scripts can't find elements that appear
+later in the markup because those elements have yet to be added to the DOM.</p>
+<p>Consider the following markup; script #1 fails to find the <code>&lt;div&gt;</code> while
+script #2 succeeds:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script&gt;</span>
+<span class="w">  </span>console.log("script<span class="w"> </span>#1:",<span class="w"> </span>document.getElementById("test"));<span class="w"> </span>//<span class="w"> </span>null
+<span class="nt">&lt;/script&gt;</span>
+<span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>test<span class="w"> </span>div<span class="nt">&lt;/div&gt;</span>
+<span class="nt">&lt;script&gt;</span>
+<span class="w">  </span>console.log("script<span class="w"> </span>#2:",<span class="w"> </span>document.getElementById("test"));<span class="w"> </span>//<span class="w"> </span><span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="w"> </span><span class="err">...</span>
+<span class="err">&lt;/script</span><span class="nt">&gt;</span>
+</pre></div>
+
+<p>So, what should you do? You've got a few options:</p>
+<hr>
+<h3>Option 1: Move your script</h3>
+<p>Given what we've seen in the example above, an intuitive solution might be to
+simply move your script down the markup, past the elements you'd like to
+access. In fact, for a long time, placing scripts at the bottom of the page
+was considered a best practice for a variety of reasons. Organized in this
+fashion, the rest of the document would be parsed before executing your
+script:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;body&gt;</span>
+<span class="w">  </span><span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
+<span class="w">  </span><span class="nt">&lt;script&gt;</span>
+<span class="w">    </span>document.getElementById("test").addEventListener("click",<span class="w"> </span>function()<span class="w"> </span>{
+<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
+<span class="w">    </span>});
+<span class="w">  </span><span class="nt">&lt;/script&gt;</span>
+<span class="nt">&lt;/body&gt;</span><span class="cm">&lt;!-- closing body tag --&gt;</span>
+</pre></div>
+
+<p>While this makes sense and is a solid option for legacy browsers, it's limited
+and there are more flexible, modern approaches available.</p>
+<hr>
+<h3>Option 2: The <code>defer</code> attribute</h3>
+<p>While we did say that scripts are, <em>"(generally) executed as they're
+encountered,"</em> modern browsers allow you to specify a different behavior. If
+you're linking an external script, you can make use of the <code>defer</code> attribute.</p>
+<blockquote>
+<p>[<code>defer</code>, a Boolean attribute,] is set to indicate to a browser that the
+script is meant to be executed after the document has been parsed, but
+before firing <code>DOMContentLoaded</code>.</p>
+</blockquote>
+<p>This means that you can place a script tagged with <code>defer</code> anywhere, even the
+<code>&lt;head&gt;</code>, and it should have access to the fully realized DOM.</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://gh-canon.github.io/misc-demos/log-test-click.js"</span><span class="w"> </span><span class="err">defer</span><span class="nt">&gt;&lt;/script&gt;</span>
+<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
+</pre></div>
+
+<p>Just keep in mind...</p>
+<ol>
+<li>
+<code>defer</code> can only be used for external scripts, i.e.: those having a <code>src</code> attribute.</li>
+<li>be aware of browser support, i.e.: buggy implementation in IE &lt; 10</li>
+</ol>
+<hr>
+<h3>Option 3: Modules</h3>
+<p>Depending upon your requirements, you may be able to utilize JavaScript
+modules. Among other important distinctions from standard scripts (noted
+here), modules are deferred automatically and are not limited to external
+sources.</p>
+<p>Set your script's <code>type</code> to <code>module</code>, e.g.:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">type=</span><span class="s">"module"</span><span class="nt">&gt;</span>
+<span class="w">  </span>document.getElementById("test").addEventListener("click",<span class="w"> </span>function(e)<span class="w"> </span>{
+<span class="w">    </span>console.log("clicked:<span class="w"> </span>",<span class="w"> </span>this);
+<span class="w">  </span>});
+<span class="nt">&lt;/script&gt;</span>
+<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
+</pre></div>
+
+<hr>
+<h3>Option 4: Defer with event handling</h3>
+<p>Add a listener to an event that fires after your document has been parsed.</p>
+<h4>DOMContentLoaded event</h4>
+<p><code>DOMContentLoaded</code> fires after the DOM has been completely constructed from
+the initial parse, without waiting for things like stylesheets or images to
+load.</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script&gt;</span>
+<span class="w">  </span>document.addEventListener("DOMContentLoaded",<span class="w"> </span>function(e){
+<span class="w">    </span>document.getElementById("test").addEventListener("click",<span class="w"> </span>function(e)<span class="w"> </span>{
+<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
+<span class="w">    </span>});
+<span class="w">  </span>});
+<span class="nt">&lt;/script&gt;</span>
+<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
+</pre></div>
+
+<h4>Window: load event</h4>
+<p>The <code>load</code> event fires after <code>DOMContentLoaded</code> and additional resources like
+stylesheets and images have been loaded. For that reason, it fires later than
+desired for our purposes. Still, if you're considering older browsers like
+IE8, the support is nearly universal. Granted, you may want a polyfill for
+<code>addEventListener()</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script&gt;</span>
+<span class="w">  </span>window.addEventListener("load",<span class="w"> </span>function(e){
+<span class="w">    </span>document.getElementById("test").addEventListener("click",<span class="w"> </span>function(e)<span class="w"> </span>{
+<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
+<span class="w">    </span>});
+<span class="w">  </span>});
+<span class="nt">&lt;/script&gt;</span>
+<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
+</pre></div>
+
+<h4>jQuery's <code>ready()</code>
+</h4>
+<p><code>DOMContentLoaded</code> and <code>window:load</code> each have their caveats. jQuery's
+<code>ready()</code> delivers a hybrid solution, using <code>DOMContentLoaded</code> when possible,
+failing over to <code>window:load</code> when necessary, and firing its callback
+immediately if the DOM is already complete.</p>
+<p>You can pass your ready handler directly to jQuery as <code>$( _handler_ )</code>, e.g.:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://code.jquery.com/jquery-3.6.0.js"</span><span class="w"> </span><span class="na">integrity=</span><span class="s">"sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="</span><span class="w"> </span><span class="na">crossorigin=</span><span class="s">"anonymous"</span><span class="nt">&gt;&lt;/script&gt;</span>
+<span class="nt">&lt;script&gt;</span>
+<span class="w">  </span>$(function()<span class="w"> </span>{
+<span class="w">    </span>$("#test").click(function()<span class="w"> </span>{
+<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
+<span class="w">    </span>});
+<span class="w">  </span>});
+<span class="nt">&lt;/script&gt;</span>
+<span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
+</pre></div>
+
+<hr>
+<h3>Option 5: Event Delegation</h3>
+<p>Delegate the event handling to an ancestor of the target element.</p>
+<p>When an element raises an event (provided that it's a bubbling event and
+nothing stops its propagation), each parent in that element's ancestry, all
+the way up to <code>window</code>, receives the event as well. That allows us to attach a
+handler to an existing element and sample events as they bubble up from its
+descendants... even from descendants added after the handler was attached. All
+we have to do is check the event to see whether it was raised by the desired
+element and, if so, run our code.</p>
+<p>Typically, this pattern is reserved for elements that don't exist at load time
+or to avoid attaching a large number of duplicate handlers. For efficiency,
+select the nearest reliable ancestor of the target element rather than
+attaching it to the <code>document</code>.</p>
+<h4>Native JavaScript</h4>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"ancestor"</span><span class="nt">&gt;</span><span class="cm">&lt;!-- nearest ancestor available to our script --&gt;</span>
+<span class="w">  </span><span class="nt">&lt;script&gt;</span>
+<span class="w">    </span>document.getElementById("ancestor").addEventListener("click",<span class="w"> </span>function(e)<span class="w"> </span>{
+<span class="w">      </span>if<span class="w"> </span>(e.target.id<span class="w"> </span>===<span class="w"> </span>"descendant")<span class="w"> </span>{
+<span class="w">        </span>console.log("clicked:",<span class="w"> </span>e.target);
+<span class="w">      </span>}
+<span class="w">    </span>});
+<span class="w">  </span><span class="nt">&lt;/script&gt;</span>
+<span class="w">  </span><span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"descendant"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
+<span class="nt">&lt;/div&gt;</span>
+</pre></div>
+
+<h4>jQuery's <code>on()</code>
+</h4>
+<p>jQuery makes this functionality available through <code>on()</code>. Given an event name,
+a selector for the desired descendant, and an event handler, it will resolve
+your delegated event handling and manage your <code>this</code> context:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://code.jquery.com/jquery-3.6.0.js"</span><span class="w"> </span><span class="na">integrity=</span><span class="s">"sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="</span><span class="w"> </span><span class="na">crossorigin=</span><span class="s">"anonymous"</span><span class="nt">&gt;&lt;/script&gt;</span>
+<span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"ancestor"</span><span class="nt">&gt;</span><span class="cm">&lt;!-- nearest ancestor available to our script --&gt;</span>
+<span class="w">  </span><span class="nt">&lt;script&gt;</span>
+<span class="w">    </span>$("#ancestor").on("click",<span class="w"> </span>"#descendant",<span class="w"> </span>function(e)<span class="w"> </span>{
+<span class="w">      </span>console.log("clicked:",<span class="w"> </span>this);
+<span class="w">    </span>});
+<span class="w">  </span><span class="nt">&lt;/script&gt;</span>
+<span class="w">  </span><span class="nt">&lt;button</span><span class="w"> </span><span class="na">id=</span><span class="s">"descendant"</span><span class="nt">&gt;</span>click<span class="w"> </span>me<span class="nt">&lt;/button&gt;</span>
+<span class="nt">&lt;/div&gt;</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>Short and simple:</strong> Because the elements you are looking for do not exist in
+the document (yet).</p>
+<hr>
+<p><em>For the remainder of this answer I will use<code>getElementById</code> for examples, but
+the same applies to <code>getElementsByTagName</code>, <code>querySelector</code>, and any other DOM
+method that selects elements.</em></p>
+<p><strong>Possible Reasons</strong></p>
+<p>There are three reasons why an element might not exist:</p>
+<ol>
+<li>An element with the passed ID really does not exist in the document. You should double check that the ID you pass to <code>getElementById</code> really matches an ID of an existing element in the (generated) HTML and that you have not <em>misspelled</em> the ID (IDs are <em>case-sensitive</em>!).</li>
+</ol>
+<p>If you're using <code>getElementById</code>, be sure you're <strong>only</strong> giving the ID of the
+element (e.g., <code>document.getElemntById("the-id")</code>). If you're using a method
+that accepts a CSS selector (like <code>querySelector</code>), be sure you're including
+the <code>#</code> before the ID to indicate you're looking for an ID (e.g.,
+<code>document.querySelector("#the-id")</code>). You must <strong>not</strong> use the <code>#</code> with
+<code>getElementById</code>, and <strong>must</strong> use it with <code>querySelector</code> and similar. Also
+note that if the ID has characters in it that aren't valid in CSS identifiers
+(such as a <code>.</code>; <code>id</code> attributes containing <code>.</code> characters are poor practice,
+but valid), you have to escape those when using <code>querySelector</code>
+(<code>document.querySelector("#the\\.id")</code>)) but not when using <code>getElementById</code>
+(<code>document.getElementById("the.id")</code>).</p>
+<ol>
+<li>
+<p>The element does not exist <em>at the moment</em> you call <code>getElementById</code>.</p>
+</li>
+<li>
+<p>The element isn't in the document you're querying even though you can see it on the page, because it's in an <code>iframe</code> (which is its own document). Elements in <code>iframes</code> aren't searched when you search the document that contains them.</p>
+</li>
+</ol>
+<p>If the problem is reason 3 (it's in an <code>iframe</code> or similar), you need to look
+through the document in the <code>iframe</code>, not the parent document, perhaps by
+getting the <code>iframe</code> element and using its <code>contentDocument</code> property to
+access its document (same-origin only). The rest of this answer addresses the
+first two reasons.</p>
+<p>The second reason — it's not there <em>yet</em> — is quite common. Browsers parse and
+process the HTML from top to bottom. That means that any call to a DOM element
+which occurs before that DOM element appears in the HTML, will fail.</p>
+<p>Consider the following example:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script&gt;</span>
+<span class="w">    </span>var<span class="w"> </span>element<span class="w"> </span>=<span class="w"> </span>document.getElementById('my_element');
+<span class="nt">&lt;/script&gt;</span>
+
+<span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"my_element"</span><span class="nt">&gt;&lt;/div&gt;</span>
+</pre></div>
+
+<p>The <code>div</code> appears <em>after</em> the <code>script</code>. At the moment the script is executed,
+the element does not exist <em>yet</em> and <code>getElementById</code> will return <code>null</code>.</p>
+<p><strong>jQuery</strong></p>
+<p>The same applies to all selectors with jQuery. jQuery won't find elements if
+you <em>misspelled</em> your selector or you are trying to select them <em>before they
+actually exist</em>.</p>
+<p>An added twist is when jQuery is not found because you have loaded the script
+without protocol and are running from file system:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"//somecdn.somewhere.com/jquery.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+</pre></div>
+
+<p>this syntax is used to allow the script to load via HTTPS on a page with
+protocol https:// and to load the HTTP version on a page with protocol http://</p>
+<p>It has the unfortunate side effect of attempting and failing to load
+<code>file://somecdn.somewhere.com...</code></p>
+<hr>
+<p><strong>Solutions</strong></p>
+<p>Before you make a call to <code>getElementById</code> (or any DOM method for that
+matter), make sure the elements you want to access exist, i.e. the DOM is
+loaded.</p>
+<p>This can be ensured by simply putting your JavaScript <em>after</em> the
+corresponding DOM element</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"my_element"</span><span class="nt">&gt;&lt;/div&gt;</span>
+
+<span class="nt">&lt;script&gt;</span>
+<span class="w">    </span>var<span class="w"> </span>element<span class="w"> </span>=<span class="w"> </span>document.getElementById('my_element');
+<span class="nt">&lt;/script&gt;</span>
+</pre></div>
+
+<p>in which case you can also put the code just before the closing body tag
+(<code>&lt;/body&gt;</code>) (all DOM elements will be available at the time the script is
+executed).</p>
+<p>Other solutions include listening to the <code>load</code> <em>[MDN]</em> or <code>DOMContentLoaded</code>
+<em>[MDN]</em> events. In these cases it does not matter where in the document you
+place the JavaScript code, you just have to remember to put all DOM processing
+code in the event handlers.</p>
+<p>Example:</p>
+<div class="code"><pre class="code literal-block"><span class="n">window</span><span class="o">.</span><span class="n">onload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="n">DOM</span><span class="w"> </span><span class="n">elements</span><span class="w"> </span><span class="n">here</span>
+<span class="p">};</span>
+
+<span class="o">//</span><span class="w"> </span><span class="ow">or</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">does</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">work</span><span class="w"> </span><span class="n">IE</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">below</span>
+<span class="n">document</span><span class="o">.</span><span class="n">addEventListener</span><span class="p">(</span><span class="s1">'DOMContentLoaded'</span><span class="p">,</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="n">DOM</span><span class="w"> </span><span class="n">elements</span><span class="w"> </span><span class="n">here</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>Please see the articles at quirksmode.org for more information regarding event
+handling and browser differences.</p>
+<p><strong>jQuery</strong></p>
+<p>First make sure that jQuery is loaded properly. Use the browser's developer
+tools to find out whether the jQuery file was found and correct the URL if it
+wasn't (e.g. add the <code>http:</code> or <code>https:</code> scheme at the beginning, adjust the
+path, etc.)</p>
+<p>Listening to the <code>load</code>/<code>DOMContentLoaded</code> events is exactly what jQuery is
+doing with <code>.ready()</code> <em>[docs]</em>. All your jQuery code that affects DOM element
+should be inside that event handler.</p>
+<p>In fact, the jQuery tutorial explicitly states:</p>
+<blockquote>
+<p>As almost everything we do when using jQuery reads or manipulates the
+document object model (DOM), we need to make sure that we start adding
+events etc. as soon as the DOM is ready.</p>
+<p>To do this, we register a ready event for the document.</p>
+<div class="code"><pre class="code literal-block">$(document).ready(function() {
+</pre></div>
+
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="w">   </span><span class="c1">// do stuff when DOM is ready</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>Alternatively you can also use the shorthand syntax:</p>
+<div class="code"><pre class="code literal-block">$<span class="ss">(</span><span class="nv">function</span><span class="ss">()</span><span class="w"> </span>{
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">stuff</span><span class="w"> </span><span class="nv">when</span><span class="w"> </span><span class="nv">DOM</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">ready</span>
+}<span class="ss">)</span><span class="c1">;</span>
+</pre></div>
+
+<p>Both are equivalent.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-are-the-advantages-of-list-initialization-using-curly-braces/" class="u-url">What are the advantages of list initialization (using curly braces)?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -310,64 +642,6 @@ input<span class="w"> </span>{
 
 <span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/transpose-unzip-function-inverse-of-zip/" class="u-url">Transpose/Unzip Function (inverse of zip)?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/transpose-unzip-function-inverse-of-zip/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T02:13:17+08:00" itemprop="datePublished" title="2023-02-18 02:13">2023-02-18 02:13</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a list of 2-item tuples and I'd like to convert them to 2 lists where
-the first contains the first item in each tuple and the second list holds the
-second item.</p>
-<p><strong>For example:</strong></p>
-<div class="code"><pre class="code literal-block">original = [('a', 1), ('b', 2), ('c', 3), ('d', 4)]
-# and I want to become...
-result = (['a', 'b', 'c', 'd'], [1, 2, 3, 4])
-</pre></div>
-
-<p>Is there a builtin function that does that?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>In 2.x, <code>zip</code> is its own inverse! Provided you use the special * operator.</p>
-<div class="code"><pre class="code literal-block">&gt;&gt;&gt; zip(*[('a', 1), ('b', 2), ('c', 3), ('d', 4)])
-[('a', 'b', 'c', 'd'), (1, 2, 3, 4)]
-</pre></div>
-
-<p>This is equivalent to calling <code>zip</code> with each element of the list as a
-separate argument:</p>
-<div class="code"><pre class="code literal-block">zip(('a', 1), ('b', 2), ('c', 3), ('d', 4))
-</pre></div>
-
-<p>except the arguments are passed to <code>zip</code> directly (after being converted to a
-tuple), so there's no need to worry about the number of arguments getting too
-big.</p>
-<p>In 3.x, <code>zip</code> returns a lazy iterator, but this is trivially converted:</p>
-<div class="code"><pre class="code literal-block">&gt;&gt;&gt; list(zip(*[('a', 1), ('b', 2), ('c', 3), ('d', 4)]))
-[('a', 'b', 'c', 'd'), (1, 2, 3, 4)]
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>You could also do</p>
-<div class="code"><pre class="code literal-block"><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span>[<span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">a</span>,<span class="nv">b</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">original</span><span class="w"> </span>],<span class="w"> </span>[<span class="w"> </span><span class="nv">b</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">a</span>,<span class="nv">b</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">original</span><span class="w"> </span>]<span class="ss">)</span>
-</pre></div>
-
-<p>It <em>should</em> scale better. Especially if Python makes good on not expanding the
-list comprehensions unless needed.</p>
-<p>(Incidentally, it makes a 2-tuple (pair) of lists, rather than a list of
-tuples, like <code>zip</code> does.)</p>
-<p>If generators instead of actual lists are ok, this would do that:</p>
-<div class="code"><pre class="code literal-block"><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">((</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">a</span>,<span class="nv">b</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">original</span><span class="w"> </span><span class="ss">)</span>,<span class="w"> </span><span class="ss">(</span><span class="w"> </span><span class="nv">b</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">a</span>,<span class="nv">b</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">original</span><span class="w"> </span><span class="ss">))</span>
-</pre></div>
-
-<p>The generators don't munch through the list until you ask for each element,
-but on the other hand, they do keep references to the original list.</p>
     </div>
     </article>
 </div>

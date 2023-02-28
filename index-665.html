@@ -108,7 +108,83 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/get-first-key-in-a-possibly-associative-array/" class="u-url">Get first key in a (possibly) associative array?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/multiple-indexes-vs-multi-column-indexes/" class="u-url">Multiple Indexes vs Multi-Column Indexes</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/multiple-indexes-vs-multi-column-indexes/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T12:43:52+08:00" itemprop="datePublished" title="2023-02-17 12:43">2023-02-17 12:43</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What is the difference between creating one index across multiple columns
+versus creating multiple indexes, one <em>per</em> column?</p>
+<p>Are there reasons why one should be used over the other?</p>
+<p>For example:</p>
+<div class="code"><pre class="code literal-block">Create NonClustered Index IX_IndexName On TableName
+(Column1 Asc, Column2 Asc, Column3 Asc)
+</pre></div>
+
+<p>Versus:</p>
+<div class="code"><pre class="code literal-block">Create NonClustered Index IX_IndexName1 On TableName
+(Column1 Asc)
+
+Create NonClustered Index IX_IndexName2 On TableName
+(Column2 Asc)
+
+Create NonClustered Index IX_IndexName3 On TableName
+(Column3 Asc)
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I agree with Cade Roux.</p>
+<p>This article should get you on the right track:</p>
+<ul>
+<li>Indexes in SQL Server 2005/2008 – Best Practices, Part 1</li>
+<li>Indexes in SQL Server 2005/2008 – Part 2 – Internals </li>
+</ul>
+<p>One thing to note, clustered indexes should have a unique key (an identity
+column I would recommend) as the first column. Basically it helps your data
+insert at the end of the index and not cause lots of disk IO and Page splits.</p>
+<p>Secondly, if you are creating other indexes on your data and they are
+constructed cleverly they will be reused.</p>
+<p>e.g. imagine you search a table on three columns</p>
+<p>state, county, zip.</p>
+<ul>
+<li>you sometimes search by state only. </li>
+<li>you sometimes search by state and county.</li>
+<li>you frequently search by state, county, zip. </li>
+</ul>
+<p>Then an index with state, county, zip. will be used in all three of these
+searches.</p>
+<p>If you search by zip alone quite a lot then the above index will not be used
+(by SQL Server anyway) as zip is the third part of that index and the query
+optimiser will not see that index as helpful.</p>
+<p>You could then create an index on Zip alone that would be used in this
+instance.</p>
+<p>By the way We can take advantage of the fact that with Multi-Column indexing
+the first index column is always usable for searching and when you search only
+by 'state' it is efficient but yet not as efficient as Single-Column index on
+'state'</p>
+<p>I guess the answer you are looking for is that it depends on your where
+clauses of your frequently used queries and also your group by's.</p>
+<p>The article will help a lot. :-)</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Yes. I recommend you check out Kimberly Tripp's articles on indexing.</p>
+<p>If an index is "covering", then there is no need to use anything but the
+index. In SQL Server 2005, you can also add additional columns to the index
+that are not part of the key which can eliminate trips to the rest of the row.</p>
+<p>Having multiple indexes, each on a single column may mean that only one index
+gets used at all - you will have to refer to the execution plan to see what
+effects different indexing schemes offer.</p>
+<p>You can also use the tuning wizard to help determine what indexes would make a
+given query or workload perform the best.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/get-first-key-in-a-possibly-associative-array/" class="u-url">Get first key in a (possibly) associative array?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -203,62 +279,6 @@ INSERT INTO new_table SELECT * FROM old_table;
 <div class="code"><pre class="code literal-block">CREATE TABLE tbl_new AS SELECT * FROM tbl_old;
 </pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-does-the-plus-sign-css-selector-mean/" class="u-url">What does the "+" (plus sign) CSS selector mean?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-does-the-plus-sign-css-selector-mean/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T12:42:24+08:00" itemprop="datePublished" title="2023-02-17 12:42">2023-02-17 12:42</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p><strong>This question's answers are a community effort</strong>. Edit existing answers to
-improve this post. It is not currently accepting new answers or interactions.</p>
-<p>For example:</p>
-<div class="code"><pre class="code literal-block">p + p {
-  /* Some declarations */
-}
-</pre></div>
-
-<p>I don't know what the <code>+</code> means. What's the difference between this and just
-defining a style for <code>p</code> without <code>+ p</code>?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>See adjacent selectors on W3.org.</p>
-<p>In this case, the selector means that the style applies only to paragraphs
-directly following another paragraph.</p>
-<p>A plain <code>p</code> selector would apply the style to every paragraph in the page.</p>
-<hr>
-<p>This will only work on IE7 or above. In IE6, the style will not be applied to
-any elements. This also goes for the <code>&gt;</code> combinator, by the way.</p>
-<p>See also Microsoft's overview for CSS compatibility in Internet Explorer.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>It's the Adjacent sibling selector.</p>
-<p>From Splash of Style blog.</p>
-<blockquote>
-<p>To define a CSS adjacent selector, the plus sign is used.</p>
-<div class="code"><pre class="code literal-block"><span class="nt">h1</span><span class="o">+</span><span class="nt">p</span><span class="w"> </span><span class="p">{</span><span class="k">color</span><span class="p">:</span><span class="kc">blue</span><span class="p">;}</span>
-</pre></div>
-
-<p>The above CSS code will format the first paragraph after (not inside) any h1
-headings as blue.</p>
-</blockquote>
-<p><code>h1&gt;p</code> selects any <code>p</code> element that is a direct (first generation) child
-(inside) of an <code>h1</code> element.</p>
-<ul>
-<li>
-<code>h1&gt;p</code> matches <code>&lt;h1&gt;</code> <code>&lt;p&gt;&lt;/p&gt;</code> <code>&lt;/h1&gt;</code> (<code>&lt;p&gt;</code> inside <code>&lt;h1&gt;</code>)</li>
-</ul>
-<p><code>h1+p</code> will select the first <code>p</code> element that is a sibling (at the same level
-of the dom) as an <code>h1</code> element.</p>
-<ul>
-<li>
-<code>h1+p</code> matches <code>&lt;h1&gt;&lt;/h1&gt;</code> <code>&lt;p&gt;&lt;p/&gt;</code> (<code>&lt;p&gt;</code> next to/after <code>&lt;h1&gt;</code>)</li>
-</ul>
-</div>
     </article>
 </div>
 

@@ -108,7 +108,734 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-randomize-shuffle-a-javascript-array/" class="u-url">How to randomize (shuffle) a JavaScript array?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/" class="u-url">How do I clone a subdirectory only of a Git repository?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-16T23:38:58+08:00" itemprop="datePublished" title="2023-02-16 23:38">2023-02-16 23:38</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have my Git repository which, at the root, has two sub directories:</p>
+<div class="code"><pre class="code literal-block">/finisht
+/static
+</pre></div>
+
+<p>When this was in SVN, <code>/finisht</code> was checked out in one place, while <code>/static</code>
+was checked out elsewhere, like so:</p>
+<div class="code"><pre class="code literal-block"><span class="n">svn</span><span class="w"> </span><span class="n">co</span><span class="w"> </span><span class="n">svn</span><span class="o">+</span><span class="nl">ssh</span><span class="p">:</span><span class="o">//</span><span class="k">admin</span><span class="nv">@domain</span><span class="p">.</span><span class="n">example</span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="k">admin</span><span class="o">/</span><span class="n">repos</span><span class="o">/</span><span class="n">finisht</span><span class="o">/</span><span class="k">static</span><span class="w"> </span><span class="k">static</span>
+</pre></div>
+
+<p>Is there a way to do this with Git?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>EDIT</strong> : As of Git 2.19, this is finally possible, as can be seen in this
+answer.</p>
+<p>Consider upvoting that answer.</p>
+<p>Note: in Git 2.19, only client-side support is implemented, server-side
+support is still missing, so it only works when cloning local repositories.
+Also note that large Git hosters, e.g. GitHub, don't actually use the Git
+server, they use their own implementation, so even if support shows up in the
+Git server, it does not automatically mean that it works on Git hosters.
+(OTOH, since they don't use the Git server, they could implement it faster in
+their own implementations before it shows up in Git server.)</p>
+<hr>
+<p>No, that's not possible in Git.</p>
+<p>Implementing something like this in Git would be a substantial effort and it
+would mean that the integrity of the clientside repository could no longer be
+guaranteed. If you are interested, search for discussions on "sparse clone"
+and "sparse fetch" on the git mailinglist.</p>
+<p>In general, the consensus in the Git community is that if you have several
+directories that are always checked out independently, then these are really
+two different projects and should live in two different repositories. You can
+glue them back together using Git Submodules.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong><code>git clone --filter</code> + <code>git sparse-checkout</code> downloads only the required
+files</strong></p>
+<p>E.g., to clone only files in subdirectory <code>small/</code> in this test repository:
+https://github.com/cirosantilli/test-git-partial-clone-big-small</p>
+<div class="code"><pre class="code literal-block">git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/cirosantilli/test-git-partial-clone-big-small
+cd test-git-partial-clone-big-small
+git sparse-checkout set small
+</pre></div>
+
+<p>The test repository contains:</p>
+<ul>
+<li>a <code>big/</code> subdirectory with 10x 10MB files</li>
+<li>a <code>small/</code> subdirectory with 1000 files of size one byte</li>
+</ul>
+<p>All contents are pseudo-random and therefore incompressible.</p>
+<p>Clone times on my 36.4 Mbps internet:</p>
+<ul>
+<li>full: 24s</li>
+<li>partial: "instantaneous"</li>
+</ul>
+<p>Tested on git 2.30.0 on January 2021. Might work on Git 2.25 or 2.19.</p>
+<p>The <code>--filter</code> option was added together with an update to the remote
+protocol, and it truly prevents objects from being downloaded from the server.</p>
+<p>The <code>sparse-checkout</code> part is also needed unfortunately. You can also only
+download certain files with the much more understandable:</p>
+<div class="code"><pre class="code literal-block">git clone --depth 1  --filter=blob:none  --no-checkout \
+  https://github.com/cirosantilli/test-git-partial-clone-big-small
+cd test-git-partial-clone-big-small
+git checkout master -- d1
+</pre></div>
+
+<p>but that method for some reason downloads files one by one very slowly, making
+it unusable unless you have very few files in the directory.</p>
+<p>A more minimal test repo can be seen at: https://github.com/cirosantilli/test-
+git-partial-clone</p>
+<p><strong>TODO: files on root directory are always downloaded</strong></p>
+<p>For example:</p>
+<div class="code"><pre class="code literal-block">git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/cirosantilli/test-git-partial-clone-big-small
+</pre></div>
+
+<p>downloads the file <code>generate.sh</code>, and would also contain any other files on
+the root directory. Subdirectories are <code>small/</code> and <code>big/</code> are excluded, but
+not the root directory. How to prevent Git from downloading files in the root
+directory?</p>
+<p>Asked at: How to prevent git clone --filter=blob:none --sparse from
+downloading files on the root directory?</p>
+<p><strong>Analysis of the objects in the minimal repository</strong></p>
+<p>The clone command obtains only:</p>
+<ul>
+<li>a single commit object with the tip of the <code>master</code> branch</li>
+<li>all 4 tree objects of the repository: <ul>
+<li>toplevel directory of commit</li>
+<li>the the three directories <code>d1</code>, <code>d2</code>, <code>master</code>
+</li>
+</ul>
+</li>
+</ul>
+<p>Then, the <code>git sparse-checkout set</code> command fetches only the missing blobs
+(files) from the server:</p>
+<ul>
+<li><code>d1/a</code></li>
+<li><code>d1/b</code></li>
+</ul>
+<p>Even better, later on GitHub will likely start supporting:</p>
+<div class="code"><pre class="code literal-block">  --filter=blob:none \
+  --filter=tree:0 \
+</pre></div>
+
+<p>where <code>--filter=tree:0</code> from Git 2.20 will prevent the unnecessary <code>clone</code>
+fetch of all tree objects, and allow it to be deferred to <code>checkout</code>. But on
+my 2020-09-18 test that fails with:</p>
+<div class="code"><pre class="code literal-block"><span class="n">fatal</span><span class="o">:</span><span class="w"> </span><span class="n">invalid</span><span class="w"> </span><span class="n">filter</span><span class="o">-</span><span class="n">spec</span><span class="w"> </span><span class="s1">'combine:blob:none+tree:0'</span>
+</pre></div>
+
+<p>presumably because the <code>--filter=combine:</code> composite filter (added in Git
+2.24, implied by multiple <code>--filter</code>) is not yet implemented.</p>
+<p>I observed which objects were fetched with:</p>
+<div class="code"><pre class="code literal-block">git verify-pack -v .git/objects/pack/*.pack
+</pre></div>
+
+<p>as mentioned at: How to list ALL git objects in the database? It does not give
+me a super clear indication of what each object is exactly, but it does say
+the type of each object (<code>commit</code>, <code>tree</code>, <code>blob</code>), and since there are so few
+objects in that minimal repo, I can unambiguously deduce what each object is.</p>
+<p><code>git rev-list --objects --all</code> did produce clearer output with paths for
+tree/blobs, but it unfortunately fetches some objects when I run it, which
+makes it hard to determine what was fetched when, let me know if anyone has a
+better command.</p>
+<p>TODO find GitHub announcement that saying when they started supporting it.
+https://github.blog/2020-01-17-bring-your-monorepo-down-to-size-with-sparse-
+checkout/ from 2020-01-17 already mentions <code>--filter blob:none</code>.</p>
+<p><strong><code>git sparse-checkout</code></strong></p>
+<p>I think this command is meant to manage a settings file that says "I only care
+about these subtrees" so that future commands will only affect those subtrees.
+But it is a bit hard to be sure because the current documentation is a bit...
+sparse ;-)</p>
+<p>It does not, by itself, prevent the fetching of blobs.</p>
+<p>If this understanding is correct, then this would be a good complement to <code>git
+clone --filter</code> described above, as it would prevent unintentional fetching of
+more objects if you intend to do git operations in the partial cloned repo.</p>
+<p>When I tried on Git 2.25.1:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">git</span><span class="w"> </span><span class="nt">clone</span><span class="w"> </span><span class="err">\</span>
+<span class="w">  </span><span class="nt">--depth</span><span class="w"> </span><span class="nt">1</span><span class="w"> </span><span class="err">\</span>
+<span class="w">  </span><span class="nt">--filter</span><span class="o">=</span><span class="nt">blob</span><span class="p">:</span><span class="nd">none</span><span class="w"> </span><span class="err">\</span>
+<span class="w">  </span><span class="nt">--no-checkout</span><span class="w"> </span><span class="err">\</span>
+<span class="w">  </span><span class="nt">https</span><span class="o">://</span><span class="nt">github</span><span class="p">.</span><span class="nc">com</span><span class="o">/</span><span class="nt">cirosantilli</span><span class="o">/</span><span class="nt">test-git-partial-clone</span><span class="w"> </span><span class="err">\</span>
+<span class="o">;</span>
+<span class="nt">cd</span><span class="w"> </span><span class="nt">test-git-partial-clone</span>
+<span class="nt">git</span><span class="w"> </span><span class="nt">sparse-checkout</span><span class="w"> </span><span class="nt">init</span>
+</pre></div>
+
+<p>it didn't work because the <code>init</code> actually fetched all objects.</p>
+<p>However, in Git 2.28 it didn't fetch the objects as desired. But then if I do:</p>
+<div class="code"><pre class="code literal-block">git sparse-checkout set d1
+</pre></div>
+
+<p><code>d1</code> is not fetched and checked out, even though this explicitly says it
+should: https://github.blog/2020-01-17-bring-your-monorepo-down-to-size-with-
+sparse-checkout/#sparse-checkout-and-partial-clones With disclaimer:</p>
+<blockquote>
+<p>Keep an eye out for the partial clone feature to become generally
+available[1].</p>
+<p>[1]: GitHub is still evaluating this feature internally while it’s enabled
+on a select few repositories (including the example used in this post). As
+the feature stabilizes and matures, we’ll keep you updated with its
+progress.</p>
+</blockquote>
+<p>So yeah, it's just too hard to be certain at the moment, thanks in part to the
+joys of GitHub being closed source. But let's keep an eye on it.</p>
+<p><strong>Command breakdown</strong></p>
+<p>The server should be configured with:</p>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">--</span><span class="n">local</span><span class="w"> </span><span class="n">uploadpack</span><span class="o">.</span><span class="n">allowfilter</span><span class="w"> </span><span class="mi">1</span>
+<span class="n">git</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">--</span><span class="n">local</span><span class="w"> </span><span class="n">uploadpack</span><span class="o">.</span><span class="n">allowanysha1inwant</span><span class="w"> </span><span class="mi">1</span>
+</pre></div>
+
+<p>Command breakdown:</p>
+<ul>
+<li>
+<p><code>--filter=blob:none</code> skips all blobs, but still fetches all tree objects</p>
+</li>
+<li>
+<p><code>--filter=tree:0</code> skips the unneeded trees: https://www.spinics.net/lists/git/msg342006.html</p>
+</li>
+<li>
+<p><code>--depth 1</code> already implies <code>--single-branch</code>, see also: How do I clone a single branch in Git?</p>
+</li>
+<li>
+<p><code>file://$(path)</code> is required to overcome <code>git clone</code> protocol shenanigans: How to shallow clone a local git repository with a relative path?</p>
+</li>
+<li>
+<p><code>--filter=combine:FILTER1+FILTER2</code> is the syntax to use multiple filters at once, trying to pass <code>--filter</code> for some reason fails with: "multiple filter-specs cannot be combined". This was added in Git 2.24 at e987df5fe62b8b29be4cdcdeb3704681ada2b29e "list-objects-filter: implement composite filters"</p>
+</li>
+</ul>
+<p>Edit: on Git 2.28, I experimentally see that <code>--filter=FILTER1 --filter
+FILTER2</code> also has the same effect, since GitHub does not implement <code>combine:</code>
+yet as of 2020-09-18 and complains <code>fatal: invalid filter-spec
+'combine:blob:none+tree:0'</code>. TODO introduced in which version?</p>
+<p>The format of <code>--filter</code> is documented on <code>man git-rev-list</code>.</p>
+<p>Docs on Git tree:</p>
+<ul>
+<li>https://github.com/git/git/blob/v2.19.0/Documentation/technical/partial-clone.txt</li>
+<li>https://github.com/git/git/blob/v2.19.0/Documentation/rev-list-options.txt#L720</li>
+<li>https://github.com/git/git/blob/v2.19.0/t/t5616-partial-clone.sh</li>
+</ul>
+<p><strong>Test it out locally</strong></p>
+<p>The following script reproducibly generates the
+https://github.com/cirosantilli/test-git-partial-clone repository locally,
+does a local clone, and observes what was cloned:</p>
+<div class="code"><table class="codetable">
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-1"><code data-line-number=" 1"></code></a></td>
+<td class="code"><code><span class="ch">#!/usr/bin/env bash</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-2"><code data-line-number=" 2"></code></a></td>
+<td class="code"><code><span class="nb">set</span><span class="w"> </span>-eu
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-3"><code data-line-number=" 3"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-4"><code data-line-number=" 4"></code></a></td>
+<td class="code"><code>list-objects<span class="o">()</span><span class="w"> </span><span class="o">(</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-5"><code data-line-number=" 5"></code></a></td>
+<td class="code"><code><span class="w">  </span>git<span class="w"> </span>rev-list<span class="w"> </span>--all<span class="w"> </span>--objects
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-6"><code data-line-number=" 6"></code></a></td>
+<td class="code"><code><span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"master commit SHA: </span><span class="k">$(</span>git<span class="w"> </span>log<span class="w"> </span>-1<span class="w"> </span>--format<span class="o">=</span><span class="s2">"%H"</span><span class="k">)</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-7"><code data-line-number=" 7"></code></a></td>
+<td class="code"><code><span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"mybranch commit SHA: </span><span class="k">$(</span>git<span class="w"> </span>log<span class="w"> </span>-1<span class="w"> </span>--format<span class="o">=</span><span class="s2">"%H"</span><span class="k">)</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-8"><code data-line-number=" 8"></code></a></td>
+<td class="code"><code><span class="w">  </span>git<span class="w"> </span>ls-tree<span class="w"> </span>master
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-9"><code data-line-number=" 9"></code></a></td>
+<td class="code"><code><span class="w">  </span>git<span class="w"> </span>ls-tree<span class="w"> </span>mybranch<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>mybranch
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-10"><code data-line-number="10"></code></a></td>
+<td class="code"><code><span class="w">  </span>git<span class="w"> </span>ls-tree<span class="w"> </span>master~<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>root
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-11"><code data-line-number="11"></code></a></td>
+<td class="code"><code><span class="o">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-12"><code data-line-number="12"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-13"><code data-line-number="13"></code></a></td>
+<td class="code"><code><span class="c1"># Reproducibility.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-14"><code data-line-number="14"></code></a></td>
+<td class="code"><code><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_COMMITTER_NAME</span><span class="o">=</span><span class="s1">'a'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-15"><code data-line-number="15"></code></a></td>
+<td class="code"><code><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_COMMITTER_EMAIL</span><span class="o">=</span><span class="s1">'a'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-16"><code data-line-number="16"></code></a></td>
+<td class="code"><code><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_AUTHOR_NAME</span><span class="o">=</span><span class="s1">'a'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-17"><code data-line-number="17"></code></a></td>
+<td class="code"><code><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_AUTHOR_EMAIL</span><span class="o">=</span><span class="s1">'a'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-18"><code data-line-number="18"></code></a></td>
+<td class="code"><code><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_COMMITTER_DATE</span><span class="o">=</span><span class="s1">'2000-01-01T00:00:00+0000'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-19"><code data-line-number="19"></code></a></td>
+<td class="code"><code><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_AUTHOR_DATE</span><span class="o">=</span><span class="s1">'2000-01-01T00:00:00+0000'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-20"><code data-line-number="20"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-21"><code data-line-number="21"></code></a></td>
+<td class="code"><code>rm<span class="w"> </span>-rf<span class="w"> </span>server_repo<span class="w"> </span>local_repo
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-22"><code data-line-number="22"></code></a></td>
+<td class="code"><code>mkdir<span class="w"> </span>server_repo
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-23"><code data-line-number="23"></code></a></td>
+<td class="code"><code><span class="nb">cd</span><span class="w"> </span>server_repo
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-24"><code data-line-number="24"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-25"><code data-line-number="25"></code></a></td>
+<td class="code"><code><span class="c1"># Create repo.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-26"><code data-line-number="26"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>init<span class="w"> </span>--quiet
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-27"><code data-line-number="27"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>config<span class="w"> </span>--local<span class="w"> </span>uploadpack.allowfilter<span class="w"> </span><span class="m">1</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-28"><code data-line-number="28"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>config<span class="w"> </span>--local<span class="w"> </span>uploadpack.allowanysha1inwant<span class="w"> </span><span class="m">1</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-29"><code data-line-number="29"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-30"><code data-line-number="30"></code></a></td>
+<td class="code"><code><span class="c1"># First commit.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-31"><code data-line-number="31"></code></a></td>
+<td class="code"><code><span class="c1"># Directories present in all branches.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-32"><code data-line-number="32"></code></a></td>
+<td class="code"><code>mkdir<span class="w"> </span>d1<span class="w"> </span>d2
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-33"><code data-line-number="33"></code></a></td>
+<td class="code"><code><span class="nb">printf</span><span class="w"> </span><span class="s1">'d1/a'</span><span class="w"> </span>&gt;<span class="w"> </span>./d1/a
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-34"><code data-line-number="34"></code></a></td>
+<td class="code"><code><span class="nb">printf</span><span class="w"> </span><span class="s1">'d1/b'</span><span class="w"> </span>&gt;<span class="w"> </span>./d1/b
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-35"><code data-line-number="35"></code></a></td>
+<td class="code"><code><span class="nb">printf</span><span class="w"> </span><span class="s1">'d2/a'</span><span class="w"> </span>&gt;<span class="w"> </span>./d2/a
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-36"><code data-line-number="36"></code></a></td>
+<td class="code"><code><span class="nb">printf</span><span class="w"> </span><span class="s1">'d2/b'</span><span class="w"> </span>&gt;<span class="w"> </span>./d2/b
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-37"><code data-line-number="37"></code></a></td>
+<td class="code"><code><span class="c1"># Present only in root.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-38"><code data-line-number="38"></code></a></td>
+<td class="code"><code>mkdir<span class="w"> </span><span class="s1">'root'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-39"><code data-line-number="39"></code></a></td>
+<td class="code"><code><span class="nb">printf</span><span class="w"> </span><span class="s1">'root'</span><span class="w"> </span>&gt;<span class="w"> </span>./root/root
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-40"><code data-line-number="40"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>add<span class="w"> </span>.
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-41"><code data-line-number="41"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">'root'</span><span class="w"> </span>--quiet
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-42"><code data-line-number="42"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-43"><code data-line-number="43"></code></a></td>
+<td class="code"><code><span class="c1"># Second commit only on master.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-44"><code data-line-number="44"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>rm<span class="w"> </span>--quiet<span class="w"> </span>-r<span class="w"> </span>./root
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-45"><code data-line-number="45"></code></a></td>
+<td class="code"><code>mkdir<span class="w"> </span><span class="s1">'master'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-46"><code data-line-number="46"></code></a></td>
+<td class="code"><code><span class="nb">printf</span><span class="w"> </span><span class="s1">'master'</span><span class="w"> </span>&gt;<span class="w"> </span>./master/master
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-47"><code data-line-number="47"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>add<span class="w"> </span>.
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-48"><code data-line-number="48"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">'master commit'</span><span class="w"> </span>--quiet
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-49"><code data-line-number="49"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-50"><code data-line-number="50"></code></a></td>
+<td class="code"><code><span class="c1"># Second commit only on mybranch.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-51"><code data-line-number="51"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>mybranch<span class="w"> </span>--quiet<span class="w"> </span>master~
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-52"><code data-line-number="52"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>rm<span class="w"> </span>--quiet<span class="w"> </span>-r<span class="w"> </span>./root
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-53"><code data-line-number="53"></code></a></td>
+<td class="code"><code>mkdir<span class="w"> </span><span class="s1">'mybranch'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-54"><code data-line-number="54"></code></a></td>
+<td class="code"><code><span class="nb">printf</span><span class="w"> </span><span class="s1">'mybranch'</span><span class="w"> </span>&gt;<span class="w"> </span>./mybranch/mybranch
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-55"><code data-line-number="55"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>add<span class="w"> </span>.
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-56"><code data-line-number="56"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">'mybranch commit'</span><span class="w"> </span>--quiet
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-57"><code data-line-number="57"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-58"><code data-line-number="58"></code></a></td>
+<td class="code"><code><span class="nb">echo</span><span class="w"> </span><span class="s2">"# List and identify all objects"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-59"><code data-line-number="59"></code></a></td>
+<td class="code"><code>list-objects
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-60"><code data-line-number="60"></code></a></td>
+<td class="code"><code><span class="nb">echo</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-61"><code data-line-number="61"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-62"><code data-line-number="62"></code></a></td>
+<td class="code"><code><span class="c1"># Restore master.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-63"><code data-line-number="63"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>checkout<span class="w"> </span>--quiet<span class="w"> </span>master
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-64"><code data-line-number="64"></code></a></td>
+<td class="code"><code><span class="nb">cd</span><span class="w"> </span>..
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-65"><code data-line-number="65"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-66"><code data-line-number="66"></code></a></td>
+<td class="code"><code><span class="c1"># Clone. Don't checkout for now, only .git/ dir.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-67"><code data-line-number="67"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>clone<span class="w"> </span>--depth<span class="w"> </span><span class="m">1</span><span class="w"> </span>--quiet<span class="w"> </span>--no-checkout<span class="w"> </span>--filter<span class="o">=</span>blob:none<span class="w"> </span><span class="s2">"file://</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span><span class="s2">/server_repo"</span><span class="w"> </span>local_repo
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-68"><code data-line-number="68"></code></a></td>
+<td class="code"><code><span class="nb">cd</span><span class="w"> </span>local_repo
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-69"><code data-line-number="69"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-70"><code data-line-number="70"></code></a></td>
+<td class="code"><code><span class="c1"># List missing objects from master.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-71"><code data-line-number="71"></code></a></td>
+<td class="code"><code><span class="nb">echo</span><span class="w"> </span><span class="s2">"# Missing objects after --no-checkout"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-72"><code data-line-number="72"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>rev-list<span class="w"> </span>--all<span class="w"> </span>--quiet<span class="w"> </span>--objects<span class="w"> </span>--missing<span class="o">=</span>print
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-73"><code data-line-number="73"></code></a></td>
+<td class="code"><code><span class="nb">echo</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-74"><code data-line-number="74"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-75"><code data-line-number="75"></code></a></td>
+<td class="code"><code><span class="nb">echo</span><span class="w"> </span><span class="s2">"# Git checkout fails without internet"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-76"><code data-line-number="76"></code></a></td>
+<td class="code"><code>mv<span class="w"> </span>../server_repo<span class="w"> </span>../server_repo.off
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-77"><code data-line-number="77"></code></a></td>
+<td class="code"><code>!<span class="w"> </span>git<span class="w"> </span>checkout<span class="w"> </span>master
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-78"><code data-line-number="78"></code></a></td>
+<td class="code"><code><span class="nb">echo</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-79"><code data-line-number="79"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-80"><code data-line-number="80"></code></a></td>
+<td class="code"><code><span class="nb">echo</span><span class="w"> </span><span class="s2">"# Git checkout fetches the missing directory from internet"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-81"><code data-line-number="81"></code></a></td>
+<td class="code"><code>mv<span class="w"> </span>../server_repo.off<span class="w"> </span>../server_repo
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-82"><code data-line-number="82"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>checkout<span class="w"> </span>master<span class="w"> </span>--<span class="w"> </span>d1/
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-83"><code data-line-number="83"></code></a></td>
+<td class="code"><code><span class="nb">echo</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-84"><code data-line-number="84"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-85"><code data-line-number="85"></code></a></td>
+<td class="code"><code><span class="nb">echo</span><span class="w"> </span><span class="s2">"# Missing objects after checking out d1"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-clone-a-subdirectory-only-of-a-git-repository/#-86"><code data-line-number="86"></code></a></td>
+<td class="code"><code>git<span class="w"> </span>rev-list<span class="w"> </span>--all<span class="w"> </span>--quiet<span class="w"> </span>--objects<span class="w"> </span>--missing<span class="o">=</span>print
+</code></td>
+</tr>
+</table></div>
+<p>GitHub upstream.</p>
+<p>Output in Git v2.19.0:</p>
+<div class="code"><pre class="code literal-block"># List and identify all objects
+c6fcdfaf2b1462f809aecdad83a186eeec00f9c1
+fc5e97944480982cfc180a6d6634699921ee63ec
+7251a83be9a03161acde7b71a8fda9be19f47128
+62d67bce3c672fe2b9065f372726a11e57bade7e
+b64bf435a3e54c5208a1b70b7bcb0fc627463a75 d1
+308150e8fddde043f3dbbb8573abb6af1df96e63 d1/a
+f70a17f51b7b30fec48a32e4f19ac15e261fd1a4 d1/b
+84de03c312dc741d0f2a66df7b2f168d823e122a d2
+0975df9b39e23c15f63db194df7f45c76528bccb d2/a
+41484c13520fcbb6e7243a26fdb1fc9405c08520 d2/b
+7d5230379e4652f1b1da7ed1e78e0b8253e03ba3 master
+8b25206ff90e9432f6f1a8600f87a7bd695a24af master/master
+ef29f15c9a7c5417944cc09711b6a9ee51b01d89
+19f7a4ca4a038aff89d803f017f76d2b66063043 mybranch
+1b671b190e293aa091239b8b5e8c149411d00523 mybranch/mybranch
+c3760bb1a0ece87cdbaf9a563c77a45e30a4e30e
+a0234da53ec608b54813b4271fbf00ba5318b99f root
+93ca1422a8da0a9effc465eccbcb17e23015542d root/root
+master commit SHA: fc5e97944480982cfc180a6d6634699921ee63ec
+mybranch commit SHA: fc5e97944480982cfc180a6d6634699921ee63ec
+040000 tree b64bf435a3e54c5208a1b70b7bcb0fc627463a75    d1
+040000 tree 84de03c312dc741d0f2a66df7b2f168d823e122a    d2
+040000 tree 7d5230379e4652f1b1da7ed1e78e0b8253e03ba3    master
+040000 tree 19f7a4ca4a038aff89d803f017f76d2b66063043    mybranch
+040000 tree a0234da53ec608b54813b4271fbf00ba5318b99f    root
+
+# Missing objects after --no-checkout
+?f70a17f51b7b30fec48a32e4f19ac15e261fd1a4
+?8b25206ff90e9432f6f1a8600f87a7bd695a24af
+?41484c13520fcbb6e7243a26fdb1fc9405c08520
+?0975df9b39e23c15f63db194df7f45c76528bccb
+?308150e8fddde043f3dbbb8573abb6af1df96e63
+
+# Git checkout fails without internet
+fatal: '/home/ciro/bak/git/test-git-web-interface/other-test-repos/partial-clone.tmp/server_repo' does not appear to be a git repository
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+
+# Git checkout fetches the missing directory from internet
+remote: Enumerating objects: 1, done.
+remote: Counting objects: 100% (1/1), done.
+remote: Total 1 (delta 0), reused 0 (delta 0)
+Receiving objects: 100% (1/1), 45 bytes | 45.00 KiB/s, done.
+remote: Enumerating objects: 1, done.
+remote: Counting objects: 100% (1/1), done.
+remote: Total 1 (delta 0), reused 0 (delta 0)
+Receiving objects: 100% (1/1), 45 bytes | 45.00 KiB/s, done.
+
+# Missing objects after checking out d1
+?8b25206ff90e9432f6f1a8600f87a7bd695a24af
+?41484c13520fcbb6e7243a26fdb1fc9405c08520
+?0975df9b39e23c15f63db194df7f45c76528bccb
+</pre></div>
+
+<p>Conclusions: all blobs from outside of <code>d1/</code> are missing. E.g.
+<code>0975df9b39e23c15f63db194df7f45c76528bccb</code>, which is <code>d2/b</code> is not there after
+checking out <code>d1/a</code>.</p>
+<p>Note that <code>root/root</code> and <code>mybranch/mybranch</code> are also missing, but <code>--depth
+1</code> hides that from the list of missing files. If you remove <code>--depth 1</code>, then
+they show on the list of missing files.</p>
+<p><strong>I have a dream</strong></p>
+<p>This feature could revolutionize Git.</p>
+<p>Imagine having all the code base of your enterprise in a single monorepo
+without ugly third-party tools like <code>repo</code>.</p>
+<p>Imagine storing huge blobs directly in the repo without any ugly third party
+extensions.</p>
+<p>Imagine if GitHub would allow per file / directory metadata like stars and
+permissions, so you can store all your personal stuff under a single repo.</p>
+<p>Imagine if submodules were treated exactly like regular directories: just
+request a tree SHA, and a DNS-like mechanism resolves your request, first
+looking on your local <code>~/.git</code>, then first to closer servers (your
+enterprise's mirror / cache) and ending up on GitHub.</p>
+<p>I have a dream.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-randomize-shuffle-a-javascript-array/" class="u-url">How to randomize (shuffle) a JavaScript array?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -328,70 +1055,6 @@ when writing this as a Java string. Some other examples:</p>
 ([A-Z]{2})-(\d+)           // The first part is exactly two capital letters,
                            // the second consists of digits
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-check-if-a-string-represents-a-number-float-or-int/" class="u-url">How do I check if a string represents a number (float or int)?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-check-if-a-string-represents-a-number-float-or-int/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-16T23:36:38+08:00" itemprop="datePublished" title="2023-02-16 23:36">2023-02-16 23:36</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do I check if a string represents a numeric value in Python?</p>
-<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">is_number</span><span class="ss">(</span><span class="nv">s</span><span class="ss">)</span>:
-<span class="w">    </span><span class="nv">try</span>:
-<span class="w">        </span><span class="nv">float</span><span class="ss">(</span><span class="nv">s</span><span class="ss">)</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nv">True</span>
-<span class="w">    </span><span class="nv">except</span><span class="w"> </span><span class="nv">ValueError</span>:
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nv">False</span>
-</pre></div>
-
-<p>The above works, but it seems clunky.</p>
-<hr>
-<p>If what you are testing comes from user input, it is <em>still</em> a string <em>even if
-it represents</em> an <code>int</code> or a <code>float</code>. See How can I read inputs as numbers?
-for converting the input, and Asking the user for input until they give a
-valid response for ensuring that the input represents an <code>int</code> or <code>float</code> (or
-other requirements) before proceeding.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<blockquote>
-<p>Which, not only is ugly and slow</p>
-</blockquote>
-<p>I'd dispute both.</p>
-<p>A regex or other string parsing method would be uglier and slower.</p>
-<p>I'm not sure that anything much could be faster than the above. It calls the
-function and returns. Try/Catch doesn't introduce much overhead because the
-most common exception is caught without an extensive search of stack frames.</p>
-<p>The issue is that any numeric conversion function has two kinds of results</p>
-<ul>
-<li>A number, if the number is valid</li>
-<li>A status code (e.g., via errno) or exception to show that no valid number could be parsed.</li>
-</ul>
-<p>C (as an example) hacks around this a number of ways. Python lays it out
-clearly and explicitly.</p>
-<p>I think your code for doing this is perfect.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<blockquote>
-<p>Which, not only is ugly and slow</p>
-</blockquote>
-<p>I'd dispute both.</p>
-<p>A regex or other string parsing method would be uglier and slower.</p>
-<p>I'm not sure that anything much could be faster than the above. It calls the
-function and returns. Try/Catch doesn't introduce much overhead because the
-most common exception is caught without an extensive search of stack frames.</p>
-<p>The issue is that any numeric conversion function has two kinds of results</p>
-<ul>
-<li>A number, if the number is valid</li>
-<li>A status code (e.g., via errno) or exception to show that no valid number could be parsed.</li>
-</ul>
-<p>C (as an example) hacks around this a number of ways. Python lays it out
-clearly and explicitly.</p>
-<p>I think your code for doing this is perfect.</p>
     </div>
     </article>
 </div>

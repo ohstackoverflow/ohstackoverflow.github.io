@@ -108,7 +108,121 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/endswith-in-javascript/" class="u-url">endsWith in JavaScript</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/collection-was-modified-enumeration-operation-may-not-execute/" class="u-url">Collection was modified; enumeration operation may not execute</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/collection-was-modified-enumeration-operation-may-not-execute/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T05:17:44+08:00" itemprop="datePublished" title="2023-02-17 05:17">2023-02-17 05:17</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I can't get to the bottom of this error, because when the debugger is
+attached, it does not seem to occur.</p>
+<blockquote>
+<p>Collection was modified; enumeration operation may not execute</p>
+</blockquote>
+<p>Below is the code.</p>
+<p>This is a WCF server in a Windows service. The method <code>NotifySubscribers()</code> is
+called by the service whenever there is a data event (at random intervals, but
+not very often - about 800 times per day).</p>
+<p>When a Windows Forms client subscribes, the subscriber ID is added to the
+subscribers dictionary, and when the client unsubscribes, it is deleted from
+the dictionary. The error happens when (or after) a client unsubscribes. It
+appears that the next time the <code>NotifySubscribers()</code> method is called, the
+<code>foreach()</code> loop fails with the error in the subject line. The method writes
+the error into the application log as shown in the code below. When a debugger
+is attached and a client unsubscribes, the code executes fine.</p>
+<p>Do you see a problem with this code? Do I need to make the dictionary thread-
+safe?</p>
+<div class="code"><pre class="code literal-block"><span class="k">[ServiceBehavior(InstanceContextMode=InstanceContextMode.Single)]</span>
+<span class="na">public class SubscriptionServer</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s">ISubscriptionServer</span>
+<span class="na">{</span>
+<span class="w">    </span><span class="na">private static IDictionary&lt;Guid, Subscriber&gt; subscribers;</span>
+
+<span class="w">    </span><span class="na">public SubscriptionServer()</span>
+<span class="w">    </span><span class="na">{            </span>
+<span class="w">        </span><span class="na">subscribers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">new Dictionary&lt;Guid, Subscriber&gt;()</span><span class="c1">;</span>
+<span class="w">    </span><span class="na">}</span>
+
+<span class="w">    </span><span class="na">public void NotifySubscribers(DataRecord sr)</span>
+<span class="w">    </span><span class="na">{</span>
+<span class="w">        </span><span class="na">foreach(Subscriber s in subscribers.Values)</span>
+<span class="w">        </span><span class="na">{</span>
+<span class="w">            </span><span class="na">try</span>
+<span class="w">            </span><span class="na">{</span>
+<span class="w">                </span><span class="na">s.Callback.SignalData(sr);</span>
+<span class="w">            </span><span class="na">}</span>
+<span class="w">            </span><span class="na">catch (Exception e)</span>
+<span class="w">            </span><span class="na">{</span>
+<span class="w">                </span><span class="na">DCS.WriteToApplicationLog(e.Message, </span>
+<span class="w">                  </span><span class="na">System.Diagnostics.EventLogEntryType.Error);</span>
+
+<span class="w">                </span><span class="na">UnsubscribeEvent(s.ClientId);</span>
+<span class="w">            </span><span class="na">}</span>
+<span class="w">        </span><span class="na">}</span>
+<span class="w">    </span><span class="na">}</span>
+
+<span class="w">    </span><span class="na">public Guid SubscribeEvent(string clientDescription)</span>
+<span class="w">    </span><span class="na">{</span>
+<span class="w">        </span><span class="na">Subscriber subscriber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">new Subscriber()</span><span class="c1">;</span>
+<span class="w">        </span><span class="na">subscriber.Callback</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">OperationContext.Current.</span>
+<span class="w">                </span><span class="na">GetCallbackChannel&lt;IDCSCallback&gt;();</span>
+
+<span class="w">        </span><span class="na">subscribers.Add(subscriber.ClientId, subscriber);</span>
+
+<span class="w">        </span><span class="na">return subscriber.ClientId;</span>
+<span class="w">    </span><span class="na">}</span>
+
+<span class="w">    </span><span class="na">public void UnsubscribeEvent(Guid clientId)</span>
+<span class="w">    </span><span class="na">{</span>
+<span class="w">        </span><span class="na">try</span>
+<span class="w">        </span><span class="na">{</span>
+<span class="w">            </span><span class="na">subscribers.Remove(clientId);</span>
+<span class="w">        </span><span class="na">}</span>
+<span class="w">        </span><span class="na">catch(Exception e)</span>
+<span class="w">        </span><span class="na">{</span>
+<span class="w">            </span><span class="na">System.Diagnostics.Debug.WriteLine("Unsubscribe Error " + </span>
+<span class="w">                    </span><span class="na">e.Message);</span>
+<span class="w">        </span><span class="na">}</span>
+<span class="w">    </span><span class="na">}</span>
+<span class="na">}</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>What's likely happening is that <code>SignalData</code> is indirectly changing the
+subscribers dictionary under the hood during the loop and leading to that
+message. You can verify this by changing</p>
+<div class="code"><pre class="code literal-block">foreach(Subscriber s in subscribers.Values)
+</pre></div>
+
+<p>To</p>
+<div class="code"><pre class="code literal-block">foreach(Subscriber s in subscribers.Values.ToList())
+</pre></div>
+
+<p>If I'm right, the problem will disappear.</p>
+<p>Calling <code>subscribers.Values.ToList()</code> copies the values of
+<code>subscribers.Values</code> to a separate list at the start of the <code>foreach</code>. Nothing
+else has access to this list (it doesn't even have a variable name!), so
+nothing can modify it inside the loop.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>When a subscriber unsubscribes you are changing contents of the collection of
+Subscribers during enumeration.</p>
+<p>There are several ways to fix this, one being changing the for loop to use an
+explicit <code>.ToList()</code>:</p>
+<div class="code"><pre class="code literal-block">public void NotifySubscribers(DataRecord sr)  
+{
+    foreach(Subscriber s in subscribers.Values.ToList())
+    {
+                                              ^^^^^^^^^  
+        ...
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/endswith-in-javascript/" class="u-url">endsWith in JavaScript</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -382,86 +496,6 @@ values. For example:</p>
 
 <span class="n">Animal</span>.<span class="n">CAT</span> <span class="nb">in</span> <span class="n">Animal</span>
 <span class="c1"># True</span>
-</pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-parse-xml-and-get-instances-of-a-particular-node-attribute/" class="u-url">How to parse XML and get instances of a particular node attribute?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-parse-xml-and-get-instances-of-a-particular-node-attribute/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T05:15:59+08:00" itemprop="datePublished" title="2023-02-17 05:15">2023-02-17 05:15</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have many rows in XML and I'm trying to get instances of a particular node
-attribute.</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;foo&gt;</span>
-<span class="w">   </span><span class="nt">&lt;bar&gt;</span>
-<span class="w">      </span><span class="nt">&lt;type</span><span class="w"> </span><span class="na">foobar=</span><span class="s">"1"</span><span class="nt">/&gt;</span>
-<span class="w">      </span><span class="nt">&lt;type</span><span class="w"> </span><span class="na">foobar=</span><span class="s">"2"</span><span class="nt">/&gt;</span>
-<span class="w">   </span><span class="nt">&lt;/bar&gt;</span>
-<span class="nt">&lt;/foo&gt;</span>
-</pre></div>
-
-<p>How do I access the values of the attribute <code>foobar</code>? In this example, I want
-<code>"1"</code> and <code>"2"</code>.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I suggest <code>ElementTree</code>. There are other compatible implementations of the
-same API, such as <code>lxml</code>, and <code>cElementTree</code> in the Python standard library
-itself; but, in this context, what they chiefly add is even more speed -- the
-ease of programming part depends on the API, which <code>ElementTree</code> defines.</p>
-<p>First build an Element instance <code>root</code> from the XML, e.g. with the XML
-function, or by parsing a file with something like:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
-<span class="n">root</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">'thefile.xml'</span><span class="p">)</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
-</pre></div>
-
-<p>Or any of the many other ways shown at <code>ElementTree</code>. Then do something like:</p>
-<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="nv">type_tag</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">root</span>.<span class="nv">findall</span><span class="ss">(</span><span class="s1">'bar/type'</span><span class="ss">)</span>:
-<span class="w">    </span><span class="nv">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">type_tag</span>.<span class="nv">get</span><span class="ss">(</span><span class="s1">'foobar'</span><span class="ss">)</span>
-<span class="w">    </span><span class="nv">print</span><span class="ss">(</span><span class="nv">value</span><span class="ss">)</span>
-</pre></div>
-
-<p>Output:</p>
-<div class="code"><pre class="code literal-block"><span class="mf">1</span>
-<span class="mf">2</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p><code>minidom</code> is the quickest and pretty straight forward.</p>
-<p>XML:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;data&gt;</span>
-<span class="w">    </span><span class="nt">&lt;items&gt;</span>
-<span class="w">        </span><span class="nt">&lt;item</span><span class="w"> </span><span class="na">name=</span><span class="s">"item1"</span><span class="nt">&gt;&lt;/item&gt;</span>
-<span class="w">        </span><span class="nt">&lt;item</span><span class="w"> </span><span class="na">name=</span><span class="s">"item2"</span><span class="nt">&gt;&lt;/item&gt;</span>
-<span class="w">        </span><span class="nt">&lt;item</span><span class="w"> </span><span class="na">name=</span><span class="s">"item3"</span><span class="nt">&gt;&lt;/item&gt;</span>
-<span class="w">        </span><span class="nt">&lt;item</span><span class="w"> </span><span class="na">name=</span><span class="s">"item4"</span><span class="nt">&gt;&lt;/item&gt;</span>
-<span class="w">    </span><span class="nt">&lt;/items&gt;</span>
-<span class="nt">&lt;/data&gt;</span>
-</pre></div>
-
-<p>Python:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">xml.dom</span> <span class="kn">import</span> <span class="n">minidom</span>
-
-<span class="n">dom</span> <span class="o">=</span> <span class="n">minidom</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">'items.xml'</span><span class="p">)</span>
-<span class="n">elements</span> <span class="o">=</span> <span class="n">dom</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s1">'item'</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"There are </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span><span class="si">}</span><span class="s2"> items:"</span><span class="p">)</span>
-
-<span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">'name'</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
-</pre></div>
-
-<p>Output:</p>
-<div class="code"><pre class="code literal-block">There are 4 items:
-item1
-item2
-item3
-item4
 </pre></div>
     </div>
     </article>

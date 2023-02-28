@@ -108,7 +108,103 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/relative-imports-for-the-billionth-time/" class="u-url">Relative imports for the billionth time</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-directly-initialize-a-hashmap-in-a-literal-way/" class="u-url">How to directly initialize a HashMap (in a literal way)?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-directly-initialize-a-hashmap-in-a-literal-way/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:42:09+08:00" itemprop="datePublished" title="2023-02-17 01:42">2023-02-17 01:42</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there some way of initializing a Java HashMap like this?:</p>
+<div class="code"><pre class="code literal-block">Map&lt;String,String&gt; test = 
+    new HashMap&lt;String, String&gt;{"test":"test","test":"test"};
+</pre></div>
+
+<p>What would be the correct syntax? I have not found anything regarding this. Is
+this possible? I am looking for the shortest/fastest way to put some
+"final/static" values in a map that never change and are known in advance when
+creating the Map.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h2>All Versions</h2>
+<p>In case you happen to need just a single entry: There is
+<code>Collections.singletonMap("key", "value")</code>.</p>
+<h2>For Java Version 9 or higher:</h2>
+<p>Yes, this is possible now. In Java 9 a couple of factory methods have been
+added that simplify the creation of maps :</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span> <span class="n">this</span> <span class="n">works</span> <span class="k">for</span> <span class="n">up</span> <span class="n">to</span> <span class="mi">10</span> <span class="n">elements</span><span class="p">:</span>
+<span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="p">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">test1</span> <span class="o">=</span> <span class="n">Map</span><span class="o">.</span><span class="n">of</span><span class="p">(</span>
+    <span class="s2">"a"</span><span class="p">,</span> <span class="s2">"b"</span><span class="p">,</span>
+    <span class="s2">"c"</span><span class="p">,</span> <span class="s2">"d"</span>
+<span class="p">);</span>
+
+<span class="o">//</span> <span class="n">this</span> <span class="n">works</span> <span class="k">for</span> <span class="nb">any</span> <span class="n">number</span> <span class="n">of</span> <span class="n">elements</span><span class="p">:</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">java</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">Map</span><span class="o">.</span><span class="n">entry</span><span class="p">;</span>    
+<span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="p">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">test2</span> <span class="o">=</span> <span class="n">Map</span><span class="o">.</span><span class="n">ofEntries</span><span class="p">(</span>
+    <span class="n">entry</span><span class="p">(</span><span class="s2">"a"</span><span class="p">,</span> <span class="s2">"b"</span><span class="p">),</span>
+    <span class="n">entry</span><span class="p">(</span><span class="s2">"c"</span><span class="p">,</span> <span class="s2">"d"</span><span class="p">)</span>
+<span class="p">);</span>
+</pre></div>
+
+<p>In the example above both <code>test</code> and <code>test2</code> will be the same, just with
+different ways of expressing the Map. The <code>Map.of</code> method is defined for up to
+ten elements in the map, while the <code>Map.ofEntries</code> method will have no such
+limit.</p>
+<p>Note that in this case the resulting map will be an immutable map. If you want
+the map to be mutable, you could copy it again, e.g. using <code>mutableMap = new
+HashMap&lt;&gt;(Map.of("a", "b"));</code>. Also note that in this case keys and values
+must not be <code>null</code>.</p>
+<p>(See also JEP 269 and the Javadoc)</p>
+<h2>For up to Java Version 8:</h2>
+<p>No, you will have to add all the elements manually. You can use an initializer
+in an anonymous subclass to make the syntax a little bit shorter:</p>
+<div class="code"><pre class="code literal-block">Map&lt;String, String&gt; myMap = new HashMap&lt;String, String&gt;() {{
+    put("a", "b");
+    put("c", "d");
+}};
+</pre></div>
+
+<p>However, the anonymous subclass might introduce unwanted behavior in some
+cases. This includes for example:</p>
+<ul>
+<li>It generates an additional class which increases memory consumption, disk space consumption and startup-time</li>
+<li>In case of a non-static method: It holds a reference to the object the creating method was called upon. That means the object of the outer class cannot be garbage collected while the created map object is still referenced, thus blocking additional memory</li>
+</ul>
+<p>Using a function for initialization will also enable you to generate a map in
+an initializer, but avoids nasty side-effects:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Map</span><span class="o">&lt;</span><span class="nv">String</span>,<span class="w"> </span><span class="nv">String</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">myMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">createMap</span><span class="ss">()</span><span class="c1">;</span>
+
+<span class="nv">private</span><span class="w"> </span><span class="nv">static</span><span class="w"> </span><span class="nv">Map</span><span class="o">&lt;</span><span class="nv">String</span>,<span class="w"> </span><span class="nv">String</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">createMap</span><span class="ss">()</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">Map</span><span class="o">&lt;</span><span class="nv">String</span>,<span class="nv">String</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">myMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">HashMap</span><span class="o">&lt;</span><span class="nv">String</span>,<span class="nv">String</span><span class="o">&gt;</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">myMap</span>.<span class="nv">put</span><span class="ss">(</span><span class="s2">"a"</span>,<span class="w"> </span><span class="s2">"b"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">myMap</span>.<span class="nv">put</span><span class="ss">(</span><span class="s2">"c"</span>,<span class="w"> </span><span class="s2">"d"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">myMap</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>This is one way.</p>
+<div class="code"><pre class="code literal-block">Map&lt;String, String&gt; h = new HashMap&lt;String, String&gt;() {{
+    put("a","b");
+}};
+</pre></div>
+
+<p>However, you should be careful and make sure that you understand the above
+code (it creates a new class that inherits from HashMap). Therefore, you
+should read more here: http://www.c2.com/cgi/wiki?DoubleBraceInitialization ,
+or simply use Guava:</p>
+<div class="code"><pre class="code literal-block">Map&lt;String, Integer&gt; left = ImmutableMap.of("a", 1, "b", 2, "c", 3);
+</pre></div>
+
+<p><code>ImmutableMap.of</code> works for up to 5 entries. Otherwise, use the builder:
+source.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/relative-imports-for-the-billionth-time/" class="u-url">Relative imports for the billionth time</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -335,70 +431,6 @@ repository's <code>.git/config</code> file.</p>
 
 <p>shows all inherited values from: system, global and local</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-add-local-jar-files-to-a-maven-project/" class="u-url">How to add local jar files to a Maven project?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-add-local-jar-files-to-a-maven-project/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T01:40:43+08:00" itemprop="datePublished" title="2023-02-17 01:40">2023-02-17 01:40</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do I add local jar files (not yet part of the Maven repository) directly
-in my project's library sources?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Install the JAR into your local Maven repository (typically <code>.m2</code> in your home
-folder) as follows:</p>
-<div class="code"><pre class="code literal-block">mvn install:install-file \
-   -Dfile=&lt;path-to-file&gt; \
-   -DgroupId=&lt;group-id&gt; \
-   -DartifactId=&lt;artifact-id&gt; \
-   -Dversion=&lt;version&gt; \
-   -Dpackaging=&lt;packaging&gt; \
-   -DgeneratePom=true
-</pre></div>
-
-<p>Where each refers to:</p>
-<p><code>&lt;path-to-file&gt;</code>: the path to the file to load e.g → <code>c:\kaptcha-2.3.jar</code></p>
-<p><code>&lt;group-id&gt;</code>: the group that the file should be registered under e.g →
-<code>com.google.code</code></p>
-<p><code>&lt;artifact-id&gt;</code>: the artifact name for the file e.g → <code>kaptcha</code></p>
-<p><code>&lt;version&gt;</code>: the version of the file e.g → <code>2.3</code></p>
-<p><code>&lt;packaging&gt;</code>: the packaging of the file e.g. → <code>jar</code></p>
-<p><strong>Reference</strong></p>
-<ul>
-<li>Maven FAQ: I have a jar that I want to put into my local repository. How can I copy it in?</li>
-<li>Maven Install Plugin Usage: The <code>install:install-file</code> goal</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Install the JAR into your local Maven repository (typically <code>.m2</code> in your home
-folder) as follows:</p>
-<div class="code"><pre class="code literal-block">mvn install:install-file \
-   -Dfile=&lt;path-to-file&gt; \
-   -DgroupId=&lt;group-id&gt; \
-   -DartifactId=&lt;artifact-id&gt; \
-   -Dversion=&lt;version&gt; \
-   -Dpackaging=&lt;packaging&gt; \
-   -DgeneratePom=true
-</pre></div>
-
-<p>Where each refers to:</p>
-<p><code>&lt;path-to-file&gt;</code>: the path to the file to load e.g → <code>c:\kaptcha-2.3.jar</code></p>
-<p><code>&lt;group-id&gt;</code>: the group that the file should be registered under e.g →
-<code>com.google.code</code></p>
-<p><code>&lt;artifact-id&gt;</code>: the artifact name for the file e.g → <code>kaptcha</code></p>
-<p><code>&lt;version&gt;</code>: the version of the file e.g → <code>2.3</code></p>
-<p><code>&lt;packaging&gt;</code>: the packaging of the file e.g. → <code>jar</code></p>
-<p><strong>Reference</strong></p>
-<ul>
-<li>Maven FAQ: I have a jar that I want to put into my local repository. How can I copy it in?</li>
-<li>Maven Install Plugin Usage: The <code>install:install-file</code> goal</li>
-</ul>
-</div>
     </article>
 </div>
 

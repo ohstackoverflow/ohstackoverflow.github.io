@@ -108,7 +108,119 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-turing-complete/" class="u-url">What is Turing Complete?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-address-unchecked-cast-warnings/" class="u-url">How do I address unchecked cast warnings?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-address-unchecked-cast-warnings/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T18:19:15+08:00" itemprop="datePublished" title="2023-02-17 18:19">2023-02-17 18:19</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Eclipse is giving me a warning of the following form:</p>
+<blockquote>
+<p>Type safety: Unchecked cast from Object to HashMap</p>
+</blockquote>
+<p>This is from a call to an API that I have no control over which returns
+Object:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">HashMap</span><span class="o">&lt;</span><span class="nv">String</span>,<span class="w"> </span><span class="nv">String</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">getItems</span><span class="ss">(</span><span class="nv">javax</span>.<span class="nv">servlet</span>.<span class="nv">http</span>.<span class="nv">HttpSession</span><span class="w"> </span><span class="nv">session</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">  </span><span class="nv">HashMap</span><span class="o">&lt;</span><span class="nv">String</span>,<span class="w"> </span><span class="nv">String</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">theHash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">HashMap</span><span class="o">&lt;</span><span class="nv">String</span>,<span class="w"> </span><span class="nv">String</span><span class="o">&gt;</span><span class="ss">)</span><span class="nv">session</span>.<span class="nv">getAttribute</span><span class="ss">(</span><span class="s2">"attributeKey"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nv">theHash</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>I'd like to avoid Eclipse warnings, if possible, since theoretically they
+indicate at least a potential code problem. I haven't found a good way to
+eliminate this one yet, though. I can extract the single line involved out to
+a method by itself and add <code>@SuppressWarnings("unchecked")</code> to that method,
+thus limiting the impact of having a block of code where I ignore warnings.
+Any better options? I don't want to turn these warnings off in Eclipse.</p>
+<p>Before I came to the code, it was simpler, but still provoked warnings:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">HashMap</span><span class="w"> </span><span class="nv">getItems</span><span class="ss">(</span><span class="nv">javax</span>.<span class="nv">servlet</span>.<span class="nv">http</span>.<span class="nv">HttpSession</span><span class="w"> </span><span class="nv">session</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">  </span><span class="nv">HashMap</span><span class="w"> </span><span class="nv">theHash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">HashMap</span><span class="ss">)</span><span class="nv">session</span>.<span class="nv">getAttribute</span><span class="ss">(</span><span class="s2">"attributeKey"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nv">theHash</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>Problem was elsewhere when you tried to use the hash you'd get warnings:</p>
+<div class="code"><pre class="code literal-block">HashMap items = getItems(session);
+items.put("this", "that");
+
+Type safety: The method put(Object, Object) belongs to the raw type HashMap.  References to generic type HashMap&lt;K,V&gt; should be parameterized.
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Wow; I think I figured out the answer to my own question. I'm just not sure
+it's worth it! :)</p>
+<p>The problem is the cast isn't checked. So, you have to check it yourself. You
+can't just check a parameterized type with instanceof, because the
+parameterized type information is unavailable at runtime, having been erased
+at compile time.</p>
+<p>But, you can perform a check on each and every item in the hash, with
+instanceof, and in doing so, you can construct a new hash that is type-safe.
+And you won't provoke any warnings.</p>
+<p>Thanks to mmyers and Esko Luontola, I've parameterized the code I originally
+wrote here, so it can be wrapped up in a utility class somewhere and used for
+any parameterized HashMap. If you want to understand it better and aren't very
+familiar with generics, I encourage viewing the edit history of this answer.</p>
+<div class="code"><pre class="code literal-block"><span class="nt">public</span><span class="w"> </span><span class="nt">static</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">K</span><span class="o">,</span><span class="w"> </span><span class="nt">V</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">HashMap</span><span class="o">&lt;</span><span class="nt">K</span><span class="o">,</span><span class="w"> </span><span class="nt">V</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">castHash</span><span class="o">(</span><span class="nt">HashMap</span><span class="w"> </span><span class="nt">input</span><span class="o">,</span>
+<span class="w">                                            </span><span class="nt">Class</span><span class="o">&lt;</span><span class="nt">K</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">keyClass</span><span class="o">,</span>
+<span class="w">                                            </span><span class="nt">Class</span><span class="o">&lt;</span><span class="nt">V</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">valueClass</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">HashMap&lt;K,</span><span class="w"> </span><span class="err">V&gt;</span><span class="w"> </span><span class="err">output</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">new</span><span class="w"> </span><span class="err">HashMap&lt;K,</span><span class="w"> </span><span class="err">V&gt;()</span><span class="p">;</span>
+<span class="w">  </span><span class="err">if</span><span class="w"> </span><span class="err">(input</span><span class="w"> </span><span class="err">==</span><span class="w"> </span><span class="err">null)</span>
+<span class="w">      </span><span class="err">return</span><span class="w"> </span><span class="err">output</span><span class="p">;</span>
+<span class="w">  </span><span class="err">for</span><span class="w"> </span><span class="err">(Object</span><span class="w"> </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="n">input</span><span class="o">.</span><span class="nf">keySet</span><span class="p">()</span><span class="o">.</span><span class="nf">toArray</span><span class="p">())</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">if</span><span class="w"> </span><span class="p">((</span><span class="n">key</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">null</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="n">keyClass</span><span class="o">.</span><span class="nf">isAssignableFrom</span><span class="p">(</span><span class="n">key</span><span class="err">.</span><span class="nf">getClass</span><span class="p">())))</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">Object</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="o">.</span><span class="nf">get</span><span class="p">(</span><span class="n">key</span><span class="p">);</span>
+<span class="w">        </span><span class="err">if</span><span class="w"> </span><span class="err">((value</span><span class="w"> </span><span class="err">==</span><span class="w"> </span><span class="err">null)</span><span class="w"> </span><span class="err">||</span><span class="w"> </span><span class="err">(valueClass.isAssignableFrom(value.getClass())))</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="err">K</span><span class="w"> </span><span class="err">k</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">keyClass.cast(key)</span><span class="p">;</span>
+<span class="w">            </span><span class="err">V</span><span class="w"> </span><span class="err">v</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">valueClass.cast(value)</span><span class="p">;</span>
+<span class="w">            </span><span class="err">output.put(k,</span><span class="w"> </span><span class="err">v)</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="err">throw</span><span class="w"> </span><span class="err">new</span><span class="w"> </span><span class="err">AssertionError(</span>
+<span class="w">                </span><span class="err">"Cannot</span><span class="w"> </span><span class="err">cast</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">HashMap&lt;"+</span><span class="w"> </span><span class="err">keyClass.getSimpleName()</span>
+<span class="w">                </span><span class="err">+",</span><span class="w"> </span><span class="err">"+</span><span class="w"> </span><span class="err">valueClass.getSimpleName()</span><span class="w"> </span><span class="err">+"&gt;"</span>
+<span class="w">                </span><span class="err">+",</span><span class="w"> </span><span class="err">value</span><span class="w"> </span><span class="err">"+</span><span class="w"> </span><span class="err">value</span><span class="w"> </span><span class="err">+"</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">not</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">"+</span><span class="w"> </span><span class="err">valueClass.getSimpleName()</span>
+<span class="w">            </span><span class="err">)</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="err">}</span><span class="w"> </span><span class="nt">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="err">throw</span><span class="w"> </span><span class="err">new</span><span class="w"> </span><span class="err">AssertionError(</span>
+<span class="w">            </span><span class="err">"Cannot</span><span class="w"> </span><span class="err">cast</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">HashMap&lt;"+</span><span class="w"> </span><span class="err">keyClass.getSimpleName()</span>
+<span class="w">            </span><span class="err">+",</span><span class="w"> </span><span class="err">"+</span><span class="w"> </span><span class="err">valueClass.getSimpleName()</span><span class="w"> </span><span class="err">+"&gt;"</span>
+<span class="w">            </span><span class="err">+",</span><span class="w"> </span><span class="err">key</span><span class="w"> </span><span class="err">"+</span><span class="w"> </span><span class="err">key</span><span class="w"> </span><span class="err">+"</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">not</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">"</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">keyClass.getSimpleName()</span>
+<span class="w">        </span><span class="err">)</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="err">}</span>
+<span class="w">  </span><span class="nt">return</span><span class="w"> </span><span class="nt">output</span><span class="o">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>That's a lot of work, possibly for very little reward... I'm not sure if I'll
+use it or not. I'd appreciate any comments as to whether people think it's
+worth it or not. Also, I'd appreciate improvement suggestions: is there
+something better I can do besides throw AssertionErrors? Is there something
+better I could throw? Should I make it a checked Exception?</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Unfortunately, there are no great options here. Remember, the goal of all of
+this is to preserve type safety. "Java Generics" offers a solution for dealing
+with non-genericized legacy libraries, and there is one in particular called
+the "empty loop technique" in section 8.2. Basically, make the unsafe cast,
+and suppress the warning. Then loop through the map like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@SuppressWarnings</span><span class="p">(</span><span class="ss">"unchecked"</span><span class="p">)</span>
+<span class="k">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="p">,</span><span class="w"> </span><span class="n">Number</span><span class="o">&gt;</span><span class="w"> </span><span class="k">map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getMap</span><span class="p">();</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="err">:</span><span class="w"> </span><span class="k">map</span><span class="p">.</span><span class="n">keySet</span><span class="p">());</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">Number</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="err">:</span><span class="w"> </span><span class="k">map</span><span class="p">.</span><span class="k">values</span><span class="p">());</span>
+</pre></div>
+
+<p>If an unexpected type is encountered, you will get a runtime
+<code>ClassCastException</code>, but at least it will happen close to the source of the
+problem.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-turing-complete/" class="u-url">What is Turing Complete?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -207,74 +319,6 @@ click on <code>Reset adb</code>.</p>
 back of your PC, since most of the front <code>USB ports</code> are low powered, and
 really seem to be slower when uploading <code>apks</code> on your devices.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/adding-a-directory-to-the-path-environment-variable-in-windows/" class="u-url">Adding a directory to the PATH environment variable in Windows</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/adding-a-directory-to-the-path-environment-variable-in-windows/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T18:16:42+08:00" itemprop="datePublished" title="2023-02-17 18:16">2023-02-17 18:16</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am trying to add <code>C:\xampp\php</code> to my system <code>PATH</code> environment variable in
-Windows.</p>
-<p>I have already added it using the <em>Environment Variables</em> dialog box.</p>
-<p>But when I type into my console:</p>
-<div class="code"><pre class="code literal-block">C:\&gt;path
-</pre></div>
-
-<p>it doesn't show the new <code>C:\xampp\php</code> directory:</p>
-<div class="code"><pre class="code literal-block"><span class="n">PATH</span><span class="o">=</span><span class="n">D</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\<span class="n">Autodesk</span>\<span class="n">Maya2008</span>\<span class="n">bin</span><span class="p">;</span><span class="n">C</span><span class="p">:</span>\<span class="n">Ruby192</span>\<span class="n">bin</span><span class="p">;</span><span class="n">C</span><span class="p">:</span>\<span class="n">WINDOWS</span>\<span class="n">system32</span><span class="p">;</span><span class="n">C</span><span class="p">:</span>\<span class="n">WINDOWS</span><span class="p">;</span>
-<span class="n">C</span><span class="p">:</span>\<span class="n">WINDOWS</span>\<span class="n">System32</span>\<span class="n">Wbem</span><span class="p">;</span><span class="n">C</span><span class="p">:</span>\<span class="n">PROGRA</span><span class="o">~</span><span class="mi">1</span>\<span class="n">DISKEE</span><span class="o">~</span><span class="mi">2</span>\<span class="n">DISKEE</span><span class="o">~</span><span class="mi">1</span>\<span class="p">;</span><span class="n">c</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\<span class="n">Microsoft</span><span class="w"> </span><span class="n">SQL</span>
-<span class="n">Server</span>\<span class="mi">90</span>\<span class="n">Tools</span>\<span class="n">binn</span>\<span class="p">;</span><span class="n">C</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\<span class="n">QuickTime</span>\<span class="n">QTSystem</span>\<span class="p">;</span><span class="n">D</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\<span class="n">TortoiseSVN</span>\<span class="n">bin</span>
-<span class="p">;</span><span class="n">D</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\<span class="n">Bazaar</span><span class="p">;</span><span class="n">C</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\<span class="n">Android</span>\<span class="n">android</span><span class="o">-</span><span class="n">sdk</span>\<span class="n">tools</span><span class="p">;</span><span class="n">D</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\
-<span class="n">Microsoft</span><span class="w"> </span><span class="n">Visual</span><span class="w"> </span><span class="n">Studio</span>\<span class="n">Common</span>\<span class="n">Tools</span>\<span class="n">WinNT</span><span class="p">;</span><span class="n">D</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\<span class="n">Microsoft</span><span class="w"> </span><span class="n">Visual</span><span class="w"> </span><span class="n">Studio</span>\<span class="n">Common</span>
-\<span class="n">MSDev98</span>\<span class="n">Bin</span><span class="p">;</span><span class="n">D</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\<span class="n">Microsoft</span><span class="w"> </span><span class="n">Visual</span><span class="w"> </span><span class="n">Studio</span>\<span class="n">Common</span>\<span class="n">Tools</span><span class="p">;</span><span class="n">D</span><span class="p">:</span>\<span class="n">Program</span><span class="w"> </span><span class="n">Files</span>\
-<span class="n">Microsoft</span><span class="w"> </span><span class="n">Visual</span><span class="w"> </span><span class="n">Studio</span>\<span class="n">VC98</span>\<span class="n">bin</span>
-</pre></div>
-
-<p>I have two questions:</p>
-<ol>
-<li>Why did this happen? Is there something I did wrong?</li>
-<li>Also, how do I add directories to my <code>PATH</code> variable using the console (and programmatically, with a batch file)?</li>
-</ol>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>This only modifies the registry. An existing process won't use these values. A
-new process will do so if it is started <em>after</em> this change <em>and</em> doesn't
-inherit the old environment from its parent.</p>
-<p>You didn't specify how you started the console session. The best way to ensure
-this is to exit the command shell and run it again. It should then inherit the
-updated PATH environment variable.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<blockquote>
-<p><strong>WARNING:</strong> This solution <strong>may be destructive</strong> to your PATH, and the
-stability of your system. As a side effect, it will merge your user and
-system PATH, and truncate PATH to 1024 characters. The effect of this
-command is irreversible. Make a backup of PATH first. See the comments for
-more information.</p>
-<p>Don't blindly copy-and-paste this. Use with caution.</p>
-</blockquote>
-<p>You can <strong>permanently</strong> add a path to <code>PATH</code> with the <code>setx</code> command:</p>
-<div class="code"><pre class="code literal-block">setx /M path "%path%;C:\your\path\here\"
-</pre></div>
-
-<p>Remove the <code>/M</code> flag if you want to set the user <code>PATH</code> instead of the system
-<code>PATH</code>.</p>
-<p>Notes:</p>
-<ul>
-<li>The <code>setx</code> command is only available in Windows 7 and later.</li>
-<li>
-<p>You should run this command from an elevated command prompt.</p>
-</li>
-<li>
-<p>If you only want to change it for the current session, use set.</p>
-</li>
-</ul>
-</div>
     </article>
 </div>
 

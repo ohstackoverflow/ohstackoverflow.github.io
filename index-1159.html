@@ -108,7 +108,79 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/set-up-a-scheduled-job/" class="u-url">Set up a scheduled job?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/best-practice-for-using-assert/" class="u-url">Best practice for using assert?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/best-practice-for-using-assert/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T02:39:52+08:00" itemprop="datePublished" title="2023-02-18 02:39">2023-02-18 02:39</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <ol>
+<li>Is there a performance or code maintenance issue with using <code>assert</code> as part of the standard code instead of using it just for debugging purposes?</li>
+</ol>
+<p>Is</p>
+<div class="code"><pre class="code literal-block">    assert x &gt;= 0, 'x is less than zero'
+</pre></div>
+
+<p>better or worse than</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span>:
+<span class="w">    </span><span class="nv">raise</span><span class="w"> </span><span class="nv">Exception</span><span class="ss">(</span><span class="s1">'x is less than zero'</span><span class="ss">)</span>
+</pre></div>
+
+<ol>
+<li>Also, is there any way to set a business rule like <code>if x &lt; 0 raise error</code> that is always checked without the <code>try/except/finally</code> so, if at anytime throughout the code <code>x</code> is less than 0 an error is raised, like if you set <code>assert x &lt; 0</code> at the start of a function, anywhere within the function where <code>x</code> becomes less then 0 an exception is raised?</li>
+</ol>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>To be able to automatically throw an error when x become less than zero
+throughout the function. You can use class descriptors. Here is an example:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">LessThanZeroException</span><span class="p">(</span><span class="n">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="k">pass</span>
+
+<span class="k">class</span><span class="w"> </span><span class="n">variable</span><span class="p">(</span><span class="n">object</span><span class="p">):</span>
+<span class="w">    </span><span class="n">def</span><span class="w"> </span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">__x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span>
+
+<span class="w">    </span><span class="n">def</span><span class="w"> </span><span class="n">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">obj</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">):</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">:</span>
+<span class="w">            </span><span class="n">raise</span><span class="w"> </span><span class="n">LessThanZeroException</span><span class="p">(</span><span class="s1">'x is less than zero'</span><span class="p">)</span>
+
+<span class="w">        </span><span class="bp">self</span><span class="o">.</span><span class="n">__x</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">value</span>
+
+<span class="w">    </span><span class="n">def</span><span class="w"> </span><span class="n">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">obj</span><span class="p">,</span><span class="w"> </span><span class="n">objType</span><span class="p">):</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">__x</span>
+
+<span class="k">class</span><span class="w"> </span><span class="n">MyClass</span><span class="p">(</span><span class="n">object</span><span class="p">):</span>
+<span class="w">    </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">variable</span><span class="p">()</span>
+
+<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MyClass</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">m</span><span class="o">.</span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span>
+<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">m</span><span class="o">.</span><span class="n">x</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">20</span>
+<span class="n">Traceback</span><span class="w"> </span><span class="p">(</span><span class="n">most</span><span class="w"> </span><span class="n">recent</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="n">last</span><span class="p">):</span>
+<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s2">"&lt;stdin&gt;"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s2">"my.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">__set__</span>
+<span class="w">    </span><span class="n">raise</span><span class="w"> </span><span class="n">LessThanZeroException</span><span class="p">(</span><span class="s1">'x is less than zero'</span><span class="p">)</span>
+<span class="n">LessThanZeroException</span><span class="p">:</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">less</span><span class="w"> </span><span class="n">than</span><span class="w"> </span><span class="n">zero</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>"assert" statements are removed when the compilation is optimized</strong>. So,
+yes, there are both performance and functional differences.</p>
+<blockquote>
+<p>The current code generator emits no code for an assert statement when
+optimization is requested at compile time. - Python 2 Docs Python 3 Docs</p>
+</blockquote>
+<p>If you use <code>assert</code> to implement application functionality, then optimize the
+deployment to production, you will be plagued by "but-it-works-in-dev"
+defects.</p>
+<p>See PYTHONOPTIMIZE and -O -OO</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/set-up-a-scheduled-job/" class="u-url">Set up a scheduled job?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -233,90 +305,6 @@ optional (ones without a default value).</p>
 better to <strong>not</strong> forget the techniques and idioms that let you implement in
 Python 2 important design ideas that are directly supported in the language in
 Python 3!</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/app-config-transformation-for-projects-which-are-not-web-projects-in-visual-studio/" class="u-url">App.Config Transformation for projects which are not Web Projects in Visual Studio?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/app-config-transformation-for-projects-which-are-not-web-projects-in-visual-studio/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T02:38:29+08:00" itemprop="datePublished" title="2023-02-18 02:38">2023-02-18 02:38</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>For Visual Studio 2010 Web based application we have Config Transformation
-features by which we can maintain multiple configuration files for different
-environments. But the same feature is not available for App.Config files for
-Windows Services/WinForms or Console Application.</p>
-<p>There is a workaround available as suggested here: Applying XDT magic to
-App.Config.</p>
-<p>However it is not straightforward and requires a number of steps. Is there an
-easier way to achieve the same for app.config files?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>This works now with the Visual Studio AddIn treated in this article:
-SlowCheetah - Web.config Transformation Syntax now generalized for any XML
-configuration file.</p>
-<blockquote>
-<p>You can right-click on your web.config and click "Add Config Transforms."
-When you do this, you'll get a web.debug.config and a web.release.config.
-You can make a web.whatever.config if you like, as long as the name lines up
-with a configuration profile. These files are just the changes you want
-made, not a complete copy of your web.config.</p>
-<p>You might think you'd want to use XSLT to transform a web.config, but while
-they feels intuitively right it's actually very verbose.</p>
-<p>Here's two transforms, one using XSLT and the same one using the XML
-Document Transform syntax/namespace. As with all things there's multiple
-ways in XSLT to do this, but you get the general idea. XSLT is a generalized
-tree transformation language, while this deployment one is optimized for a
-specific subset of common scenarios. But, the cool part is that each XDT
-transform is a .NET plugin, so you can make your own.</p>
-<div class="code"><pre class="code literal-block"><span class="cp">&lt;?xml version="1.0" ?&gt;</span>
-<span class="k">&lt;xsl:stylesheet</span><span class="w"> </span><span class="na">xmlns:xsl=</span><span class="s">"http://www.w3.org/1999/XSL/Transform"</span>
-</pre></div>
-
-<p>version="1.0"&gt;
-    <template match="@*|node()"><copy><br><apply-templates select="@*|node()"></apply-templates></copy></template><template match="/configuration/appSettings"><copy><apply-templates select="node()|@*"></apply-templates><element name="add"><attribute name="key">NewSetting</attribute><attribute name="value">New Setting Value</attribute></element></copy></template></p>
-<p>Or the same thing via the deployment transform:</p>
-<div class="code"><pre class="code literal-block">&lt;configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-
-</pre></div>
-
-<p>Transform"&gt;
-       <appsettings><add name="NewSetting" value="New Setting Value" xdt:transform="Insert"></add></appsettings></p>
-</blockquote>
-<p><br></p>
-<h3>Suggest</h3>
-<p>This works now with the Visual Studio AddIn treated in this article:
-SlowCheetah - Web.config Transformation Syntax now generalized for any XML
-configuration file.</p>
-<blockquote>
-<p>You can right-click on your web.config and click "Add Config Transforms."
-When you do this, you'll get a web.debug.config and a web.release.config.
-You can make a web.whatever.config if you like, as long as the name lines up
-with a configuration profile. These files are just the changes you want
-made, not a complete copy of your web.config.</p>
-<p>You might think you'd want to use XSLT to transform a web.config, but while
-they feels intuitively right it's actually very verbose.</p>
-<p>Here's two transforms, one using XSLT and the same one using the XML
-Document Transform syntax/namespace. As with all things there's multiple
-ways in XSLT to do this, but you get the general idea. XSLT is a generalized
-tree transformation language, while this deployment one is optimized for a
-specific subset of common scenarios. But, the cool part is that each XDT
-transform is a .NET plugin, so you can make your own.</p>
-<div class="code"><pre class="code literal-block"><span class="cp">&lt;?xml version="1.0" ?&gt;</span>
-<span class="k">&lt;xsl:stylesheet</span><span class="w"> </span><span class="na">xmlns:xsl=</span><span class="s">"http://www.w3.org/1999/XSL/Transform"</span>
-</pre></div>
-
-<p>version="1.0"&gt;
-    <template match="@*|node()"><copy><br><apply-templates select="@*|node()"></apply-templates></copy></template><template match="/configuration/appSettings"><copy><apply-templates select="node()|@*"></apply-templates><element name="add"><attribute name="key">NewSetting</attribute><attribute name="value">New Setting Value</attribute></element></copy></template></p>
-<p>Or the same thing via the deployment transform:</p>
-<div class="code"><pre class="code literal-block">&lt;configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-
-</pre></div>
-
-<p>Transform"&gt;
-       <appsettings><add name="NewSetting" value="New Setting Value" xdt:transform="Insert"></add></appsettings></p>
-</blockquote>
     </div>
     </article>
 </div>

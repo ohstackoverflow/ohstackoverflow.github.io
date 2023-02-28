@@ -108,7 +108,94 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/understanding-rest-verbs-error-codes-and-authentication/" class="u-url">Understanding REST: Verbs, error codes, and authentication</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-really-happens-when-you-don-t-free-after-malloc-before-program-termination/" class="u-url">What REALLY happens when you don't free after malloc before program termination?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-really-happens-when-you-don-t-free-after-malloc-before-program-termination/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T21:39:51+08:00" itemprop="datePublished" title="2023-02-17 21:39">2023-02-17 21:39</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>We are all taught that you MUST free every pointer that is allocated. I'm a
+bit curious, though, about the real cost of not freeing memory. In some
+obvious cases, like when <code>malloc()</code> is called inside a loop or part of a
+thread execution, it's very important to free so there are no memory leaks.
+But consider the following two examples:</p>
+<p>First, if I have code that's something like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">main</span><span class="ss">()</span>
+{
+<span class="w">    </span><span class="nv">char</span><span class="w"> </span><span class="o">*</span><span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">malloc</span><span class="ss">(</span><span class="mi">1024</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="cm">/* Do some arbitrary stuff with 'a' (no alloc functions) */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>What's the real result here? My thinking is that the process dies and then the
+heap space is gone anyway so there's no harm in missing the call to <code>free</code>
+(however, I do recognize the importance of having it anyway for closure,
+maintainability, and good practice). Am I right in this thinking?</p>
+<p>Second, let's say I have a program that acts a bit like a shell. Users can
+declare variables like <code>aaa = 123</code> and those are stored in some dynamic data
+structure for later use. Clearly, it seems obvious that you'd use some
+solution that will calls some *alloc function (hashmap, linked list, something
+like that). For this kind of program, it doesn't make sense to ever free after
+calling <code>malloc</code> because these variables must be present at all times during
+the program's execution and there's no good way (that I can see) to implement
+this with statically allocated space. Is it bad design to have a bunch of
+memory that's allocated but only freed as part of the process ending? If so,
+what's the alternative?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Just about every modern operating system will recover all the allocated memory
+space after a program exits. The only exception I can think of might be
+something like Palm OS where the program's static storage and runtime memory
+are pretty much the same thing, so not freeing might cause the program to take
+up more storage. (I'm only speculating here.)</p>
+<p>So generally, there's no harm in it, except the runtime cost of having more
+storage than you need. Certainly in the example you give, you want to keep the
+memory for a variable that might be used until it's cleared.</p>
+<p>However, it's considered good style to free memory as soon as you don't need
+it any more, and to free anything you still have around on program exit. It's
+more of an exercise in knowing what memory you're using, and thinking about
+whether you still need it. If you don't keep track, you might have memory
+leaks.</p>
+<p>On the other hand, the similar admonition to close your files on exit has a
+much more concrete result - if you don't, the data you wrote to them might not
+get flushed, or if they're a temp file, they might not get deleted when you're
+done. Also, database handles should have their transactions committed and then
+closed when you're done with them. Similarly, if you're using an object
+oriented language like C++ or Objective C, not freeing an object when you're
+done with it will mean the destructor will never get called, and any resources
+the class is responsible might not get cleaned up.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Yes you are right, your example doesn't do any harm (at least not on most
+modern operating systems). All the memory allocated by your process will be
+recovered by the operating system once the process exits.</p>
+<p>Source: Allocation and GC Myths (PostScript alert!)</p>
+<blockquote>
+<p>Allocation Myth 4: Non-garbage-collected programs should always deallocate
+all memory they allocate.</p>
+<p>The Truth: Omitted deallocations in frequently executed code cause growing
+leaks. They are rarely acceptable. but Programs that retain most allocated
+memory until program exit often perform better without any intervening
+deallocation. Malloc is much easier to implement if there is no free.</p>
+<p>In most cases, <strong>deallocating memory just before program exit is
+pointless.</strong> The OS will reclaim it anyway. Free will touch and page in the
+dead objects; the OS won't.</p>
+<p>Consequence: Be careful with "leak detectors" that count allocations. Some
+"leaks" are good!</p>
+</blockquote>
+<p>That said, you should really try to avoid all memory leaks!</p>
+<p>Second question: your design is ok. If you need to store something until your
+application exits then its ok to do this with dynamic memory allocation. If
+you don't know the required size upfront, you can't use statically allocated
+memory.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/understanding-rest-verbs-error-codes-and-authentication/" class="u-url">Understanding REST: Verbs, error codes, and authentication</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -469,46 +556,6 @@ an ExpandoObject more readily than a dictionary.</p>
 <p>Interoperability with dynamic languages, which will be expecting DLR
 properties rather than dictionary entries, may also be a consideration in some
 scenarios.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/declare-a-const-array/" class="u-url">Declare a const array</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/declare-a-const-array/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T21:37:28+08:00" itemprop="datePublished" title="2023-02-17 21:37">2023-02-17 21:37</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is it possible to write something similar to the following?</p>
-<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Titles</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s2">"German"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Spanish"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Corrects"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Wrongs"</span><span class="w"> </span><span class="p">};</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Yes, but you need to declare it <code>readonly</code> instead of <code>const</code>:</p>
-<div class="code"><pre class="code literal-block">public static readonly string[] Titles = { "German", "Spanish", "Corrects", "Wrongs" };
-</pre></div>
-
-<p>The reason is that <code>const</code> can only be applied to a field whose value is known
-at compile-time. The array initializer you've shown is not a constant
-expression in C#, so it produces a compiler error.</p>
-<p>Declaring it <code>readonly</code> solves that problem because the value is not
-initialized until run-time (although it's guaranteed to have initialized
-before the first time that the array is used).</p>
-<p>Depending on what it is that you ultimately want to achieve, you might also
-consider declaring an enum:</p>
-<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="n">Titles</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">German</span><span class="p">,</span><span class="w"> </span><span class="n">Spanish</span><span class="p">,</span><span class="w"> </span><span class="n">Corrects</span><span class="p">,</span><span class="w"> </span><span class="n">Wrongs</span><span class="w"> </span><span class="p">};</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>You can't create a 'const' array because arrays are objects and can only be
-created at runtime and const entities are resolved at compile time.</p>
-<p>What you can do instead is to declare your array as "readonly". This has the
-same effect as const except the value can be set at runtime. It can only be
-set once and it is thereafter a readonly (i.e. const) value.</p>
     </div>
     </article>
 </div>

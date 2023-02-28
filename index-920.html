@@ -108,7 +108,275 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/see-changes-to-a-specific-file-using-git/" class="u-url">See changes to a specific file using git</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-is-while-feof-file-always-wrong/" class="u-url">Why is “while( !feof(file) )” always wrong?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-is-while-feof-file-always-wrong/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T19:33:05+08:00" itemprop="datePublished" title="2023-02-17 19:33">2023-02-17 19:33</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What is wrong with using <code>feof()</code> to control a read loop? For example:</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+
+<span class="kt">int</span>
+<span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"stdin"</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="s">"r"</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">stdin</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="w"> </span><span class="n">fp</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="w"> </span><span class="p">){</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">path</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_FAILURE</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">while</span><span class="p">(</span><span class="w"> </span><span class="o">!</span><span class="n">feof</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span><span class="w"> </span><span class="p">){</span><span class="w">  </span><span class="cm">/* THIS IS WRONG */</span>
+<span class="w">        </span><span class="cm">/* Read and process data from file… */</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="w"> </span><span class="n">fclose</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">){</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">path</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_FAILURE</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>What is wrong with this loop?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h4>TL;DR</h4>
+<p><code>while(!feof)</code> is wrong because it tests for something that is irrelevant and
+fails to test for something that you need to know. The result is that you are
+erroneously executing code that assumes that it is accessing data that was
+read successfully, when in fact this never happened.</p>
+<p>I'd like to provide an abstract, high-level perspective. So continue reading
+if you're interested in what <code>while(!feof)</code> actually does.</p>
+<h4>Concurrency and simultaneity</h4>
+<p>I/O operations interact with the environment. The environment is not part of
+your program, and not under your control. The environment truly exists
+"concurrently" with your program. As with all things concurrent, questions
+about the "current state" don't make sense: There is no concept of
+"simultaneity" across concurrent events. Many properties of state simply don't
+<em>exist</em> concurrently.</p>
+<p>Let me make this more precise: Suppose you want to ask, "do you have more
+data". You could ask this of a concurrent container, or of your I/O system.
+But the answer is generally unactionable, and thus meaningless. So what if the
+container says "yes" – by the time you try reading, it may no longer have
+data. Similarly, if the answer is "no", by the time you try reading, data may
+have arrived. The conclusion is that there simply <em>is</em> no property like "I
+have data", since you cannot act meaningfully in response to any possible
+answer. (The situation is slightly better with buffered input, where you might
+conceivably get a "yes, I have data" that constitutes some kind of guarantee,
+but you would still have to be able to deal with the opposite case. And with
+output the situation is certainly just as bad as I described: you never know
+if that disk or that network buffer is full.)</p>
+<p>So we conclude that it is impossible, and in fact un <em>reasonable</em> , to ask an
+I/O system whether it <em>will be</em> able to perform an I/O operation. The only
+possible way we can interact with it (just as with a concurrent container) is
+to <em>attempt</em> the operation and check whether it succeeded or failed. At that
+moment where you interact with the environment, then and only then can you
+know whether the interaction was actually possible, and at that point you must
+commit to performing the interaction. (This is a "synchronisation point", if
+you will.)</p>
+<h4>EOF</h4>
+<p>Now we get to EOF. EOF is the <em>response</em> you get from an <em>attempted</em> I/O
+operation. It means that you were trying to read or write something, but when
+doing so you failed to read or write any data, and instead the end of the
+input or output was encountered. This is true for essentially all the I/O
+APIs, whether it be the C standard library, C++ iostreams, or other libraries.
+As long as the I/O operations succeed, you simply <em>cannot know</em> whether
+further, future operations will succeed. You <em>must</em> always first try the
+operation and then respond to success or failure.</p>
+<h4>Examples</h4>
+<p>In each of the examples, note carefully that we <em>first</em> attempt the I/O
+operation and <em>then</em> consume the result if it is valid. Note further that we
+<em>always</em> must use the result of the I/O operation, though the result takes
+different shapes and forms in each example.</p>
+<ul>
+<li>C stdio, read from a file:<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="c1">;;) {</span>
+<span class="w">  </span><span class="nv">size_t</span><span class="w"> </span><span class="nv">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">fread</span><span class="ss">(</span><span class="nv">buf</span>,<span class="w"> </span><span class="mi">1</span>,<span class="w"> </span><span class="nv">bufsize</span>,<span class="w"> </span><span class="nv">infile</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span><span class="nv">consume</span><span class="ss">(</span><span class="nv">buf</span>,<span class="w"> </span><span class="nv">n</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">n</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="ss">)</span><span class="w"> </span>{<span class="w"> </span><span class="k">break</span><span class="c1">; }</span>
+</pre></div>
+
+<p>}</p>
+</li>
+</ul>
+<p>The result we must use is <code>n</code>, the number of elements that were read (which
+may be as little as zero).</p>
+<ul>
+<li>C stdio, <code>scanf</code>:<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">a</span>,<span class="w"> </span><span class="nv">b</span>,<span class="w"> </span><span class="nv">c</span><span class="c1">; scanf("%d %d %d", &amp;a, &amp;b, &amp;c) == 3; ) {</span>
+<span class="w">  </span><span class="nv">consume</span><span class="ss">(</span><span class="nv">a</span>,<span class="w"> </span><span class="nv">b</span>,<span class="w"> </span><span class="nv">c</span><span class="ss">)</span><span class="c1">;</span>
+</pre></div>
+
+<p>}</p>
+</li>
+</ul>
+<p>The result we must use is the return value of <code>scanf</code>, the number of elements
+converted.</p>
+<ul>
+<li>C++, iostreams formatted extraction:<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nt">for</span><span class="w"> </span><span class="o">(</span><span class="nt">int</span><span class="w"> </span><span class="nt">n</span><span class="o">;</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">cin</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="nt">n</span><span class="o">;</span><span class="w"> </span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">consume(n)</span><span class="p">;</span>
+</pre></div>
+
+<p>}</p>
+</li>
+</ul>
+<p>The result we must use is <code>std::cin</code> itself, which can be evaluated in a
+boolean context and tells us whether the stream is still in the <code>good()</code>
+state.</p>
+<ul>
+<li>C++, iostreams getline:<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nt">for</span><span class="w"> </span><span class="o">(</span><span class="nt">std</span><span class="p">::</span><span class="nd">string</span><span class="w"> </span><span class="nt">line</span><span class="o">;</span><span class="w"> </span><span class="nt">std</span><span class="p">::</span><span class="nd">getline</span><span class="o">(</span><span class="nt">std</span><span class="p">::</span><span class="nd">cin</span><span class="o">,</span><span class="w"> </span><span class="nt">line</span><span class="o">);</span><span class="w"> </span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">consume(line)</span><span class="p">;</span>
+</pre></div>
+
+<p>}</p>
+</li>
+</ul>
+<p>The result we must use is again <code>std::cin</code>, just as before.</p>
+<ul>
+<li>POSIX, <code>write(2)</code> to flush a buffer:<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nb">char</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span>
+</pre></div>
+
+<p>ssize_t n = bufsize;
+  for (ssize_t k = bufsize; (k = write(fd, p, n)) &gt; 0; p += k, n -= k) {}
+  if (n != 0) { /<em> error, failed to write complete buffer </em>/ }</p>
+</li>
+</ul>
+<p>The result we use here is <code>k</code>, the number of bytes written. The point here is
+that we can only know how many bytes were written <em>after</em> the write operation.</p>
+<ul>
+<li>POSIX <code>getline()</code><div class="code"><pre class="code literal-block">  char *buffer = NULL;
+</pre></div>
+
+<p>size_t bufsiz = 0;
+  ssize_t nbytes;
+  while ((nbytes = getline(&amp;buffer, &amp;bufsiz, fp)) != -1)
+  {
+      /<em> Use nbytes of data in buffer </em>/
+  }
+  free(buffer);</p>
+</li>
+</ul>
+<p>The result we must use is <code>nbytes</code>, the number of bytes up to and including
+the newline (or EOF if the file did not end with a newline).</p>
+<p>Note that the function explicitly returns <code>-1</code> (and not EOF!) when an error
+occurs or it reaches EOF.</p>
+<p>You may notice that we very rarely spell out the actual word "EOF". We usually
+detect the error condition in some other way that is more immediately
+interesting to us (e.g. failure to perform as much I/O as we had desired). In
+every example there is some API feature that could tell us explicitly that the
+EOF state has been encountered, but this is in fact not a terribly useful
+piece of information. It is much more of a detail than we often care about.
+What matters is whether the I/O succeeded, more-so than how it failed.</p>
+<ul>
+<li>
+<p>A final example that actually queries the EOF state: Suppose you have a string and want to test that it represents an integer in its entirety, with no extra bits at the end except whitespace. Using C++ iostreams, it goes like this:</p>
+<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nt">std</span><span class="p">::</span><span class="nd">string</span><span class="w"> </span><span class="nt">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"   123   "</span><span class="o">;</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="nt">example</span>
+</pre></div>
+
+<p>std::istringstream iss(input);
+  int value;
+  if (iss &gt;&gt; value &gt;&gt; std::ws &amp;&amp; iss.get() == EOF) {
+      consume(value);
+  } else {
+      // error, "input" is not parsable as an integer
+  }</p>
+</li>
+</ul>
+<p>We use two results here. The first is <code>iss</code>, the stream object itself, to
+check that the formatted extraction to <code>value</code> succeeded. But then, after also
+consuming whitespace, we perform another I/O/ operation, <code>iss.get()</code>, and
+expect it to fail as EOF, which is the case if the entire string has already
+been consumed by the formatted extraction.</p>
+<p>In the C standard library you can achieve something similar with the <code>strto*l</code>
+functions by checking that the end pointer has reached the end of the input
+string.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>It's wrong because (in the absence of a read error) it enters the loop one
+more time than the author expects. If there is a read error, the loop never
+terminates.</p>
+<p>Consider the following code:</p>
+<div class="code"><pre class="code literal-block"><span class="o">/*</span><span class="w"> </span><span class="n">WARNING</span><span class="p">:</span><span class="w"> </span><span class="n">demonstration</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">bad</span><span class="w"> </span><span class="n">coding</span><span class="w"> </span><span class="n">technique</span><span class="o">!!</span><span class="w"> </span><span class="o">*/</span>
+
+<span class="c1">#include &lt;stdio.h&gt;</span>
+<span class="c1">#include &lt;stdlib.h&gt;</span>
+
+<span class="n">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">Fopen</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="o">*</span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="o">*</span><span class="n">mode</span><span class="p">);</span>
+
+<span class="nb nb-Type">int</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">FILE</span><span class="w"> </span><span class="o">*</span><span class="ow">in</span><span class="p">;</span>
+<span class="w">    </span><span class="n">unsigned</span><span class="w"> </span><span class="n">count</span><span class="p">;</span>
+
+<span class="w">    </span><span class="ow">in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="n">Fopen</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="s2">"r"</span><span class="p">)</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">stdin</span><span class="p">;</span>
+<span class="w">    </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">/*</span><span class="w"> </span><span class="n">WARNING</span><span class="p">:</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">bug</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">    </span><span class="k">while</span><span class="p">(</span><span class="w"> </span><span class="o">!</span><span class="n">feof</span><span class="p">(</span><span class="ow">in</span><span class="p">)</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="o">/*</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">WRONG</span><span class="o">!</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">        </span><span class="n">fgetc</span><span class="p">(</span><span class="ow">in</span><span class="p">);</span>
+<span class="w">        </span><span class="n">count</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s2">"Number of characters read: </span><span class="si">%u</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">FILE</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Fopen</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="o">*</span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="o">*</span><span class="n">mode</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">f</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NULL</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">path</span><span class="p">);</span>
+<span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">f</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>This program will consistently print one greater than the number of characters
+in the input stream (assuming no read errors). Consider the case where the
+input stream is empty:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>./a.out<span class="w"> </span>&lt;<span class="w"> </span>/dev/null
+Number<span class="w"> </span>of<span class="w"> </span>characters<span class="w"> </span>read:<span class="w"> </span><span class="m">1</span>
+</pre></div>
+
+<p>In this case, <code>feof()</code> is called before any data has been read, so it returns
+false. The loop is entered, <code>fgetc()</code> is called (and returns <code>EOF</code>), and count
+is incremented. Then <code>feof()</code> is called and returns true, causing the loop to
+abort.</p>
+<p>This happens in all such cases. <code>feof()</code> does not return true until <strong>after</strong>
+a read on the stream encounters the end of file. The purpose of <code>feof()</code> is
+NOT to check if the next read will reach the end of file. The purpose of
+<code>feof()</code> is to determine the status of a previous read function and
+distinguish between an error condition and the end of the data stream. If
+<code>fread()</code> returns 0, you must use <code>feof</code>/<code>ferror</code> to decide whether an error
+occurred or if all of the data was consumed. Similarly if <code>fgetc</code> returns
+<code>EOF</code>. <code>feof()</code> is only useful <strong>after</strong> fread has returned zero or <code>fgetc</code>
+has returned <code>EOF</code>. Before that happens, <code>feof()</code> will always return 0.</p>
+<p>It is always necessary to check the return value of a read (either an
+<code>fread()</code>, or an <code>fscanf()</code>, or an <code>fgetc()</code>) before calling <code>feof()</code>.</p>
+<p>Even worse, consider the case where a read error occurs. In that case,
+<code>fgetc()</code> returns <code>EOF</code>, <code>feof()</code> returns false, and the loop never
+terminates. In all cases where <code>while(!feof(p))</code> is used, there must be at
+least a check inside the loop for <code>ferror()</code>, or at the very least the while
+condition should be replaced with <code>while(!feof(p) &amp;&amp; !ferror(p))</code> or there is
+a very real possibility of an infinite loop, probably spewing all sorts of
+garbage as invalid data is being processed.</p>
+<p>So, in summary, although I cannot state with certainty that there is never a
+situation in which it may be semantically correct to write "<code>while(!feof(f))</code>"
+(although there <strong>must</strong> be another check inside the loop with a break to
+avoid a infinite loop on a read error), it is the case that it is almost
+certainly always wrong. And even if a case ever arose where it would be
+correct, it is so idiomatically wrong that it would not be the right way to
+write the code. Anyone seeing that code should immediately hesitate and say,
+"that's a bug". And possibly slap the author (unless the author is your boss
+in which case discretion is advised.)</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/see-changes-to-a-specific-file-using-git/" class="u-url">See changes to a specific file using git</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -253,84 +521,6 @@ I mean:</p>
     <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
         <span class="nb">print</span> <span class="s2">"Bye"</span>
         <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
-</pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-find-the-duplicates-in-a-list-and-create-another-list-with-them/" class="u-url">How do I find the duplicates in a list and create another list with them?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-find-the-duplicates-in-a-list-and-create-another-list-with-them/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T19:31:35+08:00" itemprop="datePublished" title="2023-02-17 19:31">2023-02-17 19:31</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do I find the duplicates in a list of integers and create another list of
-the duplicates?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>To remove duplicates use <code>set(a)</code>. To print duplicates, something like:</p>
-<div class="code"><pre class="code literal-block"><span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">]</span>
-
-<span class="kn">import</span> <span class="nn">collections</span>
-<span class="nb">print</span><span class="p">([</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">collections</span><span class="o">.</span><span class="n">Counter</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">])</span>
-
-<span class="c1">## [1, 2, 5]</span>
-</pre></div>
-
-<p>Note that <code>Counter</code> is not particularly efficient (timings) and probably
-overkill here. <code>set</code> will perform better. This code computes a list of unique
-elements in the source order:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">seen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">set</span><span class="ss">()</span>
-<span class="nv">uniq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>[]
-<span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">a</span>:
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">seen</span>:
-<span class="w">        </span><span class="nv">uniq</span>.<span class="nv">append</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>
-<span class="w">        </span><span class="nv">seen</span>.<span class="nv">add</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>
-</pre></div>
-
-<p>or, more concisely:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">seen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">set</span><span class="ss">()</span>
-<span class="nv">uniq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>[<span class="nv">x</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">seen</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">seen</span>.<span class="nv">add</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>]
-</pre></div>
-
-<p>I don't recommend the latter style, because it is not obvious what <code>not
-seen.add(x)</code> is doing (the set <code>add()</code> method always returns <code>None</code>, hence the
-need for <code>not</code>).</p>
-<p>To compute the list of duplicated elements without libraries:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">seen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">set</span><span class="ss">()</span>
-<span class="nv">dupes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>[]
-
-<span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">a</span>:
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">seen</span>:
-<span class="w">        </span><span class="nv">dupes</span>.<span class="nv">append</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>
-<span class="w">    </span><span class="k">else</span>:
-<span class="w">        </span><span class="nv">seen</span>.<span class="nv">add</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>
-</pre></div>
-
-<p>or, more concisely:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">seen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">set</span><span class="ss">()</span>
-<span class="nv">dupes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>[<span class="nv">x</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">seen</span><span class="w"> </span><span class="nv">or</span><span class="w"> </span><span class="nv">seen</span>.<span class="nv">add</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>]
-</pre></div>
-
-<p>If list elements are not hashable, you cannot use sets/dicts and have to
-resort to a quadratic time solution (compare each with each). For example:</p>
-<div class="code"><pre class="code literal-block"><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">3</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">5</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
-
-<span class="n">no_dupes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">x</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">enumerate</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">a</span><span class="p">[:</span><span class="n">n</span><span class="p">]]</span>
-<span class="nb">print</span><span class="w"> </span><span class="n">no_dupes</span><span class="w"> </span><span class="c1"># [[1], [2], [3], [5]]</span>
-
-<span class="n">dupes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">x</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">enumerate</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">a</span><span class="p">[:</span><span class="n">n</span><span class="p">]]</span>
-<span class="nb">print</span><span class="w"> </span><span class="n">dupes</span><span class="w"> </span><span class="c1"># [[1], [3]]</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>A very simple solution, but with complexity O(n*n).</p>
-<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="nv">xs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>[<span class="mi">1</span>,<span class="mi">2</span>,<span class="mi">3</span>,<span class="mi">4</span>,<span class="mi">4</span>,<span class="mi">5</span>,<span class="mi">5</span>,<span class="mi">6</span>,<span class="mi">1</span>]
-<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="nv">set</span><span class="ss">(</span>[<span class="nv">x</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">xs</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">xs</span>.<span class="nv">count</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span>]<span class="ss">)</span>
-<span class="nv">set</span><span class="ss">(</span>[<span class="mi">1</span>,<span class="w"> </span><span class="mi">4</span>,<span class="w"> </span><span class="mi">5</span>]<span class="ss">)</span>
 </pre></div>
     </div>
     </article>

@@ -108,7 +108,93 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/are-there-bookmarks-in-visual-studio-code/" class="u-url">Are there bookmarks in Visual Studio Code?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-handle-screen-orientation-change-when-progress-dialog-and-background-thread-active/" class="u-url">How to handle screen orientation change when progress dialog and background thread active?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-handle-screen-orientation-change-when-progress-dialog-and-background-thread-active/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T06:25:22+08:00" itemprop="datePublished" title="2023-02-18 06:25">2023-02-18 06:25</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>My program does some network activity in a background thread. Before starting,
+it pops up a progress dialog. The dialog is dismissed on the handler. This all
+works fine, except when screen orientation changes while the dialog is up (and
+the background thread is going). At this point the app either crashes, or
+deadlocks, or gets into a weird stage where the app does not work at all until
+all the threads have been killed.</p>
+<p>How can I handle the screen orientation change gracefully?</p>
+<p>The sample code below matches roughly what my real program does:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">MyAct</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Activity</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">Runnable</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">ProgressDialog</span><span class="w"> </span><span class="n">mProgress</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">UI</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">button</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">when</span><span class="w"> </span><span class="n">pressed</span><span class="w"> </span><span class="n">calls</span><span class="w"> </span><span class="n">send</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">send</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">         </span><span class="n">mProgress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ProgressDialog</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="s2">"Please wait"</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                      </span><span class="s2">"Please wait"</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                      </span><span class="bp">true</span><span class="p">,</span><span class="w"> </span><span class="bp">true</span><span class="p">);</span>
+<span class="w">        </span><span class="n">Thread</span><span class="w"> </span><span class="n">thread</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Thread</span><span class="p">(</span><span class="n">this</span><span class="p">);</span>
+<span class="w">        </span><span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">run</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Thread</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10000</span><span class="p">);</span>
+<span class="w">        </span><span class="n">Message</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Message</span><span class="p">();</span>
+<span class="w">        </span><span class="n">mHandler</span><span class="o">.</span><span class="n">sendMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="n">Handler</span><span class="w"> </span><span class="n">mHandler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Handler</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">        </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">handleMessage</span><span class="p">(</span><span class="n">Message</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">mProgress</span><span class="o">.</span><span class="n">dismiss</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Stack:</p>
+<div class="code"><pre class="code literal-block"><span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="n">Activity</span><span class="w"> </span><span class="n">MyAct</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">leaked</span><span class="w"> </span><span class="n">window</span><span class="w"> </span><span class="n">com</span><span class="p">.</span><span class="n">android</span><span class="p">.</span><span class="n">internal</span><span class="p">.</span><span class="n">policy</span><span class="p">.</span><span class="n">impl</span><span class="p">.</span><span class="n">PhoneWindow$DecorView</span><span class="mi">@433</span><span class="n">b7150</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">was</span><span class="w"> </span><span class="n">originally</span><span class="w"> </span><span class="n">added</span><span class="w"> </span><span class="n">here</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">view</span><span class="p">.</span><span class="n">WindowLeaked</span><span class="o">:</span><span class="w"> </span><span class="n">Activity</span><span class="w"> </span><span class="n">MyAct</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">leaked</span><span class="w"> </span><span class="n">window</span><span class="w"> </span><span class="n">com</span><span class="p">.</span><span class="n">android</span><span class="p">.</span><span class="n">internal</span><span class="p">.</span><span class="n">policy</span><span class="p">.</span><span class="n">impl</span><span class="p">.</span><span class="n">PhoneWindow$DecorView</span><span class="mi">@433</span><span class="n">b7150</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">was</span><span class="w"> </span><span class="n">originally</span><span class="w"> </span><span class="n">added</span><span class="w"> </span><span class="n">here</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">view</span><span class="p">.</span><span class="n">ViewRoot</span><span class="p">.</span><span class="o">&lt;</span><span class="n">init</span><span class="o">&gt;</span><span class="p">(</span><span class="n">ViewRoot</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">178</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">view</span><span class="p">.</span><span class="n">WindowManagerImpl</span><span class="p">.</span><span class="n">addView</span><span class="p">(</span><span class="n">WindowManagerImpl</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">147</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">view</span><span class="p">.</span><span class="n">WindowManagerImpl</span><span class="p">.</span><span class="n">addView</span><span class="p">(</span><span class="n">WindowManagerImpl</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">90</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">view</span><span class="p">.</span><span class="n">Window$LocalWindowManager</span><span class="p">.</span><span class="n">addView</span><span class="p">(</span><span class="n">Window</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">393</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">app</span><span class="p">.</span><span class="n">Dialog</span><span class="p">.</span><span class="n">show</span><span class="p">(</span><span class="n">Dialog</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">212</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">app</span><span class="p">.</span><span class="n">ProgressDialog</span><span class="p">.</span><span class="n">show</span><span class="p">(</span><span class="n">ProgressDialog</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">103</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">app</span><span class="p">.</span><span class="n">ProgressDialog</span><span class="p">.</span><span class="n">show</span><span class="p">(</span><span class="n">ProgressDialog</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">91</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">MyAct</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">MyAct</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">294</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">MyAct$4</span><span class="p">.</span><span class="n">onClick</span><span class="p">(</span><span class="n">MyAct</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">174</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">view</span><span class="p">.</span><span class="n">View</span><span class="p">.</span><span class="n">performClick</span><span class="p">(</span><span class="n">View</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">2129</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">view</span><span class="p">.</span><span class="n">View</span><span class="p">.</span><span class="n">onTouchEvent</span><span class="p">(</span><span class="n">View</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">3543</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">widget</span><span class="p">.</span><span class="n">TextView</span><span class="p">.</span><span class="n">onTouchEvent</span><span class="p">(</span><span class="n">TextView</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">4664</span><span class="p">)</span>
+<span class="n">E</span><span class="o">/</span><span class="n">WindowManager</span><span class="p">(</span><span class="w">  </span><span class="mi">244</span><span class="p">)</span><span class="o">:</span><span class="w">     </span><span class="n">at</span><span class="w"> </span><span class="n">android</span><span class="p">.</span><span class="n">view</span><span class="p">.</span><span class="n">View</span><span class="p">.</span><span class="n">dispatchTouchEvent</span><span class="p">(</span><span class="n">View</span><span class="p">.</span><span class="n">java</span><span class="o">:</span><span class="mi">3198</span><span class="p">)</span>
+</pre></div>
+
+<p>I have tried to dismiss the progress dialog in onSaveInstanceState, but that
+just prevents an immediate crash. The background thread is still going, and
+the UI is in partially drawn state. Need to kill the whole app before it
+starts working again.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>When you switch orientations, Android will create a new View. You're probably
+getting crashes because your background thread is trying to change the state
+on the old one. (It may also be having trouble because your background thread
+isn't on the UI thread)</p>
+<p>I'd suggest making that mHandler volatile and updating it when the orientation
+changes.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>When you switch orientations, Android will create a new View. You're probably
+getting crashes because your background thread is trying to change the state
+on the old one. (It may also be having trouble because your background thread
+isn't on the UI thread)</p>
+<p>I'd suggest making that mHandler volatile and updating it when the orientation
+changes.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/are-there-bookmarks-in-visual-studio-code/" class="u-url">Are there bookmarks in Visual Studio Code?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -232,90 +318,6 @@ one at a time.</p>
 
 <p>A little more concise, but pretty much the same.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-apply-unmerged-upstream-pull-requests-from-other-forks-into-my-fork/" class="u-url">How to apply unmerged upstream pull requests from other forks into my fork?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-apply-unmerged-upstream-pull-requests-from-other-forks-into-my-fork/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:24:01+08:00" itemprop="datePublished" title="2023-02-18 06:24">2023-02-18 06:24</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>A project on GitHub that I have a fork of has a new pull requests that I want
-to pull into my fork that the author has not pulled in yet.</p>
-<p>Is there a simple way to apply pull request from other forks into my fork? Is
-there something else here that I am missing?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You can do it manually quite easily:</p>
-<ul>
-<li>
-<p>add the other fork as a remote of your repo: </p>
-<div class="code"><pre class="code literal-block">git remote add otherfork git://github.com/request-author/project.git
-</pre></div>
-
-</li>
-<li>
-<p>fetch his repo's commits</p>
-<div class="code"><pre class="code literal-block">git fetch otherfork
-</pre></div>
-
-</li>
-<li>
-<p>You have then two options to apply the pull request (if you don't want to choose pick 1.)</p>
-<ol>
-<li>
-<p>If you don't care about applying also the eventual commits that have been added between the origin and the pull request, you can just rebase the branch on which the pull request was formed</p>
-<div class="code"><pre class="code literal-block">    git rebase master otherfork/pullrequest-branch
-</pre></div>
-
-</li>
-<li>
-<p>If you only want the commits in the pull request, identify their SHA1 and do</p>
-<div class="code"><pre class="code literal-block">    git cherry-pick &lt;first-SHA1&gt; &lt;second-SHA1&gt; &lt;etc.&gt;
-</pre></div>
-
-</li>
-</ol>
-</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You can do it manually quite easily:</p>
-<ul>
-<li>
-<p>add the other fork as a remote of your repo: </p>
-<div class="code"><pre class="code literal-block">git remote add otherfork git://github.com/request-author/project.git
-</pre></div>
-
-</li>
-<li>
-<p>fetch his repo's commits</p>
-<div class="code"><pre class="code literal-block">git fetch otherfork
-</pre></div>
-
-</li>
-<li>
-<p>You have then two options to apply the pull request (if you don't want to choose pick 1.)</p>
-<ol>
-<li>
-<p>If you don't care about applying also the eventual commits that have been added between the origin and the pull request, you can just rebase the branch on which the pull request was formed</p>
-<div class="code"><pre class="code literal-block">    git rebase master otherfork/pullrequest-branch
-</pre></div>
-
-</li>
-<li>
-<p>If you only want the commits in the pull request, identify their SHA1 and do</p>
-<div class="code"><pre class="code literal-block">    git cherry-pick &lt;first-SHA1&gt; &lt;second-SHA1&gt; &lt;etc.&gt;
-</pre></div>
-
-</li>
-</ol>
-</li>
-</ul>
-</div>
     </article>
 </div>
 

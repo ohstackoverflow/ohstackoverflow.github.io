@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Implementing the TD-Gammon algorithm | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/implementing-the-td-gammon-algorithm/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-design-the-artificial-intelligence-of-a-fighting-game-street-fighter-or-soul-calibur/" title="How to design the artificial intelligence of a fighting game (Street Fighter or Soul Calibur)?" type="text/html">
+<link rel="next" href="../what-are-the-differences-between-contextual-embedding-and-word-embedding/" title="What are the differences between contextual embedding and word embedding" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Implementing the TD-Gammon algorithm">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/implementing-the-td-gammon-algorithm/">
+<meta property="og:description" content="I am attempting to implement the algorithm from the TD-Gammon article by
+Gerald Tesauro. The core of the learning algorithm is described in the
+following paragraph:
+
+
+
+I have decided to have a single ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-28T03:17:08+08:00">
+<meta property="article:tag" content="artificial-intelligence">
+<meta property="article:tag" content="python">
+<meta property="article:tag" content="reinforcement-learning">
+<meta property="article:tag" content="temporal-difference">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Implementing the TD-Gammon algorithm</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:17:08+08:00" itemprop="datePublished" title="2023-02-28 03:17">2023-02-28 03:17</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I am attempting to implement the algorithm from the TD-Gammon article by
+Gerald Tesauro. The core of the learning algorithm is described in the
+following paragraph:</p>
+<blockquote>
+<p><img alt="enter image description here" src="../../images/ZaXPB.png"></p>
+</blockquote>
+<p>I have decided to have a single hidden layer (if that was enough to play
+world-class backgammon in the early 1990's, then it's enough for me). I am
+pretty certain that everything except the <code>train()</code> function is correct (they
+are easier to test), but I have no idea whether I have implemented this final
+algorithm correctly.</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="k">class</span> <span class="nc">TD_network</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Neural network with a single hidden layer and a Temporal Displacement training algorithm</span>
+<span class="sd">    taken from G. Tesauro's 1995 TD-Gammon article.</span>
+<span class="sd">    """</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_input</span><span class="p">,</span> <span class="n">num_hidden</span><span class="p">,</span> <span class="n">num_output</span><span class="p">,</span> <span class="n">hnorm</span><span class="p">,</span> <span class="n">dhnorm</span><span class="p">,</span> <span class="n">onorm</span><span class="p">,</span> <span class="n">donorm</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w21</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">num_hidden</span><span class="p">,</span> <span class="n">num_input</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w32</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">num_output</span><span class="p">,</span> <span class="n">num_hidden</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b2</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">num_hidden</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b3</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">num_output</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hnorm</span> <span class="o">=</span> <span class="n">hnorm</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dhnorm</span> <span class="o">=</span> <span class="n">dhnorm</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">onorm</span> <span class="o">=</span> <span class="n">onorm</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">donorm</span> <span class="o">=</span> <span class="n">donorm</span>
+
+    <span class="k">def</span> <span class="nf">value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Evaluates the NN output"""</span>
+        <span class="k">assert</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="kp">shape</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">w21</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span><span class="o">.</span><span class="kp">shape</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">w21</span><span class="o">.</span><span class="kp">dot</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span>
+        <span class="n">hn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hnorm</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">w32</span><span class="o">.</span><span class="kp">dot</span><span class="p">(</span><span class="n">hn</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b3</span>
+        <span class="k">return</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">onorm</span><span class="p">(</span><span class="n">o</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">gradient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Calculates the gradient of the NN at the given input. Outputs a list of dictionaries</span>
+<span class="sd">        where each dict corresponds to the gradient of an output node, and each element in</span>
+<span class="sd">        a given dict gives the gradient for a subset of the weights. </span>
+<span class="sd">        """</span> 
+        <span class="k">assert</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="kp">shape</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">w21</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span><span class="o">.</span><span class="kp">shape</span><span class="p">)</span>
+        <span class="n">J</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">w21</span><span class="o">.</span><span class="kp">dot</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b2</span>
+        <span class="n">hn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hnorm</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">w32</span><span class="o">.</span><span class="kp">dot</span><span class="p">(</span><span class="n">hn</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b3</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b3</span><span class="p">)):</span>
+            <span class="n">db3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b3</span><span class="o">.</span><span class="kp">shape</span><span class="p">)</span>
+            <span class="n">db3</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">donorm</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+            <span class="n">dw32</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w32</span><span class="o">.</span><span class="kp">shape</span><span class="p">)</span>
+            <span class="n">dw32</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">donorm</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">*</span><span class="n">hn</span>
+
+            <span class="n">db2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dhnorm</span><span class="p">(</span><span class="n">h</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">w32</span><span class="p">[</span><span class="n">i</span><span class="p">,:])</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">donorm</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">dw21</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="kp">outer</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">db2</span><span class="p">))</span>
+
+            <span class="n">J</span><span class="o">.</span><span class="kp">append</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">db3</span> <span class="o">=</span> <span class="n">db3</span><span class="p">,</span> <span class="n">dw32</span> <span class="o">=</span> <span class="n">dw32</span><span class="p">,</span> <span class="n">db2</span> <span class="o">=</span> <span class="n">db2</span><span class="p">,</span> <span class="n">dw21</span> <span class="o">=</span> <span class="n">dw21</span><span class="p">))</span>
+        <span class="k">return</span><span class="p">(</span><span class="n">J</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_states</span><span class="p">,</span> <span class="n">end_result</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">l</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Trains the network using a single series of input states representing a game from beginning</span>
+<span class="sd">        to end, and a final (supervised / desired) output for the end state</span>
+<span class="sd">        """</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="p">(</span><span class="n">input_state</span><span class="p">)</span> <span class="k">for</span> <span class="n">input_state</span> <span class="ow">in</span> <span class="n">input_states</span><span class="p">]</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="kp">append</span><span class="p">(</span><span class="n">end_result</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">input_states</span><span class="p">)):</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">db3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b3</span><span class="o">.</span><span class="kp">shape</span><span class="p">),</span>
+                <span class="n">dw32</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w32</span><span class="o">.</span><span class="kp">shape</span><span class="p">),</span>
+                <span class="n">db2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b2</span><span class="o">.</span><span class="kp">shape</span><span class="p">),</span>
+                <span class="n">dw21</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w21</span><span class="o">.</span><span class="kp">shape</span><span class="p">))</span>
+            <span class="n">grad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="kp">gradient</span><span class="p">(</span><span class="n">input_states</span><span class="p">[</span><span class="n">t</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b3</span><span class="p">)):</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">delta</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">td_sum</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">l</span><span class="o">**</span><span class="p">(</span><span class="n">t</span><span class="o">-</span><span class="n">k</span><span class="p">)</span><span class="o">*</span><span class="n">grad</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)])</span>
+                    <span class="n">delta</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+=</span> <span class="n">a</span><span class="o">*</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">outputs</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="n">i</span><span class="p">])</span><span class="o">*</span><span class="n">td_sum</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">w21</span> <span class="o">+=</span> <span class="n">delta</span><span class="p">[</span><span class="s2">"dw21"</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">w32</span> <span class="o">+=</span> <span class="n">delta</span><span class="p">[</span><span class="s2">"dw32"</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">b2</span> <span class="o">+=</span> <span class="n">delta</span><span class="p">[</span><span class="s2">"db2"</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">b3</span> <span class="o">+=</span> <span class="n">delta</span><span class="p">[</span><span class="s2">"db3"</span><span class="p">]</span>
+</pre></div>
+
+<p>The way I use this is I play through a whole game (or rather, the neural net
+plays against itself), and then I send the states of that game, from start to
+finish, into <code>train()</code>, along with the final result. It then takes this game
+log, and applies the above formula to alter weights using the first game
+state, then the first and second game states, and so on until the final time,
+when it uses the entire list of game states. Then I repeat that many times and
+hope that the network learns.</p>
+<p>To be clear, I am not after feedback on my code writing. This was never meant
+to be more than a quick and dirty implementation to see that I have all the
+nuts and bolts in the right spots.</p>
+<p>However, I have no idea whether it is correct, as I have thus far been unable
+to make it capable of playing tic-tac-toe at any reasonable level. There could
+be many reasons for that. Maybe I'm not giving it enough hidden nodes (I have
+used 10 to 12). Maybe it needs more games to train (I have used 200 000).
+Maybe it would do better with different normalisation functions (I've tried
+sigmoid and ReLU, leaky and non-leaky, in different variations). Maybe the
+learning parameters are not tuned right. Maybe tic-tac-toe and its
+deterministic gameplay means it "locks in" on certain paths in the game tree.
+Or maybe the training implementation is just wrong. Which is why I'm here.</p>
+<p>Have I misunderstood Tesauro's algorithm?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I can't say that I entirely understand your implementation, but this line
+jumps out to me:</p>
+<div class="code"><pre class="code literal-block"><span class="w">                    </span><span class="n">td_sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">sum</span><span class="p">(</span><span class="o">[</span><span class="n">l**(t-k)*grad[i</span><span class="o">][</span><span class="n">key</span><span class="o">]</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="k">range</span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="err">]</span><span class="p">)</span>
+</pre></div>
+
+<p>Comparing with the formula you reference:</p>
+<p><img alt="" src="../../images/ZaXPB.png"></p>
+<p>I see at least two differences:</p>
+<ul>
+<li>Your implementation sums over <code>t+1</code> elements compared to <code>t</code> elements in the formula</li>
+<li>The gradient should be indexed with the same <code>k</code> as used in <code>l**(t-k)</code>, but in your implementation it is indexed with <code>i</code> and <code>key</code>, without any reference to <code>k</code>
+</li>
+</ul>
+<p>Perhaps if you fix these discrepancies your solution will behave more as
+expected.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/artificial-intelligence/" rel="tag">artificial-intelligence</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+            <li><a class="tag p-category" href="../../categories/reinforcement-learning/" rel="tag">reinforcement-learning</a></li>
+            <li><a class="tag p-category" href="../../categories/temporal-difference/" rel="tag">temporal-difference</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-design-the-artificial-intelligence-of-a-fighting-game-street-fighter-or-soul-calibur/" rel="prev" title="How to design the artificial intelligence of a fighting game (Street Fighter or Soul Calibur)?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-are-the-differences-between-contextual-embedding-and-word-embedding/" rel="next" title="What are the differences between contextual embedding and word embedding">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

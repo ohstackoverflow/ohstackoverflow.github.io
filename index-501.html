@@ -108,7 +108,798 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/count-number-of-lines-in-a-git-repository/" class="u-url">Count number of lines in a git repository</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/" class="u-url">How do I list all cron jobs for all users?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-list-all-cron-jobs-for-all-users/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T08:28:15+08:00" itemprop="datePublished" title="2023-02-17 08:28">2023-02-17 08:28</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there a command or an existing script that will let me view all of a *NIX
+system's scheduled cron jobs at once? I'd like it to include all of the user
+crontabs, as well as <code>/etc/crontab</code>, and whatever's in <code>/etc/cron.d</code>. It would
+also be nice to see the specific commands run by <code>run-parts</code> in
+<code>/etc/crontab</code>.</p>
+<p>Ideally, I'd like the output in a nice column form and ordered in some
+meaningful way.</p>
+<p>I could then merge these listings from multiple servers to view the overall
+"schedule of events."</p>
+<p>I was about to write such a script myself, but if someone's already gone to
+the trouble...</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I ended up writing a script (I'm trying to teach myself the finer points of
+bash scripting, so that's why you don't see something like Perl here). It's
+not exactly a simple affair, but it does most of what I need. It uses Kyle's
+suggestion for looking up individual users' crontabs, but also deals with
+<code>/etc/crontab</code> (including the scripts launched by <code>run-parts</code> in
+<code>/etc/cron.hourly</code>, <code>/etc/cron.daily</code>, etc.) and the jobs in the <code>/etc/cron.d</code>
+directory. It takes all of those and merges them into a display something like
+the following:</p>
+<div class="code"><pre class="code literal-block"><span class="n">mi</span><span class="w">     </span><span class="n">h</span><span class="w">    </span><span class="n">d</span><span class="w">  </span><span class="n">m</span><span class="w">  </span><span class="n">w</span><span class="w">  </span><span class="n">user</span><span class="w">      </span><span class="n">command</span>
+<span class="mi">09</span><span class="p">,</span><span class="mi">39</span><span class="w">  </span><span class="o">*</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="p">[</span><span class="w"> </span><span class="o">-</span><span class="n">d</span><span class="w"> </span><span class="o">/</span><span class="k">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">php5</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">find</span><span class="w"> </span><span class="o">/</span><span class="k">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">php5</span><span class="o">/</span><span class="w"> </span><span class="o">-</span><span class="n">type</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">-</span><span class="n">cmin</span><span class="w"> </span><span class="o">+$</span><span class="p">(</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">php5</span><span class="o">/</span><span class="n">maxlifetime</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="n">print0</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">xargs</span><span class="w"> </span><span class="o">-</span><span class="n">r</span><span class="w"> </span><span class="o">-</span><span class="mi">0</span><span class="w"> </span><span class="n">rm</span>
+<span class="mi">47</span><span class="w">     </span><span class="o">*/</span><span class="mi">8</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="n">rsync</span><span class="w"> </span><span class="o">-</span><span class="n">axE</span><span class="w"> </span><span class="o">--</span><span class="n">delete</span><span class="w"> </span><span class="o">--</span><span class="n">ignore</span><span class="o">-</span><span class="n">errors</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="o">/</span><span class="n">mirror</span><span class="o">/</span><span class="w"> </span><span class="o">&gt;/</span><span class="n">dev</span><span class="o">/</span><span class="nb nb-Type">null</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">apt</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">aptitude</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">find</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">logrotate</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">man</span><span class="o">-</span><span class="n">db</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">ntp</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">standard</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">sysklogd</span>
+<span class="mi">27</span><span class="w">     </span><span class="mi">2</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="mi">7</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">weekly</span><span class="o">/</span><span class="n">man</span><span class="o">-</span><span class="n">db</span>
+<span class="mi">27</span><span class="w">     </span><span class="mi">2</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="mi">7</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">weekly</span><span class="o">/</span><span class="n">sysklogd</span>
+<span class="mi">13</span><span class="w">     </span><span class="mi">3</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">archiver</span><span class="w">  </span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span><span class="n">offsite</span><span class="o">-</span><span class="n">backup</span><span class="w"> </span><span class="mi">2</span><span class="o">&gt;&amp;</span><span class="mi">1</span>
+<span class="mi">32</span><span class="w">     </span><span class="mi">3</span><span class="w">    </span><span class="mi">1</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">monthly</span><span class="o">/</span><span class="n">standard</span>
+<span class="mi">36</span><span class="w">     </span><span class="mi">4</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">yukon</span><span class="w">     </span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">yukon</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span><span class="n">do</span><span class="o">-</span><span class="n">daily</span><span class="o">-</span><span class="n">stuff</span>
+<span class="mi">5</span><span class="w">      </span><span class="mi">5</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">archiver</span><span class="w">  </span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span><span class="n">update</span><span class="o">-</span><span class="n">logs</span><span class="w"> </span><span class="o">&gt;/</span><span class="n">dev</span><span class="o">/</span><span class="nb nb-Type">null</span>
+</pre></div>
+
+<p>Note that it shows the user, and more-or-less sorts by hour and minute so that
+I can see the daily schedule.</p>
+<p>So far, I've tested it on Ubuntu, Debian, and Red Hat AS.</p>
+<div class="code"><table class="codetable">
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-1"><code data-line-number=" 1"></code></a></td>
+<td class="code"><code><span class="ch">#!/bin/bash</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-2"><code data-line-number=" 2"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-3"><code data-line-number=" 3"></code></a></td>
+<td class="code"><code><span class="c1"># System-wide crontab file and cron job directory. Change these for your system.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-4"><code data-line-number=" 4"></code></a></td>
+<td class="code"><code><span class="nv">CRONTAB</span><span class="o">=</span><span class="s1">'/etc/crontab'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-5"><code data-line-number=" 5"></code></a></td>
+<td class="code"><code><span class="nv">CRONDIR</span><span class="o">=</span><span class="s1">'/etc/cron.d'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-6"><code data-line-number=" 6"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-7"><code data-line-number=" 7"></code></a></td>
+<td class="code"><code><span class="c1"># Single tab character. Annoyingly necessary.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-8"><code data-line-number=" 8"></code></a></td>
+<td class="code"><code><span class="nv">tab</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span>-en<span class="w"> </span><span class="s2">"\t"</span><span class="k">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-9"><code data-line-number=" 9"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-10"><code data-line-number="10"></code></a></td>
+<td class="code"><code><span class="c1"># Given a stream of crontab lines, exclude non-cron job lines, replace</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-11"><code data-line-number="11"></code></a></td>
+<td class="code"><code><span class="c1"># whitespace characters with a single space, and remove any spaces from the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-12"><code data-line-number="12"></code></a></td>
+<td class="code"><code><span class="c1"># beginning of each line.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-13"><code data-line-number="13"></code></a></td>
+<td class="code"><code><span class="k">function</span><span class="w"> </span>clean_cron_lines<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-14"><code data-line-number="14"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>line<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-15"><code data-line-number="15"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">line</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-16"><code data-line-number="16"></code></a></td>
+<td class="code"><code><span class="w">            </span>egrep<span class="w"> </span>--invert-match<span class="w"> </span><span class="s1">'^($|\s*#|\s*[[:alnum:]_]+=)'</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-17"><code data-line-number="17"></code></a></td>
+<td class="code"><code><span class="w">            </span>sed<span class="w"> </span>--regexp-extended<span class="w"> </span><span class="s2">"s/\s+/ /g"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-18"><code data-line-number="18"></code></a></td>
+<td class="code"><code><span class="w">            </span>sed<span class="w"> </span>--regexp-extended<span class="w"> </span><span class="s2">"s/^ //"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-19"><code data-line-number="19"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="k">done</span><span class="p">;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-20"><code data-line-number="20"></code></a></td>
+<td class="code"><code><span class="o">}</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-21"><code data-line-number="21"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-22"><code data-line-number="22"></code></a></td>
+<td class="code"><code><span class="c1"># Given a stream of cleaned crontab lines, echo any that don't include the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-23"><code data-line-number="23"></code></a></td>
+<td class="code"><code><span class="c1"># run-parts command, and for those that do, show each job file in the run-parts</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-24"><code data-line-number="24"></code></a></td>
+<td class="code"><code><span class="c1"># directory as if it were scheduled explicitly.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-25"><code data-line-number="25"></code></a></td>
+<td class="code"><code><span class="k">function</span><span class="w"> </span>lookup_run_parts<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-26"><code data-line-number="26"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>line<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-27"><code data-line-number="27"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="nv">match</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">line</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>egrep<span class="w"> </span>-o<span class="w"> </span><span class="s1">'run-parts (-{1,2}\S+ )*\S+'</span><span class="k">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-28"><code data-line-number="28"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-29"><code data-line-number="29"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">match</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-30"><code data-line-number="30"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">line</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-31"><code data-line-number="31"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="k">else</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-32"><code data-line-number="32"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="nv">cron_fields</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">line</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-f1-6<span class="w"> </span>-d<span class="s1">' '</span><span class="k">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-33"><code data-line-number="33"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="nv">cron_job_dir</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w">  </span><span class="s2">"</span><span class="si">${</span><span class="nv">match</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">'{print $NF}'</span><span class="k">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-34"><code data-line-number="34"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-35"><code data-line-number="35"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">cron_job_dir</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-36"><code data-line-number="36"></code></a></td>
+<td class="code"><code><span class="w">                </span><span class="k">for</span><span class="w"> </span>cron_job_file<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">cron_job_dir</span><span class="si">}</span><span class="s2">"</span>/*<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w">  </span><span class="c1"># */ &lt;not a comment&gt;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-37"><code data-line-number="37"></code></a></td>
+<td class="code"><code><span class="w">                    </span><span class="o">[[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">cron_job_file</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">cron_fields</span><span class="si">}</span><span class="s2"> </span><span class="si">${</span><span class="nv">cron_job_file</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-38"><code data-line-number="38"></code></a></td>
+<td class="code"><code><span class="w">                </span><span class="k">done</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-39"><code data-line-number="39"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="k">fi</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-40"><code data-line-number="40"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="k">fi</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-41"><code data-line-number="41"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="k">done</span><span class="p">;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-42"><code data-line-number="42"></code></a></td>
+<td class="code"><code><span class="o">}</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-43"><code data-line-number="43"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-44"><code data-line-number="44"></code></a></td>
+<td class="code"><code><span class="c1"># Temporary file for crontab lines.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-45"><code data-line-number="45"></code></a></td>
+<td class="code"><code><span class="nv">temp</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="k">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-46"><code data-line-number="46"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-47"><code data-line-number="47"></code></a></td>
+<td class="code"><code><span class="c1"># Add all of the jobs from the system-wide crontab file.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-48"><code data-line-number="48"></code></a></td>
+<td class="code"><code>cat<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">CRONTAB</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>clean_cron_lines<span class="w"> </span><span class="p">|</span><span class="w"> </span>lookup_run_parts<span class="w"> </span>&gt;<span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-49"><code data-line-number="49"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-50"><code data-line-number="50"></code></a></td>
+<td class="code"><code><span class="c1"># Add all of the jobs from the system-wide cron directory.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-51"><code data-line-number="51"></code></a></td>
+<td class="code"><code>cat<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">CRONDIR</span><span class="si">}</span><span class="s2">"</span>/*<span class="w"> </span><span class="p">|</span><span class="w"> </span>clean_cron_lines<span class="w"> </span>&gt;&gt;<span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span><span class="w">  </span><span class="c1"># */ &lt;not a comment&gt;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-52"><code data-line-number="52"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-53"><code data-line-number="53"></code></a></td>
+<td class="code"><code><span class="c1"># Add each user's crontab (if it exists). Insert the user's name between the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-54"><code data-line-number="54"></code></a></td>
+<td class="code"><code><span class="c1"># five time fields and the command.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-55"><code data-line-number="55"></code></a></td>
+<td class="code"><code><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>user<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-56"><code data-line-number="56"></code></a></td>
+<td class="code"><code><span class="w">    </span>crontab<span class="w"> </span>-l<span class="w"> </span>-u<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">user</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-57"><code data-line-number="57"></code></a></td>
+<td class="code"><code><span class="w">        </span>clean_cron_lines<span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-58"><code data-line-number="58"></code></a></td>
+<td class="code"><code><span class="w">        </span>sed<span class="w"> </span>--regexp-extended<span class="w"> </span><span class="s2">"s/^((\S+ +){5})(.+)</span>$<span class="s2">/\1</span><span class="si">${</span><span class="nv">user</span><span class="si">}</span><span class="s2"> \3/"</span><span class="w"> </span>&gt;&gt;<span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-59"><code data-line-number="59"></code></a></td>
+<td class="code"><code><span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>&lt;<span class="o">(</span>cut<span class="w"> </span>--fields<span class="o">=</span><span class="m">1</span><span class="w"> </span>--delimiter<span class="o">=</span>:<span class="w"> </span>/etc/passwd<span class="o">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-60"><code data-line-number="60"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-61"><code data-line-number="61"></code></a></td>
+<td class="code"><code><span class="c1"># Output the collected crontab lines. Replace the single spaces between the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-62"><code data-line-number="62"></code></a></td>
+<td class="code"><code><span class="c1"># fields with tab characters, sort the lines by hour and minute, insert the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-63"><code data-line-number="63"></code></a></td>
+<td class="code"><code><span class="c1"># header line, and format the results as a table.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-64"><code data-line-number="64"></code></a></td>
+<td class="code"><code>cat<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-65"><code data-line-number="65"></code></a></td>
+<td class="code"><code><span class="w">    </span>sed<span class="w"> </span>--regexp-extended<span class="w"> </span><span class="s2">"s/^(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(.*)</span>$<span class="s2">/\1\t\2\t\3\t\4\t\5\t\6\t\7/"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-66"><code data-line-number="66"></code></a></td>
+<td class="code"><code><span class="w">    </span>sort<span class="w"> </span>--numeric-sort<span class="w"> </span>--field-separator<span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">tab</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>--key<span class="o">=</span><span class="m">2</span>,1<span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-67"><code data-line-number="67"></code></a></td>
+<td class="code"><code><span class="w">    </span>sed<span class="w"> </span><span class="s2">"1i\mi\th\td\tm\tw\tuser\tcommand"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-68"><code data-line-number="68"></code></a></td>
+<td class="code"><code><span class="w">    </span>column<span class="w"> </span>-s<span class="s2">"</span><span class="si">${</span><span class="nv">tab</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-t
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-69"><code data-line-number="69"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-70"><code data-line-number="70"></code></a></td>
+<td class="code"><code>rm<span class="w"> </span>--force<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+</table></div>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I ended up writing a script (I'm trying to teach myself the finer points of
+bash scripting, so that's why you don't see something like Perl here). It's
+not exactly a simple affair, but it does most of what I need. It uses Kyle's
+suggestion for looking up individual users' crontabs, but also deals with
+<code>/etc/crontab</code> (including the scripts launched by <code>run-parts</code> in
+<code>/etc/cron.hourly</code>, <code>/etc/cron.daily</code>, etc.) and the jobs in the <code>/etc/cron.d</code>
+directory. It takes all of those and merges them into a display something like
+the following:</p>
+<div class="code"><pre class="code literal-block"><span class="n">mi</span><span class="w">     </span><span class="n">h</span><span class="w">    </span><span class="n">d</span><span class="w">  </span><span class="n">m</span><span class="w">  </span><span class="n">w</span><span class="w">  </span><span class="n">user</span><span class="w">      </span><span class="n">command</span>
+<span class="mi">09</span><span class="p">,</span><span class="mi">39</span><span class="w">  </span><span class="o">*</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="p">[</span><span class="w"> </span><span class="o">-</span><span class="n">d</span><span class="w"> </span><span class="o">/</span><span class="k">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">php5</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">find</span><span class="w"> </span><span class="o">/</span><span class="k">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">php5</span><span class="o">/</span><span class="w"> </span><span class="o">-</span><span class="n">type</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">-</span><span class="n">cmin</span><span class="w"> </span><span class="o">+$</span><span class="p">(</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">php5</span><span class="o">/</span><span class="n">maxlifetime</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="n">print0</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">xargs</span><span class="w"> </span><span class="o">-</span><span class="n">r</span><span class="w"> </span><span class="o">-</span><span class="mi">0</span><span class="w"> </span><span class="n">rm</span>
+<span class="mi">47</span><span class="w">     </span><span class="o">*/</span><span class="mi">8</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="n">rsync</span><span class="w"> </span><span class="o">-</span><span class="n">axE</span><span class="w"> </span><span class="o">--</span><span class="n">delete</span><span class="w"> </span><span class="o">--</span><span class="n">ignore</span><span class="o">-</span><span class="n">errors</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="o">/</span><span class="n">mirror</span><span class="o">/</span><span class="w"> </span><span class="o">&gt;/</span><span class="n">dev</span><span class="o">/</span><span class="nb nb-Type">null</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">apt</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">aptitude</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">find</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">logrotate</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">man</span><span class="o">-</span><span class="n">db</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">ntp</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">standard</span>
+<span class="mi">17</span><span class="w">     </span><span class="mi">1</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">daily</span><span class="o">/</span><span class="n">sysklogd</span>
+<span class="mi">27</span><span class="w">     </span><span class="mi">2</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="mi">7</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">weekly</span><span class="o">/</span><span class="n">man</span><span class="o">-</span><span class="n">db</span>
+<span class="mi">27</span><span class="w">     </span><span class="mi">2</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="mi">7</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">weekly</span><span class="o">/</span><span class="n">sysklogd</span>
+<span class="mi">13</span><span class="w">     </span><span class="mi">3</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">archiver</span><span class="w">  </span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span><span class="n">offsite</span><span class="o">-</span><span class="n">backup</span><span class="w"> </span><span class="mi">2</span><span class="o">&gt;&amp;</span><span class="mi">1</span>
+<span class="mi">32</span><span class="w">     </span><span class="mi">3</span><span class="w">    </span><span class="mi">1</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">root</span><span class="w">      </span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">cron</span><span class="o">.</span><span class="n">monthly</span><span class="o">/</span><span class="n">standard</span>
+<span class="mi">36</span><span class="w">     </span><span class="mi">4</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">yukon</span><span class="w">     </span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">yukon</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span><span class="n">do</span><span class="o">-</span><span class="n">daily</span><span class="o">-</span><span class="n">stuff</span>
+<span class="mi">5</span><span class="w">      </span><span class="mi">5</span><span class="w">    </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="o">*</span><span class="w">  </span><span class="n">archiver</span><span class="w">  </span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span><span class="n">update</span><span class="o">-</span><span class="n">logs</span><span class="w"> </span><span class="o">&gt;/</span><span class="n">dev</span><span class="o">/</span><span class="nb nb-Type">null</span>
+</pre></div>
+
+<p>Note that it shows the user, and more-or-less sorts by hour and minute so that
+I can see the daily schedule.</p>
+<p>So far, I've tested it on Ubuntu, Debian, and Red Hat AS.</p>
+<div class="code"><table class="codetable">
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-1"><code data-line-number=" 1"></code></a></td>
+<td class="code"><code><span class="ch">#!/bin/bash</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-2"><code data-line-number=" 2"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-3"><code data-line-number=" 3"></code></a></td>
+<td class="code"><code><span class="c1"># System-wide crontab file and cron job directory. Change these for your system.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-4"><code data-line-number=" 4"></code></a></td>
+<td class="code"><code><span class="nv">CRONTAB</span><span class="o">=</span><span class="s1">'/etc/crontab'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-5"><code data-line-number=" 5"></code></a></td>
+<td class="code"><code><span class="nv">CRONDIR</span><span class="o">=</span><span class="s1">'/etc/cron.d'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-6"><code data-line-number=" 6"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-7"><code data-line-number=" 7"></code></a></td>
+<td class="code"><code><span class="c1"># Single tab character. Annoyingly necessary.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-8"><code data-line-number=" 8"></code></a></td>
+<td class="code"><code><span class="nv">tab</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span>-en<span class="w"> </span><span class="s2">"\t"</span><span class="k">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-9"><code data-line-number=" 9"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-10"><code data-line-number="10"></code></a></td>
+<td class="code"><code><span class="c1"># Given a stream of crontab lines, exclude non-cron job lines, replace</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-11"><code data-line-number="11"></code></a></td>
+<td class="code"><code><span class="c1"># whitespace characters with a single space, and remove any spaces from the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-12"><code data-line-number="12"></code></a></td>
+<td class="code"><code><span class="c1"># beginning of each line.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-13"><code data-line-number="13"></code></a></td>
+<td class="code"><code><span class="k">function</span><span class="w"> </span>clean_cron_lines<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-14"><code data-line-number="14"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>line<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-15"><code data-line-number="15"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">line</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-16"><code data-line-number="16"></code></a></td>
+<td class="code"><code><span class="w">            </span>egrep<span class="w"> </span>--invert-match<span class="w"> </span><span class="s1">'^($|\s*#|\s*[[:alnum:]_]+=)'</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-17"><code data-line-number="17"></code></a></td>
+<td class="code"><code><span class="w">            </span>sed<span class="w"> </span>--regexp-extended<span class="w"> </span><span class="s2">"s/\s+/ /g"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-18"><code data-line-number="18"></code></a></td>
+<td class="code"><code><span class="w">            </span>sed<span class="w"> </span>--regexp-extended<span class="w"> </span><span class="s2">"s/^ //"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-19"><code data-line-number="19"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="k">done</span><span class="p">;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-20"><code data-line-number="20"></code></a></td>
+<td class="code"><code><span class="o">}</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-21"><code data-line-number="21"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-22"><code data-line-number="22"></code></a></td>
+<td class="code"><code><span class="c1"># Given a stream of cleaned crontab lines, echo any that don't include the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-23"><code data-line-number="23"></code></a></td>
+<td class="code"><code><span class="c1"># run-parts command, and for those that do, show each job file in the run-parts</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-24"><code data-line-number="24"></code></a></td>
+<td class="code"><code><span class="c1"># directory as if it were scheduled explicitly.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-25"><code data-line-number="25"></code></a></td>
+<td class="code"><code><span class="k">function</span><span class="w"> </span>lookup_run_parts<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-26"><code data-line-number="26"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>line<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-27"><code data-line-number="27"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="nv">match</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">line</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>egrep<span class="w"> </span>-o<span class="w"> </span><span class="s1">'run-parts (-{1,2}\S+ )*\S+'</span><span class="k">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-28"><code data-line-number="28"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-29"><code data-line-number="29"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">match</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-30"><code data-line-number="30"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">line</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-31"><code data-line-number="31"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="k">else</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-32"><code data-line-number="32"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="nv">cron_fields</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">line</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-f1-6<span class="w"> </span>-d<span class="s1">' '</span><span class="k">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-33"><code data-line-number="33"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="nv">cron_job_dir</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w">  </span><span class="s2">"</span><span class="si">${</span><span class="nv">match</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">'{print $NF}'</span><span class="k">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-34"><code data-line-number="34"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-35"><code data-line-number="35"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">cron_job_dir</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-36"><code data-line-number="36"></code></a></td>
+<td class="code"><code><span class="w">                </span><span class="k">for</span><span class="w"> </span>cron_job_file<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">cron_job_dir</span><span class="si">}</span><span class="s2">"</span>/*<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w">  </span><span class="c1"># */ &lt;not a comment&gt;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-37"><code data-line-number="37"></code></a></td>
+<td class="code"><code><span class="w">                    </span><span class="o">[[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">cron_job_file</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">cron_fields</span><span class="si">}</span><span class="s2"> </span><span class="si">${</span><span class="nv">cron_job_file</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-38"><code data-line-number="38"></code></a></td>
+<td class="code"><code><span class="w">                </span><span class="k">done</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-39"><code data-line-number="39"></code></a></td>
+<td class="code"><code><span class="w">            </span><span class="k">fi</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-40"><code data-line-number="40"></code></a></td>
+<td class="code"><code><span class="w">        </span><span class="k">fi</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-41"><code data-line-number="41"></code></a></td>
+<td class="code"><code><span class="w">    </span><span class="k">done</span><span class="p">;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-42"><code data-line-number="42"></code></a></td>
+<td class="code"><code><span class="o">}</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-43"><code data-line-number="43"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-44"><code data-line-number="44"></code></a></td>
+<td class="code"><code><span class="c1"># Temporary file for crontab lines.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-45"><code data-line-number="45"></code></a></td>
+<td class="code"><code><span class="nv">temp</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="k">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-46"><code data-line-number="46"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-47"><code data-line-number="47"></code></a></td>
+<td class="code"><code><span class="c1"># Add all of the jobs from the system-wide crontab file.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-48"><code data-line-number="48"></code></a></td>
+<td class="code"><code>cat<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">CRONTAB</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>clean_cron_lines<span class="w"> </span><span class="p">|</span><span class="w"> </span>lookup_run_parts<span class="w"> </span>&gt;<span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-49"><code data-line-number="49"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-50"><code data-line-number="50"></code></a></td>
+<td class="code"><code><span class="c1"># Add all of the jobs from the system-wide cron directory.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-51"><code data-line-number="51"></code></a></td>
+<td class="code"><code>cat<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">CRONDIR</span><span class="si">}</span><span class="s2">"</span>/*<span class="w"> </span><span class="p">|</span><span class="w"> </span>clean_cron_lines<span class="w"> </span>&gt;&gt;<span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span><span class="w">  </span><span class="c1"># */ &lt;not a comment&gt;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-52"><code data-line-number="52"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-53"><code data-line-number="53"></code></a></td>
+<td class="code"><code><span class="c1"># Add each user's crontab (if it exists). Insert the user's name between the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-54"><code data-line-number="54"></code></a></td>
+<td class="code"><code><span class="c1"># five time fields and the command.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-55"><code data-line-number="55"></code></a></td>
+<td class="code"><code><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>user<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-56"><code data-line-number="56"></code></a></td>
+<td class="code"><code><span class="w">    </span>crontab<span class="w"> </span>-l<span class="w"> </span>-u<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">user</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-57"><code data-line-number="57"></code></a></td>
+<td class="code"><code><span class="w">        </span>clean_cron_lines<span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-58"><code data-line-number="58"></code></a></td>
+<td class="code"><code><span class="w">        </span>sed<span class="w"> </span>--regexp-extended<span class="w"> </span><span class="s2">"s/^((\S+ +){5})(.+)</span>$<span class="s2">/\1</span><span class="si">${</span><span class="nv">user</span><span class="si">}</span><span class="s2"> \3/"</span><span class="w"> </span>&gt;&gt;<span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-59"><code data-line-number="59"></code></a></td>
+<td class="code"><code><span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>&lt;<span class="o">(</span>cut<span class="w"> </span>--fields<span class="o">=</span><span class="m">1</span><span class="w"> </span>--delimiter<span class="o">=</span>:<span class="w"> </span>/etc/passwd<span class="o">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-60"><code data-line-number="60"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-61"><code data-line-number="61"></code></a></td>
+<td class="code"><code><span class="c1"># Output the collected crontab lines. Replace the single spaces between the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-62"><code data-line-number="62"></code></a></td>
+<td class="code"><code><span class="c1"># fields with tab characters, sort the lines by hour and minute, insert the</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-63"><code data-line-number="63"></code></a></td>
+<td class="code"><code><span class="c1"># header line, and format the results as a table.</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-64"><code data-line-number="64"></code></a></td>
+<td class="code"><code>cat<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-65"><code data-line-number="65"></code></a></td>
+<td class="code"><code><span class="w">    </span>sed<span class="w"> </span>--regexp-extended<span class="w"> </span><span class="s2">"s/^(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(.*)</span>$<span class="s2">/\1\t\2\t\3\t\4\t\5\t\6\t\7/"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-66"><code data-line-number="66"></code></a></td>
+<td class="code"><code><span class="w">    </span>sort<span class="w"> </span>--numeric-sort<span class="w"> </span>--field-separator<span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">tab</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>--key<span class="o">=</span><span class="m">2</span>,1<span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-67"><code data-line-number="67"></code></a></td>
+<td class="code"><code><span class="w">    </span>sed<span class="w"> </span><span class="s2">"1i\mi\th\td\tm\tw\tuser\tcommand"</span><span class="w"> </span><span class="p">|</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-68"><code data-line-number="68"></code></a></td>
+<td class="code"><code><span class="w">    </span>column<span class="w"> </span>-s<span class="s2">"</span><span class="si">${</span><span class="nv">tab</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-t
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-69"><code data-line-number="69"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-list-all-cron-jobs-for-all-users/#-70"><code data-line-number="70"></code></a></td>
+<td class="code"><code>rm<span class="w"> </span>--force<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">temp</span><span class="si">}</span><span class="s2">"</span>
+</code></td>
+</tr>
+</table></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/count-number-of-lines-in-a-git-repository/" class="u-url">Count number of lines in a git repository</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -202,73 +993,6 @@ to run), because it searches the dependencies in the Git-ignored
 <p><code>datetime.datetime.date()</code></p>
 <p>Return date object with same year, month and day.</p>
 </blockquote>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/undo-a-particular-commit-in-git-that-s-been-pushed-to-remote-repos/" class="u-url">Undo a particular commit in Git that's been pushed to remote repos</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/undo-a-particular-commit-in-git-that-s-been-pushed-to-remote-repos/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T08:26:54+08:00" itemprop="datePublished" title="2023-02-17 08:26">2023-02-17 08:26</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What is the simplest way to undo a particular commit that is:</p>
-<ul>
-<li>not in the head or HEAD</li>
-<li>Has been pushed to the remote.</li>
-</ul>
-<p>Because if it is not the latest commit,</p>
-<div class="code"><pre class="code literal-block">git reset HEAD
-</pre></div>
-
-<p>doesn't work. And because it has been pushed to a remote,</p>
-<div class="code"><pre class="code literal-block">git rebase -i
-</pre></div>
-
-<p>and</p>
-<div class="code"><pre class="code literal-block">git rebase --onto
-</pre></div>
-
-<p>will cause some problem in the remotes.</p>
-<p>More so, I don't want to modify the history really. If there was bad code, it
-was there in the history and can be seen. I just want it out in the working
-copy, and I don't mind a reverse merge commit.</p>
-<p>In other words, what is the Git equivalent of the following svn commands:</p>
-<div class="code"><pre class="code literal-block">svn merge -r 303:295 http://svn.example.com/repos/calc/trunk
-</pre></div>
-
-<p>which removes all changes from 295 to 302 by reverse merging all changes in
-those revisions, as a new commit.</p>
-<div class="code"><pre class="code literal-block">svn merge -c -302 ^/trunk
-</pre></div>
-
-<p>which undoes the 302 commit, of course by adding another commit that reverse
-merges the changes from that respective commit.</p>
-<p>I thought it should be a fairly simple operation in Git and a fairly common
-use case. What else is the point of atomic commits?</p>
-<p>We have staging stashing and all to ensure the commits are perfectly atomic,
-shouldn't you be able to undo one or more of those atomic commits easily?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Identify the hash of the commit, using <code>git log</code>, then use <code>git revert
-&lt;commit&gt;</code> to create a new commit that removes these changes. In a way, <code>git
-revert</code> is the converse of <code>git cherry-pick</code> -- the latter applies the patch
-to a branch that's missing it, the former removes it from a branch that has
-it.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I don't like the auto-commit that <code>git revert</code> does, so this might be helpful
-for some.</p>
-<p><strong>If you just want the modified files not the auto-commit</strong> , you can use
-<code>--no-commit</code></p>
-<div class="code"><pre class="code literal-block"><span class="c">% git revert --no-commit &lt;commit hash&gt;</span>
-</pre></div>
-
-<p>which is the same as the <code>-n</code></p>
-<div class="code"><pre class="code literal-block"><span class="c">% git revert -n &lt;commit hash&gt;</span>
-</pre></div>
     </div>
     </article>
 </div>

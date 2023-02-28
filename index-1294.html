@@ -108,7 +108,107 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-calculate-number-of-days-between-two-dates/" class="u-url">How to calculate number of days between two dates?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/programmatically-find-the-number-of-cores-on-a-machine/" class="u-url">Programmatically find the number of cores on a machine</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/programmatically-find-the-number-of-cores-on-a-machine/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:56:02+08:00" itemprop="datePublished" title="2023-02-18 05:56">2023-02-18 05:56</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there a way to determine how many cores a machine has from C/C++ in a
+platform-independent way? If no such thing exists, what about determining it
+per-platform (Windows/*nix/Mac)?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h2>C++11</h2>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;thread&gt;</span>
+
+<span class="c1">//may return 0 when not able to detect</span>
+<span class="kr">const</span><span class="w"> </span><span class="kr">auto</span><span class="w"> </span><span class="n">processor_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="o">::</span><span class="n">hardware_concurrency</span><span class="p">();</span>
+</pre></div>
+
+<p>Reference: std::thread::hardware_concurrency</p>
+<hr>
+<p>In C++ prior to C++11, there's no portable way. Instead, you'll need to use
+one or more of the following methods (guarded by appropriate <code>#ifdef</code> lines):</p>
+<ul>
+<li>
+<h4>Win32</h4>
+<div class="code"><pre class="code literal-block">SYSTEM_INFO sysinfo;
+</pre></div>
+
+<p>GetSystemInfo(&amp;sysinfo);
+int numCPU = sysinfo.dwNumberOfProcessors;</p>
+</li>
+<li>
+<h4>Linux, Solaris, AIX and Mac OS X &gt;=10.4 (i.e. Tiger onwards)</h4>
+<div class="code"><pre class="code literal-block">int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
+</pre></div>
+
+</li>
+<li>
+<h4>FreeBSD, MacOS X, NetBSD, OpenBSD, etc.</h4>
+<div class="code"><pre class="code literal-block">int mib[4];
+</pre></div>
+
+<p>int numCPU;
+std::size_t len = sizeof(numCPU); </p>
+<p>/<em> set the mib for hw.ncpu </em>/
+mib[0] = CTL_HW;
+mib[1] = HW_AVAILCPU;  // alternatively, try HW_NCPU;</p>
+<p>/<em> get the number of CPUs from the system </em>/
+sysctl(mib, 2, &amp;numCPU, &amp;len, NULL, 0);</p>
+<p>if (numCPU &lt; 1) 
+{
+    mib[1] = HW_NCPU;
+    sysctl(mib, 2, &amp;numCPU, &amp;len, NULL, 0);
+    if (numCPU &lt; 1)
+        numCPU = 1;
+}</p>
+</li>
+<li>
+<h4>HPUX</h4>
+<div class="code"><pre class="code literal-block">int numCPU = mpctl(MPC_GETNUMSPUS, NULL, NULL);
+</pre></div>
+
+</li>
+<li>
+<h4>IRIX</h4>
+<div class="code"><pre class="code literal-block">int numCPU = sysconf(_SC_NPROC_ONLN);
+</pre></div>
+
+</li>
+<li>
+<h4>Objective-C (Mac OS X &gt;=10.5 or iOS)</h4>
+<div class="code"><pre class="code literal-block"><span class="n">NSUInteger</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[[</span><span class="bp">NSProcessInfo</span><span class="w"> </span><span class="n">processInfo</span><span class="p">]</span><span class="w"> </span><span class="n">processorCount</span><span class="p">];</span>
+</pre></div>
+
+<p>NSUInteger b = [[NSProcessInfo processInfo] activeProcessorCount];</p>
+</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>This functionality is part of the C++11 standard.</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;thread&gt;</span>
+
+<span class="kr">unsigned</span><span class="w"> </span><span class="kr">int</span><span class="w"> </span><span class="n">nthreads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="o">::</span><span class="n">hardware_concurrency</span><span class="p">();</span>
+</pre></div>
+
+<p>For older compilers, you can use the Boost.Thread library.</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;boost/thread.hpp&gt;</span>
+
+<span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">nthreads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">boost</span><span class="o">::</span><span class="kr">thread</span><span class="o">::</span><span class="n">hardware_concurrency</span><span class="p">();</span>
+</pre></div>
+
+<p>In either case, <code>hardware_concurrency()</code> returns the number of threads that
+the hardware is capable of executing concurrently based on the number of CPU
+cores and hyper-threading units.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-calculate-number-of-days-between-two-dates/" class="u-url">How to calculate number of days between two dates?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -284,104 +384,6 @@ Rule...</p>
 application "/"</p>
 </blockquote>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-find-the-type-of-an-object-in-go/" class="u-url">How to find the type of an object in Go?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-find-the-type-of-an-object-in-go/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:54:17+08:00" itemprop="datePublished" title="2023-02-18 05:54">2023-02-18 05:54</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do I find the type of an object in Go? In Python, I just use <code>typeof</code> to
-fetch the type of object. Similarly in Go, is there a way to implement the
-same ?</p>
-<p>Here is the container from which I am iterating:</p>
-<div class="code"><pre class="code literal-block"><span class="k">for</span><span class="w"> </span><span class="nv">e</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nv">dlist</span><span class="o">.</span><span class="nf">Front</span><span class="p">();</span><span class="w"> </span><span class="nv">e</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">nil</span><span class="p">;</span><span class="w"> </span><span class="nv">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">e</span><span class="o">.</span><span class="nf">Next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nv">lines</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nv">e</span><span class="o">.</span><span class="nv">Value</span>
-<span class="w">    </span><span class="nv">fmt</span><span class="o">.</span><span class="nf">Printf</span><span class="p">(</span><span class="nv">reflect</span><span class="o">.</span><span class="nf">TypeOf</span><span class="p">(</span><span class="nv">lines</span><span class="p">))</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>I am not able to get the type of the object lines in this case which is an
-array of strings.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The Go reflection package has methods for inspecting the type of variables.</p>
-<p>The following snippet will print out the reflection type of a string, integer
-and float.</p>
-<div class="code"><pre class="code literal-block"><span class="n">package</span> <span class="n">main</span>
-
-<span class="kn">import</span> <span class="p">(</span>
-    <span class="s2">"fmt"</span>
-    <span class="s2">"reflect"</span>
-<span class="p">)</span>
-
-<span class="n">func</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
-
-    <span class="n">tst</span> <span class="o">:=</span> <span class="s2">"string"</span>
-    <span class="n">tst2</span> <span class="o">:=</span> <span class="mi">10</span>
-    <span class="n">tst3</span> <span class="o">:=</span> <span class="mf">1.2</span>
-
-    <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="n">reflect</span><span class="o">.</span><span class="n">TypeOf</span><span class="p">(</span><span class="n">tst</span><span class="p">))</span>
-    <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="n">reflect</span><span class="o">.</span><span class="n">TypeOf</span><span class="p">(</span><span class="n">tst2</span><span class="p">))</span>
-    <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="n">reflect</span><span class="o">.</span><span class="n">TypeOf</span><span class="p">(</span><span class="n">tst3</span><span class="p">))</span>
-
-<span class="p">}</span>
-</pre></div>
-
-<p>Output:</p>
-<div class="code"><pre class="code literal-block">string
-int
-float64
-</pre></div>
-
-<p>see: http://play.golang.org/p/XQMcUVsOja to view it in action.</p>
-<p>More documentation here: http://golang.org/pkg/reflect/#Type</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I found 3 ways to return a variable's type at runtime:</p>
-<p><strong>Using string formatting</strong></p>
-<div class="code"><pre class="code literal-block"><span class="k">func</span><span class="w"> </span><span class="nb">typeof</span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="n">interface</span><span class="p">{})</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">fmt</span><span class="o">.</span><span class="n">Sprintf</span><span class="p">(</span><span class="s2">"%T"</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">)</span>
-<span class="p">}</span>
-</pre></div>
-
-<p><strong>Using reflect package</strong></p>
-<div class="code"><pre class="code literal-block"><span class="k">func</span><span class="w"> </span><span class="nb">typeof</span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="n">interface</span><span class="p">{})</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">reflect</span><span class="o">.</span><span class="n">TypeOf</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">String</span><span class="p">()</span>
-<span class="p">}</span>
-</pre></div>
-
-<p><strong>Using type switch</strong></p>
-<div class="code"><pre class="code literal-block"><span class="k">func</span><span class="w"> </span><span class="nb">typeof</span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="n">interface</span><span class="p">{})</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">switch</span><span class="w"> </span><span class="n">v</span><span class="o">.</span><span class="p">(</span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">case</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="p">:</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s2">"int"</span>
-<span class="w">    </span><span class="n">case</span><span class="w"> </span><span class="n">float64</span><span class="p">:</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s2">"float64"</span>
-<span class="w">    </span><span class="o">//...</span><span class="w"> </span><span class="n">etc</span>
-<span class="w">    </span><span class="n">default</span><span class="p">:</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s2">"unknown"</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>Every method has a different best use case:</p>
-<ul>
-<li>
-<p>string formatting - short and low footprint (not necessary to import reflect package)</p>
-</li>
-<li>
-<p>reflect package - when need more details about the type we have access to the full reflection capabilities</p>
-</li>
-<li>
-<p>type switch - allows grouping types, for example recognize all int32, int64, uint32, uint64 types as "int"</p>
-</li>
-</ul>
-</div>
     </article>
 </div>
 

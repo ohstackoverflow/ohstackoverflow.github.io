@@ -108,7 +108,458 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-public-private-and-protected/" class="u-url">What is the difference between public, private, and protected?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/download-a-file-with-android-and-showing-the-progress-in-a-progressdialog/" class="u-url">Download a file with Android, and showing the progress in a ProgressDialog</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/download-a-file-with-android-and-showing-the-progress-in-a-progressdialog/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T05:35:08+08:00" itemprop="datePublished" title="2023-02-17 05:35">2023-02-17 05:35</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I am trying to write a simple application that gets updated. For this I need a
+simple function that can download a file and <em>show the current progress</em> in a
+<code>ProgressDialog</code>. I know how to do the <code>ProgressDialog</code>, but I'm not sure how
+to display the current progress and how to download the file in the first
+place.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>There are many ways to download files. Following I will post most common ways;
+it is up to you to decide which method is better for your app.</p>
+<ol>
+<li>Use <code>AsyncTask</code> and show the download progress in a dialog =============================================================</li>
+</ol>
+<p>This method will allow you to execute some background processes and update the
+UI at the same time (in this case, we'll update a progress bar).</p>
+<p>Imports:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">android.os.PowerManager</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.io.InputStream</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.io.OutputStream</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.io.FileOutputStream</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.net.HttpURLConnection</span><span class="p">;</span>
+</pre></div>
+
+<p>This is an example code:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">declare</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">dialog</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">member</span><span class="w"> </span><span class="n">field</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">activity</span>
+<span class="n">ProgressDialog</span><span class="w"> </span><span class="n">mProgressDialog</span><span class="p">;</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">instantiate</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">within</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">onCreate</span><span class="w"> </span><span class="n">method</span>
+<span class="n">mProgressDialog</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ProgressDialog</span><span class="p">(</span><span class="n">YourActivity</span><span class="o">.</span><span class="n">this</span><span class="p">);</span>
+<span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setMessage</span><span class="p">(</span><span class="s2">"A message"</span><span class="p">);</span>
+<span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setIndeterminate</span><span class="p">(</span><span class="bp">true</span><span class="p">);</span>
+<span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setProgressStyle</span><span class="p">(</span><span class="n">ProgressDialog</span><span class="o">.</span><span class="n">STYLE_HORIZONTAL</span><span class="p">);</span>
+<span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setCancelable</span><span class="p">(</span><span class="bp">true</span><span class="p">);</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">execute</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">when</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">downloader</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">fired</span>
+<span class="n">final</span><span class="w"> </span><span class="n">DownloadTask</span><span class="w"> </span><span class="n">downloadTask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">DownloadTask</span><span class="p">(</span><span class="n">YourActivity</span><span class="o">.</span><span class="n">this</span><span class="p">);</span>
+<span class="n">downloadTask</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"the url to the file you want to download"</span><span class="p">);</span>
+
+<span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setOnCancelListener</span><span class="p">(</span><span class="n">new</span><span class="w"> </span><span class="n">DialogInterface</span><span class="o">.</span><span class="n">OnCancelListener</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onCancel</span><span class="p">(</span><span class="n">DialogInterface</span><span class="w"> </span><span class="n">dialog</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">downloadTask</span><span class="o">.</span><span class="n">cancel</span><span class="p">(</span><span class="bp">true</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="n">cancel</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">task</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>The <code>AsyncTask</code> will look like this:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">usually</span><span class="p">,</span><span class="w"> </span><span class="n">subclasses</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">AsyncTask</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">declared</span><span class="w"> </span><span class="n">inside</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">activity</span><span class="w"> </span><span class="k">class</span><span class="o">.</span>
+<span class="o">//</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">way</span><span class="p">,</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">easily</span><span class="w"> </span><span class="n">modify</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">UI</span><span class="w"> </span><span class="n">thread</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">here</span>
+<span class="n">private</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">DownloadTask</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">AsyncTask</span><span class="o">&lt;</span><span class="nb nb-Type">String</span><span class="p">,</span><span class="w"> </span><span class="n">Integer</span><span class="p">,</span><span class="w"> </span><span class="nb nb-Type">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">Context</span><span class="w"> </span><span class="n">context</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">PowerManager</span><span class="o">.</span><span class="n">WakeLock</span><span class="w"> </span><span class="n">mWakeLock</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">DownloadTask</span><span class="p">(</span><span class="n">Context</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">this</span><span class="o">.</span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">context</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">doInBackground</span><span class="p">(</span><span class="nb nb-Type">String</span><span class="o">...</span><span class="w"> </span><span class="n">sUrl</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">InputStream</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">        </span><span class="n">OutputStream</span><span class="w"> </span><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">        </span><span class="n">HttpURLConnection</span><span class="w"> </span><span class="n">connection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">        </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">URL</span><span class="w"> </span><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">URL</span><span class="p">(</span><span class="n">sUrl</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">            </span><span class="n">connection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">HttpURLConnection</span><span class="p">)</span><span class="w"> </span><span class="n">url</span><span class="o">.</span><span class="n">openConnection</span><span class="p">();</span>
+<span class="w">            </span><span class="n">connection</span><span class="o">.</span><span class="n">connect</span><span class="p">();</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">expect</span><span class="w"> </span><span class="n">HTTP</span><span class="w"> </span><span class="mi">200</span><span class="w"> </span><span class="n">OK</span><span class="p">,</span><span class="w"> </span><span class="n">so</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">don</span><span class="s1">'t mistakenly save error report</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">instead</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">file</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">getResponseCode</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">HttpURLConnection</span><span class="o">.</span><span class="n">HTTP_OK</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="s2">"Server returned HTTP "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">connection</span><span class="o">.</span><span class="n">getResponseCode</span><span class="p">()</span>
+<span class="w">                        </span><span class="o">+</span><span class="w"> </span><span class="s2">" "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">connection</span><span class="o">.</span><span class="n">getResponseMessage</span><span class="p">();</span>
+<span class="w">            </span><span class="p">}</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">useful</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">display</span><span class="w"> </span><span class="n">download</span><span class="w"> </span><span class="n">percentage</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">might</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">:</span><span class="w"> </span><span class="n">server</span><span class="w"> </span><span class="n">did</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">report</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">length</span>
+<span class="w">            </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">fileLength</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">connection</span><span class="o">.</span><span class="n">getContentLength</span><span class="p">();</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">download</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">file</span>
+<span class="w">            </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">connection</span><span class="o">.</span><span class="n">getInputStream</span><span class="p">();</span>
+<span class="w">            </span><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">FileOutputStream</span><span class="p">(</span><span class="s2">"/sdcard/file_name.extension"</span><span class="p">);</span>
+
+<span class="w">            </span><span class="n">byte</span><span class="w"> </span><span class="n">data</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">byte</span><span class="p">[</span><span class="mi">4096</span><span class="p">];</span>
+<span class="w">            </span><span class="n">long</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">            </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">count</span><span class="p">;</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">data</span><span class="p">))</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="n">allow</span><span class="w"> </span><span class="n">canceling</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">back</span><span class="w"> </span><span class="n">button</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isCancelled</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">input</span><span class="o">.</span><span class="n">close</span><span class="p">();</span>
+<span class="w">                    </span><span class="k">return</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">count</span><span class="p">;</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="n">publishing</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">progress</span><span class="o">....</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fileLength</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">only</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="n">length</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">known</span>
+<span class="w">                    </span><span class="n">publishProgress</span><span class="p">((</span><span class="nb nb-Type">int</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="n">total</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">fileLength</span><span class="p">));</span>
+<span class="w">                </span><span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">Exception</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="n">toString</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="n">finally</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">output</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span>
+<span class="w">                    </span><span class="n">output</span><span class="o">.</span><span class="n">close</span><span class="p">();</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">input</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span>
+<span class="w">                    </span><span class="n">input</span><span class="o">.</span><span class="n">close</span><span class="p">();</span>
+<span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">IOException</span><span class="w"> </span><span class="n">ignored</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="p">}</span>
+
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">connection</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span>
+<span class="w">                </span><span class="n">connection</span><span class="o">.</span><span class="n">disconnect</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+</pre></div>
+
+<p>The method above (<code>doInBackground</code>) runs always on a background thread. You
+shouldn't do any UI tasks there. On the other hand, the <code>onProgressUpdate</code> and
+<code>onPreExecute</code> run on the UI thread, so there you can change the progress bar:</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onPreExecute</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onPreExecute</span><span class="p">();</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">take</span><span class="w"> </span><span class="n">CPU</span><span class="w"> </span><span class="n">lock</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">prevent</span><span class="w"> </span><span class="n">CPU</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">going</span><span class="w"> </span><span class="n">off</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">user</span><span class="w"> </span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">presses</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">power</span><span class="w"> </span><span class="n">button</span><span class="w"> </span><span class="n">during</span><span class="w"> </span><span class="n">download</span>
+<span class="w">        </span><span class="n">PowerManager</span><span class="w"> </span><span class="n">pm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">PowerManager</span><span class="p">)</span><span class="w"> </span><span class="n">context</span><span class="o">.</span><span class="n">getSystemService</span><span class="p">(</span><span class="n">Context</span><span class="o">.</span><span class="n">POWER_SERVICE</span><span class="p">);</span>
+<span class="w">        </span><span class="n">mWakeLock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pm</span><span class="o">.</span><span class="n">newWakeLock</span><span class="p">(</span><span class="n">PowerManager</span><span class="o">.</span><span class="n">PARTIAL_WAKE_LOCK</span><span class="p">,</span>
+<span class="w">             </span><span class="n">getClass</span><span class="p">()</span><span class="o">.</span><span class="n">getName</span><span class="p">());</span>
+<span class="w">        </span><span class="n">mWakeLock</span><span class="o">.</span><span class="n">acquire</span><span class="p">();</span>
+<span class="w">        </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">show</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onProgressUpdate</span><span class="p">(</span><span class="n">Integer</span><span class="o">...</span><span class="w"> </span><span class="n">progress</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onProgressUpdate</span><span class="p">(</span><span class="n">progress</span><span class="p">);</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">get</span><span class="w"> </span><span class="n">here</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">known</span><span class="p">,</span><span class="w"> </span><span class="n">now</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="n">indeterminate</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="bp">false</span>
+<span class="w">        </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setIndeterminate</span><span class="p">(</span><span class="bp">false</span><span class="p">);</span>
+<span class="w">        </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setMax</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+<span class="w">        </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setProgress</span><span class="p">(</span><span class="n">progress</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onPostExecute</span><span class="p">(</span><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">result</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">mWakeLock</span><span class="o">.</span><span class="n">release</span><span class="p">();</span>
+<span class="w">        </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">dismiss</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">result</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span>
+<span class="w">            </span><span class="n">Toast</span><span class="o">.</span><span class="n">makeText</span><span class="p">(</span><span class="n">context</span><span class="p">,</span><span class="s2">"Download error: "</span><span class="o">+</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">Toast</span><span class="o">.</span><span class="n">LENGTH_LONG</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">();</span>
+<span class="w">        </span><span class="k">else</span>
+<span class="w">            </span><span class="n">Toast</span><span class="o">.</span><span class="n">makeText</span><span class="p">(</span><span class="n">context</span><span class="p">,</span><span class="s2">"File downloaded"</span><span class="p">,</span><span class="w"> </span><span class="n">Toast</span><span class="o">.</span><span class="n">LENGTH_SHORT</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>For this to run, you need the WAKE_LOCK permission.</p>
+<div class="code"><pre class="code literal-block">&lt;uses-permission android:name="android.permission.WAKE_LOCK" /&gt;
+</pre></div>
+
+<ol>
+<li>Download from Service ========================</li>
+</ol>
+<p>The big question here is: <em>how do I update my activity from a service?</em>. In
+the next example we are going to use two classes you may not be aware of:
+<code>ResultReceiver</code> and <code>IntentService</code>. <code>ResultReceiver</code> is the one that will
+allow us to update our thread from a service; <code>IntentService</code> is a subclass of
+<code>Service</code> which spawns a thread to do background work from there (you should
+know that a <code>Service</code> runs actually in the same thread of your app; when you
+extends <code>Service</code>, you must manually spawn new threads to run CPU blocking
+operations).</p>
+<p>Download service can look like this:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">DownloadService</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">IntentService</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">UPDATE_PROGRESS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8344</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">DownloadService</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="p">(</span><span class="s2">"DownloadService"</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onHandleIntent</span><span class="p">(</span><span class="n">Intent</span><span class="w"> </span><span class="n">intent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">        </span><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">urlToDownload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">intent</span><span class="o">.</span><span class="n">getStringExtra</span><span class="p">(</span><span class="s2">"url"</span><span class="p">);</span>
+<span class="w">        </span><span class="n">ResultReceiver</span><span class="w"> </span><span class="n">receiver</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ResultReceiver</span><span class="p">)</span><span class="w"> </span><span class="n">intent</span><span class="o">.</span><span class="n">getParcelableExtra</span><span class="p">(</span><span class="s2">"receiver"</span><span class="p">);</span>
+<span class="w">        </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">            </span><span class="o">//</span><span class="n">create</span><span class="w"> </span><span class="n">url</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">connect</span>
+<span class="w">            </span><span class="n">URL</span><span class="w"> </span><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">URL</span><span class="p">(</span><span class="n">urlToDownload</span><span class="p">);</span>
+<span class="w">            </span><span class="n">URLConnection</span><span class="w"> </span><span class="n">connection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">url</span><span class="o">.</span><span class="n">openConnection</span><span class="p">();</span>
+<span class="w">            </span><span class="n">connection</span><span class="o">.</span><span class="n">connect</span><span class="p">();</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">useful</span><span class="w"> </span><span class="n">so</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">show</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">typical</span><span class="w"> </span><span class="mi">0</span><span class="o">-</span><span class="mi">100</span><span class="o">%</span><span class="w"> </span><span class="n">progress</span><span class="w"> </span><span class="n">bar</span>
+<span class="w">            </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">fileLength</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">connection</span><span class="o">.</span><span class="n">getContentLength</span><span class="p">();</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">download</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">file</span>
+<span class="w">            </span><span class="n">InputStream</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">BufferedInputStream</span><span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">getInputStream</span><span class="p">());</span>
+
+<span class="w">            </span><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/sdcard/BarcodeScanner-debug.apk"</span><span class="w"> </span><span class="p">;</span>
+<span class="w">            </span><span class="n">OutputStream</span><span class="w"> </span><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">FileOutputStream</span><span class="p">(</span><span class="n">path</span><span class="p">);</span>
+
+<span class="w">            </span><span class="n">byte</span><span class="w"> </span><span class="n">data</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">byte</span><span class="p">[</span><span class="mi">1024</span><span class="p">];</span>
+<span class="w">            </span><span class="n">long</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">            </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">count</span><span class="p">;</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">data</span><span class="p">))</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">count</span><span class="p">;</span>
+
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="n">publishing</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">progress</span><span class="o">....</span>
+<span class="w">                </span><span class="n">Bundle</span><span class="w"> </span><span class="n">resultData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Bundle</span><span class="p">();</span>
+<span class="w">                </span><span class="n">resultData</span><span class="o">.</span><span class="n">putInt</span><span class="p">(</span><span class="s2">"progress"</span><span class="w"> </span><span class="p">,(</span><span class="nb nb-Type">int</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="n">total</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">fileLength</span><span class="p">));</span>
+<span class="w">                </span><span class="n">receiver</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">UPDATE_PROGRESS</span><span class="p">,</span><span class="w"> </span><span class="n">resultData</span><span class="p">);</span>
+<span class="w">                </span><span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">close</span><span class="w"> </span><span class="n">streams</span><span class="w"> </span>
+<span class="w">            </span><span class="n">output</span><span class="o">.</span><span class="n">flush</span><span class="p">();</span>
+<span class="w">            </span><span class="n">output</span><span class="o">.</span><span class="n">close</span><span class="p">();</span>
+<span class="w">            </span><span class="n">input</span><span class="o">.</span><span class="n">close</span><span class="p">();</span>
+
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">IOException</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">e</span><span class="o">.</span><span class="n">printStackTrace</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="n">Bundle</span><span class="w"> </span><span class="n">resultData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Bundle</span><span class="p">();</span>
+<span class="w">        </span><span class="n">resultData</span><span class="o">.</span><span class="n">putInt</span><span class="p">(</span><span class="s2">"progress"</span><span class="w"> </span><span class="p">,</span><span class="mi">100</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">receiver</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">UPDATE_PROGRESS</span><span class="p">,</span><span class="w"> </span><span class="n">resultData</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Add the service to your manifest:</p>
+<div class="code"><pre class="code literal-block"><span class="o">&lt;</span><span class="n">service</span><span class="w"> </span><span class="n">android</span><span class="p">:</span><span class="n">name</span><span class="o">=</span><span class="s2">".DownloadService"</span><span class="o">/&gt;</span>
+</pre></div>
+
+<p>And the activity will look like this:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">initialize</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">progress</span><span class="w"> </span><span class="n">dialog</span><span class="w"> </span><span class="n">like</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">example</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">how</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">fire</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">downloader</span>
+<span class="n">mProgressDialog</span><span class="o">.</span><span class="n">show</span><span class="p">();</span>
+<span class="n">Intent</span><span class="w"> </span><span class="n">intent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Intent</span><span class="p">(</span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">DownloadService</span><span class="o">.</span><span class="k">class</span><span class="p">);</span>
+<span class="n">intent</span><span class="o">.</span><span class="n">putExtra</span><span class="p">(</span><span class="s2">"url"</span><span class="p">,</span><span class="w"> </span><span class="s2">"url of the file to download"</span><span class="p">);</span>
+<span class="n">intent</span><span class="o">.</span><span class="n">putExtra</span><span class="p">(</span><span class="s2">"receiver"</span><span class="p">,</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">DownloadReceiver</span><span class="p">(</span><span class="n">new</span><span class="w"> </span><span class="n">Handler</span><span class="p">()));</span>
+<span class="n">startService</span><span class="p">(</span><span class="n">intent</span><span class="p">);</span>
+</pre></div>
+
+<p>Here is were <code>ResultReceiver</code> comes to play:</p>
+<div class="code"><pre class="code literal-block"><span class="n">private</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">DownloadReceiver</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">ResultReceiver</span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">DownloadReceiver</span><span class="p">(</span><span class="n">Handler</span><span class="w"> </span><span class="n">handler</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="p">(</span><span class="n">handler</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onReceiveResult</span><span class="p">(</span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">resultCode</span><span class="p">,</span><span class="w"> </span><span class="n">Bundle</span><span class="w"> </span><span class="n">resultData</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onReceiveResult</span><span class="p">(</span><span class="n">resultCode</span><span class="p">,</span><span class="w"> </span><span class="n">resultData</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">resultCode</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">DownloadService</span><span class="o">.</span><span class="n">UPDATE_PROGRESS</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">            </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">progress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">resultData</span><span class="o">.</span><span class="n">getInt</span><span class="p">(</span><span class="s2">"progress"</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="n">get</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">progress</span>
+<span class="w">            </span><span class="n">dialog</span><span class="o">.</span><span class="n">setProgress</span><span class="p">(</span><span class="n">progress</span><span class="p">);</span>
+
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">progress</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">dialog</span><span class="o">.</span><span class="n">dismiss</span><span class="p">();</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3>2.1 Use Groundy library</h3>
+<p><strong>Groundy</strong> is a library that basically helps you run pieces of code in a
+background service, and it is based on the <code>ResultReceiver</code> concept shown
+above. This library is <strong>deprecated</strong> at the moment. This is how the <strong>whole</strong>
+code would look like:</p>
+<p>The activity where you are showing the dialog...</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">MainActivity</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Activity</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">ProgressDialog</span><span class="w"> </span><span class="n">mProgressDialog</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onCreate</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">super</span><span class="o">.</span><span class="n">onCreate</span><span class="p">(</span><span class="n">savedInstanceState</span><span class="p">);</span>
+<span class="w">        </span><span class="n">setContentView</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">main</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">btn_download</span><span class="p">)</span><span class="o">.</span><span class="n">setOnClickListener</span><span class="p">(</span><span class="n">new</span><span class="w"> </span><span class="n">View</span><span class="o">.</span><span class="n">OnClickListener</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onClick</span><span class="p">(</span><span class="n">View</span><span class="w"> </span><span class="n">view</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">EditText</span><span class="p">)</span><span class="w"> </span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">edit_url</span><span class="p">))</span><span class="o">.</span><span class="n">getText</span><span class="p">()</span><span class="o">.</span><span class="n">toString</span><span class="p">()</span><span class="o">.</span><span class="n">trim</span><span class="p">();</span>
+<span class="w">                </span><span class="n">Bundle</span><span class="w"> </span><span class="n">extras</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Bundler</span><span class="p">()</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">DownloadTask</span><span class="o">.</span><span class="n">PARAM_URL</span><span class="p">,</span><span class="w"> </span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">build</span><span class="p">();</span>
+<span class="w">                </span><span class="n">Groundy</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">DownloadExample</span><span class="o">.</span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">DownloadTask</span><span class="o">.</span><span class="k">class</span><span class="p">)</span>
+<span class="w">                        </span><span class="o">.</span><span class="n">receiver</span><span class="p">(</span><span class="n">mReceiver</span><span class="p">)</span>
+<span class="w">                        </span><span class="o">.</span><span class="n">params</span><span class="p">(</span><span class="n">extras</span><span class="p">)</span>
+<span class="w">                        </span><span class="o">.</span><span class="n">queue</span><span class="p">();</span>
+
+<span class="w">                </span><span class="n">mProgressDialog</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ProgressDialog</span><span class="p">(</span><span class="n">MainActivity</span><span class="o">.</span><span class="n">this</span><span class="p">);</span>
+<span class="w">                </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setProgressStyle</span><span class="p">(</span><span class="n">ProgressDialog</span><span class="o">.</span><span class="n">STYLE_HORIZONTAL</span><span class="p">);</span>
+<span class="w">                </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setCancelable</span><span class="p">(</span><span class="bp">false</span><span class="p">);</span>
+<span class="w">                </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">show</span><span class="p">();</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">ResultReceiver</span><span class="w"> </span><span class="n">mReceiver</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ResultReceiver</span><span class="p">(</span><span class="n">new</span><span class="w"> </span><span class="n">Handler</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">        </span><span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onReceiveResult</span><span class="p">(</span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">resultCode</span><span class="p">,</span><span class="w"> </span><span class="n">Bundle</span><span class="w"> </span><span class="n">resultData</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">super</span><span class="o">.</span><span class="n">onReceiveResult</span><span class="p">(</span><span class="n">resultCode</span><span class="p">,</span><span class="w"> </span><span class="n">resultData</span><span class="p">);</span>
+<span class="w">            </span><span class="n">switch</span><span class="w"> </span><span class="p">(</span><span class="n">resultCode</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">case</span><span class="w"> </span><span class="n">Groundy</span><span class="o">.</span><span class="n">STATUS_PROGRESS</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">setProgress</span><span class="p">(</span><span class="n">resultData</span><span class="o">.</span><span class="n">getInt</span><span class="p">(</span><span class="n">Groundy</span><span class="o">.</span><span class="n">KEY_PROGRESS</span><span class="p">));</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="n">case</span><span class="w"> </span><span class="n">Groundy</span><span class="o">.</span><span class="n">STATUS_FINISHED</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">Toast</span><span class="o">.</span><span class="n">makeText</span><span class="p">(</span><span class="n">DownloadExample</span><span class="o">.</span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">R</span><span class="o">.</span><span class="n">string</span><span class="o">.</span><span class="n">file_downloaded</span><span class="p">,</span><span class="w"> </span><span class="n">Toast</span><span class="o">.</span><span class="n">LENGTH_LONG</span><span class="p">);</span>
+<span class="w">                    </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">dismiss</span><span class="p">();</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="n">case</span><span class="w"> </span><span class="n">Groundy</span><span class="o">.</span><span class="n">STATUS_ERROR</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">Toast</span><span class="o">.</span><span class="n">makeText</span><span class="p">(</span><span class="n">DownloadExample</span><span class="o">.</span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">resultData</span><span class="o">.</span><span class="n">getString</span><span class="p">(</span><span class="n">Groundy</span><span class="o">.</span><span class="n">KEY_ERROR</span><span class="p">),</span><span class="w"> </span><span class="n">Toast</span><span class="o">.</span><span class="n">LENGTH_LONG</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">();</span>
+<span class="w">                    </span><span class="n">mProgressDialog</span><span class="o">.</span><span class="n">dismiss</span><span class="p">();</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>A <code>GroundyTask</code> implementation used by <strong>Groundy</strong> to download the file and
+show the progress:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">DownloadTask</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">GroundyTask</span><span class="w"> </span><span class="p">{</span><span class="w">    </span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">PARAM_URL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"com.groundy.sample.param.url"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">protected</span><span class="w"> </span><span class="n">boolean</span><span class="w"> </span><span class="n">doInBackground</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getParameters</span><span class="p">()</span><span class="o">.</span><span class="n">getString</span><span class="p">(</span><span class="n">PARAM_URL</span><span class="p">);</span>
+<span class="w">            </span><span class="n">File</span><span class="w"> </span><span class="n">dest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">File</span><span class="p">(</span><span class="n">getContext</span><span class="p">()</span><span class="o">.</span><span class="n">getFilesDir</span><span class="p">(),</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">File</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">getName</span><span class="p">());</span>
+<span class="w">            </span><span class="n">DownloadUtils</span><span class="o">.</span><span class="n">downloadFile</span><span class="p">(</span><span class="n">getContext</span><span class="p">(),</span><span class="w"> </span><span class="n">url</span><span class="p">,</span><span class="w"> </span><span class="n">dest</span><span class="p">,</span><span class="w"> </span><span class="n">DownloadUtils</span><span class="o">.</span><span class="n">getDownloadListenerForTask</span><span class="p">(</span><span class="n">this</span><span class="p">));</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">Exception</span><span class="w"> </span><span class="n">pokemon</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="bp">false</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>And just add this to the manifest:</p>
+<div class="code"><pre class="code literal-block">&lt;service android:name="com.codeslap.groundy.GroundyService"/&gt;
+</pre></div>
+
+<p>It couldn't be easier I think. Just grab the latest jar from Github and you
+are ready to go. Keep in mind that <strong>Groundy</strong> 's main purpose is to make
+calls to external REST apis in a background service and post results to the UI
+with easily. If you are doing something like that in your app, it could be
+really useful.</p>
+<h3>2.2 Use https://github.com/koush/ion</h3>
+<ol>
+<li>Use <code>DownloadManager</code> class (<code>GingerBread</code> and newer only) =============================================================</li>
+</ol>
+<p>GingerBread brought a new feature, <code>DownloadManager</code>, which allows you to
+download files easily and delegate the hard work of handling threads, streams,
+etc. to the system.</p>
+<p>First, let's see a utility method:</p>
+<div class="code"><pre class="code literal-block"><span class="o">/**</span>
+<span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="n">used</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">check</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">device</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">DownloadManager</span><span class="w"> </span><span class="n">information</span>
+<span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="bp">true</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">download</span><span class="w"> </span><span class="n">manager</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">available</span>
+<span class="w"> </span><span class="o">*/</span>
+<span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">boolean</span><span class="w"> </span><span class="n">isDownloadManagerAvailable</span><span class="p">(</span><span class="n">Context</span><span class="w"> </span><span class="n">context</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Build</span><span class="o">.</span><span class="n">VERSION</span><span class="o">.</span><span class="n">SDK_INT</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">Build</span><span class="o">.</span><span class="n">VERSION_CODES</span><span class="o">.</span><span class="n">GINGERBREAD</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="bp">false</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Method's name explains it all. Once you are sure <code>DownloadManager</code> is
+available, you can do something like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nb nb-Type">String</span><span class="w"> </span><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"url you want to download"</span><span class="p">;</span>
+<span class="n">DownloadManager</span><span class="o">.</span><span class="n">Request</span><span class="w"> </span><span class="n">request</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">DownloadManager</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">Uri</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">url</span><span class="p">));</span>
+<span class="n">request</span><span class="o">.</span><span class="n">setDescription</span><span class="p">(</span><span class="s2">"Some descrition"</span><span class="p">);</span>
+<span class="n">request</span><span class="o">.</span><span class="n">setTitle</span><span class="p">(</span><span class="s2">"Some title"</span><span class="p">);</span>
+<span class="o">//</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">order</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">run</span><span class="p">,</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">android</span><span class="w"> </span><span class="mf">3.2</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">compile</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">app</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Build</span><span class="o">.</span><span class="n">VERSION</span><span class="o">.</span><span class="n">SDK_INT</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">Build</span><span class="o">.</span><span class="n">VERSION_CODES</span><span class="o">.</span><span class="n">HONEYCOMB</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">request</span><span class="o">.</span><span class="n">allowScanningByMediaScanner</span><span class="p">();</span>
+<span class="w">    </span><span class="n">request</span><span class="o">.</span><span class="n">setNotificationVisibility</span><span class="p">(</span><span class="n">DownloadManager</span><span class="o">.</span><span class="n">Request</span><span class="o">.</span><span class="n">VISIBILITY_VISIBLE_NOTIFY_COMPLETED</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="n">request</span><span class="o">.</span><span class="n">setDestinationInExternalPublicDir</span><span class="p">(</span><span class="n">Environment</span><span class="o">.</span><span class="n">DIRECTORY_DOWNLOADS</span><span class="p">,</span><span class="w"> </span><span class="s2">"name-of-the-file.ext"</span><span class="p">);</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">get</span><span class="w"> </span><span class="n">download</span><span class="w"> </span><span class="n">service</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">enqueue</span><span class="w"> </span><span class="n">file</span>
+<span class="n">DownloadManager</span><span class="w"> </span><span class="n">manager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">DownloadManager</span><span class="p">)</span><span class="w"> </span><span class="n">getSystemService</span><span class="p">(</span><span class="n">Context</span><span class="o">.</span><span class="n">DOWNLOAD_SERVICE</span><span class="p">);</span>
+<span class="n">manager</span><span class="o">.</span><span class="n">enqueue</span><span class="p">(</span><span class="n">request</span><span class="p">);</span>
+</pre></div>
+
+<p>Download progress will be showing in the notification bar.</p>
+<h2>Final thoughts</h2>
+<p>First and second methods are just the tip of the iceberg. There are lots of
+things you have to keep in mind if you want your app to be robust. Here is a
+brief list:</p>
+<ul>
+<li>You must check whether user has an internet connection available</li>
+<li>Make sure you have the right permissions (<code>INTERNET</code> and <code>WRITE_EXTERNAL_STORAGE</code>); also <code>ACCESS_NETWORK_STATE</code> if you want to check internet availability.</li>
+<li>Make sure the directory were you are going to download files exist and has write permissions.</li>
+<li>If download is too big you may want to implement a way to resume the download if previous attempts failed.</li>
+<li>Users will be grateful if you allow them to interrupt the download.</li>
+</ul>
+<p>Unless you need detailed control of the download process, then consider using
+<code>DownloadManager</code> (3) because it already handles most of the items listed
+above.</p>
+<p>But also consider that your needs may change. For example, <code>DownloadManager</code>
+does no response caching. It will blindly download the same big file multiple
+times. There's no easy way to fix it after the fact. Where if you start with a
+basic <code>HttpURLConnection</code> (1, 2), then all you need is to add an
+<code>HttpResponseCache</code>. So the initial effort of learning the basic, standard
+tools can be a good investment.</p>
+<blockquote>
+<p>This class was deprecated in API level 26. ProgressDialog is a modal dialog,
+which prevents the user from interacting with the app. Instead of using this
+class, you should use a progress indicator like ProgressBar, which can be
+embedded in your app's UI. Alternatively, you can use a notification to
+inform the user of the task's progress. For more details Link</p>
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Don't forget to add permissions to your manifest file if you're gonna be
+downloading stuff from the internet!</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;manifest</span><span class="w"> </span><span class="na">xmlns:android=</span><span class="s">"http://schemas.android.com/apk/res/android"</span>
+<span class="w">    </span><span class="na">package=</span><span class="s">"com.example.helloandroid"</span>
+<span class="w">    </span><span class="na">android:versionCode=</span><span class="s">"1"</span>
+<span class="w">    </span><span class="na">android:versionName=</span><span class="s">"1.0"</span><span class="nt">&gt;</span>
+
+<span class="w">        </span><span class="nt">&lt;uses-sdk</span><span class="w"> </span><span class="na">android:minSdkVersion=</span><span class="s">"10"</span><span class="w"> </span><span class="nt">/&gt;</span>
+
+<span class="w">        </span><span class="nt">&lt;uses-permission</span><span class="w"> </span><span class="na">android:name=</span><span class="s">"android.permission.WRITE_EXTERNAL_STORAGE"</span><span class="nt">&gt;&lt;/uses-permission&gt;</span>
+<span class="w">        </span><span class="nt">&lt;uses-permission</span><span class="w"> </span><span class="na">android:name=</span><span class="s">"android.permission.INTERNET"</span><span class="nt">&gt;&lt;/uses-permission&gt;</span>
+<span class="w">        </span><span class="nt">&lt;uses-permission</span><span class="w"> </span><span class="na">android:name=</span><span class="s">"android.permission.ACCESS_NETWORK_STATE"</span><span class="nt">&gt;&lt;/uses-permission&gt;</span>
+<span class="w">        </span><span class="nt">&lt;uses-permission</span><span class="w"> </span><span class="na">android:name=</span><span class="s">"android.permission.READ_PHONE_STATE"</span><span class="nt">&gt;&lt;/uses-permission&gt;</span>
+
+<span class="w">        </span><span class="nt">&lt;application</span><span class="w"> </span>
+<span class="w">            </span><span class="na">android:icon=</span><span class="s">"@drawable/icon"</span><span class="w"> </span>
+<span class="w">            </span><span class="na">android:label=</span><span class="s">"@string/app_name"</span><span class="w"> </span>
+<span class="w">            </span><span class="na">android:debuggable=</span><span class="s">"true"</span><span class="nt">&gt;</span>
+
+<span class="w">        </span><span class="nt">&lt;/application&gt;</span>
+
+<span class="nt">&lt;/manifest&gt;</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-public-private-and-protected/" class="u-url">What is the difference between public, private, and protected?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -467,129 +918,6 @@ class is just one which doesn't implicitly have a reference to an instance of
 the outer class.</p>
 <p>Static nested classes can have instance methods and static methods.</p>
 <p>There's no such thing as a top-level static class in Java.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-use-scope-watch-and-scope-apply-in-angularjs/" class="u-url">How do I use $scope.$watch and $scope.$apply in AngularJS?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-use-scope-watch-and-scope-apply-in-angularjs/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T05:33:46+08:00" itemprop="datePublished" title="2023-02-17 05:33">2023-02-17 05:33</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I don't understand how to use <code>$scope.$watch</code> and <code>$scope.$apply</code>. The
-official documentation isn't helpful.</p>
-<p>What I don't understand specifically:</p>
-<ul>
-<li>Are they connected to the DOM?</li>
-<li>How can I update DOM changes to the model?</li>
-<li>What is the connection point between them?</li>
-</ul>
-<p>I tried this tutorial, but it takes the understanding of <code>$watch</code> and <code>$apply</code>
-for granted.</p>
-<p>What do <code>$apply</code> and <code>$watch</code> do, and how do I use them appropriately?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You need to be aware about how AngularJS works in order to understand it.</p>
-<h3>Digest cycle and $scope</h3>
-<p>First and foremost, AngularJS defines a concept of a so-called <strong>digest
-cycle</strong>. This cycle can be considered as a loop, during which AngularJS checks
-if there are any changes to all the variables <strong>watched</strong> by all the
-<code>$scope</code>s. So if you have <code>$scope.myVar</code> defined in your controller and this
-variable was <strong>marked for being watched</strong> , then you are implicitly telling
-AngularJS to monitor the changes on <code>myVar</code> in each iteration of the loop.</p>
-<p>A natural follow-up question would be: Is everything attached to <code>$scope</code>
-being watched? Fortunately, no. If you would watch for changes to every object
-in your <code>$scope</code>, then quickly a digest loop would take ages to evaluate and
-you would quickly run into performance issues. That is why the AngularJS team
-gave us two ways of declaring some <code>$scope</code> variable as being watched (read
-below).</p>
-<h3>$watch helps to listen for $scope changes</h3>
-<p>There are two ways of declaring a <code>$scope</code> variable as being watched.</p>
-<ol>
-<li>By using it in your template via the expression <code>&lt;span&gt;{{myVar}}&lt;/span&gt;</code>
-</li>
-<li>By adding it manually via the <code>$watch</code> service</li>
-</ol>
-<p>Ad 1) This is the most common scenario and I'm sure you've seen it before, but
-you didn't know that this has created a watch in the background. Yes, it had!
-Using AngularJS directives (such as <code>ng-repeat</code>) can also create implicit
-watches.</p>
-<p>Ad 2) This is how you create your own <strong>watches</strong>. <code>$watch</code> service helps you
-to run some code when some value attached to the <code>$scope</code> has changed. It is
-rarely used, but sometimes is helpful. For instance, if you want to run some
-code each time 'myVar' changes, you could do the following:</p>
-<div class="code"><pre class="code literal-block">function MyController($scope) {
-
-    $scope.myVar = 1;
-
-    $scope.$watch('myVar', function() {
-        alert('hey, myVar has changed!');
-    });
-
-    $scope.buttonClicked = function() {
-        $scope.myVar = 2; // This will trigger $watch expression to kick in
-    };
-}
-</pre></div>
-
-<h3>$apply enables to integrate changes with the digest cycle</h3>
-<p>You can think of the <strong><code>$apply</code> function as of an integration mechanism</strong>. You
-see, each time you change some <strong>watched variable attached to the<code>$scope</code></strong>
-object directly, AngularJS will know that the change has happened. This is
-because AngularJS already knew to monitor those changes. So if it happens in
-code managed by the framework, the digest cycle will carry on.</p>
-<p>However, sometimes you want to <strong>change some value outside of the AngularJS
-world</strong> and see the changes propagate normally. Consider this - you have a
-<code>$scope.myVar</code> value which will be modified within a jQuery's <code>$.ajax()</code>
-handler. This will happen at some point in future. AngularJS can't wait for
-this to happen, since it hasn't been instructed to wait on jQuery.</p>
-<p>To tackle this, <code>$apply</code> has been introduced. It lets you start the digestion
-cycle explicitly. However, you should only use this to migrate some data to
-AngularJS (integration with other frameworks), but never use this method
-combined with regular AngularJS code, as AngularJS will throw an error then.</p>
-<h3>How is all of this related to the DOM?</h3>
-<p>Well, you should really follow the tutorial again, now that you know all this.
-The digest cycle will make sure that the UI and the JavaScript code stay
-synchronised, by evaluating every watcher attached to all <code>$scope</code>s as long as
-nothing changes. If no more changes happen in the digest loop, then it's
-considered to be finished.</p>
-<p>You can attach objects to the <code>$scope</code> object either explicitly in the
-Controller, or by declaring them in <code>{{expression}}</code> form directly in the
-view.</p>
-<p>Further readings:</p>
-<ul>
-<li><em>Make Your Own AngularJS, Part 1: Scopes And Digest</em></li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>In AngularJS, we update our models, and our views/templates update the DOM
-"automatically" (via built-in or custom directives).</p>
-<p>$apply and $watch, both being Scope methods, are not related to the DOM.</p>
-<p>The Concepts page (section "Runtime") has a pretty good explanation of the
-$digest loop, $apply, the $evalAsync queue and the $watch list. Here's the
-picture that accompanies the text:</p>
-<p><img alt="$digest loop" src="images/O1iSG.png"></p>
-<p>Whatever code has access to a scope – normally controllers and directives
-(their link functions and/or their controllers) – can set up a
-"watchExpression" that AngularJS will evaluate against that scope. This
-evaluation happens whenever AngularJS enters its $digest loop (in particular,
-the "$watch list" loop). You can watch individual scope properties, you can
-define a function to watch two properties together, you can watch the length
-of an array, etc.</p>
-<p>When things happen "inside AngularJS" – e.g., you type into a textbox that has
-AngularJS two-way databinding enabled (i.e., uses ng-model), an $http callback
-fires, etc. – $apply has already been called, so we're inside the "AngularJS"
-rectangle in the figure above. All watchExpressions will be evaluated
-(possibly more than once – until no further changes are detected).</p>
-<p>When things happen "outside AngularJS" – e.g., you used bind() in a directive
-and then that event fires, resulting in your callback being called, or some
-jQuery registered callback fires – we're still in the "Native" rectangle. If
-the callback code modifies anything that any $watch is watching, call $apply
-to get into the AngularJS rectangle, causing the $digest loop to run, and
-hence AngularJS will notice the change and do its magic.</p>
     </div>
     </article>
 </div>

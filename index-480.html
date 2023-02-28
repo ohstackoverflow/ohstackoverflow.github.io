@@ -108,7 +108,151 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/which-status-code-should-i-use-for-failed-validations-or-invalid-duplicates/" class="u-url">Which status code should I use for failed validations or invalid duplicates?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/class-self-idiom-in-ruby/" class="u-url">class &lt;&lt; self idiom in Ruby</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/class-self-idiom-in-ruby/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T07:55:49+08:00" itemprop="datePublished" title="2023-02-17 07:55">2023-02-17 07:55</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What does <code>class &lt;&lt; self</code> do in <strong>Ruby</strong>?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>First, the <code>class &lt;&lt; foo</code> syntax opens up <code>foo</code>'s singleton class
+(eigenclass). This allows you to specialise the behaviour of methods called on
+that specific object.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'foo'</span>
+<span class="nv">class</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nv">a</span>
+<span class="w">  </span><span class="nv">def</span><span class="w"> </span><span class="nv">inspect</span>
+<span class="w">    </span><span class="s1">'"bar"'</span>
+<span class="w">  </span><span class="k">end</span>
+<span class="k">end</span>
+<span class="nv">a</span>.<span class="nv">inspect</span><span class="w">   </span>#<span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s2">"bar"</span>
+
+<span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'foo'</span><span class="w">   </span>#<span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">object</span>,<span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">singleton</span><span class="w"> </span><span class="nv">class</span>
+<span class="nv">a</span>.<span class="nv">inspect</span><span class="w">   </span>#<span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s2">"foo"</span>
+</pre></div>
+
+<hr>
+<p>Now, to answer the question: <code>class &lt;&lt; self</code> opens up <code>self</code>'s singleton
+class, so that methods can be redefined for the current <code>self</code> object (which
+inside a class or module body is the class or module <em>itself</em> ). Usually, this
+is used to define class/module ("static") methods:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">String</span>
+  <span class="k">class</span> <span class="s">&lt;&lt; self</span>
+<span class="s">    def value_of obj</span>
+<span class="s">      obj.to_s</span>
+<span class="s">    end</span>
+<span class="s">  end</span>
+<span class="s">end</span>
+
+<span class="s">String.value_of 42   # =&gt;</span> <span class="s">"42"</span>
+</pre></div>
+
+<p>This can also be written as a shorthand:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">String</span>
+  <span class="n">def</span> <span class="nb">self</span>.<span class="n">value_of</span> <span class="n">obj</span>
+    <span class="n">obj</span>.<span class="n">to_s</span>
+  <span class="nb">end</span>
+<span class="nb">end</span>
+</pre></div>
+
+<p>Or even shorter:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">String</span>.<span class="nv">value_of</span><span class="w"> </span><span class="nv">obj</span>
+<span class="w">  </span><span class="nv">obj</span>.<span class="nv">to_s</span>
+<span class="k">end</span>
+</pre></div>
+
+<hr>
+<p>When inside a function definition, <code>self</code> refers to the object the function is
+being called with. In this case, <code>class &lt;&lt; self</code> opens the singleton class for
+that object; one use of that is to implement a poor man's state machine:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">StateMachineExample</span>
+  <span class="n">def</span> <span class="n">process</span> <span class="n">obj</span>
+    <span class="n">process_hook</span> <span class="n">obj</span>
+  <span class="nb">end</span>
+
+<span class="nb">private</span>
+  <span class="n">def</span> <span class="n">process_state_1</span> <span class="n">obj</span>
+    <span class="c1"># ...</span>
+    <span class="k">class</span> &lt;&lt; <span class="nb">self</span>
+      <span class="n">alias</span> <span class="n">process_hook</span> <span class="n">process_state_2</span>
+    <span class="nb">end</span>
+  <span class="nb">end</span>
+
+  <span class="n">def</span> <span class="n">process_state_2</span> <span class="n">obj</span>
+    <span class="c1"># ...</span>
+    <span class="k">class</span> &lt;&lt; <span class="nb">self</span>
+      <span class="n">alias</span> <span class="n">process_hook</span> <span class="n">process_state_1</span>
+    <span class="nb">end</span>
+  <span class="nb">end</span>
+
+  <span class="c1"># Set up initial state</span>
+  <span class="n">alias</span> <span class="n">process_hook</span> <span class="n">process_state_1</span>
+<span class="nb">end</span>
+</pre></div>
+
+<p>So, in the example above, each instance of <code>StateMachineExample</code> has
+<code>process_hook</code> aliased to <code>process_state_1</code>, but note how in the latter, it
+can redefine <code>process_hook</code> (for <code>self</code> only, not affecting other
+<code>StateMachineExample</code> instances) to <code>process_state_2</code>. So, each time a caller
+calls the <code>process</code> method (which calls the redefinable <code>process_hook</code>), the
+behaviour changes depending on what state it's in.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I found a super simple explanation about <code>class &lt;&lt; self</code> , <code>Eigenclass</code> and
+different type of methods.</p>
+<p>In Ruby, there are three types of methods that can be applied to a class:</p>
+<ol>
+<li>Instance methods</li>
+<li>Singleton methods</li>
+<li>Class methods</li>
+</ol>
+<p>Instance methods and class methods are almost similar to their homonymous in
+other programming languages.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Foo</span>  
+  <span class="n">def</span> <span class="n">an_instance_method</span>  
+    <span class="n">puts</span> <span class="s">"I am an instance method"</span>  
+  <span class="nb">end</span>  
+  <span class="n">def</span> <span class="nb">self</span>.<span class="n">a_class_method</span>  
+    <span class="n">puts</span> <span class="s">"I am a class method"</span>  
+  <span class="nb">end</span>  
+<span class="nb">end</span>
+
+<span class="n">foo</span> = <span class="n">Foo</span>.<span class="nb">new</span>
+
+<span class="n">def</span> <span class="n">foo</span>.<span class="n">a_singleton_method</span>
+  <span class="n">puts</span> <span class="s">"I am a singletone method"</span>
+<span class="nb">end</span>
+</pre></div>
+
+<p>Another way of accessing an <code>Eigenclass</code>(which includes singleton methods) is
+with the following syntax (<code>class &lt;&lt;</code>):</p>
+<div class="code"><pre class="code literal-block"><span class="nv">foo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">Foo</span>.<span class="nv">new</span>
+
+<span class="nv">class</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nv">foo</span>
+<span class="w">  </span><span class="nv">def</span><span class="w"> </span><span class="nv">a_singleton_method</span>
+<span class="w">    </span><span class="nv">puts</span><span class="w"> </span><span class="s2">"I am a singleton method"</span>
+<span class="w">  </span><span class="k">end</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>now you can define a singleton method for <code>self</code> which is the class <code>Foo</code>
+itself in this context:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Foo</span>
+  <span class="k">class</span> &lt;&lt; <span class="nb">self</span>
+    <span class="n">def</span> <span class="n">a_singleton_and_class_method</span>
+      <span class="n">puts</span> <span class="s">"I am a singleton method for self and a class method for Foo"</span>
+    <span class="nb">end</span>
+  <span class="nb">end</span>
+<span class="nb">end</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/which-status-code-should-i-use-for-failed-validations-or-invalid-duplicates/" class="u-url">Which status code should I use for failed validations or invalid duplicates?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -458,95 +602,6 @@ from<code>props</code> or from an async API call</em>), in order to do this only
 not each time the component re-renders. There are already a handful of
 libraries out there that can provide you such keys. Here is one example:
 react-key-index.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/git-how-to-solve-permission-denied-publickey-error-when-using-git/" class="u-url">Git: How to solve Permission denied (publickey) error when using Git?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/git-how-to-solve-permission-denied-publickey-error-when-using-git/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T07:54:07+08:00" itemprop="datePublished" title="2023-02-17 07:54">2023-02-17 07:54</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm on Mac Snow Leopard and I just installed <code>git</code>.</p>
-<p>I just tried</p>
-<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">clone</span><span class="w"> </span><span class="n">git</span><span class="nv">@thechaw</span><span class="p">.</span><span class="nl">com</span><span class="p">:</span><span class="n">cakebook</span><span class="p">.</span><span class="n">git</span>
-</pre></div>
-
-<p>but that gives me this error:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">Initialized</span><span class="w"> </span><span class="nv">empty</span><span class="w"> </span><span class="nv">Git</span><span class="w"> </span><span class="nv">repository</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span>`<span class="o">/</span><span class="nv">Users</span><span class="o">/</span><span class="nv">username</span><span class="o">/</span><span class="nv">Documents</span><span class="o">/</span><span class="nv">cakebook</span><span class="o">/</span>.<span class="nv">git</span><span class="o">/</span>`
-<span class="nv">Permission</span><span class="w"> </span><span class="nv">denied</span><span class="w"> </span><span class="ss">(</span><span class="nv">publickey</span><span class="ss">)</span>.
-<span class="nv">fatal</span>:<span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">remote</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="nv">hung</span><span class="w"> </span><span class="nv">up</span><span class="w"> </span><span class="nv">unexpectedly</span>
-</pre></div>
-
-<p>What am I missing?<br>
-I've also tried doing <code>ssh-keygen</code> with no passphase but still same error.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><strong>If the user has not generated a ssh public/private key pair set before</strong></p>
-<p>This info is working on theChaw but can be applied to all other git
-repositories which support SSH pubkey authentications. (See <a href="https://github.com/sitaramc/gitolite">gitolite</a>,
-gitlab or github for example.)</p>
-<blockquote>
-<p>First start by setting up your own public/private key pair set. This can use
-either DSA or RSA, so basically any key you setup will work. On most systems
-you can use ssh-keygen.</p>
-<ul>
-<li>First you'll want to cd into your .ssh directory. Open up the terminal
-and run:
-</li>
-</ul>
-<blockquote>
-<p><code>cd ~/.ssh &amp;&amp; ssh-keygen</code></p>
-</blockquote>
-<ul>
-<li>Next you need to copy this to your clipboard.</li>
-<li>On OS X run: <code>cat id_rsa.pub | pbcopy</code>
-</li>
-<li>On Linux run: <code>cat id_rsa.pub | xclip</code>
-</li>
-<li>On Windows (via Cygwin/Git Bash) run: <code>cat id_rsa.pub | clip</code>
-</li>
-<li>On Windows (Powershell) run: <code>Get-Content id_rsa.pub | Set-Clipboard</code>
-(Thx to @orion elenzil)</li>
-<li>Add your key to your account via the website.</li>
-<li>Finally setup your .gitconfig.</li>
-<li><code>git config --global user.name "bob"</code></li>
-<li>
-<code>git config --global user.email bob@...</code> (don't forget to restart your
-command line to make sure the config is reloaded)
-</li>
-</ul>
-<p>That's it you should be good to clone and checkout.</p>
-</blockquote>
-<p>Further information can be found at
-https://help.github.com/articles/generating-ssh-keys (thanks to @Lee Whitney)</p>
-<p>-</p>
-<p><strong>If the user has generated a ssh public/private key pair set before</strong></p>
-<ul>
-<li>check which key have been authorized on your github or gitlab account settings</li>
-<li>determine which corresponding private key must be associated from your local computer</li>
-</ul>
-<p><code>eval $(ssh-agent -s)</code></p>
-<ul>
-<li>define where the keys are located</li>
-</ul>
-<p><code>ssh-add ~/.ssh/id_rsa</code></p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>More extensive troubleshooting and even automated fixing can be done with:</p>
-<div class="code"><pre class="code literal-block"><span class="n">ssh</span><span class="w"> </span><span class="o">-</span><span class="n">vT</span><span class="w"> </span><span class="n">git</span><span class="nv">@github</span><span class="p">.</span><span class="n">com</span>
-</pre></div>
-
-<p>Alternatively, according to below comments, we could issue:</p>
-<div class="code"><pre class="code literal-block"><span class="n">ssh</span><span class="w"> </span><span class="o">-</span><span class="n">vT</span><span class="w"> </span><span class="n">git</span><span class="nv">@gitlab</span><span class="p">.</span><span class="n">com</span>
-</pre></div>
-
-<p>or substitute gitlab/github with whatever Git Instance your organisation is
-running.</p>
-<p>Source: https://help.github.com/articles/error-permission-denied-publickey/</p>
     </div>
     </article>
 </div>

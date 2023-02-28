@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Q-learning in game not working as expected | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/q-learning-in-game-not-working-as-expected/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../correct-oop-structure-for-a-dominion-ai-player/" title="Correct OOP Structure for a Dominion AI Player" type="text/html">
+<link rel="next" href="../looping-through-training-data-in-neural-networks-backpropagation-algorithm/" title="Looping through training data in Neural Networks Backpropagation Algorithm" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Q-learning in game not working as expected">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/q-learning-in-game-not-working-as-expected/">
+<meta property="og:description" content='I have attempted to implement Q-learning in to a simple game I have written.
+The game is based around the player having to "jump" to avoid oncoming boxes.
+I have designed the system with two actions; '>
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-28T03:42:37+08:00">
+<meta property="article:tag" content="artificial-intelligence">
+<meta property="article:tag" content="game-ai">
+<meta property="article:tag" content="q-learning">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Q-learning in game not working as expected</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:42:37+08:00" itemprop="datePublished" title="2023-02-28 03:42">2023-02-28 03:42</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I have attempted to implement Q-learning in to a simple game I have written.
+The game is based around the player having to "jump" to avoid oncoming boxes.</p>
+<p>I have designed the system with two actions; <code>jump</code> and <code>do_nothing</code> and the
+states are the distances from the next block (divided and floored to ensure
+that there are not a large number of states).</p>
+<p>My issue seems to be that my implementation of the algorithm isn't considering
+"future reward", and so it ends up jumping at the wrong times.</p>
+<p>Here is my implementation of the Q-learning algorithm;</p>
+<div class="code"><pre class="code literal-block"><span class="n">JumpGameAIClass</span><span class="p">.</span><span class="n">prototype</span><span class="p">.</span><span class="n">getQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">getQ</span><span class="p">(</span><span class="k">state</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">!</span><span class="n">this</span><span class="p">.</span><span class="n">Q</span><span class="p">.</span><span class="n">hasOwnProperty</span><span class="p">(</span><span class="k">state</span><span class="p">))</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">this</span><span class="p">.</span><span class="n">Q</span><span class="o">[</span><span class="n">state</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{}</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nf">var</span><span class="w"> </span><span class="n">actionIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">actionIndex</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="p">.</span><span class="n">length</span><span class="p">;</span><span class="w"> </span><span class="n">actionIndex</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="nf">var</span><span class="w"> </span><span class="k">action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="o">[</span><span class="n">actionIndex</span><span class="o">]</span><span class="p">;</span>
+
+<span class="w">            </span><span class="n">this</span><span class="p">.</span><span class="n">Q</span><span class="o">[</span><span class="n">state</span><span class="o">][</span><span class="n">action</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">Q</span><span class="o">[</span><span class="n">state</span><span class="o">]</span><span class="p">;</span>
+<span class="err">}</span><span class="p">;</span>
+
+<span class="n">JumpGameAIClass</span><span class="p">.</span><span class="n">prototype</span><span class="p">.</span><span class="n">getBlockDistance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">getBlockDistance</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="nf">var</span><span class="w"> </span><span class="n">closest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nf">var</span><span class="w"> </span><span class="n">blockIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">blockIndex</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">blocks</span><span class="p">.</span><span class="n">length</span><span class="p">;</span><span class="w"> </span><span class="n">blockIndex</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="nf">var</span><span class="w"> </span><span class="n">block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">blocks</span><span class="o">[</span><span class="n">blockIndex</span><span class="o">]</span><span class="p">;</span>
+
+<span class="w">        </span><span class="nf">var</span><span class="w"> </span><span class="n">distance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">block</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">playerX</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">distance</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">closest</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">distance</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">closest</span><span class="p">))</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">closest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">distance</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="nf">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="nf">floor</span><span class="p">(</span><span class="n">closest</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">resolution</span><span class="p">));</span>
+<span class="err">}</span><span class="p">;</span>
+
+<span class="n">JumpGameAIClass</span><span class="p">.</span><span class="n">prototype</span><span class="p">.</span><span class="n">getActionWithHighestQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">getActionWithHighestQ</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="nf">var</span><span class="w"> </span><span class="n">jumpReward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">getQ</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span><span class="o">[</span><span class="n">this.actions[0</span><span class="o">]</span><span class="err">]</span><span class="p">;</span>
+<span class="w">    </span><span class="nf">var</span><span class="w"> </span><span class="n">doNothingReward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">getQ</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span><span class="o">[</span><span class="n">this.actions[1</span><span class="o">]</span><span class="err">]</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">jumpReward</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">doNothingReward</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="o">[</span><span class="n">0</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">doNothingReward</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">jumpReward</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="o">[</span><span class="n">1</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">!</span><span class="n">this</span><span class="p">.</span><span class="n">canJump</span><span class="p">())</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="o">[</span><span class="n">1</span><span class="o">]</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="o">[</span><span class="n">Math.floor(Math.random() * this.actions.length)</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span><span class="p">;</span>
+
+<span class="n">JumpGameAIClass</span><span class="p">.</span><span class="n">prototype</span><span class="p">.</span><span class="n">getActionEpsilonGreedy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">getActionEpsilonGreedy</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">We</span><span class="w"> </span><span class="n">can</span><span class="err">'</span><span class="n">t</span><span class="w"> </span><span class="n">jump</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">mid</span><span class="o">-</span><span class="n">air</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">!</span><span class="n">this</span><span class="p">.</span><span class="n">canJump</span><span class="p">())</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="o">[</span><span class="n">1</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Math</span><span class="p">.</span><span class="n">random</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">epsilon</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="o">[</span><span class="n">Math.floor(Math.random() * this.actions.length)</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">getActionWithHighestQ</span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">getBlockDistance</span><span class="p">());</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span><span class="p">;</span>
+
+<span class="n">JumpGameAIClass</span><span class="p">.</span><span class="n">prototype</span><span class="p">.</span><span class="n">think</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">think</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="nf">var</span><span class="w"> </span><span class="n">reward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">liveReward</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">score</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">lastScore</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">this</span><span class="p">.</span><span class="n">lastScore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">score</span><span class="p">;</span>
+<span class="w">        </span><span class="n">reward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">scoreReward</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">!</span><span class="n">this</span><span class="p">.</span><span class="n">playerAlive</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">reward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">deathReward</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">this</span><span class="p">.</span><span class="n">drawDistance</span><span class="p">();</span>
+
+<span class="w">    </span><span class="nf">var</span><span class="w"> </span><span class="n">distance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">getBlockDistance</span><span class="p">(),</span>
+<span class="w">        </span><span class="n">maxQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">getQ</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span><span class="o">[</span><span class="n">this.getActionWithHighestQ(distance)</span><span class="o">]</span><span class="p">,</span>
+<span class="w">        </span><span class="n">previousQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">getQ</span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">lastDistance</span><span class="p">)</span><span class="o">[</span><span class="n">this.lastAction</span><span class="o">]</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">this</span><span class="p">.</span><span class="n">getQ</span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">lastDistance</span><span class="p">)</span><span class="o">[</span><span class="n">this.lastAction</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">previousQ</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">alpha</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">reward</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">gamma</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">maxQ</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">previousQ</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">this</span><span class="p">.</span><span class="n">lastAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">getActionEpsilonGreedy</span><span class="p">();</span>
+<span class="w">    </span><span class="n">this</span><span class="p">.</span><span class="n">lastDistance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">distance</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">switch</span><span class="w"> </span><span class="p">(</span><span class="n">this</span><span class="p">.</span><span class="n">lastAction</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="n">this</span><span class="p">.</span><span class="n">actions</span><span class="o">[</span><span class="n">0</span><span class="o">]</span><span class="err">:</span>
+<span class="w">            </span><span class="n">this</span><span class="p">.</span><span class="n">jump</span><span class="p">();</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span><span class="p">;</span>
+</pre></div>
+
+<p>And here are some of the properties used by it:</p>
+<div class="code"><pre class="code literal-block"><span class="n">epsilon</span><span class="o">:</span><span class="w"> </span><span class="mf">0.05</span><span class="o">,</span>
+<span class="n">alpha</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span><span class="o">,</span>
+<span class="n">gamma</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span><span class="o">,</span>
+<span class="n">resolution</span><span class="o">:</span><span class="w"> </span><span class="mf">0.1</span><span class="o">,</span>
+<span class="n">actions</span><span class="o">:</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s1">'jump'</span><span class="o">,</span><span class="w"> </span><span class="s1">'do_nothing'</span><span class="w"> </span><span class="o">],</span>
+<span class="n">Q</span><span class="o">:</span><span class="w"> </span><span class="o">{},</span>
+<span class="n">liveReward</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="o">,</span>
+<span class="n">scoreReward</span><span class="o">:</span><span class="w"> </span><span class="mi">100</span><span class="o">,</span>
+<span class="n">deathReward</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mi">1000</span><span class="o">,</span>
+<span class="n">lastAction</span><span class="o">:</span><span class="w"> </span><span class="s1">'do_nothing'</span><span class="o">,</span>
+<span class="n">lastDistance</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="o">,</span>
+<span class="n">lastScore</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span>
+</pre></div>
+
+<p>I am having to use lastAction/lastDistance to calculate Q, as I cannot use the
+current data (would be acting on the action performed in the frame before).</p>
+<p>The <code>think</code> method is called once every frame after all rendering and game
+stuff is done (physics, controls, death, etc).</p>
+<p>Show code snippet</p>
+<div class="code"><pre class="code literal-block">var JumpGameAIClass = function JumpGame(canvas) {
+    Game.JumpGame.call(this, canvas);
+
+    Object.defineProperties(this, {
+        epsilon: {
+            value: 0.05
+        },
+
+        alpha: {
+            value: 1
+        },
+
+        gamma: {
+            value: 1
+        },
+
+        resolution: {
+            value: 0.1
+        },
+
+        actions: {
+            value: [ 'jump', 'do_nothing' ]
+        },
+
+        Q: {
+            value: { },
+            writable: true
+        },
+
+        liveReward: {
+            value: 0
+        },
+
+        scoreReward: {
+            value: 100
+        },
+
+        deathReward: {
+            value: -1000
+        },
+
+        lastAction: {
+            value: 'do_nothing',
+            writable: true
+        },
+
+        lastDistance: {
+            value: 0,
+            writable: true
+        },
+
+        lastScore: {
+            value: 0,
+            writable: true
+        }
+    });
+};
+
+JumpGameAIClass.prototype = Object.create(Game.JumpGame.prototype);
+
+JumpGameAIClass.prototype.getQ = function getQ(state) {
+    if (!this.Q.hasOwnProperty(state)) {
+        this.Q[state] = {};
+
+        for (var actionIndex = 0; actionIndex <span class="p">&lt;</span> <span class="nt">this.actions.length</span><span class="err">;</span> <span class="na">actionIndex</span><span class="err">++)</span> <span class="err">{</span>
+            <span class="na">var</span> <span class="na">action </span><span class="o">=</span> <span class="s">this.actions[actionIndex];</span>
+
+            <span class="na">this</span><span class="err">.</span><span class="na">Q</span><span class="err">[</span><span class="na">state</span><span class="err">][</span><span class="na">action</span><span class="err">]</span> <span class="err">=</span> <span class="na">0</span><span class="err">;</span>
+        <span class="err">}</span>
+    <span class="err">}</span>
+
+    <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">Q</span><span class="err">[</span><span class="na">state</span><span class="err">];</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">getBlockDistance </span><span class="o">=</span> <span class="s">function</span> <span class="na">getBlockDistance</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">closest </span><span class="o">=</span> <span class="s">-1;</span>
+
+    <span class="na">for</span> <span class="err">(</span><span class="na">var</span> <span class="na">blockIndex </span><span class="o">=</span> <span class="s">0;</span> <span class="na">blockIndex</span> <span class="err">&lt;</span> <span class="na">this</span><span class="err">.</span><span class="na">blocks</span><span class="err">.</span><span class="na">length</span><span class="err">;</span> <span class="na">blockIndex</span><span class="err">++)</span> <span class="err">{</span>
+        <span class="na">var</span> <span class="na">block </span><span class="o">=</span> <span class="s">this.blocks[blockIndex];</span>
+
+        <span class="na">var</span> <span class="na">distance </span><span class="o">=</span> <span class="s">block.x</span> <span class="na">-</span> <span class="na">this</span><span class="err">.</span><span class="na">playerX</span><span class="err">;</span>
+
+        <span class="na">if</span> <span class="err">(</span><span class="na">distance</span> <span class="p">&gt;</span>= 0 <span class="err">&amp;&amp;</span> (closest === -1 || distance <span class="p">&lt;</span> <span class="nt">closest</span><span class="err">))</span> <span class="err">{</span>
+            <span class="na">closest </span><span class="o">=</span> <span class="s">distance;</span>
+        <span class="err">}</span>
+    <span class="err">}</span>
+
+    <span class="na">return</span> <span class="na">Math</span><span class="err">.</span><span class="na">max</span><span class="err">(</span><span class="na">0</span><span class="err">,</span> <span class="na">Math</span><span class="err">.</span><span class="na">floor</span><span class="err">(</span><span class="na">closest</span> <span class="err">*</span> <span class="na">this</span><span class="err">.</span><span class="na">resolution</span><span class="err">));</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">getActionWithHighestQ </span><span class="o">=</span> <span class="s">function</span> <span class="na">getActionWithHighestQ</span><span class="err">(</span><span class="na">distance</span><span class="err">)</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">jumpReward </span><span class="o">=</span> <span class="s">this.getQ(distance)[this.actions[0]];</span>
+    <span class="na">var</span> <span class="na">doNothingReward </span><span class="o">=</span> <span class="s">this.getQ(distance)[this.actions[1]];</span>
+
+    <span class="na">if</span> <span class="err">(</span><span class="na">jumpReward</span> <span class="p">&gt;</span> doNothingReward) {
+        return this.actions[0];
+    } else if (doNothingReward &gt; jumpReward) {
+        return this.actions[1];
+    } else {
+        if (!this.canJump()) {
+            return this.actions[1];
+        }
+
+        return this.actions[Math.floor(Math.random() * this.actions.length)];
+    }
+};
+
+JumpGameAIClass.prototype.getActionEpsilonGreedy = function getActionEpsilonGreedy() {
+    if (!this.canJump()) {
+        return this.actions[1];
+    }
+
+    if (Math.random() <span class="p">&lt;</span> <span class="nt">this.epsilon</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">[</span><span class="na">Math</span><span class="err">.</span><span class="na">floor</span><span class="err">(</span><span class="na">Math</span><span class="err">.</span><span class="na">random</span><span class="err">()</span> <span class="err">*</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">.</span><span class="na">length</span><span class="err">)];</span>
+    <span class="err">}</span> <span class="na">else</span> <span class="err">{</span>
+        <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">getActionWithHighestQ</span><span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">getBlockDistance</span><span class="err">());</span>
+    <span class="err">}</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onDeath </span><span class="o">=</span> <span class="s">function</span> <span class="na">onDeath</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">restart</span><span class="err">();</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">think </span><span class="o">=</span> <span class="s">function</span> <span class="na">think</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">reward </span><span class="o">=</span> <span class="s">this.liveReward;</span>
+
+    <span class="na">if</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">score</span> <span class="err">!==</span> <span class="na">this</span><span class="err">.</span><span class="na">lastScore</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">this</span><span class="err">.</span><span class="na">lastScore </span><span class="o">=</span> <span class="s">this.score;</span>
+        <span class="na">reward </span><span class="o">=</span> <span class="s">this.scoreReward;</span>
+    <span class="err">}</span> <span class="na">else</span> <span class="na">if</span> <span class="err">(!</span><span class="na">this</span><span class="err">.</span><span class="na">playerAlive</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">reward </span><span class="o">=</span> <span class="s">this.deathReward;</span>
+    <span class="err">}</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">drawDistance</span><span class="err">();</span>
+
+    <span class="na">var</span> <span class="na">distance </span><span class="o">=</span> <span class="s">this.getBlockDistance(),</span>
+        <span class="na">maxQ </span><span class="o">=</span> <span class="s">this.getQ(distance)[this.getActionWithHighestQ(distance)],</span>
+        <span class="na">previousQ </span><span class="o">=</span> <span class="s">this.getQ(this.lastDistance)[this.lastAction];</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">getQ</span><span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">lastDistance</span><span class="err">)[</span><span class="na">this</span><span class="err">.</span><span class="na">lastAction</span><span class="err">]</span> <span class="err">=</span> <span class="na">previousQ</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">alpha</span> <span class="err">*</span> <span class="err">(</span><span class="na">reward</span> <span class="err">+</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">gamma</span> <span class="err">*</span> <span class="na">maxQ</span><span class="err">)</span> <span class="na">-</span> <span class="na">previousQ</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">lastAction </span><span class="o">=</span> <span class="s">this.getActionEpsilonGreedy();</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">lastDistance </span><span class="o">=</span> <span class="s">distance;</span>
+
+    <span class="na">switch</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">lastAction</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">case</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">[</span><span class="na">0</span><span class="err">]</span><span class="na">:</span>
+            <span class="na">this</span><span class="err">.</span><span class="na">jump</span><span class="err">();</span>
+            <span class="na">break</span><span class="err">;</span>
+    <span class="err">}</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">drawDistance </span><span class="o">=</span> <span class="s">function</span> <span class="na">drawDistance</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">save</span><span class="err">();</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textAlign </span><span class="o">=</span> <span class="s">'center'</span><span class="err">;</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textBaseline </span><span class="o">=</span> <span class="s">'bottom'</span><span class="err">;</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">fillText</span><span class="err">('</span><span class="na">Distance:</span> <span class="err">'</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">getBlockDistance</span><span class="err">(),</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasWidth</span> <span class="err">/</span> <span class="na">2</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasHeight</span> <span class="err">/</span> <span class="na">4</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textBaseline </span><span class="o">=</span> <span class="s">'top'</span><span class="err">;</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">fillText</span><span class="err">('</span><span class="na">Last</span> <span class="na">Distance:</span> <span class="err">'</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">lastDistance</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasWidth</span> <span class="err">/</span> <span class="na">2</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasHeight</span> <span class="err">/</span> <span class="na">4</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">restore</span><span class="err">();</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onFrame </span><span class="o">=</span> <span class="s">function</span> <span class="na">onFrame</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">Game</span><span class="err">.</span><span class="na">JumpGame</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onFrame</span><span class="err">.</span><span class="na">apply</span><span class="err">(</span><span class="na">this</span><span class="err">,</span> <span class="na">arguments</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">think</span><span class="err">();</span>
+<span class="err">}</span>
+
+<span class="na">Game</span><span class="err">.</span><span class="na">JumpGameAI </span><span class="o">=</span> <span class="s">JumpGameAIClass;</span>
+
+
+<span class="na">body</span> <span class="err">{</span>
+    <span class="na">background-color:</span> <span class="err">#</span><span class="na">EEEEEE</span><span class="err">;</span>
+    <span class="na">text-align:</span> <span class="na">center</span><span class="err">;</span>
+<span class="err">}</span>
+
+<span class="na">canvas</span><span class="err">#</span><span class="na">game</span> <span class="err">{</span>
+    <span class="na">background-color:</span> <span class="err">#</span><span class="na">FFFFFF</span><span class="err">;</span>
+    <span class="na">border:</span> <span class="na">1px</span> <span class="na">solid</span> <span class="err">#</span><span class="na">DDDDDD</span><span class="err">;</span>
+<span class="err">}</span>
+
+
+<span class="err">&lt;!</span><span class="na">DOCTYPE</span> <span class="na">HTML</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">"en"</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>jump<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">canvas</span> <span class="na">id</span><span class="o">=</span><span class="s">"game"</span> <span class="na">width</span><span class="o">=</span><span class="s">"512"</span> <span class="na">height</span><span class="o">=</span><span class="s">"512"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Your browser doesn't support canvas!<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">canvas</span><span class="p">&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://raw.githubusercontent.com/cagosta/requestAnimationFrame/master/app/requestAnimationFrame.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+
+    <span class="cm">&lt;!-- https://gist.github.com/jackwilsdon/d06bffa6b32c53321478 --&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/4e467f82590e76543bf55ff788504e26afc3d694/game.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/2b7ce2c3dd268c4aef9ad27316edb0b235ad0d06/canvasgame.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/2696c72e001e48359a6ce880f1c475613fe359f5/jump.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/249c92f3385757b6edf2ceb49e26f14b89ffdcfe/bootstrap.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You basically have simplified version of :</p>
+<p><img alt="enter image description here" src="../../images/xJcVY.png"></p>
+<p>Source: Flappy Bird RL</p>
+<p>I used values :</p>
+<div class="code"><pre class="code literal-block">    epsilon: {
+        value: 0.01
+    },
+    alpha: {
+        value: 0.7
+    },
+    gamma: {
+        value: 0.9
+    },
+    resolution: {
+        value: 0.1
+    },  
+    liveReward: {
+        value: 10
+    },
+    scoreReward: {
+        value: -100
+    },
+    deathReward: {
+        value: 1000
+    },
+</pre></div>
+
+<p>It had no trouble of getting beyond 100 in first 20 attempts.</p>
+<hr>
+<p>Q-learning can be described with temporal logic</p>
+<div class="code"><pre class="code literal-block">Q(s, a)=r(s,a)+gamma*max_a'(Q(s', a'))
+</pre></div>
+
+<p>Where</p>
+<ul>
+<li>
+<code>r(s,a)</code> = <code>r</code> = Immediate reward</li>
+<li>
+<code>gamma</code> = relative value of delayed vs. immediate rewards (0 to 1)</li>
+<li>
+<code>s'</code> = the new state after action <code>a</code>
+</li>
+<li>
+<code>a</code> = action in state <code>s</code>
+</li>
+<li>
+<code>a'</code> = action in state <code>s'</code>
+</li>
+</ul>
+<p>You should execute it as</p>
+<p>Select an action a and execute it</p>
+<ol>
+<li>For each state-action pair (s, a), initialize the table entry Q(s, a) to zero</li>
+<li>Observe the current state s</li>
+<li>Do forever: <ul>
+<li>Select an action <strong>a</strong> and execute it</li>
+<li>Receive immediate reward <strong>r</strong> aka Q(s, a)</li>
+<li>Observe the new state <strong>s'</strong>
+</li>
+<li>Update the table entry for <strong>Q(s, a)=r(s,a)+gamma*max_a'(Q(s', a'))</strong>
+</li>
+<li><strong>s=s'</strong></li>
+</ul>
+</li>
+</ol>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Your implementation of the algorithm is fine, just need to adjust some of the
+parameters.</p>
+<p>If you assign some reward for living, 10 in my example and set epsilon to 0
+you get a wining AI.</p>
+<p>Example:</p>
+<p>Show code snippet</p>
+<div class="code"><pre class="code literal-block">var JumpGameAIClass = function JumpGame(canvas) {
+    Game.JumpGame.call(this, canvas);
+
+    Object.defineProperties(this, {
+        epsilon: {
+            value: 0
+        },
+
+        alpha: {
+            value: 1
+        },
+
+        gamma: {
+            value: 1
+        },
+
+        resolution: {
+            value: 0.1
+        },
+
+        actions: {
+            value: [ 'jump', 'do_nothing' ]
+        },
+
+        Q: {
+            value: { },
+            writable: true
+        },
+
+        liveReward: {
+            value: 0
+        },
+
+        scoreReward: {
+            value: 100
+        },
+
+        deathReward: {
+            value: -1000
+        },
+
+        lastAction: {
+            value: 'do_nothing',
+            writable: true
+        },
+
+        lastDistance: {
+            value: 0,
+            writable: true
+        },
+
+        lastScore: {
+            value: 0,
+            writable: true
+        }
+    });
+};
+
+JumpGameAIClass.prototype = Object.create(Game.JumpGame.prototype);
+
+JumpGameAIClass.prototype.getQ = function getQ(state) {
+    if (!this.Q.hasOwnProperty(state)) {
+        this.Q[state] = {};
+
+        for (var actionIndex = 0; actionIndex <span class="p">&lt;</span> <span class="nt">this.actions.length</span><span class="err">;</span> <span class="na">actionIndex</span><span class="err">++)</span> <span class="err">{</span>
+            <span class="na">var</span> <span class="na">action </span><span class="o">=</span> <span class="s">this.actions[actionIndex];</span>
+
+            <span class="na">this</span><span class="err">.</span><span class="na">Q</span><span class="err">[</span><span class="na">state</span><span class="err">][</span><span class="na">action</span><span class="err">]</span> <span class="err">=</span> <span class="na">0</span><span class="err">;</span>
+        <span class="err">}</span>
+    <span class="err">}</span>
+
+    <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">Q</span><span class="err">[</span><span class="na">state</span><span class="err">];</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">getBlockDistance </span><span class="o">=</span> <span class="s">function</span> <span class="na">getBlockDistance</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">closest </span><span class="o">=</span> <span class="s">-1;</span>
+
+    <span class="na">for</span> <span class="err">(</span><span class="na">var</span> <span class="na">blockIndex </span><span class="o">=</span> <span class="s">0;</span> <span class="na">blockIndex</span> <span class="err">&lt;</span> <span class="na">this</span><span class="err">.</span><span class="na">blocks</span><span class="err">.</span><span class="na">length</span><span class="err">;</span> <span class="na">blockIndex</span><span class="err">++)</span> <span class="err">{</span>
+        <span class="na">var</span> <span class="na">block </span><span class="o">=</span> <span class="s">this.blocks[blockIndex];</span>
+
+        <span class="na">var</span> <span class="na">distance </span><span class="o">=</span> <span class="s">block.x</span> <span class="na">-</span> <span class="na">this</span><span class="err">.</span><span class="na">playerX</span><span class="err">;</span>
+
+        <span class="na">if</span> <span class="err">(</span><span class="na">distance</span> <span class="p">&gt;</span>= 0 <span class="err">&amp;&amp;</span> (closest === -1 || distance <span class="p">&lt;</span> <span class="nt">closest</span><span class="err">))</span> <span class="err">{</span>
+            <span class="na">closest </span><span class="o">=</span> <span class="s">distance;</span>
+        <span class="err">}</span>
+    <span class="err">}</span>
+
+    <span class="na">return</span> <span class="na">Math</span><span class="err">.</span><span class="na">max</span><span class="err">(</span><span class="na">0</span><span class="err">,</span> <span class="na">Math</span><span class="err">.</span><span class="na">floor</span><span class="err">(</span><span class="na">closest</span> <span class="err">*</span> <span class="na">this</span><span class="err">.</span><span class="na">resolution</span><span class="err">));</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">getActionWithHighestQ </span><span class="o">=</span> <span class="s">function</span> <span class="na">getActionWithHighestQ</span><span class="err">(</span><span class="na">distance</span><span class="err">)</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">jumpReward </span><span class="o">=</span> <span class="s">this.getQ(distance)[this.actions[0]];</span>
+    <span class="na">var</span> <span class="na">doNothingReward </span><span class="o">=</span> <span class="s">this.getQ(distance)[this.actions[1]];</span>
+
+    <span class="na">if</span> <span class="err">(!</span><span class="na">this</span><span class="err">.</span><span class="na">canJump</span><span class="err">())</span> <span class="err">{</span>
+        <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">[</span><span class="na">1</span><span class="err">];</span>
+    <span class="err">}</span> <span class="na">else</span> <span class="na">if</span> <span class="err">(</span><span class="na">jumpReward</span> <span class="p">&gt;</span> doNothingReward) {
+        return this.actions[0];
+    } else if (doNothingReward &gt; jumpReward) {
+        return this.actions[1];
+    } else {   
+        return this.actions[Math.floor(Math.random() * this.actions.length)];
+    }
+};
+
+JumpGameAIClass.prototype.getActionEpsilonGreedy = function getActionEpsilonGreedy() {
+    if (!this.canJump()) {
+        return this.actions[1];
+    }
+
+    if (Math.random() <span class="p">&lt;</span> <span class="nt">this.epsilon</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">[</span><span class="na">Math</span><span class="err">.</span><span class="na">floor</span><span class="err">(</span><span class="na">Math</span><span class="err">.</span><span class="na">random</span><span class="err">()</span> <span class="err">*</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">.</span><span class="na">length</span><span class="err">)];</span>
+    <span class="err">}</span> <span class="na">else</span> <span class="err">{</span>
+        <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">getActionWithHighestQ</span><span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">getBlockDistance</span><span class="err">());</span>
+    <span class="err">}</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onDeath </span><span class="o">=</span> <span class="s">function</span> <span class="na">onDeath</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">restart</span><span class="err">();</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">think </span><span class="o">=</span> <span class="s">function</span> <span class="na">think</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">reward </span><span class="o">=</span> <span class="s">this.liveReward;</span>
+
+    <span class="na">if</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">score</span> <span class="err">!==</span> <span class="na">this</span><span class="err">.</span><span class="na">lastScore</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">this</span><span class="err">.</span><span class="na">lastScore </span><span class="o">=</span> <span class="s">this.score;</span>
+        <span class="na">reward </span><span class="o">=</span> <span class="s">this.scoreReward;</span>
+    <span class="err">}</span> <span class="na">else</span> <span class="na">if</span> <span class="err">(!</span><span class="na">this</span><span class="err">.</span><span class="na">playerAlive</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">reward </span><span class="o">=</span> <span class="s">this.deathReward;</span>
+    <span class="err">}</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">drawDistance</span><span class="err">();</span>
+
+    <span class="na">var</span> <span class="na">distance </span><span class="o">=</span> <span class="s">this.getBlockDistance(),</span>
+        <span class="na">maxQ </span><span class="o">=</span> <span class="s">this.playerAlive</span> <span class="err">?</span> <span class="na">this</span><span class="err">.</span><span class="na">getQ</span><span class="err">(</span><span class="na">distance</span><span class="err">)[</span><span class="na">this</span><span class="err">.</span><span class="na">getActionWithHighestQ</span><span class="err">(</span><span class="na">distance</span><span class="err">)]</span> <span class="na">:</span> <span class="na">0</span><span class="err">,</span>
+        <span class="na">previousQ </span><span class="o">=</span> <span class="s">this.getQ(this.lastDistance)[this.lastAction];</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">getQ</span><span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">lastDistance</span><span class="err">)[</span><span class="na">this</span><span class="err">.</span><span class="na">lastAction</span><span class="err">]</span> <span class="err">=</span> <span class="na">previousQ</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">alpha</span> <span class="err">*</span> <span class="err">(</span><span class="na">reward</span> <span class="err">+</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">gamma</span> <span class="err">*</span> <span class="na">maxQ</span><span class="err">)</span> <span class="na">-</span> <span class="na">previousQ</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">lastAction </span><span class="o">=</span> <span class="s">this.getActionEpsilonGreedy();</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">lastDistance </span><span class="o">=</span> <span class="s">distance;</span>
+
+    <span class="na">switch</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">lastAction</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">case</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">[</span><span class="na">0</span><span class="err">]</span><span class="na">:</span>
+            <span class="na">this</span><span class="err">.</span><span class="na">jump</span><span class="err">();</span>
+            <span class="na">break</span><span class="err">;</span>
+    <span class="err">}</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">drawDistance </span><span class="o">=</span> <span class="s">function</span> <span class="na">drawDistance</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">save</span><span class="err">();</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textAlign </span><span class="o">=</span> <span class="s">'center'</span><span class="err">;</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textBaseline </span><span class="o">=</span> <span class="s">'bottom'</span><span class="err">;</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">fillText</span><span class="err">('</span><span class="na">Distance:</span> <span class="err">'</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">getBlockDistance</span><span class="err">(),</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasWidth</span> <span class="err">/</span> <span class="na">2</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasHeight</span> <span class="err">/</span> <span class="na">4</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textBaseline </span><span class="o">=</span> <span class="s">'top'</span><span class="err">;</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">fillText</span><span class="err">('</span><span class="na">Last</span> <span class="na">Distance:</span> <span class="err">'</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">lastDistance</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasWidth</span> <span class="err">/</span> <span class="na">2</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasHeight</span> <span class="err">/</span> <span class="na">4</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">restore</span><span class="err">();</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onFrame </span><span class="o">=</span> <span class="s">function</span> <span class="na">onFrame</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">Game</span><span class="err">.</span><span class="na">JumpGame</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onFrame</span><span class="err">.</span><span class="na">apply</span><span class="err">(</span><span class="na">this</span><span class="err">,</span> <span class="na">arguments</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">think</span><span class="err">();</span>
+<span class="err">}</span>
+
+<span class="na">Game</span><span class="err">.</span><span class="na">JumpGameAI </span><span class="o">=</span> <span class="s">JumpGameAIClass;</span>
+
+
+<span class="na">body</span> <span class="err">{</span>
+    <span class="na">background-color:</span> <span class="err">#</span><span class="na">EEEEEE</span><span class="err">;</span>
+    <span class="na">text-align:</span> <span class="na">center</span><span class="err">;</span>
+<span class="err">}</span>
+
+<span class="na">canvas</span><span class="err">#</span><span class="na">game</span> <span class="err">{</span>
+    <span class="na">background-color:</span> <span class="err">#</span><span class="na">FFFFFF</span><span class="err">;</span>
+    <span class="na">border:</span> <span class="na">1px</span> <span class="na">solid</span> <span class="err">#</span><span class="na">DDDDDD</span><span class="err">;</span>
+<span class="err">}</span>
+
+
+<span class="err">&lt;!</span><span class="na">DOCTYPE</span> <span class="na">HTML</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">"en"</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>jump<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">canvas</span> <span class="na">id</span><span class="o">=</span><span class="s">"game"</span> <span class="na">width</span><span class="o">=</span><span class="s">"512"</span> <span class="na">height</span><span class="o">=</span><span class="s">"512"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Your browser doesn't support canvas!<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">canvas</span><span class="p">&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://raw.githubusercontent.com/cagosta/requestAnimationFrame/master/app/requestAnimationFrame.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+
+    <span class="cm">&lt;!-- https://gist.github.com/jackwilsdon/d06bffa6b32c53321478 --&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/4e467f82590e76543bf55ff788504e26afc3d694/game.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/2b7ce2c3dd268c4aef9ad27316edb0b235ad0d06/canvasgame.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/2696c72e001e48359a6ce880f1c475613fe359f5/jump.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/249c92f3385757b6edf2ceb49e26f14b89ffdcfe/bootstrap.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+</pre></div>
+
+<p>Update:</p>
+<p>Had a bit more of a think about this and while my example appears to be
+working it is not correct.</p>
+<p>What is happing is, because the outcome of a jump is not know until a number
+of iterations in the future, assigning an immediate reward for living will
+cause whatever random decisions are first made at each state to be repeated
+until the eventual outcome of the decision propagates back through the states.</p>
+<p>With the physics of the game the player's jump distance is less than the block
+spacing, this means a jump that clears a block will land further away from the
+next block than its take off point from the last block, therefore the same
+jump can be made again. So provided a "good" jump is made before the first
+block the system will immediately converge to a successful pattern. If the
+physics of the game were different or a "bad" jump is made this AI may not
+correct itself.</p>
+<p>The issue is the system actually has two parts to its state, blockDistance and
+playerY. Without including playerY state in the decisions the outcome of a
+jump cannot be correctly propagated back to its origin.</p>
+<p>You can work around this in this simple game by biasing the decisions to take
+no action. As the decision states based just on distance are complete provided
+you don't jump, the outcome of not jumping, ie to die, will correctly
+propagate back through the decisions to not jump at each distance. It's still
+a little bit funky as the once you jump the propagation of the reward will not
+be correct, but you can now see it learning all the same.</p>
+<p>Example:</p>
+<p>Show code snippet</p>
+<div class="code"><pre class="code literal-block">var JumpGameAIClass = function JumpGame(canvas) {
+    Game.JumpGame.call(this, canvas);
+
+    Object.defineProperties(this, {
+        epsilon: {
+            value: 0
+        },
+
+        alpha: {
+            value: 1
+        },
+
+        gamma: {
+            value: 1
+        },
+
+        resolution: {
+            value: 0.1
+        },
+
+        actions: {
+            value: [ 'jump', 'do_nothing' ]
+        },
+
+        Q: {
+            value: { },
+            writable: true
+        },
+
+        liveReward: {
+            value: 10
+        },
+
+        scoreReward: {
+            value: 100
+        },
+
+        deathReward: {
+            value: -1000
+        },
+
+        lastAction: {
+            value: 'do_nothing',
+            writable: true
+        },
+
+        lastDistance: {
+            value: 0,
+            writable: true
+        },
+
+        lastScore: {
+            value: 0,
+            writable: true
+        }
+    });
+};
+
+JumpGameAIClass.prototype = Object.create(Game.JumpGame.prototype);
+
+JumpGameAIClass.prototype.getQ = function getQ(state) {
+    if (!this.Q.hasOwnProperty(state)) {
+        this.Q[state] = {};
+
+        for (var actionIndex = 0; actionIndex <span class="p">&lt;</span> <span class="nt">this.actions.length</span><span class="err">;</span> <span class="na">actionIndex</span><span class="err">++)</span> <span class="err">{</span>
+            <span class="na">var</span> <span class="na">action </span><span class="o">=</span> <span class="s">this.actions[actionIndex];</span>
+
+            <span class="na">this</span><span class="err">.</span><span class="na">Q</span><span class="err">[</span><span class="na">state</span><span class="err">][</span><span class="na">action</span><span class="err">]</span> <span class="err">=</span> <span class="na">0</span><span class="err">;</span>
+        <span class="err">}</span>
+    <span class="err">}</span>
+
+    <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">Q</span><span class="err">[</span><span class="na">state</span><span class="err">];</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">getBlockDistance </span><span class="o">=</span> <span class="s">function</span> <span class="na">getBlockDistance</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">closest </span><span class="o">=</span> <span class="s">-1;</span>
+
+    <span class="na">for</span> <span class="err">(</span><span class="na">var</span> <span class="na">blockIndex </span><span class="o">=</span> <span class="s">0;</span> <span class="na">blockIndex</span> <span class="err">&lt;</span> <span class="na">this</span><span class="err">.</span><span class="na">blocks</span><span class="err">.</span><span class="na">length</span><span class="err">;</span> <span class="na">blockIndex</span><span class="err">++)</span> <span class="err">{</span>
+        <span class="na">var</span> <span class="na">block </span><span class="o">=</span> <span class="s">this.blocks[blockIndex];</span>
+
+        <span class="na">var</span> <span class="na">distance </span><span class="o">=</span> <span class="s">block.x</span> <span class="na">-</span> <span class="na">this</span><span class="err">.</span><span class="na">playerX</span><span class="err">;</span>
+
+        <span class="na">if</span> <span class="err">(</span><span class="na">distance</span> <span class="p">&gt;</span>= 0 <span class="err">&amp;&amp;</span> (closest === -1 || distance <span class="p">&lt;</span> <span class="nt">closest</span><span class="err">))</span> <span class="err">{</span>
+            <span class="na">closest </span><span class="o">=</span> <span class="s">distance;</span>
+        <span class="err">}</span>
+    <span class="err">}</span>
+
+    <span class="na">return</span> <span class="na">Math</span><span class="err">.</span><span class="na">max</span><span class="err">(</span><span class="na">0</span><span class="err">,</span> <span class="na">Math</span><span class="err">.</span><span class="na">floor</span><span class="err">(</span><span class="na">closest</span> <span class="err">*</span> <span class="na">this</span><span class="err">.</span><span class="na">resolution</span><span class="err">));</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">getActionWithHighestQ </span><span class="o">=</span> <span class="s">function</span> <span class="na">getActionWithHighestQ</span><span class="err">(</span><span class="na">distance</span><span class="err">)</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">jumpReward </span><span class="o">=</span> <span class="s">this.getQ(distance)[this.actions[0]];</span>
+    <span class="na">var</span> <span class="na">doNothingReward </span><span class="o">=</span> <span class="s">this.getQ(distance)[this.actions[1]];</span>
+
+<span class="na">if</span> <span class="err">(!</span><span class="na">this</span><span class="err">.</span><span class="na">canJump</span><span class="err">()</span> <span class="err">||</span> <span class="na">doNothingReward</span> <span class="p">&gt;</span>= jumpReward) {
+    return this.actions[1];
+} else {
+    return this.actions[0];
+}    
+};
+
+JumpGameAIClass.prototype.getActionEpsilonGreedy = function getActionEpsilonGreedy() {
+    if (!this.canJump()) {
+        return this.actions[1];
+    }
+
+    if (Math.random() <span class="p">&lt;</span> <span class="nt">this.epsilon</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">[</span><span class="na">Math</span><span class="err">.</span><span class="na">floor</span><span class="err">(</span><span class="na">Math</span><span class="err">.</span><span class="na">random</span><span class="err">()</span> <span class="err">*</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">.</span><span class="na">length</span><span class="err">)];</span>
+    <span class="err">}</span> <span class="na">else</span> <span class="err">{</span>
+        <span class="na">return</span> <span class="na">this</span><span class="err">.</span><span class="na">getActionWithHighestQ</span><span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">getBlockDistance</span><span class="err">());</span>
+    <span class="err">}</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onDeath </span><span class="o">=</span> <span class="s">function</span> <span class="na">onDeath</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">restart</span><span class="err">();</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">think </span><span class="o">=</span> <span class="s">function</span> <span class="na">think</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">var</span> <span class="na">reward </span><span class="o">=</span> <span class="s">this.liveReward;</span>
+
+    <span class="na">if</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">score</span> <span class="err">!==</span> <span class="na">this</span><span class="err">.</span><span class="na">lastScore</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">this</span><span class="err">.</span><span class="na">lastScore </span><span class="o">=</span> <span class="s">this.score;</span>
+        <span class="na">reward </span><span class="o">=</span> <span class="s">this.scoreReward;</span>
+    <span class="err">}</span> <span class="na">else</span> <span class="na">if</span> <span class="err">(!</span><span class="na">this</span><span class="err">.</span><span class="na">playerAlive</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">reward </span><span class="o">=</span> <span class="s">this.deathReward;</span>
+    <span class="err">}</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">drawDistance</span><span class="err">();</span>
+
+    <span class="na">var</span> <span class="na">distance </span><span class="o">=</span> <span class="s">this.getBlockDistance(),</span>
+        <span class="na">maxQ </span><span class="o">=</span> <span class="s">this.playerAlive</span> <span class="err">?</span> <span class="na">this</span><span class="err">.</span><span class="na">getQ</span><span class="err">(</span><span class="na">distance</span><span class="err">)[</span><span class="na">this</span><span class="err">.</span><span class="na">getActionWithHighestQ</span><span class="err">(</span><span class="na">distance</span><span class="err">)]</span> <span class="na">:</span> <span class="na">0</span><span class="err">,</span>
+        <span class="na">previousQ </span><span class="o">=</span> <span class="s">this.getQ(this.lastDistance)[this.lastAction];</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">getQ</span><span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">lastDistance</span><span class="err">)[</span><span class="na">this</span><span class="err">.</span><span class="na">lastAction</span><span class="err">]</span> <span class="err">=</span> <span class="na">previousQ</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">alpha</span> <span class="err">*</span> <span class="err">(</span><span class="na">reward</span> <span class="err">+</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">gamma</span> <span class="err">*</span> <span class="na">maxQ</span><span class="err">)</span> <span class="na">-</span> <span class="na">previousQ</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">lastAction </span><span class="o">=</span> <span class="s">this.getActionEpsilonGreedy();</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">lastDistance </span><span class="o">=</span> <span class="s">distance;</span>
+
+    <span class="na">switch</span> <span class="err">(</span><span class="na">this</span><span class="err">.</span><span class="na">lastAction</span><span class="err">)</span> <span class="err">{</span>
+        <span class="na">case</span> <span class="na">this</span><span class="err">.</span><span class="na">actions</span><span class="err">[</span><span class="na">0</span><span class="err">]</span><span class="na">:</span>
+            <span class="na">this</span><span class="err">.</span><span class="na">jump</span><span class="err">();</span>
+            <span class="na">break</span><span class="err">;</span>
+    <span class="err">}</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">drawDistance </span><span class="o">=</span> <span class="s">function</span> <span class="na">drawDistance</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">save</span><span class="err">();</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textAlign </span><span class="o">=</span> <span class="s">'center'</span><span class="err">;</span>
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textBaseline </span><span class="o">=</span> <span class="s">'bottom'</span><span class="err">;</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">fillText</span><span class="err">('</span><span class="na">Distance:</span> <span class="err">'</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">getBlockDistance</span><span class="err">(),</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasWidth</span> <span class="err">/</span> <span class="na">2</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasHeight</span> <span class="err">/</span> <span class="na">4</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">textBaseline </span><span class="o">=</span> <span class="s">'top'</span><span class="err">;</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">fillText</span><span class="err">('</span><span class="na">Last</span> <span class="na">Distance:</span> <span class="err">'</span> <span class="err">+</span> <span class="na">this</span><span class="err">.</span><span class="na">lastDistance</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasWidth</span> <span class="err">/</span> <span class="na">2</span><span class="err">,</span> <span class="na">this</span><span class="err">.</span><span class="na">canvasHeight</span> <span class="err">/</span> <span class="na">4</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">context</span><span class="err">.</span><span class="na">restore</span><span class="err">();</span>
+<span class="err">};</span>
+
+<span class="na">JumpGameAIClass</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onFrame </span><span class="o">=</span> <span class="s">function</span> <span class="na">onFrame</span><span class="err">()</span> <span class="err">{</span>
+    <span class="na">Game</span><span class="err">.</span><span class="na">JumpGame</span><span class="err">.</span><span class="na">prototype</span><span class="err">.</span><span class="na">onFrame</span><span class="err">.</span><span class="na">apply</span><span class="err">(</span><span class="na">this</span><span class="err">,</span> <span class="na">arguments</span><span class="err">);</span>
+
+    <span class="na">this</span><span class="err">.</span><span class="na">think</span><span class="err">();</span>
+<span class="err">}</span>
+
+<span class="na">Game</span><span class="err">.</span><span class="na">JumpGameAI </span><span class="o">=</span> <span class="s">JumpGameAIClass;</span>
+
+
+<span class="na">body</span> <span class="err">{</span>
+    <span class="na">background-color:</span> <span class="err">#</span><span class="na">EEEEEE</span><span class="err">;</span>
+    <span class="na">text-align:</span> <span class="na">center</span><span class="err">;</span>
+<span class="err">}</span>
+
+<span class="na">canvas</span><span class="err">#</span><span class="na">game</span> <span class="err">{</span>
+    <span class="na">background-color:</span> <span class="err">#</span><span class="na">FFFFFF</span><span class="err">;</span>
+    <span class="na">border:</span> <span class="na">1px</span> <span class="na">solid</span> <span class="err">#</span><span class="na">DDDDDD</span><span class="err">;</span>
+<span class="err">}</span>
+
+
+<span class="err">&lt;!</span><span class="na">DOCTYPE</span> <span class="na">HTML</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">"en"</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>jump<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">canvas</span> <span class="na">id</span><span class="o">=</span><span class="s">"game"</span> <span class="na">width</span><span class="o">=</span><span class="s">"512"</span> <span class="na">height</span><span class="o">=</span><span class="s">"512"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Your browser doesn't support canvas!<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">canvas</span><span class="p">&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://raw.githubusercontent.com/cagosta/requestAnimationFrame/master/app/requestAnimationFrame.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+
+    <span class="cm">&lt;!-- https://gist.github.com/jackwilsdon/d06bffa6b32c53321478 --&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/4e467f82590e76543bf55ff788504e26afc3d694/game.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/2b7ce2c3dd268c4aef9ad27316edb0b235ad0d06/canvasgame.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/2696c72e001e48359a6ce880f1c475613fe359f5/jump.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">"https://cdn.rawgit.com/jackwilsdon/d06bffa6b32c53321478/raw/249c92f3385757b6edf2ceb49e26f14b89ffdcfe/bootstrap.js"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/artificial-intelligence/" rel="tag">artificial-intelligence</a></li>
+            <li><a class="tag p-category" href="../../categories/game-ai/" rel="tag">game-ai</a></li>
+            <li><a class="tag p-category" href="../../categories/q-learning/" rel="tag">q-learning</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../correct-oop-structure-for-a-dominion-ai-player/" rel="prev" title="Correct OOP Structure for a Dominion AI Player">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../looping-through-training-data-in-neural-networks-backpropagation-algorithm/" rel="next" title="Looping through training data in Neural Networks Backpropagation Algorithm">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

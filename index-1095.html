@@ -108,7 +108,191 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/testing-if-a-checkbox-is-checked-with-jquery/" class="u-url">Testing if a checkbox is checked with jQuery</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/json-net-error-self-referencing-loop-detected-for-type/" class="u-url">JSON.NET Error Self referencing loop detected for type</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/json-net-error-self-referencing-loop-detected-for-type/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T01:08:00+08:00" itemprop="datePublished" title="2023-02-18 01:08">2023-02-18 01:08</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I tried to serialize POCO class that was automatically generated from Entity
+Data Model .edmx and when I used</p>
+<div class="code"><pre class="code literal-block">JsonConvert.SerializeObject
+</pre></div>
+
+<p>I got the following error:</p>
+<blockquote>
+<p>Error Self referencing loop detected for type System.data.entity occurs.</p>
+</blockquote>
+<p>How do I solve this problem?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The best solution is taken from Loop Reference handling in Web API (which most
+of this answer is copied from):</p>
+<blockquote>
+<h2>Fix 1: Ignoring circular reference globally</h2>
+</blockquote>
+<p><em>(I have chosen/tried this one, as have many others)</em></p>
+<blockquote>
+<p>The json.net serializer has an option to ignore circular references. Put the
+following code in <code>WebApiConfig.cs</code> file:</p>
+<p>config.Formatters.JsonFormatter.SerializerSettings.ReferenceLoopHandling
+    = Newtonsoft.Json.ReferenceLoopHandling.Ignore;</p>
+<p>The simple fix will make serializer to ignore the reference which will cause
+a loop. However, it has limitations:</p>
+<ul>
+<li>The data loses the looping reference information</li>
+<li>The fix only applies to JSON.net</li>
+<li>The level of references can't be controlled if there is a deep reference
+chain
+</li>
+</ul>
+</blockquote>
+<p>If you want to use this fix in a non-api ASP.NET project, you can add the
+above line to <code>Global.asax.cs</code>, but first add:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GlobalConfiguration</span><span class="o">.</span><span class="n">Configuration</span><span class="p">;</span>
+</pre></div>
+
+<p>If you want to use this in <strong>.Net Core</strong> project, you can change <code>Startup.cs</code>
+as:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">mvc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">services</span><span class="o">.</span><span class="n">AddMvc</span><span class="p">(</span><span class="n">options</span><span class="w"> </span><span class="o">=&gt;</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="o">...</span>
+<span class="p">})</span>
+<span class="o">.</span><span class="n">AddJsonOptions</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">.</span><span class="n">SerializerSettings</span><span class="o">.</span><span class="n">ReferenceLoopHandling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Newtonsoft</span><span class="o">.</span><span class="n">Json</span><span class="o">.</span><span class="n">ReferenceLoopHandling</span><span class="o">.</span><span class="n">Ignore</span><span class="p">);</span>
+</pre></div>
+
+<blockquote>
+<h2>Fix 2: Preserving circular reference globally</h2>
+<p>This second fix is similar to the first. Just change the code to:</p>
+<div class="code"><pre class="code literal-block">config.Formatters.JsonFormatter.SerializerSettings.ReferenceLoopHandling
+     = Newtonsoft.Json.ReferenceLoopHandling.Serialize;
+</pre></div>
+
+<p>config.Formatters.JsonFormatter.SerializerSettings.PreserveReferencesHandling
+         = Newtonsoft.Json.PreserveReferencesHandling.Objects;</p>
+<p>The data shape will be changed after applying this setting.</p>
+<div class="code"><pre class="code literal-block">[
+   {
+      "$id":"1",
+      "Category":{
+         "$id":"2",
+         "Products":[
+            {
+               "$id":"3",
+               "Category":{
+                  "$ref":"2"
+               },
+               "Id":2,
+               "Name":"Yogurt"
+            },
+            {
+               "$ref":"1"
+            }
+         ],
+         "Id":1,
+         "Name":"Diary"
+      },
+      "Id":1,
+      "Name":"Whole Milk"
+   },
+   {
+      "$ref":"3"
+   }
+]
+</pre></div>
+
+<p>The $id and $ref keeps the all the references and makes the object graph
+level flat, but the client code needs to know the shape change to consume
+the data and it only applies to JSON.NET serializer as well.</p>
+<h2>Fix 3: Ignore and preserve reference attributes</h2>
+<p>This fix is decorate attributes on model class to control the serialization
+behavior on model or property level. To ignore the property:</p>
+<div class="code"><pre class="code literal-block"><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">Category</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">Id</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">Name</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+
+<span class="w">    </span><span class="o">[</span><span class="n">JsonIgnore</span><span class="o">]</span>
+<span class="w">    </span><span class="o">[</span><span class="n">IgnoreDataMember</span><span class="o">]</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">virtual</span><span class="w"> </span><span class="n">ICollection</span><span class="o">&lt;</span><span class="n">Product</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Products</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>JsonIgnore is for JSON.NET and IgnoreDataMember is for XmlDCSerializer. To
+preserve reference:</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Fix</span><span class="w"> </span><span class="mi">3</span>
+<span class="o">[</span><span class="n">JsonObject(IsReference = true)</span><span class="o">]</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">Category</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">Id</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">Name</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Fix</span><span class="w"> </span><span class="mi">3</span>
+<span class="w">    </span><span class="o">//[</span><span class="n">JsonIgnore</span><span class="o">]</span>
+<span class="w">    </span><span class="o">//[</span><span class="n">IgnoreDataMember</span><span class="o">]</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">virtual</span><span class="w"> </span><span class="n">ICollection</span><span class="o">&lt;</span><span class="n">Product</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Products</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+<span class="err">}</span>
+
+<span class="o">[</span><span class="n">DataContract(IsReference = true)</span><span class="o">]</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">Product</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="o">[</span><span class="n">Key</span><span class="o">]</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">Id</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+
+<span class="w">    </span><span class="o">[</span><span class="n">DataMember</span><span class="o">]</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">Name</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+
+<span class="w">    </span><span class="o">[</span><span class="n">DataMember</span><span class="o">]</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">virtual</span><span class="w"> </span><span class="n">Category</span><span class="w"> </span><span class="n">Category</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><code>JsonObject(IsReference = true)]</code> is for JSON.NET and
+<code>[DataContract(IsReference = true)]</code> is for XmlDCSerializer. Note that:
+after applying <code>DataContract</code> on class, you need to add <code>DataMember</code> to
+properties that you want to serialize.</p>
+<p>The attributes can be applied on both json and xml serializer and gives more
+controls on model class.</p>
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<h2>Use JsonSerializerSettings</h2>
+<ul>
+<li>
+<code>ReferenceLoopHandling.Error</code> (default) will error if a reference loop is encountered. <strong>This is why you get an exception.</strong>
+</li>
+<li>
+<code>ReferenceLoopHandling.Serialize</code> is useful if objects are nested but not indefinitely.</li>
+<li>
+<code>ReferenceLoopHandling.Ignore</code> will not serialize an object if it is a child object of itself.</li>
+</ul>
+<p>Example:</p>
+<div class="code"><pre class="code literal-block">JsonConvert.SerializeObject(YourPOCOHere, Formatting.Indented, 
+new JsonSerializerSettings 
+{ 
+        ReferenceLoopHandling = ReferenceLoopHandling.Serialize
+});
+</pre></div>
+
+<p>Should you have to serialize an object that is nested indefinitely you can use
+PreserveObjectReferences to avoid a StackOverflowException.</p>
+<p>Example:</p>
+<div class="code"><pre class="code literal-block">JsonConvert.SerializeObject(YourPOCOHere, Formatting.Indented, 
+new JsonSerializerSettings 
+{ 
+        PreserveReferencesHandling = PreserveReferencesHandling.Objects
+});
+</pre></div>
+
+<p>Pick what makes sense for the object you are serializing.</p>
+<p>Reference http://james.newtonking.com/json/help/</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/testing-if-a-checkbox-is-checked-with-jquery/" class="u-url">Testing if a checkbox is checked with jQuery</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -237,58 +421,6 @@ strong reference cycles that happen with closures.</p>
 <li>Swift delegation - when to use weak pointer on delegate</li>
 </ul>
 </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-find-if-a-given-key-exists-in-a-c-std-map/" class="u-url">How to find if a given key exists in a C++ std::map</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-find-if-a-given-key-exists-in-a-c-std-map/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T01:06:39+08:00" itemprop="datePublished" title="2023-02-18 01:06">2023-02-18 01:06</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm trying to check if a given key is in a map and somewhat can't do it:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">typedef</span><span class="w"> </span><span class="nv">map</span><span class="o">&lt;</span><span class="nv">string</span>,<span class="nv">string</span><span class="o">&gt;</span>::<span class="nv">iterator</span><span class="w"> </span><span class="nv">mi</span><span class="c1">;</span>
-<span class="nv">map</span><span class="o">&lt;</span><span class="nv">string</span>,<span class="w"> </span><span class="nv">string</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">m</span><span class="c1">;</span>
-<span class="nv">m</span>.<span class="nv">insert</span><span class="ss">(</span><span class="nv">make_pair</span><span class="ss">(</span><span class="s2">"f"</span>,<span class="s2">"++--"</span><span class="ss">))</span><span class="c1">;</span>
-<span class="nv">pair</span><span class="o">&lt;</span><span class="nv">mi</span>,<span class="nv">mi</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">m</span>.<span class="nv">equal_range</span><span class="ss">(</span><span class="s2">"f"</span><span class="ss">)</span><span class="c1">;//I'm not sure if equal_range does what I want</span>
-<span class="nv">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="nv">p</span>.<span class="nv">first</span><span class="c1">;//I'm getting error here</span>
-</pre></div>
-
-<p>so how can I print what is in p?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Use <code>map::find</code> and <code>map::end</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">m</span>.<span class="nv">find</span><span class="ss">(</span><span class="s2">"f"</span><span class="ss">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">m</span>.<span class="k">end</span><span class="ss">())</span><span class="w"> </span>{
-<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">found</span>
-}<span class="w"> </span><span class="k">else</span><span class="w"> </span>{
-<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="nv">found</span>
-}
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>To check if a particular key in the map exists, use the <code>count</code> member
-function in one of the following ways:</p>
-<div class="code"><pre class="code literal-block">m.count(key) &gt; 0
-m.count(key) == 1
-m.count(key) != 0
-</pre></div>
-
-<p>The documentation for <code>map::find</code> says: "Another member function,
-<code>map::count</code>, can be used to just check whether a particular key exists."</p>
-<p>The documentation for <code>map::count</code> says: "Because all elements in a map
-container are unique, the function can only return 1 (if the element is found)
-or zero (otherwise)."</p>
-<p>To retrieve a value from the map via a key that you know to exist, use
-map::at:</p>
-<div class="code"><pre class="code literal-block">value = m.at(key)
-</pre></div>
-
-<p>Unlike map::operator[], <code>map::at</code> will not create a new key in the map if the
-specified key does not exist.</p>
-    </div>
     </article>
 </div>
 

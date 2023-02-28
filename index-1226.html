@@ -108,7 +108,177 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/resolving-a-git-conflict-with-binary-files/" class="u-url">Resolving a Git conflict with binary files</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/quickly-reading-very-large-tables-as-dataframes/" class="u-url">Quickly reading very large tables as dataframes</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/quickly-reading-very-large-tables-as-dataframes/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T04:18:16+08:00" itemprop="datePublished" title="2023-02-18 04:18">2023-02-18 04:18</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have very large tables (30 million rows) that I would like to load as a
+dataframes in R. <code>read.table()</code> has a lot of convenient features, but it seems
+like there is a lot of logic in the implementation that would slow things
+down. In my case, I am assuming I know the types of the columns ahead of time,
+the table does not contain any column headers or row names, and does not have
+any pathological characters that I have to worry about.</p>
+<p>I know that reading in a table as a list using <code>scan()</code> can be quite fast,
+e.g.:</p>
+<div class="code"><pre class="code literal-block"><span class="n">datalist</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">scan</span><span class="p">(</span><span class="s">'myfile'</span><span class="p">,</span><span class="n">sep</span><span class="o">=</span><span class="s">'\t'</span><span class="p">,</span><span class="nf">list</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="s">''</span><span class="p">,</span><span class="n">popularity</span><span class="o">=</span><span class="m">0</span><span class="p">,</span><span class="n">mintime</span><span class="o">=</span><span class="m">0</span><span class="p">,</span><span class="n">maxtime</span><span class="o">=</span><span class="m">0</span><span class="p">)))</span>
+</pre></div>
+
+<p>But some of my attempts to convert this to a dataframe appear to decrease the
+performance of the above by a factor of 6:</p>
+<div class="code"><pre class="code literal-block"><span class="n">df</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">as.data.frame</span><span class="p">(</span><span class="nf">scan</span><span class="p">(</span><span class="s">'myfile'</span><span class="p">,</span><span class="n">sep</span><span class="o">=</span><span class="s">'\t'</span><span class="p">,</span><span class="nf">list</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="s">''</span><span class="p">,</span><span class="n">popularity</span><span class="o">=</span><span class="m">0</span><span class="p">,</span><span class="n">mintime</span><span class="o">=</span><span class="m">0</span><span class="p">,</span><span class="n">maxtime</span><span class="o">=</span><span class="m">0</span><span class="p">))))</span>
+</pre></div>
+
+<p>Is there a better way of doing this? Or quite possibly completely different
+approach to the problem?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>An update, several years later</strong></p>
+<p>This answer is old, and R has moved on. Tweaking <code>read.table</code> to run a bit
+faster has precious little benefit. Your options are:</p>
+<ol>
+<li>
+<p>Using <code>vroom</code> from the tidyverse package <code>vroom</code> for importing data from csv/tab-delimited files directly into an R tibble. See Hector's answer.</p>
+</li>
+<li>
+<p>Using <code>fread</code> in <code>data.table</code> for importing data from csv/tab-delimited files directly into R. See mnel's answer.</p>
+</li>
+<li>
+<p>Using <code>read_table</code> in <code>readr</code> (on CRAN from April 2015). This works much like <code>fread</code> above. The <em>readme</em> in the link explains the difference between the two functions (<code>readr</code> currently claims to be "1.5-2x slower" than <code>data.table::fread</code>).</p>
+</li>
+<li>
+<p><code>read.csv.raw</code> from <code>iotools</code> provides a third option for quickly reading CSV files.</p>
+</li>
+<li>
+<p>Trying to store as much data as you can in databases rather than flat files. (As well as being a better permanent storage medium, data is passed to and from R in a binary format, which is faster.) <code>read.csv.sql</code> in the <code>sqldf</code> package, as described in JD Long's answer, imports data into a temporary SQLite database and then reads it into R. See also: the <code>RODBC</code> package, and the reverse depends section of the <code>DBI</code> package page. <code>MonetDB.R</code> gives you a data type that pretends to be a data frame but is really a MonetDB underneath, increasing performance. Import data with its <code>monetdb.read.csv</code> function. <code>dplyr</code> allows you to work directly with data stored in several types of database.</p>
+</li>
+<li>
+<p>Storing data in binary formats can also be useful for improving performance. Use <code>saveRDS</code>/<code>readRDS</code> (see below), the <code>h5</code> or <code>rhdf5</code> packages for HDF5 format, or <code>write_fst</code>/<code>read_fst</code> from the <code>fst</code> package.</p>
+</li>
+</ol>
+<hr>
+<p><strong>The original answer</strong></p>
+<p>There are a couple of simple things to try, whether you use read.table or
+scan.</p>
+<ol>
+<li>
+<p>Set <code>nrows</code>= <em>the number of records in your data</em> (<code>nmax</code> in <code>scan</code>).</p>
+</li>
+<li>
+<p>Make sure that <code>comment.char=""</code> to turn off interpretation of comments.</p>
+</li>
+<li>
+<p>Explicitly define the classes of each column using <code>colClasses</code> in <code>read.table</code>.</p>
+</li>
+<li>
+<p>Setting <code>multi.line=FALSE</code> may also improve performance in scan.</p>
+</li>
+</ol>
+<p>If none of these thing work, then use one of the profiling packages to
+determine which lines are slowing things down. Perhaps you can write a cut
+down version of <code>read.table</code> based on the results.</p>
+<p>The other alternative is filtering your data before you read it into R.</p>
+<p>Or, if the problem is that you have to read it in regularly, then use these
+methods to read the data in once, then save the data frame as a binary blob
+with <del><code>save</code></del> <code>saveRDS</code>, then next time you can retrieve it faster with
+<del><code>load</code></del> <code>readRDS</code>.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Here is an example that utilizes <code>fread</code> from <code>data.table</code> 1.8.7</p>
+<p>The examples come from the help page to <code>fread</code>, with the timings on my
+windows XP Core 2 duo E8400.</p>
+<div class="code"><pre class="code literal-block"><span class="nf">library</span><span class="p">(</span><span class="nv">data</span><span class="o">.</span><span class="nv">table</span><span class="p">)</span>
+<span class="o">#</span><span class="w"> </span><span class="nv">Demo</span><span class="w"> </span><span class="nv">speedup</span>
+<span class="nv">n</span><span class="o">=</span><span class="mf">1e6</span>
+<span class="nv">DT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">data</span><span class="o">.</span><span class="nf">table</span><span class="p">(</span><span class="w"> </span><span class="nv">a</span><span class="o">=</span><span class="nf">sample</span><span class="p">(</span><span class="mi">1</span><span class="o">:</span><span class="mi">1000</span><span class="p">,</span><span class="nv">n</span><span class="p">,</span><span class="nv">replace</span><span class="o">=</span><span class="nv">TRUE</span><span class="p">),</span>
+<span class="w">                 </span><span class="nv">b</span><span class="o">=</span><span class="nf">sample</span><span class="p">(</span><span class="mi">1</span><span class="o">:</span><span class="mi">1000</span><span class="p">,</span><span class="nv">n</span><span class="p">,</span><span class="nv">replace</span><span class="o">=</span><span class="nv">TRUE</span><span class="p">),</span>
+<span class="w">                 </span><span class="nv">c</span><span class="o">=</span><span class="nf">rnorm</span><span class="p">(</span><span class="nv">n</span><span class="p">),</span>
+<span class="w">                 </span><span class="nv">d</span><span class="o">=</span><span class="nf">sample</span><span class="p">(</span><span class="nf">c</span><span class="p">(</span><span class="s">"foo"</span><span class="p">,</span><span class="s">"bar"</span><span class="p">,</span><span class="s">"baz"</span><span class="p">,</span><span class="s">"qux"</span><span class="p">,</span><span class="s">"quux"</span><span class="p">),</span><span class="nv">n</span><span class="p">,</span><span class="nv">replace</span><span class="o">=</span><span class="nv">TRUE</span><span class="p">),</span>
+<span class="w">                 </span><span class="nv">e</span><span class="o">=</span><span class="nf">rnorm</span><span class="p">(</span><span class="nv">n</span><span class="p">),</span>
+<span class="w">                 </span><span class="nv">f</span><span class="o">=</span><span class="nf">sample</span><span class="p">(</span><span class="mi">1</span><span class="o">:</span><span class="mi">1000</span><span class="p">,</span><span class="nv">n</span><span class="p">,</span><span class="nv">replace</span><span class="o">=</span><span class="nv">TRUE</span><span class="p">)</span><span class="w"> </span><span class="p">)</span>
+<span class="nv">DT</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="nv">b</span><span class="o">:=</span><span class="nv">NA_integer_</span><span class="p">]</span>
+<span class="nv">DT</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="nv">c</span><span class="o">:=</span><span class="nv">NA_real_</span><span class="p">]</span>
+<span class="nv">DT</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="nv">d</span><span class="o">:=</span><span class="nv">NA_character_</span><span class="p">]</span>
+<span class="nv">DT</span><span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="nv">d</span><span class="o">:=</span><span class="s">""</span><span class="p">]</span>
+<span class="nv">DT</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="nv">e</span><span class="o">:=+</span><span class="nv">Inf</span><span class="p">]</span>
+<span class="nv">DT</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="nv">e</span><span class="o">:=-</span><span class="nv">Inf</span><span class="p">]</span>
+</pre></div>
+
+<h2>standard read.table</h2>
+<div class="code"><pre class="code literal-block"><span class="nf">write.table</span><span class="p">(</span><span class="n">DT</span><span class="p">,</span><span class="s">"test.csv"</span><span class="p">,</span><span class="n">sep</span><span class="o">=</span><span class="s">","</span><span class="p">,</span><span class="n">row.names</span><span class="o">=</span><span class="kc">FALSE</span><span class="p">,</span><span class="n">quote</span><span class="o">=</span><span class="kc">FALSE</span><span class="p">)</span>
+<span class="nf">cat</span><span class="p">(</span><span class="s">"File size (MB):"</span><span class="p">,</span><span class="nf">round</span><span class="p">(</span><span class="nf">file.info</span><span class="p">(</span><span class="s">"test.csv"</span><span class="p">)</span><span class="o">$</span><span class="n">size</span><span class="o">/</span><span class="m">1024</span><span class="o">^</span><span class="m">2</span><span class="p">),</span><span class="s">"\n"</span><span class="p">)</span><span class="w">    </span>
+<span class="c1">## File size (MB): 51</span>
+
+<span class="nf">system.time</span><span class="p">(</span><span class="n">DF1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">read.csv</span><span class="p">(</span><span class="s">"test.csv"</span><span class="p">,</span><span class="n">stringsAsFactors</span><span class="o">=</span><span class="kc">FALSE</span><span class="p">))</span><span class="w">        </span>
+<span class="c1">##    user  system elapsed </span>
+<span class="c1">##   24.71    0.15   25.42</span>
+<span class="c1"># second run will be faster</span>
+<span class="nf">system.time</span><span class="p">(</span><span class="n">DF1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">read.csv</span><span class="p">(</span><span class="s">"test.csv"</span><span class="p">,</span><span class="n">stringsAsFactors</span><span class="o">=</span><span class="kc">FALSE</span><span class="p">))</span><span class="w">        </span>
+<span class="c1">##    user  system elapsed </span>
+<span class="c1">##   17.85    0.07   17.98</span>
+</pre></div>
+
+<h2>optimized read.table</h2>
+<div class="code"><pre class="code literal-block"><span class="nf">system.time</span><span class="p">(</span><span class="n">DF2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">read.table</span><span class="p">(</span><span class="s">"test.csv"</span><span class="p">,</span><span class="n">header</span><span class="o">=</span><span class="kc">TRUE</span><span class="p">,</span><span class="n">sep</span><span class="o">=</span><span class="s">","</span><span class="p">,</span><span class="n">quote</span><span class="o">=</span><span class="s">""</span><span class="p">,</span><span class="w">  </span>
+<span class="w">                          </span><span class="n">stringsAsFactors</span><span class="o">=</span><span class="kc">FALSE</span><span class="p">,</span><span class="n">comment.char</span><span class="o">=</span><span class="s">""</span><span class="p">,</span><span class="n">nrows</span><span class="o">=</span><span class="n">n</span><span class="p">,</span><span class="w">                   </span>
+<span class="w">                          </span><span class="n">colClasses</span><span class="o">=</span><span class="nf">c</span><span class="p">(</span><span class="s">"integer"</span><span class="p">,</span><span class="s">"integer"</span><span class="p">,</span><span class="s">"numeric"</span><span class="p">,</span><span class="w">                        </span>
+<span class="w">                                       </span><span class="s">"character"</span><span class="p">,</span><span class="s">"numeric"</span><span class="p">,</span><span class="s">"integer"</span><span class="p">)))</span>
+
+
+<span class="c1">##    user  system elapsed </span>
+<span class="c1">##   10.20    0.03   10.32</span>
+</pre></div>
+
+<h2>fread</h2>
+<div class="code"><pre class="code literal-block"><span class="nf">require</span><span class="p">(</span><span class="n">data.table</span><span class="p">)</span>
+<span class="nf">system.time</span><span class="p">(</span><span class="n">DT</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">fread</span><span class="p">(</span><span class="s">"test.csv"</span><span class="p">))</span><span class="w">                                  </span>
+<span class="w"> </span><span class="c1">##    user  system elapsed </span>
+<span class="c1">##    3.12    0.01    3.22</span>
+</pre></div>
+
+<h2>sqldf</h2>
+<div class="code"><pre class="code literal-block"><span class="nf">require</span><span class="p">(</span><span class="n">sqldf</span><span class="p">)</span>
+
+<span class="nf">system.time</span><span class="p">(</span><span class="n">SQLDF</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">read.csv.sql</span><span class="p">(</span><span class="s">"test.csv"</span><span class="p">,</span><span class="n">dbname</span><span class="o">=</span><span class="kc">NULL</span><span class="p">))</span>
+
+<span class="c1">##    user  system elapsed </span>
+<span class="c1">##   12.49    0.09   12.69</span>
+
+<span class="c1"># sqldf as on SO</span>
+
+<span class="n">f</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">file</span><span class="p">(</span><span class="s">"test.csv"</span><span class="p">)</span>
+<span class="nf">system.time</span><span class="p">(</span><span class="n">SQLf</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">sqldf</span><span class="p">(</span><span class="s">"select * from f"</span><span class="p">,</span><span class="w"> </span><span class="n">dbname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(),</span><span class="w"> </span><span class="n">file.format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="n">header</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">T</span><span class="p">,</span><span class="w"> </span><span class="n">row.names</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">F</span><span class="p">)))</span>
+
+<span class="c1">##    user  system elapsed </span>
+<span class="c1">##   10.21    0.47   10.73</span>
+</pre></div>
+
+<h2>ff / ffdf</h2>
+<div class="code"><pre class="code literal-block"><span class="w"> </span><span class="nf">require</span><span class="p">(</span><span class="n">ff</span><span class="p">)</span>
+
+<span class="w"> </span><span class="nf">system.time</span><span class="p">(</span><span class="n">FFDF</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">read.csv.ffdf</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="s">"test.csv"</span><span class="p">,</span><span class="n">nrows</span><span class="o">=</span><span class="n">n</span><span class="p">))</span><span class="w">   </span>
+<span class="w"> </span><span class="c1">##    user  system elapsed </span>
+<span class="w"> </span><span class="c1">##   10.85    0.10   10.99</span>
+</pre></div>
+
+<h2>In summary:</h2>
+<div class="code"><pre class="code literal-block">##    user  system elapsed  Method
+##   24.71    0.15   25.42  read.csv (first time)
+##   17.85    0.07   17.98  read.csv (second time)
+##   10.20    0.03   10.32  Optimized read.table
+##    3.12    0.01    3.22  fread
+##   12.49    0.09   12.69  sqldf
+##   10.21    0.47   10.73  sqldf on SO
+##   10.85    0.10   10.99  ffdf
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/resolving-a-git-conflict-with-binary-files/" class="u-url">Resolving a Git conflict with binary files</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -214,40 +384,6 @@ asked.</p>
 resource like <code>R.color.blue</code>, you need to load the color int first:</p>
 <div class="code"><pre class="code literal-block">ContextCompat.getColor(context, R.color.blue);
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/unsigned-int-vs-size-t/" class="u-url">unsigned int vs. size_t</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/unsigned-int-vs-size-t/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T04:16:49+08:00" itemprop="datePublished" title="2023-02-18 04:16">2023-02-18 04:16</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I notice that modern C and C++ code seems to use <code>size_t</code> instead of
-<code>int</code>/<code>unsigned int</code> pretty much everywhere - from parameters for C string
-functions to the STL. I am curious as to the reason for this and the benefits
-it brings.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The <code>size_t</code> type is the unsigned integer type that is the result of the
-<code>sizeof</code> operator (and the <code>offsetof</code> operator), so it is guaranteed to be big
-enough to contain the size of the biggest object your system can handle (e.g.,
-a static array of 8Gb).</p>
-<p>The <code>size_t</code> type may be bigger than, equal to, or smaller than an <code>unsigned
-int</code>, and your compiler might make assumptions about it for optimization.</p>
-<p>You may find more precise information in the C99 standard, section 7.17, a
-draft of which is available on the Internet in pdf format, or in the C11
-standard, section 7.19, also available as a pdf draft.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Classic C (the early dialect of C described by Brian Kernighan and Dennis
-Ritchie in The C Programming Language, Prentice-Hall, 1978) didn't provide
-<code>size_t</code>. The C standards committee introduced <code>size_t</code> to eliminate a
-portability problem</p>
-<p>Explained in detail at embedded.com (with a very good example)</p>
     </div>
     </article>
 </div>

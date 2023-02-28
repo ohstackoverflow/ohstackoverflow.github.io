@@ -108,7 +108,179 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/require-no-such-file-to-load-mkmf-loaderror/" class="u-url">`require': no such file to load -- mkmf (LoadError)</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-merge-squash-and-rebase/" class="u-url">What is the difference between merge --squash and rebase?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-is-the-difference-between-merge-squash-and-rebase/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T03:30:29+08:00" itemprop="datePublished" title="2023-02-18 03:30">2023-02-18 03:30</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm trying to understand the difference between a squash and a rebase. As I
+understand it, one performs a squash when doing a rebase.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Both <code>git merge --squash</code> and <code>git rebase --interactive</code> can produce a
+"squashed" commit. But they serve different purposes.</p>
+<ul>
+<li><code>git merge --squash abranch</code></li>
+</ul>
+<p>will produce a squashed commit on the destination branch, without marking any
+merge relationship. (Note: it does not produce a commit right away: you need
+an additional <code>git commit -m "squash branch"</code>)</p>
+<p>This is useful if you want to throw away the source branch completely, going
+from (schema taken from SO question):</p>
+<div class="code"><pre class="code literal-block">git checkout stable
+
+          X               stable
+         /
+a---b---c---d---e---f---g tmp
+</pre></div>
+
+<p>to:</p>
+<div class="code"><pre class="code literal-block">git merge --squash tmp
+git commit -m "squash tmp"
+
+
+# In the following graph, G is c--d--e--f--g squashed together
+
+          X-------------G stable
+         /
+a---b---c---d---e---f---g tmp
+</pre></div>
+
+<p>and then deleting <code>tmp</code> branch.</p>
+<hr>
+<p>Note: <code>git merge</code> has a <code>--commit</code> option, but it cannot be used with
+<code>--squash</code>. It was <em>never</em> possible to use <code>--commit</code> and <code>--squash</code> together.
+Since Git 2.22.1 (Q3 2019), this incompatibility is made explicit:</p>
+<p>See commit 1d14d0c (24 May 2019) by Vishal Verma (<code>reloadbrain</code>). (Merged by
+Junio C Hamano -- <code>gitster</code> -- in commit 33f2790, 25 Jul 2019)</p>
+<blockquote>
+<h3>
+<code>merge</code>: refuse <code>--commit</code> with <code>--squash</code>
+</h3>
+<p>Previously, when <code>--squash</code> was supplied, '<code>option_commit</code>' was silently
+dropped. This could have been surprising to a user who tried to override the
+no-commit behavior of squash using <code>--commit</code> explicitly.</p>
+</blockquote>
+<p><code>git/git</code> <code>builtin/merge..net-c#cmd_merge()</code> now includes:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">option_commit</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="ss">)</span>
+<span class="w">    </span><span class="nv">die</span><span class="ss">(</span><span class="nv">_</span><span class="ss">(</span><span class="s2">"You cannot combine --squash with --commit."</span><span class="ss">))</span><span class="c1">;</span>
+</pre></div>
+
+<hr>
+<ul>
+<li><code>git rebase --interactive</code></li>
+</ul>
+<p>replays some or all of your commits on a new base, allowing you to squash (or
+more recently "fix up", see this SO question), going directly to:</p>
+<div class="code"><pre class="code literal-block">git checkout tmp
+git rebase -i stable
+
+   stable
+      X----------------G tmp
+     /
+a---b
+</pre></div>
+
+<p>If you choose to squash all commits of <code>tmp</code> (but, contrary to <code>merge
+--squash</code>, you can choose to replay some, and squashing others).</p>
+<p>So the differences are:</p>
+<ul>
+<li>
+<code>squash</code> does not touch your source branch (<code>tmp</code> here) and creates a single commit where you want.</li>
+<li>
+<code>rebase</code> allows you to <strong>go on on the same source branch</strong> (still <code>tmp</code>) with: <ul>
+<li>a new base</li>
+<li>a cleaner history</li>
+</ul>
+</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Both <code>git merge --squash</code> and <code>git rebase --interactive</code> can produce a
+"squashed" commit. But they serve different purposes.</p>
+<ul>
+<li><code>git merge --squash abranch</code></li>
+</ul>
+<p>will produce a squashed commit on the destination branch, without marking any
+merge relationship. (Note: it does not produce a commit right away: you need
+an additional <code>git commit -m "squash branch"</code>)</p>
+<p>This is useful if you want to throw away the source branch completely, going
+from (schema taken from SO question):</p>
+<div class="code"><pre class="code literal-block">git checkout stable
+
+          X               stable
+         /
+a---b---c---d---e---f---g tmp
+</pre></div>
+
+<p>to:</p>
+<div class="code"><pre class="code literal-block">git merge --squash tmp
+git commit -m "squash tmp"
+
+
+# In the following graph, G is c--d--e--f--g squashed together
+
+          X-------------G stable
+         /
+a---b---c---d---e---f---g tmp
+</pre></div>
+
+<p>and then deleting <code>tmp</code> branch.</p>
+<hr>
+<p>Note: <code>git merge</code> has a <code>--commit</code> option, but it cannot be used with
+<code>--squash</code>. It was <em>never</em> possible to use <code>--commit</code> and <code>--squash</code> together.
+Since Git 2.22.1 (Q3 2019), this incompatibility is made explicit:</p>
+<p>See commit 1d14d0c (24 May 2019) by Vishal Verma (<code>reloadbrain</code>). (Merged by
+Junio C Hamano -- <code>gitster</code> -- in commit 33f2790, 25 Jul 2019)</p>
+<blockquote>
+<h3>
+<code>merge</code>: refuse <code>--commit</code> with <code>--squash</code>
+</h3>
+<p>Previously, when <code>--squash</code> was supplied, '<code>option_commit</code>' was silently
+dropped. This could have been surprising to a user who tried to override the
+no-commit behavior of squash using <code>--commit</code> explicitly.</p>
+</blockquote>
+<p><code>git/git</code> <code>builtin/merge..net-c#cmd_merge()</code> now includes:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">option_commit</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="ss">)</span>
+<span class="w">    </span><span class="nv">die</span><span class="ss">(</span><span class="nv">_</span><span class="ss">(</span><span class="s2">"You cannot combine --squash with --commit."</span><span class="ss">))</span><span class="c1">;</span>
+</pre></div>
+
+<hr>
+<ul>
+<li><code>git rebase --interactive</code></li>
+</ul>
+<p>replays some or all of your commits on a new base, allowing you to squash (or
+more recently "fix up", see this SO question), going directly to:</p>
+<div class="code"><pre class="code literal-block">git checkout tmp
+git rebase -i stable
+
+   stable
+      X----------------G tmp
+     /
+a---b
+</pre></div>
+
+<p>If you choose to squash all commits of <code>tmp</code> (but, contrary to <code>merge
+--squash</code>, you can choose to replay some, and squashing others).</p>
+<p>So the differences are:</p>
+<ul>
+<li>
+<code>squash</code> does not touch your source branch (<code>tmp</code> here) and creates a single commit where you want.</li>
+<li>
+<code>rebase</code> allows you to <strong>go on on the same source branch</strong> (still <code>tmp</code>) with: <ul>
+<li>a new base</li>
+<li>a cleaner history</li>
+</ul>
+</li>
+</ul>
+</div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/require-no-such-file-to-load-mkmf-loaderror/" class="u-url">`require': no such file to load -- mkmf (LoadError)</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -190,54 +362,6 @@ status</code> inside a terminal, I get the following error:</p>
 <p>If you have issues with the <code>xcode-select --install</code> command; e.g. I kept
 getting a network problem timeout, then try downloading the dmg at
 developer.apple.com/downloads (Command line tools OS X 10.11) for Xcode 7.1</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-are-file-descriptors-explained-in-simple-terms/" class="u-url">What are file descriptors, explained in simple terms?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-are-file-descriptors-explained-in-simple-terms/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T03:29:10+08:00" itemprop="datePublished" title="2023-02-18 03:29">2023-02-18 03:29</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <ol>
-<li>
-<p>What would be a more simplified description of file descriptors compared to Wikipedia's? Why are they required? Say, take shell processes as an example and how does it apply for it?</p>
-</li>
-<li>
-<p>Does a process table contain more than one file descriptor. If yes, why?</p>
-</li>
-</ol>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>In simple words, when you open a file, the operating system creates an entry
-to represent that file and store the information about that opened file. So if
-there are 100 files opened in your OS then there will be 100 entries in OS
-(somewhere in kernel). These entries are represented by integers like (...100,
-101, 102....). This entry number is the file descriptor. So it is just an
-integer number that uniquely represents an opened file for the process. If
-your process opens 10 files then your Process table will have 10 entries for
-file descriptors.</p>
-<p>Similarly, when you open a network socket, it is also represented by an
-integer and it is called Socket Descriptor. I hope you understand.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>A file descriptor is an opaque handle that is used in the interface between
-user and kernel space to identify file/socket resources. Therefore, when you
-use <code>open()</code> or <code>socket()</code> (system calls to interface to the kernel), you are
-given a file descriptor, which is an integer (it is actually an index into the
-processes u structure - but that is not important). Therefore, if you want to
-interface directly with the kernel, using system calls to <code>read()</code>, <code>write()</code>,
-<code>close()</code> etc. the handle you use is a file descriptor.</p>
-<p>There is a layer of abstraction overlaid on the system calls, which is the
-<code>stdio</code> interface. This provides more functionality/features than the basic
-system calls do. For this interface, the opaque handle you get is a <code>FILE*</code>,
-which is returned by the <code>fopen()</code> call. There are many many functions that
-use the <code>stdio</code> interface <code>fprintf()</code>, <code>fscanf()</code>, <code>fclose()</code>, which are there
-to make your life easier. In C, <code>stdin</code>, <code>stdout</code>, and <code>stderr</code> are <code>FILE*</code>,
-which in UNIX respectively map to file descriptors <code>0</code>, <code>1</code> and <code>2</code>.</p>
     </div>
     </article>
 </div>

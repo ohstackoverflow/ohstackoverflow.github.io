@@ -108,7 +108,86 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-s-a-quick-way-to-comment-uncomment-lines-in-vim/" class="u-url">What's a quick way to comment/uncomment lines in Vim?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/unicodeencodeerror-ascii-codec-can-t-encode-character-u-xa0-in-position-20-ordinal-not-in-range-128/" class="u-url">UnicodeEncodeError: 'ascii' codec can't encode character u'\xa0' in position 20: ordinal not in range(128)</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/unicodeencodeerror-ascii-codec-can-t-encode-character-u-xa0-in-position-20-ordinal-not-in-range-128/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T02:01:24+08:00" itemprop="datePublished" title="2023-02-17 02:01">2023-02-17 02:01</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm having problems dealing with unicode characters from text fetched from
+different web pages (on different sites). I am using BeautifulSoup.</p>
+<p>The problem is that the error is not always reproducible; it sometimes works
+with some pages, and sometimes, it barfs by throwing a <code>UnicodeEncodeError</code>. I
+have tried just about everything I can think of, and yet I have not found
+anything that works consistently without throwing some kind of Unicode-related
+error.</p>
+<p>One of the sections of code that is causing problems is shown below:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">agent_telno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">agent</span>.<span class="nv">find</span><span class="ss">(</span><span class="s1">'div'</span>,<span class="w"> </span><span class="s1">'agent_contact_number'</span><span class="ss">)</span>
+<span class="nv">agent_telno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">''</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">agent_telno</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">None</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="nv">agent_telno</span>.<span class="nv">contents</span>[<span class="mi">0</span>]
+<span class="nv">p</span>.<span class="nv">agent_info</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">str</span><span class="ss">(</span><span class="nv">agent_contact</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s1">' '</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">agent_telno</span><span class="ss">)</span>.<span class="nv">strip</span><span class="ss">()</span>
+</pre></div>
+
+<p>Here is a stack trace produced on SOME strings when the snippet above is run:</p>
+<div class="code"><pre class="code literal-block">Traceback (most recent call last):
+  File "foobar.py", line 792, in &lt;module&gt;
+    p.agent_info = str(agent_contact + ' ' + agent_telno).strip()
+UnicodeEncodeError: 'ascii' codec can't encode character u'\xa0' in position 20: ordinal not in range(128)
+</pre></div>
+
+<p>I suspect that this is because some pages (or more specifically, pages from
+some of the sites) may be encoded, whilst others may be unencoded. All the
+sites are based in the UK and provide data meant for UK consumption - so there
+are no issues relating to internalization or dealing with text written in
+anything other than English.</p>
+<p>Does anyone have any ideas as to how to solve this so that I can CONSISTENTLY
+fix this problem?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Read the Python Unicode HOWTO. This error is the very first example.</p>
+<p>Do not use <code>str()</code> to convert from unicode to encoded text / bytes.</p>
+<p>Instead, use <code>.encode()</code> to encode the string:</p>
+<div class="code"><pre class="code literal-block">p.agent_info = u' '.join((agent_contact, agent_telno)).encode('utf-8').strip()
+</pre></div>
+
+<p>or work entirely in unicode.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>This is a classic python unicode pain point! Consider the following:</p>
+<div class="code"><pre class="code literal-block">a = u'bats\u00E0'
+print a
+ =&gt; batsà
+</pre></div>
+
+<p>All good so far, but if we call str(a), let's see what happens:</p>
+<div class="code"><pre class="code literal-block">str(a)
+Traceback (most recent call last):
+  File "&lt;stdin&gt;", line 1, in &lt;module&gt;
+UnicodeEncodeError: 'ascii' codec can't encode character u'\xe0' in position 4: ordinal not in range(128)
+</pre></div>
+
+<p>Oh dip, that's not gonna do anyone any good! To fix the error, encode the
+bytes explicitly with .encode and tell python what codec to use:</p>
+<div class="code"><pre class="code literal-block">a.encode('utf-8')
+ =&gt; 'bats\xc3\xa0'
+print a.encode('utf-8')
+ =&gt; batsà
+</pre></div>
+
+<p>Voil\u00E0!</p>
+<p>The issue is that when you call str(), python uses the default character
+encoding to try and encode the bytes you gave it, which in your case are
+sometimes representations of unicode characters. To fix the problem, you have
+to tell python how to deal with the string you give it by using
+.encode('whatever_unicode'). Most of the time, you should be fine using utf-8.</p>
+<p>For an excellent exposition on this topic, see Ned Batchelder's PyCon talk
+here: http://nedbatchelder.com/text/unipain.html</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-s-a-quick-way-to-comment-uncomment-lines-in-vim/" class="u-url">What's a quick way to comment/uncomment lines in Vim?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -237,50 +316,6 @@ footer<span class="w"> </span>{
 <span class="o">//</span><span class="w"> </span><span class="n">write</span><span class="w"> </span><span class="n">output</span><span class="w"> </span><span class="n">MM</span><span class="o">/</span><span class="n">dd</span><span class="o">/</span><span class="n">yyyy</span>
 <span class="n">document</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">month</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">"/"</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">day</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">"/"</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">year</span><span class="p">)</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-you-do-block-comments-in-yaml/" class="u-url">How do you do block comments in YAML?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-you-do-block-comments-in-yaml/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T01:59:24+08:00" itemprop="datePublished" title="2023-02-17 01:59">2023-02-17 01:59</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p><strong>This question's answers are a community effort</strong>. Edit existing answers to
-improve this post. It is not currently accepting new answers or interactions.</p>
-<p>How do I comment a block of lines in YAML?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>YAML supports inline comments, but does not support block comments.</p>
-<p>From Wikipedia:</p>
-<blockquote>
-<p>Comments begin with the number sign ( <code>#</code> ), can start anywhere on a line,
-and continue until the end of the line</p>
-</blockquote>
-<p>A comparison with JSON, also from Wikipedia:</p>
-<blockquote>
-<p>The syntax differences are subtle and seldom arise in practice: JSON allows
-extended charactersets like UTF-32, YAML requires a space after separators
-like comma, equals, and colon while JSON does not, and some non-standard
-implementations of JSON extend the grammar to include Javascript's <code>/* ...
-*/</code> comments. Handling such edge cases may require light pre-processing of
-the JSON before parsing as in-line YAML.</p>
-</blockquote>
-<div class="code"><pre class="code literal-block">#<span class="w"> </span><span class="k">If</span><span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="nv">want</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">write</span>
-#<span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">block</span><span class="o">-</span><span class="nv">commented</span><span class="w"> </span><span class="nv">Haiku</span>
-#<span class="w"> </span><span class="nv">you</span><span class="err">'ll need three pound signs</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>The specification only describes one way of marking comments:</p>
-<blockquote>
-<p>An explicit comment is marked by a “#” indicator.</p>
-</blockquote>
-<p>That's all. There aren't any block comments.</p>
     </div>
     </article>
 </div>

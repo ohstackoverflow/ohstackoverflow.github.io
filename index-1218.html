@@ -108,7 +108,151 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/debug-vs-release-in-cmake/" class="u-url">Debug vs Release in CMake</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-client-side-and-server-side-programming/" class="u-url">What is the difference between client-side and server-side programming?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-is-the-difference-between-client-side-and-server-side-programming/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T04:05:37+08:00" itemprop="datePublished" title="2023-02-18 04:05">2023-02-18 04:05</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have this code:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">type=</span><span class="s">"text/javascript"</span><span class="nt">&gt;</span>
+<span class="w">    </span>var<span class="w"> </span>foo<span class="w"> </span>=<span class="w"> </span>'bar';
+<span class="w">    </span><span class="cp">&lt;?php</span>
+        <span class="nb">file_put_contents</span><span class="p">(</span><span class="s1">'foo.txt'</span><span class="p">,</span> <span class="s1">' + foo + '</span><span class="p">);</span>
+    <span class="cp">?&gt;</span>
+
+<span class="w">    </span>var<span class="w"> </span>baz<span class="w"> </span>=<span class="w"> </span><span class="cp">&lt;?php</span> <span class="k">echo</span> <span class="mi">42</span><span class="p">;</span> <span class="cp">?&gt;</span>;
+<span class="w">    </span>alert(baz);
+<span class="nt">&lt;/script&gt;</span>
+</pre></div>
+
+<p>Why does this not write "bar" into my text file, but alerts "42"?</p>
+<hr>
+<p>NB: Earlier revisions of this question were explicitly about PHP on the server
+and JavaScript on the client. The essential nature of the problem and
+solutions is the same for <em>any</em> pair of languages when one is running on the
+client and the other on the server (even if they are the same language).
+Please take this in to account when you see answers talking about specific
+languages.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Your code is split into two entirely separate parts, the <em>server side</em> and the
+<em>client side</em>.</p>
+<div class="code"><pre class="code literal-block"><span class="w">                    </span><span class="o">|</span>
+<span class="w">               </span><span class="o">----------&gt;</span>
+<span class="w">              </span><span class="n">HTTP</span><span class="w"> </span><span class="n">request</span>
+<span class="w">                    </span><span class="o">|</span>
+<span class="o">+--------------+</span><span class="w">    </span><span class="o">|</span><span class="w">    </span><span class="o">+--------------+</span>
+<span class="o">|</span><span class="w">              </span><span class="o">|</span><span class="w">    </span><span class="o">|</span><span class="w">    </span><span class="o">|</span><span class="w">              </span><span class="o">|</span>
+<span class="o">|</span><span class="w">    </span><span class="n">browser</span><span class="w">   </span><span class="o">|</span><span class="w">    </span><span class="o">|</span><span class="w">    </span><span class="o">|</span><span class="w">  </span><span class="n">web</span><span class="w">  </span><span class="n">server</span><span class="w"> </span><span class="o">|</span>
+<span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="n">JavaScript</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w">    </span><span class="o">|</span><span class="w">    </span><span class="o">|</span><span class="w">  </span><span class="p">(</span><span class="n">PHP</span><span class="w"> </span><span class="n">etc</span><span class="p">.)</span><span class="w">  </span><span class="o">|</span>
+<span class="o">|</span><span class="w">              </span><span class="o">|</span><span class="w">    </span><span class="o">|</span><span class="w">    </span><span class="o">|</span><span class="w">              </span><span class="o">|</span>
+<span class="o">+--------------+</span><span class="w">    </span><span class="o">|</span><span class="w">    </span><span class="o">+--------------+</span>
+<span class="w">                    </span><span class="o">|</span>
+<span class="w">  </span><span class="n">client</span><span class="w"> </span><span class="n">side</span><span class="w">       </span><span class="o">|</span><span class="w">      </span><span class="n">server</span><span class="w"> </span><span class="n">side</span>
+<span class="w">                    </span><span class="o">|</span>
+<span class="w">               </span><span class="o">&lt;----------</span>
+<span class="w">          </span><span class="n">HTML</span><span class="p">,</span><span class="w"> </span><span class="n">CSS</span><span class="p">,</span><span class="w"> </span><span class="n">JavaScript</span>
+<span class="w">                    </span><span class="o">|</span>
+</pre></div>
+
+<p>The two sides communicate via HTTP requests and responses. PHP is executed on
+the server and outputs some HTML and maybe JavaScript code which is sent as
+response to the client where the HTML is interpreted and the JavaScript is
+executed. Once PHP has finished outputting the response, the script ends and
+nothing will happen on the server until a new HTTP request comes in.</p>
+<p>The example code executes like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">type=</span><span class="s">"text/javascript"</span><span class="nt">&gt;</span>
+<span class="w">    </span>var<span class="w"> </span>foo<span class="w"> </span>=<span class="w"> </span>'bar';
+<span class="w">    </span><span class="cp">&lt;?php</span>
+        <span class="nb">file_put_contents</span><span class="p">(</span><span class="s1">'foo.txt'</span><span class="p">,</span> <span class="s1">' + foo + '</span><span class="p">);</span>
+    <span class="cp">?&gt;</span>
+
+<span class="w">    </span>var<span class="w"> </span>baz<span class="w"> </span>=<span class="w"> </span><span class="cp">&lt;?php</span> <span class="k">echo</span> <span class="mi">42</span><span class="p">;</span> <span class="cp">?&gt;</span>;
+<span class="w">    </span>alert(baz);
+<span class="nt">&lt;/script&gt;</span>
+</pre></div>
+
+<p>Step 1, PHP executes all code between <code>&lt;?php ?&gt;</code> tags. The result is this:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;script</span><span class="w"> </span><span class="na">type=</span><span class="s">"text/javascript"</span><span class="nt">&gt;</span>
+<span class="w">    </span>var<span class="w"> </span>foo<span class="w"> </span>=<span class="w"> </span>'bar';
+
+<span class="w">    </span>var<span class="w"> </span>baz<span class="w"> </span>=<span class="w"> </span>42;
+<span class="w">    </span>alert(baz);
+<span class="nt">&lt;/script&gt;</span>
+</pre></div>
+
+<p>The <code>file_put_contents</code> call did not result in anything, it just wrote " + foo
++ " into a file. The <code>&lt;?php echo 42; ?&gt;</code> call resulted in the output "42",
+which is now in the spot where that code used to be.</p>
+<p>This resulting HTML/JavaScript code is now sent to the client, where it gets
+evaluated. The <code>alert</code> call works, while the <code>foo</code> variable is not used
+anywhere.</p>
+<p><strong>All PHP code is executed on the server before the client even starts
+executing any of the JavaScript. There's no PHP code left in the response that
+JavaScript could interact with.</strong></p>
+<p>To call some PHP code, the client will have to send a new HTTP request to the
+server. This can happen using one of three possible methods:</p>
+<ol>
+<li>A link, which causes the browser to load a new page.</li>
+<li>A form submission, which submits data to the server and loads a new page.</li>
+<li>An AJAX request, which is a Javascript technique to make a regular HTTP request to the server (like 1. and 2. will), but without leaving the current page.</li>
+</ol>
+<p>Here's a question outlining these method in greater detail</p>
+<p>You can also use JavaScript to make the browser open a new page using
+<code>window.location</code> or submit a form, emulating possibilities 1. and 2.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>To determine why <em>PHP</em> code doesn't work in <em>JavaScript</em> code we need to
+understand what <strong>client side</strong> and <strong>server side</strong> languages are, and how
+they work.</p>
+<p><em>Server-side languages (PHP etc.)</em> : They retrieve records from databases,
+maintain state over the stateless <em>HTTP</em> connection, and do a lot of things
+that require security. They reside on the server, these programs never have
+their source code exposed to the user.</p>
+<blockquote>
+<p><img alt="Image from
+wikipedia_http://en.wikipedia.org/wiki/File:Scheme_dynamic_page_en.svg" src="images/KoYhX.png">
+image attr</p>
+</blockquote>
+<p>So you can easily see that server side languages handle HTTP requests and
+process them, and, as @deceze said, <em>PHP is executed on the server and outputs
+some HTML, and maybe JavaScript code, which is sent as a response to the
+client, where the HTML is interpreted and JavaScript is executed.</em></p>
+<p>On the other hand, <em>Client Side Languages (like JavaScript)</em> reside in browser
+and run in the browser. <em>Client-side scripting</em> generally refers to the class
+of computer programs on the web that are executed client-side, by the user's
+web browser, instead of <em>server-side</em>.</p>
+<p>JavaScript is visible to the user and can be easily modified, so for security
+stuff we must not rely on JavaScript.</p>
+<p>So when you make a <em>HTTP</em> request on server, the server first reads the PHP
+file carefully to see if there are any tasks that need to be executed, and
+sends a response to the client side. Again, as @deceze said, <em>Once PHP has
+finished outputting the response, the script ends and nothing will happen on
+the server until a new <em>HTTP</em> request comes in.</em></p>
+<blockquote>
+<p><img alt="Graphical representation" src="images/Ax87s.png"></p>
+<p>Image source</p>
+</blockquote>
+<p>So now what can I do if I need to call PHP? It depends how you need to do it:
+either by reloading the page or by using an AJAX call.</p>
+<ol>
+<li>You can do so by reloading the page and sending a <em>HTTP</em> request </li>
+<li>You can make an AJAX call with JavaScript - this does not require reloading page </li>
+</ol>
+<p><strong>Good Read:</strong></p>
+<ol>
+<li>Wikipedia : Server-side scripting</li>
+<li>Wikipedia : Client-side scripting</li>
+<li>Madara Uchiha : Difference between client side and server side programming</li>
+</ol>
+</div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/debug-vs-release-in-cmake/" class="u-url">Debug vs Release in CMake</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -294,57 +438,6 @@ validation worked fine.</p>
 &lt;input type="radio" name="user-radio" id="" value="Admin" /&gt;
 
 &lt;input type="radio" name="user-radio" id="" value="Guest" /&gt;
-</pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-update-upgrade-a-package-using-pip/" class="u-url">How to update/upgrade a package using pip?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-update-upgrade-a-package-using-pip/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T04:04:20+08:00" itemprop="datePublished" title="2023-02-18 04:04">2023-02-18 04:04</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What is the way to update a package using pip? those do not work:</p>
-<div class="code"><pre class="code literal-block">pip update
-pip upgrade
-</pre></div>
-
-<p>I know this is a simple question but it is needed as it is not so easy to find
-(pip documentation doesn't pop up and other questions from stack overflow are
-relevant but are not exactly about that)</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The way is</p>
-<div class="code"><pre class="code literal-block">pip install &lt;package_name&gt; --upgrade
-</pre></div>
-
-<p>or in short</p>
-<div class="code"><pre class="code literal-block">pip install &lt;package_name&gt; -U
-</pre></div>
-
-<p>Using <code>sudo</code> will ask to enter your root password to confirm the action, but
-although common, is considered unsafe.</p>
-<p>If you do not have a root password (if you are not the admin) you should
-probably work with virtualenv.</p>
-<p>You can also use the user flag to install it on this user only.</p>
-<div class="code"><pre class="code literal-block">pip install &lt;package_name&gt; --upgrade --user
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>For a non-specific package and a more general solution, you can check out pip-
-review. A tool that checks what packages could/should be updated.</p>
-<p>To install:</p>
-<div class="code"><pre class="code literal-block">$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>pip-review
-</pre></div>
-
-<p>Then run:</p>
-<div class="code"><pre class="code literal-block"><span class="err">$</span><span class="w"> </span><span class="n">pip</span><span class="o">-</span><span class="n">review</span><span class="w"> </span><span class="o">--</span><span class="n">interactive</span>
-<span class="n">requests</span><span class="o">==</span><span class="mf">0.14.0</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">available</span><span class="w"> </span><span class="p">(</span><span class="n">you</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="mf">0.13.2</span><span class="p">)</span>
-<span class="n">Upgrade</span><span class="w"> </span><span class="n">now</span><span class="vm">?</span><span class="w"> </span><span class="o">[</span><span class="n">Y</span><span class="o">]</span><span class="n">es</span><span class="p">,</span><span class="w"> </span><span class="o">[</span><span class="n">N</span><span class="o">]</span><span class="n">o</span><span class="p">,</span><span class="w"> </span><span class="o">[</span><span class="n">A</span><span class="o">]</span><span class="n">ll</span><span class="p">,</span><span class="w"> </span><span class="o">[</span><span class="n">Q</span><span class="o">]</span><span class="n">uit</span><span class="w"> </span><span class="n">y</span>
 </pre></div>
     </div>
     </article>

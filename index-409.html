@@ -108,7 +108,120 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/inner-join-on-vs-where-clause/" class="u-url">INNER JOIN ON vs WHERE clause</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/update-git-submodule-to-latest-commit-on-origin/" class="u-url">Update Git submodule to latest commit on origin</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/update-git-submodule-to-latest-commit-on-origin/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T06:07:12+08:00" itemprop="datePublished" title="2023-02-17 06:07">2023-02-17 06:07</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a project with a Git submodule. It is from an ssh://... URL, and is on
+commit A. Commit B has been pushed to that URL, and I want the submodule to
+retrieve the commit, and change to it.</p>
+<p>Now, my understanding is that <code>git submodule update</code> should do this, but it
+doesn't. It doesn't do anything (no output, success exit code). Here's an
+example:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>mkdir<span class="w"> </span>foo
+$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>foo
+$<span class="w"> </span>git<span class="w"> </span>init<span class="w"> </span>.
+Initialized<span class="w"> </span>empty<span class="w"> </span>Git<span class="w"> </span>repository<span class="w"> </span><span class="k">in</span><span class="w"> </span>/.../foo/.git/
+$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>add<span class="w"> </span>ssh://user@host/git/mod<span class="w"> </span>mod
+Cloning<span class="w"> </span>into<span class="w"> </span>mod...
+user@host<span class="s1">'s password: hunter2</span>
+<span class="s1">remote: Counting objects: 131, done.</span>
+<span class="s1">remote: Compressing objects: 100% (115/115), done.</span>
+<span class="s1">remote: Total 131 (delta 54), reused 0 (delta 0)</span>
+<span class="s1">Receiving objects: 100% (131/131), 16.16 KiB, done.</span>
+<span class="s1">Resolving deltas: 100% (54/54), done.</span>
+<span class="s1">$ git commit -m "Hello world."</span>
+<span class="s1">[master (root-commit) 565b235] Hello world.</span>
+<span class="s1"> 2 files changed, 4 insertions(+), 0 deletions(-)</span>
+<span class="s1"> create mode 100644 .gitmodules</span>
+<span class="s1"> create mode 160000 mod</span>
+<span class="s1"># At this point, ssh://user@host/git/mod changes; submodule needs to change too.</span>
+<span class="s1">$ git submodule init</span>
+<span class="s1">Submodule '</span>mod<span class="s1">' (ssh://user@host/git/mod) registered for path '</span>mod<span class="s1">'</span>
+<span class="s1">$ git submodule update</span>
+<span class="s1">$ git submodule sync</span>
+<span class="s1">Synchronizing submodule url for '</span>mod<span class="err">'</span>
+$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update
+$<span class="w"> </span>man<span class="w"> </span>git-submodule<span class="w"> </span>
+$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--rebase
+$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update
+$<span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="nv">$?</span>
+<span class="m">0</span>
+$<span class="w"> </span>git<span class="w"> </span>status
+<span class="c1"># On branch master</span>
+nothing<span class="w"> </span>to<span class="w"> </span>commit<span class="w"> </span><span class="o">(</span>working<span class="w"> </span>directory<span class="w"> </span>clean<span class="o">)</span>
+$<span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>mod
+$<span class="w"> </span>...
+</pre></div>
+
+<p>I've also tried <code>git fetch mod</code>, which appears to do a fetch (but can't
+possibly, because it's not prompting for a password!), but <code>git log</code> and <code>git
+show</code> deny the existence of new commits. Thus far I've just been <code>rm</code>-ing the
+module and re-adding it, but this is both wrong in principle and tedious in
+practice.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The <code>git submodule update</code> command actually tells Git that you want your
+submodules to each check out the commit already specified in the index of the
+superproject. If you want to <em>update</em> your submodules to the latest commit
+available from their remote, you will need to do this directly in the
+submodules.</p>
+<p>So in summary:</p>
+<div class="code"><pre class="code literal-block"># Get the submodule initially
+git submodule add ssh://bla submodule_dir
+git submodule init
+
+# Time passes, submodule upstream is updated
+# and you now want to update
+
+# Change to the submodule directory
+cd submodule_dir
+
+# Checkout desired branch
+git checkout master
+
+# Update
+git pull
+
+# Get back to your project root
+cd ..
+
+# Now the submodules are in the state you want, so
+git commit -am "Pulled down update to submodule_dir"
+</pre></div>
+
+<p>Or, if you're a busy person:</p>
+<div class="code"><pre class="code literal-block">git submodule foreach git pull origin master
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Git 1.8.2 features a new option, <code>--remote</code>, that will enable exactly this
+behavior. Running</p>
+<div class="code"><pre class="code literal-block">git submodule update --remote --merge
+</pre></div>
+
+<p>will fetch the latest changes from upstream in each submodule, merge them in,
+and check out the latest revision of the submodule. As the documentation puts
+it:</p>
+<blockquote>
+<h4>--remote</h4>
+<p>This option is only valid for the update command. Instead of using the
+superproject’s recorded SHA-1 to update the submodule, use the status of the
+submodule’s remote-tracking branch.</p>
+</blockquote>
+<p>This is equivalent to running <code>git pull &lt;remote&gt; &lt;default_branch&gt;</code> (usually
+<code>git pull origin master</code> or <code>git pull origin main</code>) in each submodule, which
+is generally exactly what you want.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/inner-join-on-vs-where-clause/" class="u-url">INNER JOIN ON vs WHERE clause</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -253,75 +366,6 @@ here" src="images/qRAte.jpg"></p>
 <strong><code>--hard</code></strong> : <strong>uncommit + unstage + delete</strong> changes, nothing left.</li>
 </ul>
 </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jquery-s-jquery-1-10-2-min-map-is-triggering-a-404-not-found/" class="u-url">jQuery's jquery-1.10.2.min.map is triggering a 404 (Not Found)</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/jquery-s-jquery-1-10-2-min-map-is-triggering-a-404-not-found/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T06:05:52+08:00" itemprop="datePublished" title="2023-02-17 06:05">2023-02-17 06:05</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm seeing error messages about a file, <code>min.map</code>, being not found:</p>
-<blockquote>
-<p>GET jQuery's jquery-1.10.2.min.map is triggering a 404 (Not Found)</p>
-</blockquote>
-<hr>
-<h4>Screenshot</h4>
-<p><img alt="enter image description here" src="images/M6CMw.png"></p>
-<p>Where is this coming from?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>If Chrome DevTools is reporting a 404 for a .map file (maybe
-<code>jquery-1.10.2.min.map</code>, <code>jquery.min.map</code> or <code>jquery-2.0.3.min.map</code>, but can
-happen with anything) first thing to know is this is only requested when using
-the DevTools. <strong>Your users will not be hitting this 404.</strong></p>
-<p>Now you can fix this or disable the sourcemap functionality.</p>
-<h3>Fix: get the files</h3>
-<p>Next, it's an easy fix. Head to http://jquery.com/download/ and click the
-<strong>Download the map file</strong> link for your version, and you'll want the
-uncompressed file downloaded as well.</p>
-<p><img alt="enter image description here" src="images/lfwrB.png"></p>
-<p>Having the map file in place allows you do debug your minified jQuery via the
-original sources, which will save a lot of time and frustration if you don't
-like dealing with variable names like <code>a</code> and <code>c</code>.</p>
-<p>More about sourcemaps here: An Introduction to JavaScript Source Maps</p>
-<h3>Dodge: disable sourcemaps</h3>
-<p>Instead of getting the files, you can alternatively disable JavaScript source
-maps completely for now, in your settings. This is a fine choice if you never
-plan on debugging JavaScript on this page. Use the cog icon in the bottom
-right of the DevTools, to open settings, then: <img alt="enter image description
-here" src="images/Ezwue.png"></p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You can remove the 404 by removing the line</p>
-<div class="code"><pre class="code literal-block"><span class="c1">//@ sourceMappingURL=jquery-1.10.2.min.map</span>
-</pre></div>
-
-<p>from the top part of your jQuery file.</p>
-<p>The top part of the jQuery file will look like this.</p>
-<div class="code"><pre class="code literal-block"><span class="o">/*</span>!<span class="w"> </span><span class="n">jQuery</span><span class="w"> </span><span class="n">v1</span><span class="p">.</span><span class="mf">10.2</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="mi">2005</span><span class="p">,</span><span class="w"> </span><span class="mi">2013</span><span class="w"> </span><span class="n">jQuery</span><span class="w"> </span><span class="n">Foundation</span><span class="p">,</span><span class="w"> </span><span class="n">Inc</span><span class="p">.</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">jquery</span><span class="p">.</span><span class="n">org</span><span class="o">/</span><span class="n">license</span>
-<span class="c1">//@ sourceMappingURL=jquery-1.10.2.min.map</span>
-<span class="o">*/</span>
-</pre></div>
-
-<p>Just change that to</p>
-<div class="code"><pre class="code literal-block"><span class="o">/*</span>!<span class="w"> </span><span class="n">jQuery</span><span class="w"> </span><span class="n">v1</span><span class="p">.</span><span class="mf">10.2</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="mi">2005</span><span class="p">,</span><span class="w"> </span><span class="mi">2013</span><span class="w"> </span><span class="n">jQuery</span><span class="w"> </span><span class="n">Foundation</span><span class="p">,</span><span class="w"> </span><span class="n">Inc</span><span class="p">.</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">jquery</span><span class="p">.</span><span class="n">org</span><span class="o">/</span><span class="n">license</span><span class="w"> </span><span class="o">*/</span>
-</pre></div>
-
-<h3>Purpose of a source map</h3>
-<p>Basically it's a way to map a combined/minified file back to an unbuilt state.
-When you build for production, along with minifying and combining your
-JavaScript files, you generate a source map which holds information about your
-original files. When you query a certain line and column number in your
-generated JavaScript you can do a lookup in the source map which returns the
-original location. Developer tools (currently WebKit nightly builds, Google
-Chrome, or Firefox 23+) can parse the source map automatically and make it
-appear as though you're running unminified and uncombined files. (Read more on
-this here)</p>
-    </div>
     </article>
 </div>
 

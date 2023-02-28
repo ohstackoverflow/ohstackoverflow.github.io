@@ -108,7 +108,118 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-find-all-occurrences-of-a-substring/" class="u-url">How to find all occurrences of a substring?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/communication-between-multiple-docker-compose-projects/" class="u-url">Communication between multiple docker-compose projects</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/communication-between-multiple-docker-compose-projects/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:09:12+08:00" itemprop="datePublished" title="2023-02-18 05:09">2023-02-18 05:09</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have two separate <code>docker-compose.yml</code> files in two different folders:</p>
+<ul>
+<li><code>~/front/docker-compose.yml</code></li>
+<li><code>~/api/docker-compose.yml</code></li>
+</ul>
+<p>How can I make sure that a container in <code>front</code> can send requests to a
+container in <code>api</code>?</p>
+<p>I know that <code>--default-gateway</code> option can be set using <code>docker run</code> for an
+individual container, so that a specific IP address can be assigned to this
+container, but it seems that this option is not available when using <code>docker-
+compose</code>.</p>
+<p>Currently I end up doing a <code>docker inspect my_api_container_id</code> and look at
+the gateway in the output. It works but the problem is that this IP is
+randomly attributed, so I can't rely on it.</p>
+<p>Another form of this question might thus be:</p>
+<ul>
+<li>Can I attribute a fixed IP address to a particular container using docker-compose?</li>
+</ul>
+<p>But in the end what I'm looking after is:</p>
+<ul>
+<li>How can two different docker-compose projects communicate with each other?</li>
+</ul>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You just need to make sure that the containers you want to talk to each other
+are on the same network. Networks are a first-class docker construct, and not
+specific to compose.</p>
+<div class="code"><pre class="code literal-block"># front/docker-compose.yml
+version: '2'
+services:
+  front:
+    ...
+    networks:
+      - some-net
+networks:
+  some-net:
+    driver: bridge
+</pre></div>
+
+<p>...</p>
+<div class="code"><pre class="code literal-block"># api/docker-compose.yml
+version: '2'
+services:
+  api:
+    ...
+    networks:
+      - front_some-net
+networks:
+  front_some-net:
+    external: true
+</pre></div>
+
+<blockquote>
+<p>Note: Your app’s network is given a name based on the “project name”, which
+is based on the name of the directory it lives in, in this case a prefix
+<code>front_</code> was added</p>
+</blockquote>
+<p>They can then talk to each other using the service name. From <code>front</code> you can
+do <code>ping api</code> and vice versa.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>UPDATE: As of compose file version 3.5:</p>
+<p>This now works:</p>
+<div class="code"><pre class="code literal-block">version: "3.5"
+services:
+  proxy:
+    image: hello-world
+    ports:
+      - "80:80"
+    networks:
+      - proxynet
+
+networks:
+  proxynet:
+    name: custom_network
+</pre></div>
+
+<p><code>docker-compose up -d</code> will join a network called 'custom_network'. If it
+doesn't exist, it will be created!</p>
+<div class="code"><pre class="code literal-block"><span class="n">root</span><span class="nv">@ubuntu</span><span class="o">-</span><span class="n">s</span><span class="o">-</span><span class="mi">1</span><span class="n">vcpu</span><span class="o">-</span><span class="mi">1</span><span class="n">gb</span><span class="o">-</span><span class="n">tor1</span><span class="o">-</span><span class="mi">01</span><span class="err">:</span><span class="o">~</span><span class="err">#</span><span class="w"> </span><span class="n">docker</span><span class="o">-</span><span class="n">compose</span><span class="w"> </span><span class="n">up</span><span class="w"> </span><span class="o">-</span><span class="n">d</span>
+<span class="n">Creating</span><span class="w"> </span><span class="n">network</span><span class="w"> </span><span class="ss">"custom_network"</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="n">driver</span>
+<span class="n">Creating</span><span class="w"> </span><span class="n">root_proxy_1</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">done</span>
+</pre></div>
+
+<p>Now, you can do this:</p>
+<div class="code"><pre class="code literal-block">version: "2"
+services:
+  web:
+    image: hello-world
+    networks:
+      - my-proxy-net
+networks:
+  my-proxy-net:
+    external:
+      name: custom_network
+</pre></div>
+
+<p>This will create a container that will be on the external network.</p>
+<p>I can't find any reference in the docs yet but it works!</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-find-all-occurrences-of-a-substring/" class="u-url">How to find all occurrences of a substring?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -230,55 +341,6 @@ statement, so wrong case means your application won't get the permission.</p>
 </pre></div>
 
 <p>This issue may happen ie. on autocomplete in IDE</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-pad-a-value-with-leading-zeros/" class="u-url">How can I pad a value with leading zeros?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-can-i-pad-a-value-with-leading-zeros/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:07:48+08:00" itemprop="datePublished" title="2023-02-18 05:07">2023-02-18 05:07</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What is the recommended way to zerofill a value in JavaScript? I imagine I
-could build a custom function to pad zeros on to a typecasted value, but I'm
-wondering if there is a more direct way to do this?</p>
-<p><strong>Note:</strong> By "zerofilled" I mean it in the database sense of the word (where a
-6-digit zerofilled representation of the number 5 would be "000005").</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Since ECMAScript 2017 we have padStart:</p>
-<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">padStart</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="s2">"0"</span><span class="p">);</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="err">`</span><span class="o">-$</span><span class="p">{</span><span class="n">padded</span><span class="p">}</span><span class="err">`</span><span class="p">);</span>
-</pre></div>
-
-<h4>Before ECMAScript 2017</h4>
-<p>With toLocaleString:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">n</span><span class="o">=-</span><span class="mf">0.1</span><span class="p">;</span>
-<span class="k">var</span><span class="w"> </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="o">.</span><span class="n">toLocaleString</span><span class="p">(</span><span class="s1">'en'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">minimumIntegerDigits</span><span class="p">:</span><span class="mi">4</span><span class="p">,</span><span class="n">minimumFractionDigits</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span><span class="n">useGrouping</span><span class="p">:</span><span class="bp">false</span><span class="p">});</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">res</span><span class="p">);</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Simple way. You could add string multiplication for the pad and turn it into a
-function.</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">pad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"000000"</span><span class="p">;</span>
-<span class="k">var</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'5'</span><span class="p">;</span>
-<span class="k">var</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">pad</span><span class="o">+</span><span class="n">n</span><span class="p">)</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span><span class="o">-</span><span class="n">pad</span><span class="o">.</span><span class="n">length</span><span class="p">);</span>
-</pre></div>
-
-<p>As a function,</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">paddy</span><span class="p">(</span><span class="n">num</span><span class="p">,</span><span class="w"> </span><span class="n">padlen</span><span class="p">,</span><span class="w"> </span><span class="n">padchar</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">pad_char</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">typeof</span><span class="w"> </span><span class="n">padchar</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s1">'undefined'</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="n">padchar</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s1">'0'</span><span class="p">;</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">pad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="nb nb-Type">Array</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">padlen</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pad_char</span><span class="p">);</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">pad</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">num</span><span class="p">)</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span><span class="o">-</span><span class="n">pad</span><span class="o">.</span><span class="n">length</span><span class="p">);</span>
-<span class="p">}</span>
-<span class="k">var</span><span class="w"> </span><span class="n">fu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">paddy</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="mi">00014</span>
-<span class="k">var</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">paddy</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="s1">'#'</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="c1">###2</span>
-</pre></div>
     </div>
     </article>
 </div>

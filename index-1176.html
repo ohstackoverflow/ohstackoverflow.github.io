@@ -108,7 +108,71 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/reverse-a-string-in-java/" class="u-url">Reverse a string in Java</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/generating-a-uuid-in-postgres-for-insert-statement/" class="u-url">Generating a UUID in Postgres for Insert statement?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/generating-a-uuid-in-postgres-for-insert-statement/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T03:03:47+08:00" itemprop="datePublished" title="2023-02-18 03:03">2023-02-18 03:03</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>My question is rather simple. I'm aware of the concept of a UUID and I want to
+generate one to refer to each 'item' from a 'store' in my DB with. Seems
+reasonable right?</p>
+<p>The problem is the following line returns an error:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">honeydb</span><span class="o">=</span><span class="err">#</span><span class="w"> </span><span class="nt">insert</span><span class="w"> </span><span class="nt">into</span><span class="w"> </span><span class="nt">items</span><span class="w"> </span><span class="nt">values</span><span class="o">(</span>
+<span class="nt">uuid_generate_v4</span><span class="o">(),</span><span class="w"> </span><span class="nt">54</span><span class="p">.</span><span class="nc">321</span><span class="o">,</span><span class="w"> </span><span class="nt">31</span><span class="o">,</span><span class="w"> </span><span class="s1">'desc 1'</span><span class="o">,</span><span class="w"> </span><span class="nt">31</span><span class="p">.</span><span class="nc">94</span><span class="o">);</span>
+<span class="nt">ERROR</span><span class="o">:</span><span class="w">  </span><span class="nt">function</span><span class="w"> </span><span class="nt">uuid_generate_v4</span><span class="o">()</span><span class="w"> </span><span class="nt">does</span><span class="w"> </span><span class="nt">not</span><span class="w"> </span><span class="nt">exist</span>
+<span class="nt">LINE</span><span class="w"> </span><span class="nt">2</span><span class="o">:</span><span class="w"> </span><span class="nt">uuid_generate_v4</span><span class="o">(),</span><span class="w"> </span><span class="nt">54</span><span class="p">.</span><span class="nc">321</span><span class="o">,</span><span class="w"> </span><span class="nt">31</span><span class="o">,</span><span class="w"> </span><span class="s1">'desc 1'</span><span class="o">,</span><span class="w"> </span><span class="nt">31</span><span class="p">.</span><span class="nc">94</span><span class="o">);</span>
+<span class="w">        </span><span class="o">^</span>
+<span class="nt">HINT</span><span class="o">:</span><span class="w">  </span><span class="nt">No</span><span class="w"> </span><span class="nt">function</span><span class="w"> </span><span class="nt">matches</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">given</span><span class="w"> </span><span class="nt">name</span><span class="w"> </span><span class="nt">and</span><span class="w"> </span><span class="nt">argument</span><span class="w"> </span><span class="nt">types</span><span class="o">.</span><span class="w"> </span><span class="nt">You</span><span class="w"> </span><span class="nt">might</span><span class="w"> </span><span class="nt">need</span><span class="w"> </span><span class="nt">to</span><span class="w"> </span><span class="nt">add</span><span class="w"> </span><span class="nt">explicit</span><span class="w"> </span><span class="nt">type</span><span class="w"> </span><span class="nt">casts</span><span class="o">.</span>
+</pre></div>
+
+<p>I've read the page at: http://www.postgresql.org/docs/current/static/uuid-
+ossp.html</p>
+<p>I'm running Postgres 8.4 on Ubuntu 10.04 x64.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><code>uuid-ossp</code> is a contrib module, so it isn't loaded into the server by
+default. You must load it into your database to use it.</p>
+<p>For modern PostgreSQL versions (9.1 and newer) that's easy:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">CREATE</span><span class="w"> </span><span class="nv">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="nv">NOT</span><span class="w"> </span><span class="nv">EXISTS</span><span class="w"> </span><span class="s2">"uuid-ossp"</span><span class="c1">;</span>
+</pre></div>
+
+<p>but for 9.0 and below you must instead run the SQL script to load the
+extension. See the documentation for contrib modules in 8.4.</p>
+<p>For Pg 9.1 and newer instead read the current contrib docs and <code>CREATE
+EXTENSION</code>. These features do not exist in 9.0 or older versions, like your
+8.4.</p>
+<p>If you're using a packaged version of PostgreSQL you might need to install a
+separate package containing the contrib modules and extensions. Search your
+package manager database for 'postgres' and 'contrib'.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h2>Without extensions (cheat)</h2>
+<p><strong>If you need a valid v4 UUID</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="nv">uuid_in</span><span class="ss">(</span><span class="nv">overlay</span><span class="ss">(</span><span class="nv">overlay</span><span class="ss">(</span><span class="nv">md5</span><span class="ss">(</span><span class="k">random</span><span class="ss">()</span>::<span class="nv">text</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">':'</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="k">random</span><span class="ss">()</span>::<span class="nv">text</span><span class="ss">)</span><span class="w"> </span><span class="nv">placing</span><span class="w"> </span><span class="s1">'4'</span><span class="w"> </span><span class="nv">from</span><span class="w"> </span><span class="mi">13</span><span class="ss">)</span><span class="w"> </span><span class="nv">placing</span><span class="w"> </span><span class="nv">to_hex</span><span class="ss">(</span><span class="nv">floor</span><span class="ss">(</span><span class="k">random</span><span class="ss">()</span><span class="o">*</span><span class="ss">(</span><span class="mi">11</span><span class="o">-</span><span class="mi">8</span><span class="o">+</span><span class="mi">1</span><span class="ss">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="ss">)</span>::<span class="nv">int</span><span class="ss">)</span>::<span class="nv">text</span><span class="w"> </span><span class="nv">from</span><span class="w"> </span><span class="mi">17</span><span class="ss">)</span>::<span class="nv">cstring</span><span class="ss">)</span><span class="c1">;</span>
+</pre></div>
+
+<p><img alt="enter image description here" src="images/OA6Qk.png"></p>
+<ul>
+<li>Thanks to <strong>@Denis Stafichuk</strong> <strong>@Karsten</strong> and <strong>@autronix</strong>
+</li>
+</ul>
+<hr>
+<p>Or you can simply get UUID-like value by doing this (if you don't care about
+the validity):</p>
+<div class="code"><pre class="code literal-block"><span class="nv">SELECT</span><span class="w"> </span><span class="nv">uuid_in</span><span class="ss">(</span><span class="nv">md5</span><span class="ss">(</span><span class="k">random</span><span class="ss">()</span>::<span class="nv">text</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="k">random</span><span class="ss">()</span>::<span class="nv">text</span><span class="ss">)</span>::<span class="nv">cstring</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="nv">output</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="nv">c2d29867</span><span class="o">-</span><span class="mi">3</span><span class="nv">d0b</span><span class="o">-</span><span class="nv">d497</span><span class="o">-</span><span class="mi">9191</span><span class="o">-</span><span class="mi">18</span><span class="nv">a9d8ee7830</span>
+</pre></div>
+
+<p><em>(works at least in 8.4)</em></p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/reverse-a-string-in-java/" class="u-url">Reverse a string in Java</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -225,241 +289,6 @@ another partition on your computer). Now, browse your website from the IIS
 manager and it should work.</p>
 <p><strong>Thanks a lot for Jeff Turner for the solution.</strong></p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/pros-cons-of-using-redux-saga-with-es6-generators-vs-redux-thunk-with-es2017-async-await/" class="u-url">Pros/cons of using redux-saga with ES6 generators vs redux-thunk with ES2017 async/await</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/pros-cons-of-using-redux-saga-with-es6-generators-vs-redux-thunk-with-es2017-async-await/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T03:02:17+08:00" itemprop="datePublished" title="2023-02-18 03:02">2023-02-18 03:02</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>There is a lot of talk about the latest kid in redux town right now, redux-
-saga/redux-saga. It uses generator functions for listening to/dispatching
-actions.</p>
-<p>Before I wrap my head around it, I would like to know the pros/cons of using
-<code>redux-saga</code> instead of the approach below where I'm using <code>redux-thunk</code> with
-async/await.</p>
-<p>A component might look like this, dispatch actions like usual.</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="p">{</span> <span class="n">login</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'redux/auth'</span><span class="p">;</span>
-
-<span class="k">class</span> <span class="nc">LoginForm</span> <span class="n">extends</span> <span class="n">Component</span> <span class="p">{</span>
-
-  <span class="n">onClick</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="p">{</span>
-    <span class="n">e</span><span class="o">.</span><span class="n">preventDefault</span><span class="p">();</span>
-    <span class="n">const</span> <span class="p">{</span> <span class="n">user</span><span class="p">,</span> <span class="k">pass</span> <span class="p">}</span> <span class="o">=</span> <span class="n">this</span><span class="o">.</span><span class="n">refs</span><span class="p">;</span>
-    <span class="n">this</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">login</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="k">pass</span><span class="o">.</span><span class="n">value</span><span class="p">));</span>
-  <span class="p">}</span>
-
-  <span class="n">render</span><span class="p">()</span> <span class="p">{</span>
-    <span class="k">return</span> <span class="p">(</span><span class="o">&lt;</span><span class="n">div</span><span class="o">&gt;</span>
-        <span class="o">&lt;</span><span class="nb">input</span> <span class="nb">type</span><span class="o">=</span><span class="s2">"text"</span> <span class="n">ref</span><span class="o">=</span><span class="s2">"user"</span> <span class="o">/&gt;</span>
-        <span class="o">&lt;</span><span class="nb">input</span> <span class="nb">type</span><span class="o">=</span><span class="s2">"password"</span> <span class="n">ref</span><span class="o">=</span><span class="s2">"pass"</span> <span class="o">/&gt;</span>
-        <span class="o">&lt;</span><span class="n">button</span> <span class="n">onClick</span><span class="o">=</span><span class="p">{::</span><span class="n">this</span><span class="o">.</span><span class="n">onClick</span><span class="p">}</span><span class="o">&gt;</span><span class="n">Sign</span> <span class="n">In</span><span class="o">&lt;/</span><span class="n">button</span><span class="o">&gt;</span>
-    <span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span><span class="p">);</span>
-  <span class="p">}</span> 
-<span class="p">}</span>
-
-<span class="n">export</span> <span class="n">default</span> <span class="n">connect</span><span class="p">((</span><span class="n">state</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">({}))(</span><span class="n">LoginForm</span><span class="p">);</span>
-</pre></div>
-
-<p>Then my actions look something like this:</p>
-<div class="code"><pre class="code literal-block"><span class="o">//</span> <span class="n">auth</span><span class="o">.</span><span class="n">js</span>
-
-<span class="kn">import</span> <span class="nn">request</span> <span class="kn">from</span> <span class="s1">'axios'</span><span class="p">;</span>
-<span class="kn">import</span> <span class="p">{</span> <span class="n">loadUserData</span> <span class="p">}</span> <span class="kn">from</span> <span class="s1">'./user'</span><span class="p">;</span>
-
-<span class="o">//</span> <span class="n">define</span> <span class="n">constants</span>
-<span class="o">//</span> <span class="n">define</span> <span class="n">initial</span> <span class="n">state</span>
-<span class="o">//</span> <span class="n">export</span> <span class="n">default</span> <span class="n">reducer</span>
-
-<span class="n">export</span> <span class="n">const</span> <span class="n">login</span> <span class="o">=</span> <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="k">pass</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="k">async</span> <span class="p">(</span><span class="n">dispatch</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-    <span class="k">try</span> <span class="p">{</span>
-        <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="n">LOGIN_REQUEST</span> <span class="p">});</span>
-        <span class="n">let</span> <span class="p">{</span> <span class="n">data</span> <span class="p">}</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">'/login'</span><span class="p">,</span> <span class="p">{</span> <span class="n">user</span><span class="p">,</span> <span class="k">pass</span> <span class="p">});</span>
-        <span class="k">await</span> <span class="n">dispatch</span><span class="p">(</span><span class="n">loadUserData</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">uid</span><span class="p">));</span>
-        <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="n">LOGIN_SUCCESS</span><span class="p">,</span> <span class="n">data</span> <span class="p">});</span>
-    <span class="p">}</span> <span class="n">catch</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="p">{</span>
-        <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="n">LOGIN_ERROR</span><span class="p">,</span> <span class="n">error</span> <span class="p">});</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-
-<span class="o">//</span> <span class="n">more</span> <span class="n">actions</span><span class="o">...</span>
-</pre></div>
-
-<hr>
-<div class="code"><pre class="code literal-block"><span class="o">//</span> <span class="n">user</span><span class="o">.</span><span class="n">js</span>
-
-<span class="kn">import</span> <span class="nn">request</span> <span class="kn">from</span> <span class="s1">'axios'</span><span class="p">;</span>
-
-<span class="o">//</span> <span class="n">define</span> <span class="n">constants</span>
-<span class="o">//</span> <span class="n">define</span> <span class="n">initial</span> <span class="n">state</span>
-<span class="o">//</span> <span class="n">export</span> <span class="n">default</span> <span class="n">reducer</span>
-
-<span class="n">export</span> <span class="n">const</span> <span class="n">loadUserData</span> <span class="o">=</span> <span class="p">(</span><span class="n">uid</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="k">async</span> <span class="p">(</span><span class="n">dispatch</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-    <span class="k">try</span> <span class="p">{</span>
-        <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="n">USERDATA_REQUEST</span> <span class="p">});</span>
-        <span class="n">let</span> <span class="p">{</span> <span class="n">data</span> <span class="p">}</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="err">`</span><span class="o">/</span><span class="n">users</span><span class="o">/</span><span class="err">$</span><span class="p">{</span><span class="n">uid</span><span class="p">}</span><span class="err">`</span><span class="p">);</span>
-        <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="n">USERDATA_SUCCESS</span><span class="p">,</span> <span class="n">data</span> <span class="p">});</span>
-    <span class="p">}</span> <span class="n">catch</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="p">{</span>
-        <span class="n">dispatch</span><span class="p">({</span> <span class="nb">type</span><span class="p">:</span> <span class="n">USERDATA_ERROR</span><span class="p">,</span> <span class="n">error</span> <span class="p">});</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-
-<span class="o">//</span> <span class="n">more</span> <span class="n">actions</span><span class="o">...</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>In redux-saga, the equivalent of the above example would be</p>
-<div class="code"><pre class="code literal-block"><span class="k">export</span><span class="w"> </span><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">loginSaga</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="bp">true</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">user</span><span class="p">,</span><span class="w"> </span><span class="k">pass</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">take</span><span class="p">(</span><span class="n">LOGIN_REQUEST</span><span class="p">)</span>
-<span class="w">    </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="n">let</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">post</span><span class="p">,</span><span class="w"> </span><span class="s1">'/login'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">user</span><span class="p">,</span><span class="w"> </span><span class="k">pass</span><span class="w"> </span><span class="p">});</span>
-<span class="w">      </span><span class="nb">yield</span><span class="w"> </span><span class="n">fork</span><span class="p">(</span><span class="n">loadUserData</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="o">.</span><span class="n">uid</span><span class="p">);</span>
-<span class="w">      </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">({</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">LOGIN_SUCCESS</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="p">});</span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">({</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">LOGIN_ERROR</span><span class="p">,</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="p">});</span>
-<span class="w">    </span><span class="p">}</span><span class="w">  </span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-
-<span class="k">export</span><span class="w"> </span><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">loadUserData</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">({</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">USERDATA_REQUEST</span><span class="w"> </span><span class="p">});</span>
-<span class="w">    </span><span class="n">let</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">get</span><span class="p">,</span><span class="w"> </span><span class="err">`</span><span class="o">/</span><span class="n">users</span><span class="o">/$</span><span class="p">{</span><span class="n">uid</span><span class="p">}</span><span class="err">`</span><span class="p">);</span>
-<span class="w">    </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">({</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">USERDATA_SUCCESS</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="p">});</span>
-<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">({</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">USERDATA_ERROR</span><span class="p">,</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="p">});</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>The first thing to notice is that we're calling the api functions using the
-form <code>yield call(func, ...args)</code>. <code>call</code> doesn't execute the effect, it just
-creates a plain object like <code>{type: 'CALL', func, args}</code>. The execution is
-delegated to the redux-saga middleware which takes care of executing the
-function and resuming the generator with its result.</p>
-<p>The main advantage is that you can test the generator outside of Redux using
-simple equality checks</p>
-<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">iterator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">loginSaga</span><span class="p">()</span>
-
-<span class="nb">assert</span><span class="o">.</span><span class="n">deepEqual</span><span class="p">(</span><span class="n">iterator</span><span class="o">.</span><span class="n">next</span><span class="p">()</span><span class="o">.</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="n">take</span><span class="p">(</span><span class="n">LOGIN_REQUEST</span><span class="p">))</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">resume</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">generator</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">dummy</span><span class="w"> </span><span class="n">action</span>
-<span class="k">const</span><span class="w"> </span><span class="n">mockAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">user</span><span class="p">:</span><span class="w"> </span><span class="s1">'...'</span><span class="p">,</span><span class="w"> </span><span class="k">pass</span><span class="p">:</span><span class="w"> </span><span class="s1">'...'</span><span class="p">}</span>
-<span class="nb">assert</span><span class="o">.</span><span class="n">deepEqual</span><span class="p">(</span>
-<span class="w">  </span><span class="n">iterator</span><span class="o">.</span><span class="n">next</span><span class="p">(</span><span class="n">mockAction</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">,</span><span class="w"> </span>
-<span class="w">  </span><span class="n">call</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">post</span><span class="p">,</span><span class="w"> </span><span class="s1">'/login'</span><span class="p">,</span><span class="w"> </span><span class="n">mockAction</span><span class="p">)</span>
-<span class="p">)</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">simulate</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="n">result</span>
-<span class="k">const</span><span class="w"> </span><span class="n">mockError</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'invalid user/password'</span>
-<span class="nb">assert</span><span class="o">.</span><span class="n">deepEqual</span><span class="p">(</span>
-<span class="w">  </span><span class="n">iterator</span><span class="o">.</span><span class="n">throw</span><span class="p">(</span><span class="n">mockError</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">,</span><span class="w"> </span>
-<span class="w">  </span><span class="n">put</span><span class="p">({</span><span class="w"> </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">LOGIN_ERROR</span><span class="p">,</span><span class="w"> </span><span class="n">error</span><span class="p">:</span><span class="w"> </span><span class="n">mockError</span><span class="w"> </span><span class="p">})</span>
-<span class="p">)</span>
-</pre></div>
-
-<p>Note we're mocking the api call result by simply injecting the mocked data
-into the <code>next</code> method of the iterator. Mocking data is way simpler than
-mocking functions.</p>
-<p>The second thing to notice is the call to <code>yield take(ACTION)</code>. Thunks are
-called by the action creator on each new action (e.g. <code>LOGIN_REQUEST</code>). i.e.
-actions are continually <em>pushed</em> to thunks, and thunks have no control on when
-to stop handling those actions.</p>
-<p>In redux-saga, generators <em>pull</em> the next action. i.e. they have control when
-to listen for some action, and when to not. In the above example the flow
-instructions are placed inside a <code>while(true)</code> loop, so it'll listen for each
-incoming action, which somewhat mimics the thunk pushing behavior.</p>
-<p>The pull approach allows implementing complex control flows. Suppose for
-example we want to add the following requirements</p>
-<ul>
-<li>
-<p>Handle LOGOUT user action</p>
-</li>
-<li>
-<p>upon the first successful login, the server returns a token which expires in some delay stored in a <code>expires_in</code> field. We'll have to refresh the authorization in the background on each <code>expires_in</code> milliseconds</p>
-</li>
-<li>
-<p>Take into account that when waiting for the result of api calls (either initial login or refresh) the user may logout in-between.</p>
-</li>
-</ul>
-<p>How would you implement that with thunks; while also providing full test
-coverage for the entire flow? Here is how it may look with Sagas:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">authorize</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">api</span><span class="o">.</span><span class="n">authorize</span><span class="p">,</span><span class="w"> </span><span class="n">credentials</span><span class="p">)</span>
-<span class="w">  </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">(</span><span class="w"> </span><span class="n">login</span><span class="o">.</span><span class="n">success</span><span class="p">(</span><span class="n">token</span><span class="p">)</span><span class="w"> </span><span class="p">)</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">token</span>
-<span class="p">}</span>
-
-<span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">authAndRefreshTokenOnExpiry</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">password</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">authorize</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">password</span><span class="p">})</span>
-<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="bp">true</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span><span class="w"> </span><span class="n">token</span><span class="o">.</span><span class="n">expires_in</span><span class="p">)</span>
-<span class="w">    </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">authorize</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">token</span><span class="p">})</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-
-<span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="n">watchAuth</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="bp">true</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">password</span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">take</span><span class="p">(</span><span class="n">LOGIN_REQUEST</span><span class="p">)</span>
-
-<span class="w">      </span><span class="nb">yield</span><span class="w"> </span><span class="n">race</span><span class="p">([</span>
-<span class="w">        </span><span class="n">take</span><span class="p">(</span><span class="n">LOGOUT</span><span class="p">),</span>
-<span class="w">        </span><span class="n">call</span><span class="p">(</span><span class="n">authAndRefreshTokenOnExpiry</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">password</span><span class="p">)</span>
-<span class="w">      </span><span class="p">])</span>
-
-<span class="w">      </span><span class="o">//</span><span class="w"> </span><span class="n">user</span><span class="w"> </span><span class="n">logged</span><span class="w"> </span><span class="n">out</span><span class="p">,</span><span class="w"> </span><span class="n">next</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="n">iteration</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">wait</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span>
-<span class="w">      </span><span class="o">//</span><span class="w"> </span><span class="n">next</span><span class="w"> </span><span class="n">LOGIN_REQUEST</span><span class="w"> </span><span class="n">action</span>
-
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="nb">yield</span><span class="w"> </span><span class="n">put</span><span class="p">(</span><span class="w"> </span><span class="n">login</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span><span class="w"> </span><span class="p">)</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>In the above example, we're expressing our concurrency requirement using
-<code>race</code>. If <code>take(LOGOUT)</code> wins the race (i.e. user clicked on a Logout
-Button). The race will automatically cancel the <code>authAndRefreshTokenOnExpiry</code>
-background task. And if the <code>authAndRefreshTokenOnExpiry</code> was blocked in
-middle of a <code>call(authorize, {token})</code> call it'll also be cancelled.
-Cancellation propagates downward automatically.</p>
-<p>You can find a runnable demo of the above flow</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I will add my experience using saga in production system in addition to the
-library author's rather thorough answer.</p>
-<p>Pro (using saga):</p>
-<ul>
-<li>
-<p>Testability. It's very easy to test sagas as call() returns a pure object. Testing thunks normally requires you to include a mockStore inside your test.</p>
-</li>
-<li>
-<p>redux-saga comes with lots of useful helper functions about tasks. It seems to me that the concept of saga is to create some kind of background worker/thread for your app, which act as a missing piece in react redux architecture(actionCreators and reducers must be pure functions.) Which leads to next point.</p>
-</li>
-<li>
-<p>Sagas offer independent place to handle all side effects. It is usually easier to modify and manage than thunk actions in my experience.</p>
-</li>
-</ul>
-<p>Con:</p>
-<ul>
-<li>
-<p>Generator syntax.</p>
-</li>
-<li>
-<p>Lots of concepts to learn.</p>
-</li>
-<li>
-<p>API stability. It seems redux-saga is still adding features (eg Channels?) and the community is not as big. There is a concern if the library makes a non backward compatible update some day.</p>
-</li>
-</ul>
-</div>
     </article>
 </div>
 

@@ -108,7 +108,88 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/no-module-named-pkg-resources/" class="u-url">No module named pkg_resources</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-s-the-best-way-to-check-if-a-file-exists-in-c/" class="u-url">What's the best way to check if a file exists in C?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-s-the-best-way-to-check-if-a-file-exists-in-c/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:02:17+08:00" itemprop="datePublished" title="2023-02-18 05:02">2023-02-18 05:02</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there a better way than simply trying to open the file?</p>
+<div class="code"><pre class="code literal-block"><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">exists</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="o">*</span><span class="n">fname</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">file</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span><span class="w"> </span><span class="s2">"r"</span><span class="p">)))</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">fclose</span><span class="p">(</span><span class="n">file</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Look up the <code>access()</code> function, found in <code>unistd.h</code>. You can replace your
+function with</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">access</span><span class="ss">(</span><span class="nv">fname</span>,<span class="w"> </span><span class="nv">F_OK</span><span class="ss">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="nv">file</span><span class="w"> </span><span class="nv">exists</span>
+}<span class="w"> </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="nv">file</span><span class="w"> </span><span class="nv">doesn</span><span class="err">'t exist</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>Under Windows (VC) <code>unistd.h</code> does not exist. To make it work it is necessary
+to define:</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#ifdef WIN32</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;io.h&gt;</span>
+<span class="cp">#define F_OK 0</span>
+<span class="cp">#define access _access</span>
+<span class="cp">#endif</span>
+</pre></div>
+
+<p>You can also use <code>R_OK</code>, <code>W_OK</code>, and <code>X_OK</code> in place of <code>F_OK</code> to check for
+read permission, write permission, and execute permission (respectively)
+rather than existence, and you can OR any of them together (i.e. check for
+both read <em>and</em> write permission using <code>R_OK|W_OK</code>)</p>
+<p><em>Update</em> : Note that on Windows, you can't use <code>W_OK</code> to reliably test for
+write permission, since the access function does not take DACLs into account.
+<code>access( fname, W_OK )</code> may return 0 (success) because the file does not have
+the read-only attribute set, but you still may not have permission to write to
+the file.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Use <code>stat</code> like this:</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;sys/stat.h&gt;</span><span class="c1">   // stat</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdbool.h&gt;</span><span class="c1">    // bool type</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">file_exists</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">filename</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">struct</span><span class="w"> </span><span class="nc">stat</span><span class="w">   </span><span class="n">buffer</span><span class="p">;</span><span class="w">   </span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">stat</span><span class="w"> </span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>and call it like this:</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span><span class="c1">      // printf</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">ac</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">av</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ac</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">file_exists</span><span class="p">(</span><span class="n">av</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">"%s exists</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span><span class="w"> </span><span class="n">av</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">"%s does not exist</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span><span class="w"> </span><span class="n">av</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/no-module-named-pkg-resources/" class="u-url">No module named pkg_resources</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -352,74 +433,6 @@ if the usage itself is not a compile-time constant expression (§15.28)</p>
 <span class="mi">4</span><span class="o">:</span><span class="w">   </span><span class="n">invokevirtual</span><span class="w">   </span><span class="err">#</span><span class="mi">3</span><span class="o">;</span><span class="w"> </span><span class="c1">//Method java/io/PrintStream.println:(Z)V</span>
 <span class="mi">7</span><span class="o">:</span><span class="w">   </span><span class="k">return</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/visual-studio-code-open-tab-in-new-window/" class="u-url">Visual Studio Code open tab in new window</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/visual-studio-code-open-tab-in-new-window/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:00:57+08:00" itemprop="datePublished" title="2023-02-18 05:00">2023-02-18 05:00</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am trying to open a tab in a new window in Visual Studio Code so I can move
-it to another screen. If I drag the tab the other screen, a file is created.
-Is there a shortcut to open a tab in a new Visual Studio Code window so I can
-move it to another screen?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>On Windows and Linux, press <code>CTRL</code>+<code>K</code>, then release the keys and press <code>O</code>
-(the letter O, not Zero).</p>
-<p>On macOS, press <code>CMD</code>+<code>K</code>, then <code>O</code> (without holding <code>CMD</code>).</p>
-<p>This will open the active file tab in a new window/instance.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>This is a <strong>very highly upvoted issue request in Github for Floating
-Windows</strong>.</p>
-<p>Until they support it, you can try the following <em>workarounds</em> :</p>
-<h4>1. Duplicate Workspace in New Window [1]</h4>
-<p>The Duplicate Workspace in new Window Command was added in v1.24 (May 2018) to
-sort of address this.</p>
-<ol>
-<li>Open up Keyboard Shortcuts <code>Ctrl</code> + <code>K</code>, <code>Ctrl</code> + <code>S</code>
-</li>
-<li>Map <code>workbench.action.duplicateWorkspaceInNewWindow</code> to <code>Ctrl</code> + <code>Shift</code> + <code>N</code> or whatever you'd like</li>
-</ol>
-<p><img alt="Duplicate Workspace in New Window" src="images/03NXR.png"></p>
-<h4>2. Open Active File in New Window [2]</h4>
-<p>Rather than manually open a new window and dragging the file, you can do it
-all with a single command.</p>
-<ol>
-<li>Open Active File in New Window <code>Ctrl</code> + <code>K</code>, <code>O</code>
-</li>
-</ol>
-<p><img alt="Open Active File in New Window" src="images/g5UCL.png"></p>
-<h4>3. New Window with Same File [3]</h4>
-<p>As AllenBooTung also pointed out, you can open/drag any file in a separate
-blank instance.</p>
-<ol>
-<li>Open New Window <code>Ctrl</code> + <code>Shift</code> + <code>N</code>
-</li>
-<li>Drag tab into new window</li>
-</ol>
-<h4>4. Open Workspace and Folder Simultaneously [4]</h4>
-<p>VS Code will not allow you to open the same folder in two different instances,
-but you can use Workspaces to open the same directory of files in a side by
-side instance.</p>
-<ol>
-<li>Open Folder <code>Ctrl</code> + <code>K</code>,<code>Ctrl</code> + <code>O</code>
-</li>
-<li>Save Current Project As a Workspace</li>
-<li>Open Folder <code>Ctrl</code> + <code>K</code>,<code>Ctrl</code> + <code>O</code>
-</li>
-</ol>
-<hr>
-<p>For <strong>any workaround</strong> , also consider setting setting up auto save so the
-documents are kept in sync by updating the <code>files.autoSave</code> setting to
-<code>afterDelay</code>, <code>onFocusChange</code>, or <code>onWindowChange</code></p>
-<p><img alt="AutoSave" src="images/bdqYt.png"></p>
     </div>
     </article>
 </div>

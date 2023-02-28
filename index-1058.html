@@ -108,7 +108,85 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/war-vs-ear-file/" class="u-url">.war vs .ear file</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/copy-the-entire-contents-of-a-directory-in-c/" class="u-url">Copy the entire contents of a directory in C#</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/copy-the-entire-contents-of-a-directory-in-c/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:04:24+08:00" itemprop="datePublished" title="2023-02-18 00:04">2023-02-18 00:04</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I want to copy the entire contents of a directory from one location to another
+in C#.</p>
+<p>There doesn't appear to be a way to do this using <code>System.IO</code> classes without
+lots of recursion.</p>
+<p>There is a method in VB that we can use if we add a reference to
+<code>Microsoft.VisualBasic</code>:</p>
+<div class="code"><pre class="code literal-block">new Microsoft.VisualBasic.Devices.Computer().
+    FileSystem.CopyDirectory( sourceFolder, outputFolder );
+</pre></div>
+
+<p>This seems like a rather ugly hack. Is there a better way?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Much easier</p>
+<div class="code"><pre class="code literal-block">private static void CopyFilesRecursively(string sourcePath, string targetPath)
+{
+    //Now Create all of the directories
+    foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
+    {
+        Directory.CreateDirectory(dirPath.Replace(sourcePath, targetPath));
+    }
+
+    //Copy all the files &amp; Replaces any files with the same name
+    foreach (string newPath in Directory.GetFiles(sourcePath, "*.*",SearchOption.AllDirectories))
+    {
+        File.Copy(newPath, newPath.Replace(sourcePath, targetPath), true);
+    }
+}
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Hmm, I think I misunderstand the question but I'm going to risk it. What's
+wrong with the following straightforward method?</p>
+<div class="code"><pre class="code literal-block">public static void CopyFilesRecursively(DirectoryInfo source, DirectoryInfo target) {
+    foreach (DirectoryInfo dir in source.GetDirectories())
+        CopyFilesRecursively(dir, target.CreateSubdirectory(dir.Name));
+    foreach (FileInfo file in source.GetFiles())
+        file.CopyTo(Path.Combine(target.FullName, file.Name));
+}
+</pre></div>
+
+<p><strong>EDIT</strong> Since this posting has garnered an impressive number of downvotes for
+such a simple answer to an equally simple question, let me add an explanation.
+<strong>Please</strong> <em>read this before downvoting</em>.</p>
+<p>First of all, <strong>this code is not intendend as a drop-in replacement</strong> to the
+code in the question. It is for illustration purpose only.</p>
+<p><code>Microsoft.VisualBasic.Devices.Computer.FileSystem.CopyDirectory</code> does some
+additional correctness tests (e.g. whether the source and target are valid
+directories, whether the source is a parent of the target etc.) that are
+missing from this answer. That code is probably also more optimized.</p>
+<p>That said, the code <em>works well</em>. It <em>has</em> (almost identically) been used in a
+mature software for years. Apart from the inherent fickleness present with all
+IO handlings (e.g. what happens if the user manually unplugs the USB drive
+while your code is writing to it?), there are no known problems.</p>
+<p>In particular, I’d like to point out that the use of recursion here is
+absolutely not a problem. Neither in theory (conceptually, it’s the most
+elegant solution) nor in practice: <em>this code will not overflow the stack</em>.
+The stack is large enough to handle even deeply nested file hierarchies. Long
+before stack space becomes a problem, the folder path length limitation kicks
+in.</p>
+<p>Notice that a <em>malicious user</em> might be able to break this assumption by using
+deeply-nested directories of one letter each. I haven’t tried this. But just
+to illustrate the point: in order to make this code overflow on a typical
+computer, the directories would have to be nested a few <em>thousand</em> times. This
+is simply not a realistic scenario.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/war-vs-ear-file/" class="u-url">.war vs .ear file</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -211,52 +289,6 @@ BUTTON!</p>
 <div class="code"><pre class="code literal-block">$("span", this).text("My NEW Text");
 </pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-push-a-docker-image-to-a-private-repository/" class="u-url">How to push a docker image to a private repository</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-push-a-docker-image-to-a-private-repository/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T00:02:14+08:00" itemprop="datePublished" title="2023-02-18 00:02">2023-02-18 00:02</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a docker image tagged as <code>me/my-image</code>, and I have a private repo on
-the dockerhub named <code>me-private</code>.<br>
-When I push my <code>me/my-image</code>, I end up always hitting the public repo.</p>
-<p>What is the exact syntax to specifically push my image to my private repo?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You need to tag your image correctly first with your <code>registryhost</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="n">docker</span><span class="w"> </span><span class="n">tag</span><span class="w"> </span><span class="o">[</span><span class="n">OPTIONS</span><span class="o">]</span><span class="w"> </span><span class="nc">IMAGE</span><span class="o">[</span><span class="n">:TAG</span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="n">REGISTRYHOST/</span><span class="o">][</span><span class="n">USERNAME/</span><span class="o">]</span><span class="n">NAME</span><span class="o">[</span><span class="n">:TAG</span><span class="o">]</span>
-</pre></div>
-
-<p>Then docker push using that same tag.</p>
-<div class="code"><pre class="code literal-block">docker push NAME[:TAG]
-</pre></div>
-
-<p>Example:</p>
-<div class="code"><pre class="code literal-block">docker tag 518a41981a6a myRegistry.com/myImage
-docker push myRegistry.com/myImage
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Just three simple steps:</p>
-<ol>
-<li>
-<p><code>docker login --username username</code></p>
-<ul>
-<li>prompts for password if you omit <code>--password</code> which is recommended as it doesn't store it in your command history</li>
-<li><code>docker tag my-image username/my-repo</code></li>
-</ul>
-</li>
-<li>
-<p><code>docker push username/my-repo</code></p>
-</li>
-</ol>
-</div>
     </article>
 </div>
 

@@ -108,7 +108,96 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-cohesion-and-coupling/" class="u-url">Difference Between Cohesion and Coupling</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-getcontext-getapplicationcontext-getbasecontext-and-this/" class="u-url">Difference between getContext() , getApplicationContext() , getBaseContext() and "this"</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/difference-between-getcontext-getapplicationcontext-getbasecontext-and-this/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T20:40:19+08:00" itemprop="datePublished" title="2023-02-17 20:40">2023-02-17 20:40</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What is the difference between <code>getContext()</code> , <code>getApplicationContext()</code> ,
+<code>getBaseContext()</code> , and "<code>this</code>"?</p>
+<p>Though this is simple question I am unable to understand the basic difference
+between them. Please give some easy examples if possible.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<ul>
+<li>
+<p><code>View.getContext()</code>: Returns the context the view is currently running in. Usually the currently active Activity.</p>
+</li>
+<li>
+<p><code>Activity.getApplicationContext()</code>: Returns the context for the entire application (the process all the Activities are running inside of). Use this instead of the current Activity context if you need a context tied to the lifecycle of the entire application, not just the current Activity.</p>
+</li>
+<li>
+<p><code>ContextWrapper.getBaseContext()</code>: If you need access to a Context from within another context, you use a ContextWrapper. The Context referred to from inside that ContextWrapper is accessed via getBaseContext().</p>
+</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Most answers already cover <code>getContext()</code> and <code>getApplicationContext()</code> but
+<strong>getBaseContext()</strong> is rarely explained.</p>
+<p>The method <code>getBaseContext()</code> is only relevant when you have a
+<code>ContextWrapper</code>. Android provides a <code>ContextWrapper</code> class that is created
+around an existing <code>Context</code> using:</p>
+<div class="code"><pre class="code literal-block">ContextWrapper wrapper = new ContextWrapper(context);
+</pre></div>
+
+<p>The benefit of using a <code>ContextWrapper</code> is that it lets you “modify behavior
+without changing the original Context”. For example, if you have an activity
+called <code>myActivity</code> then can create a <code>View</code> with a different theme than
+<code>myActivity</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="n">ContextWrapper</span><span class="w"> </span><span class="n">customTheme</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ContextWrapper</span><span class="p">(</span><span class="n">myActivity</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">  </span><span class="nv">@Override</span>
+<span class="w">  </span><span class="k">public</span><span class="w"> </span><span class="n">Resources</span><span class="p">.</span><span class="n">Theme</span><span class="w"> </span><span class="n">getTheme</span><span class="p">()</span><span class="w"> </span><span class="err">{</span><span class="w"> </span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">someTheme</span><span class="p">;</span>
+<span class="w">  </span><span class="err">}</span>
+<span class="err">}</span>
+<span class="k">View</span><span class="w"> </span><span class="n">myView</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">MyView</span><span class="p">(</span><span class="n">customTheme</span><span class="p">);</span>
+</pre></div>
+
+<p><code>ContextWrapper</code> is really powerful because it lets you override most
+functions provided by <code>Context</code> including code to access resources (e.g.
+<code>openFileInput()</code>, <code>getString()</code>), interact with other components (e.g.
+<code>sendBroadcast()</code>, <code>registerReceiver()</code>), requests permissions (e.g.
+<code>checkCallingOrSelfPermission()</code>) and resolving file system locations (e.g.
+<code>getFilesDir()</code>). <code>ContextWrapper</code> is really useful to work around
+device/version specific problems or to apply one-off customizations to
+components such as Views that require a context.</p>
+<p>The method <strong>getBaseContext()</strong> can be used to access the “base” Context that
+the <code>ContextWrapper</code> wraps around. You might need to access the “base” context
+if you need to, for example, check whether it’s a <code>Service</code>, <code>Activity</code> or
+<code>Application</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">class</span><span class="w"> </span><span class="nv">CustomToast</span><span class="w"> </span>{
+<span class="w">  </span><span class="nv">public</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">makeText</span><span class="ss">(</span><span class="nv">Context</span><span class="w"> </span><span class="nv">context</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">resId</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">duration</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="ss">(</span><span class="nv">context</span><span class="w"> </span><span class="nv">instanceof</span><span class="w"> </span><span class="nv">ContextWrapper</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">      </span><span class="nv">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">context</span>.<span class="nv">baseContext</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">    </span>}
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">context</span><span class="w"> </span><span class="nv">instanceof</span><span class="w"> </span><span class="nv">Service</span><span class="ss">))</span><span class="w"> </span>{
+<span class="w">      </span><span class="nv">throw</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">RuntimeException</span><span class="ss">(</span><span class="s2">"Cannot call this from a service"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span>}
+<span class="w">    </span>...
+<span class="w">  </span>}
+}
+</pre></div>
+
+<p>Or if you need to call the “unwrapped” version of a method:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">MyCustomWrapper</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">ContextWrapper</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">Drawable</span><span class="w"> </span><span class="n">getWallpaper</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">BuildInfo</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">mDebugBackground</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">getBaseContext</span><span class="p">()</span><span class="o">.</span><span class="n">getWallpaper</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-cohesion-and-coupling/" class="u-url">Difference Between Cohesion and Coupling</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -223,43 +312,6 @@ anyway, so try this:</p>
 file.</p>
 <p>You can jump to the next occurence with <code>n</code> and to the previous occurence with
 <code>p</code>. Quit with <code>q</code>.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/show-whitespace-characters-in-visual-studio-code/" class="u-url">Show whitespace characters in Visual Studio Code</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/show-whitespace-characters-in-visual-studio-code/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T20:38:23+08:00" itemprop="datePublished" title="2023-02-17 20:38">2023-02-17 20:38</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is it possible to show whitespace characters, like the space character, in
-Visual Studio Code?</p>
-<p>There doesn't appear to be an option for it in the <code>settings.json</code> (though it
-is an option in <em>Atom.io</em> ), and I haven't been able to display whitespace
-characters using CSS.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><strong>VS Code 1.6.0 and Greater</strong></p>
-<p>As mentioned by aloisdg below, <code>editor.renderWhitespace</code> is now an enum taking
-either <code>none</code>, <code>boundary</code> or <code>all</code>. To view all whitespaces:</p>
-<div class="code"><pre class="code literal-block">"editor.renderWhitespace": "all",
-</pre></div>
-
-<p><strong>Before VS Code 1.6.0</strong></p>
-<p>Before 1.6.0, you had to set <code>editor.renderWhitespace</code> to <code>true</code>:</p>
-<div class="code"><pre class="code literal-block">"editor.renderWhitespace": true
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<hr>
-<h4><strong>UPDATE (December 2022)</strong></h4>
-<p>For the latest versions of VSCode, you can do <code>View -&gt; Appearance -&gt; Render
-Whitespace</code>.</p>
-<p><img alt="enter image description here" src="images/u6S0s.png"></p>
     </div>
     </article>
 </div>

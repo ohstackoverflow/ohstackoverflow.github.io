@@ -108,7 +108,116 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/css-font-border/" class="u-url">CSS Font Border?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/logger-configuration-to-log-to-file-and-print-to-stdout/" class="u-url">logger configuration to log to file and print to stdout</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/logger-configuration-to-log-to-file-and-print-to-stdout/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T02:26:41+08:00" itemprop="datePublished" title="2023-02-18 02:26">2023-02-18 02:26</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm using Python's logging module to log some debug strings to a file which
+works pretty well. Now in addition, I'd like to use this module to also print
+the strings out to stdout. How do I do this? In order to log my strings to a
+file I use following code:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">logging.handlers</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+<span class="n">handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">handlers</span><span class="o">.</span><span class="n">RotatingFileHandler</span><span class="p">(</span>
+    <span class="n">LOGFILE</span><span class="p">,</span> <span class="n">maxBytes</span><span class="o">=</span><span class="p">(</span><span class="mi">1048576</span><span class="o">*</span><span class="mi">5</span><span class="p">),</span> <span class="n">backupCount</span><span class="o">=</span><span class="mi">7</span>
+<span class="p">)</span>
+<span class="n">formatter</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s2">"</span><span class="si">%(asctime)s</span><span class="s2"> - </span><span class="si">%(name)s</span><span class="s2"> - </span><span class="si">%(levelname)s</span><span class="s2"> - </span><span class="si">%(message)s</span><span class="s2">"</span><span class="p">)</span>
+<span class="n">handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">formatter</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
+</pre></div>
+
+<p>and then call a logger function like</p>
+<div class="code"><pre class="code literal-block">logger.debug("I am written to the file")
+</pre></div>
+
+<p>Thank you for some help here!</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Just get a handle to the root logger and add the <code>StreamHandler</code>. The
+<code>StreamHandler</code> writes to stderr. Not sure if you really need stdout over
+stderr, but this is what I use when I setup the Python logger and I also add
+the <code>FileHandler</code> as well. Then all my logs go to both places (which is what
+it sounds like you want).</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">())</span>
+</pre></div>
+
+<p>If you want to output to <code>stdout</code> instead of <code>stderr</code>, you just need to
+specify it to the <code>StreamHandler</code> constructor.</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">sys</span>
+<span class="c1"># ...</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">))</span>
+</pre></div>
+
+<p>You could also add a <code>Formatter</code> to it so all your log lines have a common
+header.</p>
+<p>ie:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logFormatter</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s2">"</span><span class="si">%(asctime)s</span><span class="s2"> [</span><span class="si">%(threadName)-12.12s</span><span class="s2">] [</span><span class="si">%(levelname)-5.5s</span><span class="s2">]  </span><span class="si">%(message)s</span><span class="s2">"</span><span class="p">)</span>
+<span class="n">rootLogger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
+
+<span class="n">fileHandler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span><span class="s2">"</span><span class="si">{0}</span><span class="s2">/</span><span class="si">{1}</span><span class="s2">.log"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">logPath</span><span class="p">,</span> <span class="n">fileName</span><span class="p">))</span>
+<span class="n">fileHandler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">logFormatter</span><span class="p">)</span>
+<span class="n">rootLogger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">fileHandler</span><span class="p">)</span>
+
+<span class="n">consoleHandler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+<span class="n">consoleHandler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">logFormatter</span><span class="p">)</span>
+<span class="n">rootLogger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">consoleHandler</span><span class="p">)</span>
+</pre></div>
+
+<p>Prints to the format of:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">2012</span><span class="o">-</span><span class="mf">12</span><span class="o">-</span><span class="mf">05</span><span class="w"> </span><span class="mf">16</span><span class="p">:</span><span class="mf">58</span><span class="p">:</span><span class="mf">26</span><span class="p">,</span><span class="mf">618</span><span class="w"> </span><span class="err">[</span><span class="n">MainThread</span><span class="w">  </span><span class="err">]</span><span class="w"> </span><span class="err">[</span><span class="n">INFO</span><span class="w"> </span><span class="err">]</span><span class="w">  </span><span class="n">my</span><span class="w"> </span><span class="n">message</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p><code>logging.basicConfig()</code> can take a keyword argument <code>handlers</code> since Python
+3.3, which simplifies logging setup a lot, especially when setting up multiple
+handlers with the same formatter:</p>
+<blockquote>
+<p><strong><code>handlers</code></strong> – If specified, this should be an iterable of already created
+handlers to add to the root logger. Any handlers which don’t already have a
+formatter set will be assigned the default formatter created in this
+function.</p>
+</blockquote>
+<p>The whole setup can therefore be done with a single call like this:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span>
+    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s2">"</span><span class="si">%(asctime)s</span><span class="s2"> [</span><span class="si">%(levelname)s</span><span class="s2">] </span><span class="si">%(message)s</span><span class="s2">"</span><span class="p">,</span>
+    <span class="n">handlers</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span><span class="s2">"debug.log"</span><span class="p">),</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+
+<p>(Or with <code>import sys</code> + <code>StreamHandler(sys.stdout)</code> per original question's
+requirements – the default for StreamHandler is to write to stderr. Look at
+LogRecord attributes if you want to customize the log format and add things
+like filename/line, thread info etc.)</p>
+<p>The setup above needs to be done only once near the beginning of the script.
+You can use the logging from all other places in the codebase later like this:</p>
+<div class="code"><pre class="code literal-block">logging.info('Useful message')
+logging.error('Something bad happened')
+...
+</pre></div>
+
+<p>Note: If it doesn't work, someone else has probably already initialized the
+logging system differently. Comments suggest doing <code>logging.root.handlers =
+[]</code> before the call to <code>basicConfig()</code>.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/css-font-border/" class="u-url">CSS Font Border?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -268,62 +377,6 @@ explanation on how this works.</p>
 </pre></div>
 
 <p>is the way to do it. Note, updating this to 1.8 works just fine.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/unable-to-resolve-unable-to-get-local-issuer-certificate-using-git-on-windows-with-self-signed-certificate/" class="u-url">Unable to resolve "unable to get local issuer certificate" using git on Windows with self-signed certificate</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/unable-to-resolve-unable-to-get-local-issuer-certificate-using-git-on-windows-with-self-signed-certificate/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T02:25:20+08:00" itemprop="datePublished" title="2023-02-18 02:25">2023-02-18 02:25</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am using Git on Windows. I installed the msysGit package. My test repository
-has a self signed certificate at the server. I can access and use the
-repository using HTTP without problems. Moving to HTTPS gives the error:</p>
-<blockquote>
-<p>SSL Certificate problem: unable to get local issuer certificate.</p>
-</blockquote>
-<p>I have the self signed certificate installed in the Trusted Root Certification
-Authorities of my Windows 7 - client machine. I can browse to the HTTPS
-repository URL in Internet Explorer with no error messages.</p>
-<p>This blog post by Philip Kelley explained that cURL does not use the client
-machine's certificate store. I followed the blog post's advice to create a
-private copy of <code>curl-ca-bundle.crt</code> and configure Git to use it. I am sure
-Git is using my copy. If I rename the copy; Git complains the file is missing.</p>
-<p>I pasted in my certificate, as mentioned in the blog post, I still get the
-message "unable to get local issuer certificate".</p>
-<p>I verified that Git was still working by cloning a GitHub Repository via
-HTTPS.</p>
-<p>The only thing I see that's different to the blog post is that my certificate
-<em>is</em> the root - there is no chain to reach it. My certificate originally came
-from clicking the IIS8 IIS Manager link 'Create Self Signed Certificate'.
-Maybe that makes a certificate different in some way to what cURL expects.</p>
-<p>How can I get Git/cURL to accept the self signed certificate?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>An answer to Using makecert for Development SSL fixed this for me.</p>
-<p>I do not know why, but the certificate created by the simple 'Create Self
-Signed Certificate' link in IIS Manager does not do the trick. I followed the
-approach in the linked question of creating and installing a self-signed CA
-Root; then using that to issue a Server Authentication Certificate for my
-server. I installed both of them in IIS.</p>
-<p>That gets my situation the same as the blog post referenced in the original
-question. Once the root certificate was copy/pasted into curl-ca-bundle.crt
-the git/curl combo were satisfied.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Open Git Bash and run the command if you want to completely disable SSL
-verification.</p>
-<div class="code"><pre class="code literal-block">git config --global http.sslVerify false
-</pre></div>
-
-<p><strong>Note: This solution opens you to attacks like man-in-the-middle attacks</strong>.
-Therefore turn on verification again as soon as possible:</p>
-<div class="code"><pre class="code literal-block">git config --global http.sslVerify true
-</pre></div>
     </div>
     </article>
 </div>

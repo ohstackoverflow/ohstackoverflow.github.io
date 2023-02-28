@@ -108,7 +108,64 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-does-dp0-mean-and-how-does-it-work/" class="u-url">What does %~dp0 mean, and how does it work?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-get-asp-net-web-api-to-return-json-instead-of-xml-using-chrome/" class="u-url">How do I get ASP.NET Web API to return JSON instead of XML using Chrome?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-get-asp-net-web-api-to-return-json-instead-of-xml-using-chrome/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:23:45+08:00" itemprop="datePublished" title="2023-02-17 04:23">2023-02-17 04:23</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p><strong>This question's answers are a community effort</strong>. Edit existing answers to
+improve this post. It is not currently accepting new answers or interactions.</p>
+<p>Using the newer <strong>ASP.NET Web API</strong> , in <strong>Chrome</strong> I am seeing XML - how can
+I change it to request <strong>JSON</strong> so I can view it in the browser? I do believe
+it is just part of the request headers, am I correct in that?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h5>Note: Read the comments of this answer, it can produce a XSS</h5>
+<p>Vulnerability if you are using the default error handing of WebAPI</p>
+<p>I just add the following in <code>App_Start / WebApiConfig.cs</code> class in my MVC
+<strong>Web API</strong> project.</p>
+<div class="code"><pre class="code literal-block">config.Formatters.JsonFormatter.SupportedMediaTypes
+    .Add(new MediaTypeHeaderValue("text/html") );
+</pre></div>
+
+<p>That makes sure you get JSON on most queries, but you can get <code>XML</code> when you
+send <code>text/xml</code>.</p>
+<p>If you need to have the response <code>Content-Type</code> as <code>application/json</code> please
+check Todd's answer below.</p>
+<p><code>NameSpace</code> is using <code>System.Net.Http.Headers</code>.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>If you do this in the <code>WebApiConfig</code> you will get JSON by default, but it will
+still allow you to return XML if you pass <code>text/xml</code> as the request <code>Accept</code>
+header.</p>
+<h4>Note: This removes the support for <code>application/xml</code>
+</h4>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">WebApiConfig</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Register</span><span class="p">(</span><span class="n">HttpConfiguration</span><span class="w"> </span><span class="n">config</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">config</span><span class="o">.</span><span class="n">Routes</span><span class="o">.</span><span class="n">MapHttpRoute</span><span class="p">(</span>
+<span class="w">            </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s2">"DefaultApi"</span><span class="p">,</span>
+<span class="w">            </span><span class="n">routeTemplate</span><span class="p">:</span><span class="w"> </span><span class="s2">"api/{controller}/{id}"</span><span class="p">,</span>
+<span class="w">            </span><span class="n">defaults</span><span class="p">:</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RouteParameter</span><span class="o">.</span><span class="n">Optional</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">appXmlType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">config</span><span class="o">.</span><span class="n">Formatters</span><span class="o">.</span><span class="n">XmlFormatter</span><span class="o">.</span><span class="n">SupportedMediaTypes</span><span class="o">.</span><span class="n">FirstOrDefault</span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">t</span><span class="o">.</span><span class="n">MediaType</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"application/xml"</span><span class="p">);</span>
+<span class="w">        </span><span class="n">config</span><span class="o">.</span><span class="n">Formatters</span><span class="o">.</span><span class="n">XmlFormatter</span><span class="o">.</span><span class="n">SupportedMediaTypes</span><span class="o">.</span><span class="n">Remove</span><span class="p">(</span><span class="n">appXmlType</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>If you are not using the MVC project type and therefore did not have this
+class to begin with, see this answer for details on how to incorporate it.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-does-dp0-mean-and-how-does-it-work/" class="u-url">What does %~dp0 mean, and how does it work?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -372,122 +429,6 @@ git clone https://github.com/foo/repository.git
 
 <p>The above will cause Git to ask for your password once every 15 minutes (by
 default). See <code>git help credentials</code> for details.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-tell-if-a-dom-element-is-visible-in-the-current-viewport/" class="u-url">How can I tell if a DOM element is visible in the current viewport?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-can-i-tell-if-a-dom-element-is-visible-in-the-current-viewport/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T04:22:21+08:00" itemprop="datePublished" title="2023-02-17 04:22">2023-02-17 04:22</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Is there an efficient way to tell if a DOM element (in an HTML document) is
-currently visible (appears in the <strong>viewport</strong> )?</p>
-<p>(The question refers to Firefox.)</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><strong>Update:</strong> Time marches on and so have our browsers. <strong>This technique is no
-longer recommended</strong> and you should use Dan's solution if you do not need to
-support version of Internet Explorer before 7.</p>
-<p><strong>Original solution (now outdated):</strong></p>
-<p>This will check if the element is entirely visible in the current viewport:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">elementInViewport</span><span class="p">(</span><span class="n">el</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetTop</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">left</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetLeft</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">width</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetWidth</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">height</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetHeight</span><span class="p">;</span>
-
-<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">offsetParent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetParent</span><span class="p">;</span>
-<span class="w">    </span><span class="n">top</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetTop</span><span class="p">;</span>
-<span class="w">    </span><span class="n">left</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetLeft</span><span class="p">;</span>
-<span class="w">  </span><span class="p">}</span>
-
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
-<span class="w">    </span><span class="n">top</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">pageYOffset</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="n">left</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">pageXOffset</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="p">(</span><span class="n">top</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">height</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">pageYOffset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">innerHeight</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="p">(</span><span class="n">left</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">width</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">pageXOffset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">innerWidth</span><span class="p">)</span>
-<span class="w">  </span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>You could modify this simply to determine if any part of the element is
-visible in the viewport:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">elementInViewport2</span><span class="p">(</span><span class="n">el</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetTop</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">left</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetLeft</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">width</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetWidth</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">height</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetHeight</span><span class="p">;</span>
-
-<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">offsetParent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetParent</span><span class="p">;</span>
-<span class="w">    </span><span class="n">top</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetTop</span><span class="p">;</span>
-<span class="w">    </span><span class="n">left</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetLeft</span><span class="p">;</span>
-<span class="w">  </span><span class="p">}</span>
-
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
-<span class="w">    </span><span class="n">top</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">pageYOffset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">innerHeight</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="n">left</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">pageXOffset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">innerWidth</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="p">(</span><span class="n">top</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">height</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">pageYOffset</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="p">(</span><span class="n">left</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">width</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">pageXOffset</span>
-<span class="w">  </span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p><strong>Update:</strong> Time marches on and so have our browsers. <strong>This technique is no
-longer recommended</strong> and you should use Dan's solution if you do not need to
-support version of Internet Explorer before 7.</p>
-<p><strong>Original solution (now outdated):</strong></p>
-<p>This will check if the element is entirely visible in the current viewport:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">elementInViewport</span><span class="p">(</span><span class="n">el</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetTop</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">left</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetLeft</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">width</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetWidth</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">height</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetHeight</span><span class="p">;</span>
-
-<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">offsetParent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetParent</span><span class="p">;</span>
-<span class="w">    </span><span class="n">top</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetTop</span><span class="p">;</span>
-<span class="w">    </span><span class="n">left</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetLeft</span><span class="p">;</span>
-<span class="w">  </span><span class="p">}</span>
-
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
-<span class="w">    </span><span class="n">top</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">pageYOffset</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="n">left</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">pageXOffset</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="p">(</span><span class="n">top</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">height</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">pageYOffset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">innerHeight</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="p">(</span><span class="n">left</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">width</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">pageXOffset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">innerWidth</span><span class="p">)</span>
-<span class="w">  </span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>You could modify this simply to determine if any part of the element is
-visible in the viewport:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">elementInViewport2</span><span class="p">(</span><span class="n">el</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetTop</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">left</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetLeft</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">width</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetWidth</span><span class="p">;</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">height</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetHeight</span><span class="p">;</span>
-
-<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">offsetParent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetParent</span><span class="p">;</span>
-<span class="w">    </span><span class="n">top</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetTop</span><span class="p">;</span>
-<span class="w">    </span><span class="n">left</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">el</span><span class="o">.</span><span class="n">offsetLeft</span><span class="p">;</span>
-<span class="w">  </span><span class="p">}</span>
-
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
-<span class="w">    </span><span class="n">top</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">pageYOffset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">innerHeight</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="n">left</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">pageXOffset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">innerWidth</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="p">(</span><span class="n">top</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">height</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">pageYOffset</span><span class="w"> </span><span class="o">&amp;&amp;</span>
-<span class="w">    </span><span class="p">(</span><span class="n">left</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">width</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">window</span><span class="o">.</span><span class="n">pageXOffset</span>
-<span class="w">  </span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
     </div>
     </article>
 </div>

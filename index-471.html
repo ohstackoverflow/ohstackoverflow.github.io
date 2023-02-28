@@ -108,7 +108,93 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-get-the-data-id-attribute/" class="u-url">How can I get the data-id attribute?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/resetting-remote-to-a-certain-commit/" class="u-url">Resetting remote to a certain commit</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/resetting-remote-to-a-certain-commit/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T07:42:27+08:00" itemprop="datePublished" title="2023-02-17 07:42">2023-02-17 07:42</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I want to discard all changes done after commit <code>&lt;commit-hash&gt;</code> . So I did:</p>
+<div class="code"><pre class="code literal-block">git reset --hard &lt;commit-hash&gt;
+</pre></div>
+
+<p>Now I want to do the same with my remote. How can I do this? I have done some
+commits (and pushes) after <code>&lt;commit-hash&gt;</code> and I just want to discard them
+all. Is just something went <em>terribly</em> wrong in the way and I don't want to
+make it worse than it is already. ;(</p>
+<p>I basically want to rewind my <code>origin/master</code> to <code>&lt;commit-hash&gt;</code></p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Assuming that your branch is called <code>master</code> both here and remotely, and that
+your remote is called <code>origin</code> you could do:</p>
+<div class="code"><pre class="code literal-block"> git reset --hard &lt;commit-hash&gt;
+ git push -f origin master
+</pre></div>
+
+<p>However, you should avoid doing this if anyone else is working with your
+remote repository and has pulled your changes. In that case, it would be
+better to revert the commits that you don't want, then push as normal.</p>
+<p><strong>Update:</strong> you've explained below that other people have pulled the changes
+that you've pushed, so it's <strong>better to create a new commit that reverts all
+of those changes</strong>. There's a nice explanation of your options for doing this
+in <strong>this answer from Jakub Narębski</strong>. Which one is most convenient depends
+on how many commits you want to revert, and which method makes most sense to
+you.</p>
+<p>Since from your question it's clear that you have already used <code>git reset
+--hard</code> to reset your <code>master</code> branch, you may need to start by using <code>git
+reset --hard ORIG_HEAD</code> to move your branch back to where it was before. (As
+always with <code>git reset --hard</code>, make sure that <code>git status</code> is clean, that
+you're on the right branch and that you're aware of <code>git reflog</code> as a tool to
+recover apparently lost commits.) You should also check that <code>ORIG_HEAD</code>
+points to the right commit, with <code>git show ORIG_HEAD</code>.</p>
+<p><strong>Troubleshooting:</strong></p>
+<p>If you get a message like " <em>! [remote rejected] a60f7d85 - &gt; master (pre-
+receive hook declined)</em>"</p>
+<p>then you have to allow branch history rewriting for the specific branch. In
+BitBucket for example it said "Rewriting branch history is not allowed". There
+is a checkbox named <code>Allow rewriting branch history</code> which you have to check.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>Using some other answers can result in unnecessary loss of local state.</strong>
+Local changes are not inherently required to change a remote. This method can
+still wreck your remote if you choose the wrong commit to go back to, but even
+then you can usually find the right commit and try again.</p>
+<p>You <strong>must</strong> have the desired commit somewhere in your local repo that you
+want the remote to match.</p>
+<ol>
+<li>Do <strong>not</strong> do any resetting.</li>
+<li>Use <code>git log</code> to find the commit you want to the remote to be at. Use <code>git log -p</code> to see changes, or <code>git log --graph --all --oneline --decorate</code> to see a compact tree.</li>
+<li>Copy the commit's hash, tag, or (if it's the tip) its branch name.</li>
+<li>Run a command like: <div class="code"><pre class="code literal-block">git push --force &lt;remote&gt; &lt;commit-ish&gt;:&lt;the remote branch&gt;
+</pre></div>
+
+</li>
+</ol>
+<p>e.g.</p>
+<div class="code"><pre class="code literal-block">    git push --force origin 606fdfaa33af1844c86f4267a136d4666e576cdc:master
+</pre></div>
+
+<p>or</p>
+<div class="code"><pre class="code literal-block">    git push --force staging v2.4.0b2:releases
+</pre></div>
+
+<p>If the forced push fails, it's likely disabled by the remote. This may be
+worked around by temporarily changing one or both of
+<code>receive.denyNonFastForwards</code> and <code>receive.denyDeletes</code>. If your remote is
+hosted on a service without shell access, it probably has settings you can
+change to allow forced pushes.</p>
+<hr>
+<p>I use a convenient alias (<code>git go</code>) for viewing history as in step 2, which
+can be added like so:</p>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="c1">--global alias.go 'log --graph --all --decorate --oneline'</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-get-the-data-id-attribute/" class="u-url">How can I get the data-id attribute?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -243,51 +329,6 @@ stored within the VM located at:</p>
 </pre></div>
 
 <p>that contains the Docker Disk and all the images and containers within it.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-time-a-method-s-execution-in-java/" class="u-url">How do I time a method's execution in Java?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-time-a-method-s-execution-in-java/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T07:40:52+08:00" itemprop="datePublished" title="2023-02-17 07:40">2023-02-17 07:40</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <ol>
-<li>How do I get a method's execution time? </li>
-<li>Is there a <code>Timer</code> utility class for things like timing how long a task takes, etc? </li>
-</ol>
-<p>Most of the searches on Google return results for timers that schedule threads
-and tasks, which is not what I want.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>There is always the old-fashioned way:</p>
-<div class="code"><pre class="code literal-block">long startTime = System.nanoTime();
-methodToTime();
-long endTime = System.nanoTime();
-
-long duration = (endTime - startTime);  //divide by 1000000 to get milliseconds.
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>I go with the simple answer. Works for me.</p>
-<div class="code"><pre class="code literal-block">long startTime = System.currentTimeMillis();
-
-doReallyLongThing();
-
-long endTime = System.currentTimeMillis();
-
-System.out.println("That took " + (endTime - startTime) + " milliseconds");
-</pre></div>
-
-<p>It works quite well. The resolution is obviously only to the millisecond, you
-can do better with System.nanoTime(). There are some limitations to both
-(operating system schedule slices, etc.) but this works pretty well.</p>
-<p>Average across a couple of runs (the more the better) and you'll get a decent
-idea.</p>
     </div>
     </article>
 </div>

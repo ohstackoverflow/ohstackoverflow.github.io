@@ -108,7 +108,96 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jsondecodeerror-expecting-value-line-1-column-1-char-0/" class="u-url">JSONDecodeError: Expecting value: line 1 column 1 (char 0)</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-size-a-uitextview-to-its-content/" class="u-url">How do I size a UITextView to its content?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-size-a-uitextview-to-its-content/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T04:23:26+08:00" itemprop="datePublished" title="2023-02-18 04:23">2023-02-18 04:23</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there a good way to adjust the size of a <code>UITextView</code> to conform to its
+content? Say for instance I have a <code>UITextView</code> that contains one line of
+text:</p>
+<div class="code"><pre class="code literal-block">"Hello world"
+</pre></div>
+
+<p>I then add another line of text:</p>
+<div class="code"><pre class="code literal-block">"Goodbye world"
+</pre></div>
+
+<p>Is there a good way in Cocoa Touch to get the <code>rect</code> that will hold all of the
+lines in the text view so that I can adjust the parent view accordingly?</p>
+<p>As another example, look at the notes' field for events in the Calendar
+application - note how the cell (and the <code>UITextView</code> it contains) expands to
+hold all lines of text in the notes' string.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>This works for both iOS 6.1 and iOS 7:</p>
+<div class="code"><pre class="code literal-block"><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">textViewDidChange:</span><span class="p">(</span><span class="bp">UITextView</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">textView</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">CGFloat</span><span class="w"> </span><span class="n">fixedWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">textView</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span><span class="p">;</span>
+<span class="w">    </span><span class="n">CGSize</span><span class="w"> </span><span class="n">newSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">textView</span><span class="w"> </span><span class="n">sizeThatFits</span><span class="o">:</span><span class="n">CGSizeMake</span><span class="p">(</span><span class="n">fixedWidth</span><span class="p">,</span><span class="w"> </span><span class="n">MAXFLOAT</span><span class="p">)];</span>
+<span class="w">    </span><span class="n">CGRect</span><span class="w"> </span><span class="n">newFrame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">textView</span><span class="p">.</span><span class="n">frame</span><span class="p">;</span>
+<span class="w">    </span><span class="n">newFrame</span><span class="p">.</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CGSizeMake</span><span class="p">(</span><span class="n">fmaxf</span><span class="p">(</span><span class="n">newSize</span><span class="p">.</span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="n">fixedWidth</span><span class="p">),</span><span class="w"> </span><span class="n">newSize</span><span class="p">.</span><span class="n">height</span><span class="p">);</span>
+<span class="w">    </span><span class="n">textView</span><span class="p">.</span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newFrame</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Or in Swift (Works with Swift 4.1 in iOS 11)</p>
+<div class="code"><pre class="code literal-block">let fixedWidth = textView.frame.size.width
+let newSize = textView.sizeThatFits(CGSize(width: fixedWidth, height: CGFloat.greatestFiniteMagnitude))
+textView.frame.size = CGSize(width: max(newSize.width, fixedWidth), height: newSize.height)
+</pre></div>
+
+<p>If you want support for iOS 6.1 then you should also:</p>
+<div class="code"><pre class="code literal-block">textview.scrollEnabled = NO;
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<h3>This no longer works on iOS 7 or above</h3>
+<p>There is actually a very easy way to do resizing of the <code>UITextView</code> to its
+correct height of the content. It can be done using the <code>UITextView</code>
+<code>contentSize</code>.</p>
+<div class="code"><pre class="code literal-block">CGRect frame = _textView.frame;
+frame.size.height = _textView.contentSize.height;
+_textView.frame = frame;
+</pre></div>
+
+<p>One thing to note is that the correct <code>contentSize</code> is only available
+<strong>after</strong> the <code>UITextView</code> has been added to the view with <code>addSubview</code>. Prior
+to that it is equal to <code>frame.size</code></p>
+<p>This will not work if auto layout is ON. With auto layout, the general
+approach is to use the <code>sizeThatFits</code> method and update the <code>constant</code> value
+on a height constraint.</p>
+<div class="code"><pre class="code literal-block"><span class="n">CGSize</span><span class="w"> </span><span class="n">sizeThatShouldFitTheContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">_textView</span><span class="w"> </span><span class="n">sizeThatFits</span><span class="o">:</span><span class="n">_textView</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">];</span>
+<span class="n">heightConstraint</span><span class="p">.</span><span class="n">constant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sizeThatShouldFitTheContent</span><span class="p">.</span><span class="n">height</span><span class="p">;</span>
+</pre></div>
+
+<p><code>heightConstraint</code> is a layout constraint that you typically setup via a
+IBOutlet by linking the property to the height constraint created in a
+storyboard.</p>
+<hr>
+<p>Just to add to this amazing answer, 2014, if you:</p>
+<div class="code"><pre class="code literal-block">[self.textView sizeToFit];
+</pre></div>
+
+<p>there is a difference in behaviour with the <strong>iPhone6+</strong> only:</p>
+<p><img alt="enter image description here" src="images/GCC09.png"></p>
+<p>With the 6+ only (not the 5s or 6) it does add "one more blank line" to the
+UITextView. The "RL solution" fixes this perfectly:</p>
+<div class="code"><pre class="code literal-block">CGRect _f = self.mainPostText.frame;
+_f.size.height = self.mainPostText.contentSize.height;
+self.mainPostText.frame = _f;
+</pre></div>
+
+<p>It fixes the "extra line" problem on 6+.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jsondecodeerror-expecting-value-line-1-column-1-char-0/" class="u-url">JSONDecodeError: Expecting value: line 1 column 1 (char 0)</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -263,58 +352,6 @@ case. This may be the reason that so many Java implementations choose such
 constants.</p>
 <p>See section 9.2 Hash Tables (page 522) of Data Structures and Algorithms in
 Java.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-jar-and-war-in-java/" class="u-url">Difference between jar and war in Java</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/difference-between-jar-and-war-in-java/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T04:22:04+08:00" itemprop="datePublished" title="2023-02-18 04:22">2023-02-18 04:22</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What is the difference between a <code>.jar</code> and a <code>.war</code> file?<br>
-Is it only the file extension or is there something more?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><strong>From Java Tips: Difference between ear jar and war files:</strong></p>
-<blockquote>
-<p>These files are simply zipped files using the java jar tool. These files are
-created for different purposes. Here is the description of these files:</p>
-<ul>
-<li>
-<p><strong>.jar files:</strong> The .jar files <strong>contain libraries, resources and
-accessories files</strong> like property files.</p>
-</li>
-<li>
-<p><strong>.war files:</strong> The war file <strong>contains the web application</strong> that can
-be deployed on any servlet/jsp container. The .war file <strong>contains jsp,
-html, javascript</strong> and other files necessary for the development of web
-applications.</p>
-</li>
-</ul>
-</blockquote>
-<hr>
-<p><strong>Official Sun/Oracle descriptions:</strong></p>
-<ul>
-<li>The J2EETM Tutorial: <strong>Web Application Archives</strong>
-</li>
-<li>The Java Archive (JAR) File Format: <strong>The Basics</strong>
-</li>
-</ul>
-<hr>
-<p><strong>Wikipedia articles:</strong></p>
-<ul>
-<li>WAR file format (Sun)</li>
-<li>JAR file</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p><strong>WAR</strong> stands for <strong>Web application ARchive</strong></p>
-<p><strong>JAR</strong> stands for <strong>Java ARchive</strong></p>
-<p><img alt="enter image description here" src="images/ZLdF7.png"></p>
     </div>
     </article>
 </div>

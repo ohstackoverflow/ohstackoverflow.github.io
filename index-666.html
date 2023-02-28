@@ -108,7 +108,189 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-should-main-return-in-c-and-c/" class="u-url">What should main() return in C and C++?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-view-git-diff-output-with-my-preferred-diff-tool-viewer/" class="u-url">How do I view 'git diff' output with my preferred diff tool/ viewer?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-view-git-diff-output-with-my-preferred-diff-tool-viewer/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T12:45:13+08:00" itemprop="datePublished" title="2023-02-17 12:45">2023-02-17 12:45</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>When I type <code>git diff</code>, I want to view the output with my visual diff tool of
+choice (SourceGear "diffmerge" on Windows). How do I configure git to do this?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Since Git1.6.3, you can use the <strong>git difftool script</strong> : see my answer below.</p>
+<hr>
+<p>May be this article will help you. Here are the best parts:</p>
+<p>There are two different ways to specify an external diff tool.</p>
+<p>The first is the method you used, by setting the GIT_EXTERNAL_DIFF variable.
+However, the variable is supposed to point to the full path of the executable.
+Moreover, the executable specified by GIT_EXTERNAL_DIFF will be called with a
+fixed set of 7 arguments:</p>
+<div class="code"><pre class="code literal-block">path old-file old-hex old-mode new-file new-hex new-mode
+</pre></div>
+
+<p>As most diff tools will require a different order (and only some) of the
+arguments, you will most likely have to specify a wrapper script instead,
+which in turn calls the real diff tool.</p>
+<p>The second method, which I prefer, is to <strong>configure the external diff tool
+via "git config"</strong>. Here is what I did:</p>
+<p>1) Create a wrapper script "git-diff-wrapper.sh" which contains something like</p>
+<div class="code"><pre class="code literal-block"><span class="o">--&gt;</span><span class="m">8</span><span class="o">-</span><span class="p">(</span><span class="n">snip</span><span class="p">)</span><span class="o">--</span>
+<span class="c1">#!/bin/sh</span>
+
+<span class="c1"># diff is called by git with 7 parameters:</span>
+<span class="c1"># path old-file old-hex old-mode new-file new-hex new-mode</span>
+
+<span class="s">"&lt;path_to_diff_executable&gt;"</span><span class="w"> </span><span class="s">"$2"</span><span class="w"> </span><span class="s">"$5"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">cat</span>
+<span class="o">-</span><span class="m">-8</span><span class="o">&lt;-</span><span class="p">(</span><span class="n">snap</span><span class="p">)</span><span class="o">--</span>
+</pre></div>
+
+<p>As you can see, only the second ("old-file") and fifth ("new-file") arguments
+will be passed to the diff tool.</p>
+<p>2) Type</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>config<span class="w"> </span>--global<span class="w"> </span>diff.external<span class="w"> </span>&lt;path_to_wrapper_script&gt;
+</pre></div>
+
+<p>at the command prompt, replacing with the path to "git-diff-wrapper.sh", so
+your ~/.gitconfig contains</p>
+<div class="code"><pre class="code literal-block"><span class="o">--&gt;</span><span class="mi">8</span><span class="o">-</span><span class="p">(</span><span class="n">snip</span><span class="p">)</span><span class="o">--</span>
+<span class="o">[</span><span class="n">diff</span><span class="o">]</span>
+<span class="w">    </span><span class="k">external</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="n">path_to_wrapper_script</span><span class="o">&gt;</span>
+<span class="c1">--8&lt;-(snap)--</span>
+</pre></div>
+
+<p>Be sure to use the correct syntax to specify the paths to the wrapper script
+and diff tool, i.e. use forward slashed instead of backslashes. In my case, I
+have</p>
+<div class="code"><pre class="code literal-block"><span class="k">[diff]</span>
+<span class="w">    </span><span class="na">external</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">\"c:/Documents and Settings/sschuber/git-diff-wrapper.sh\"</span>
+</pre></div>
+
+<p>in .gitconfig and</p>
+<div class="code"><pre class="code literal-block">"d:/Program Files/Beyond Compare 3/BCompare.exe" "$2" "$5" | cat
+</pre></div>
+
+<p>in the wrapper script. Mind the trailing "cat"!</p>
+<p>(I suppose the '<code>| cat</code>' is needed only for some programs which may not return
+a proper or consistent return status. You might want to try without the
+trailing cat if your diff tool has explicit return status)</p>
+<p>(Diomidis Spinellis adds in the comments:</p>
+<blockquote>
+<p>The <code>cat</code> command is required, because <code>diff(1)</code>, by default exits with an
+error code if the files differ.<br>
+ Git expects the external diff program to exit with an error code only if an
+actual error occurred, e.g. if it run out of memory.<br>
+ By piping the output of <code>git</code> to <code>cat</code> the non-zero error code is masked.<br>
+ More efficiently, the program could just run <code>exit</code> with and argument of
+0.)</p>
+</blockquote>
+<hr>
+<p>That (the article quoted above) is the theory for external tool <strong>defined
+through config file</strong> (not through environment variable).<br>
+In practice (still for config file definition of external tool), you can refer
+to:</p>
+<ul>
+<li>How do I setup DiffMerge with msysgit / gitk? which illustrates the concrete settings of DiffMerge and WinMerge for MsysGit and gitk</li>
+<li>How can I set up an editor to work with Git on Windows? for the definition of Notepad++ as an external editor.</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>To complete my previous "diff.external" config answer above:</p>
+<p>As mentioned by Jakub, Git1.6.3 introduced git <strong>difftool</strong> , originally
+proposed in September 2008:</p>
+<p>USAGE=<code>'[--tool=tool] [--commit=ref] [--start=ref --end=ref] [--no-prompt]
+[file to merge]'</code><br>
+(See <code>--extcmd</code> in the last part of this answer)</p>
+<p><code>$LOCAL</code> contains the contents of the file from the starting revision and
+<code>$REMOTE</code> contains the contents of the file in the ending revision.<br><code>$BASE</code> contains the contents of the file in the wor</p>
+<blockquote>
+<p>It's basically <code>git-mergetool</code> modified to operate on the git
+index/worktree.</p>
+<p>The usual use case for this script is when you have either staged or
+unstaged changes and you'd like to see the changes in a side-by-side diff
+viewer (e.g. <code>xxdiff</code>, <code>tkdiff</code>, etc).</p>
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">difftool</span><span class="w"> </span><span class="p">[</span><span class="o">&lt;</span><span class="n">filename</span><span class="o">&gt;*</span><span class="p">]</span>
+</pre></div>
+
+<blockquote>
+<p>Another use case is when you'd like to see the same information but are
+comparing arbitrary commits (this is the part where the revarg parsing could
+be better)</p>
+</blockquote>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">difftool</span><span class="w"> </span><span class="o">--</span><span class="n">start</span><span class="o">=</span><span class="n">HEAD</span><span class="o">^</span><span class="w"> </span><span class="o">--</span><span class="n">end</span><span class="o">=</span><span class="n">HEAD</span><span class="w"> </span><span class="p">[</span><span class="o">--</span><span class="w"> </span><span class="o">&lt;</span><span class="n">filename</span><span class="o">&gt;*</span><span class="p">]</span>
+</pre></div>
+
+<p>The last use case is when you'd like to compare your current worktree to
+something other than HEAD (e.g. a tag)</p>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">difftool</span><span class="w"> </span><span class="o">--</span><span class="n">commit</span><span class="o">=</span><span class="n">v1</span><span class="o">.</span><span class="mf">0.0</span><span class="w"> </span><span class="p">[</span><span class="o">--</span><span class="w"> </span><span class="o">&lt;</span><span class="n">filename</span><span class="o">&gt;*</span><span class="p">]</span>
+</pre></div>
+
+<p><strong>Note: since Git 2.5,<code>git config diff.tool winmerge</code> is enough!</strong><br>
+See "git mergetool winmerge"</p>
+<p>And since Git 1.7.11, you have the option <code>--dir-diff</code>, in order to to spawn
+external diff tools that can compare two directory hierarchies at a time after
+populating two temporary directories, instead of running an instance of the
+external tool once per a file pair.</p>
+<hr>
+<p>Before Git 2.5:</p>
+<p>Practical case for configuring <code>difftool</code> with your custom diff tool:</p>
+<div class="code"><pre class="code literal-block"><span class="n">C</span><span class="p">:</span>\<span class="n">myGitRepo</span><span class="o">&gt;</span><span class="n">git</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">--</span><span class="n">global</span><span class="w"> </span><span class="n">diff</span><span class="o">.</span><span class="k">tool</span><span class="w"> </span><span class="n">winmerge</span>
+<span class="n">C</span><span class="p">:</span>\<span class="n">myGitRepo</span><span class="o">&gt;</span><span class="n">git</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">--</span><span class="n">global</span><span class="w"> </span><span class="n">difftool</span><span class="o">.</span><span class="n">winmerge</span><span class="o">.</span><span class="n">cmd</span><span class="w"> </span><span class="s2">"winmerge.sh </span><span class="se">\"</span><span class="s2">$LOCAL</span><span class="se">\"</span><span class="s2"> </span><span class="se">\"</span><span class="s2">$REMOTE</span><span class="se">\"</span><span class="s2">"</span>
+<span class="n">C</span><span class="p">:</span>\<span class="n">myGitRepo</span><span class="o">&gt;</span><span class="n">git</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">--</span><span class="n">global</span><span class="w"> </span><span class="n">difftool</span><span class="o">.</span><span class="n">prompt</span><span class="w"> </span><span class="bp">false</span>
+</pre></div>
+
+<p>With winmerge.sh stored in a directory part of your PATH:</p>
+<div class="code"><table class="codetable">
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-view-git-diff-output-with-my-preferred-diff-tool-viewer/#-1"><code data-line-number="1"></code></a></td>
+<td class="code"><code><span class="ch">#!/bin/sh</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-view-git-diff-output-with-my-preferred-diff-tool-viewer/#-2"><code data-line-number="2"></code></a></td>
+<td class="code"><code><span class="nb">echo</span><span class="w"> </span>Launching<span class="w"> </span>WinMergeU.exe:<span class="w"> </span><span class="nv">$1</span><span class="w"> </span><span class="nv">$2</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-do-i-view-git-diff-output-with-my-preferred-diff-tool-viewer/#-3"><code data-line-number="3"></code></a></td>
+<td class="code"><code><span class="s2">"C:/Program Files/WinMerge/WinMergeU.exe"</span><span class="w"> </span>-u<span class="w"> </span>-e<span class="w"> </span><span class="s2">"</span><span class="nv">$1</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$2</span><span class="s2">"</span><span class="w"> </span>-dl<span class="w"> </span><span class="s2">"Local"</span><span class="w"> </span>-dr<span class="w"> </span><span class="s2">"Remote"</span>
+</code></td>
+</tr>
+</table></div>
+<p>If you have another tool (kdiff3, P4Diff, ...), create another shell script,
+and the appropriate <code>difftool.myDiffTool.cmd</code> config directive.<br>
+Then you can easily switch tools with the <code>diff.tool</code> config.</p>
+<p>You have also this blog entry by Dave to add other details.<br>
+(Or this question for the <code>winmergeu</code> options)</p>
+<p>The interest with this setting is the <strong><code>winmerge.sh</code>script</strong>: you can
+customize it to take into account special cases.</p>
+<p>See for instance David Marble's answer below for an example which deals with:</p>
+<ul>
+<li>
+<em>new</em> files in either origin or destination</li>
+<li>
+<em>removed</em> files in either origin or destination</li>
+</ul>
+<hr>
+<p>As Kem Mason mentions in his answer, you can also <strong>avoid any wrapper by using
+the<code>--extcmd</code> option</strong>:</p>
+<div class="code"><pre class="code literal-block">--extcmd=&lt;command&gt;
+</pre></div>
+
+<blockquote>
+<p>Specify a custom command for viewing diffs. <code>git-difftool</code> ignores the
+configured defaults and runs <strong><code>$command $LOCAL $REMOTE</code></strong> when this option
+is specified.</p>
+</blockquote>
+<p>For instance, this is how <code>gitk</code> is able to run/use any <code>diff</code> tool.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-should-main-return-in-c-and-c/" class="u-url">What should main() return in C and C++?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -349,82 +531,6 @@ directory, and the <code>user's global exclusion file</code>.</p>
 
 <p>See Is there a way to tell git-status to ignore the effects of .gitignore
 files?</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/multiple-indexes-vs-multi-column-indexes/" class="u-url">Multiple Indexes vs Multi-Column Indexes</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/multiple-indexes-vs-multi-column-indexes/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T12:43:52+08:00" itemprop="datePublished" title="2023-02-17 12:43">2023-02-17 12:43</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What is the difference between creating one index across multiple columns
-versus creating multiple indexes, one <em>per</em> column?</p>
-<p>Are there reasons why one should be used over the other?</p>
-<p>For example:</p>
-<div class="code"><pre class="code literal-block">Create NonClustered Index IX_IndexName On TableName
-(Column1 Asc, Column2 Asc, Column3 Asc)
-</pre></div>
-
-<p>Versus:</p>
-<div class="code"><pre class="code literal-block">Create NonClustered Index IX_IndexName1 On TableName
-(Column1 Asc)
-
-Create NonClustered Index IX_IndexName2 On TableName
-(Column2 Asc)
-
-Create NonClustered Index IX_IndexName3 On TableName
-(Column3 Asc)
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I agree with Cade Roux.</p>
-<p>This article should get you on the right track:</p>
-<ul>
-<li>Indexes in SQL Server 2005/2008 – Best Practices, Part 1</li>
-<li>Indexes in SQL Server 2005/2008 – Part 2 – Internals </li>
-</ul>
-<p>One thing to note, clustered indexes should have a unique key (an identity
-column I would recommend) as the first column. Basically it helps your data
-insert at the end of the index and not cause lots of disk IO and Page splits.</p>
-<p>Secondly, if you are creating other indexes on your data and they are
-constructed cleverly they will be reused.</p>
-<p>e.g. imagine you search a table on three columns</p>
-<p>state, county, zip.</p>
-<ul>
-<li>you sometimes search by state only. </li>
-<li>you sometimes search by state and county.</li>
-<li>you frequently search by state, county, zip. </li>
-</ul>
-<p>Then an index with state, county, zip. will be used in all three of these
-searches.</p>
-<p>If you search by zip alone quite a lot then the above index will not be used
-(by SQL Server anyway) as zip is the third part of that index and the query
-optimiser will not see that index as helpful.</p>
-<p>You could then create an index on Zip alone that would be used in this
-instance.</p>
-<p>By the way We can take advantage of the fact that with Multi-Column indexing
-the first index column is always usable for searching and when you search only
-by 'state' it is efficient but yet not as efficient as Single-Column index on
-'state'</p>
-<p>I guess the answer you are looking for is that it depends on your where
-clauses of your frequently used queries and also your group by's.</p>
-<p>The article will help a lot. :-)</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Yes. I recommend you check out Kimberly Tripp's articles on indexing.</p>
-<p>If an index is "covering", then there is no need to use anything but the
-index. In SQL Server 2005, you can also add additional columns to the index
-that are not part of the key which can eliminate trips to the rest of the row.</p>
-<p>Having multiple indexes, each on a single column may mean that only one index
-gets used at all - you will have to refer to the execution plan to see what
-effects different indexing schemes offer.</p>
-<p>You can also use the tuning wizard to help determine what indexes would make a
-given query or workload perform the best.</p>
     </div>
     </article>
 </div>

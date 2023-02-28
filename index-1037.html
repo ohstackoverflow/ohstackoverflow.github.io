@@ -108,7 +108,127 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-sum-array-of-numbers-in-ruby/" class="u-url">How to sum array of numbers in Ruby?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-issues-should-be-considered-when-overriding-equals-and-hashcode-in-java/" class="u-url">What issues should be considered when overriding equals and hashCode in Java?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-issues-should-be-considered-when-overriding-equals-and-hashcode-in-java/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T23:22:00+08:00" itemprop="datePublished" title="2023-02-17 23:22">2023-02-17 23:22</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p><strong>This question's answers are a community effort</strong>. Edit existing answers to
+improve this post. It is not currently accepting new answers or interactions.</p>
+<p>What issues / pitfalls must be considered when overriding <code>equals</code> and
+<code>hashCode</code>?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h4>The theory (for the language lawyers and the mathematically inclined):</h4>
+<p><code>equals()</code> (javadoc) must define an equivalence relation (it must be
+<em>reflexive</em> , <em>symmetric</em> , and <em>transitive</em> ). In addition, it must be
+<em>consistent</em> (if the objects are not modified, then it must keep returning the
+same value). Furthermore, <code>o.equals(null)</code> must always return false.</p>
+<p><code>hashCode()</code> (javadoc) must also be <em>consistent</em> (if the object is not
+modified in terms of <code>equals()</code>, it must keep returning the same value).</p>
+<p>The <strong>relation</strong> between the two methods is:</p>
+<blockquote>
+<p><em>Whenever<code>a.equals(b)</code>, then <code>a.hashCode()</code> must be same as <code>b.hashCode()</code>.</em></p>
+</blockquote>
+<h4>In practice:</h4>
+<p>If you override one, then you should override the other.</p>
+<p>Use the same set of fields that you use to compute <code>equals()</code> to compute
+<code>hashCode()</code>.</p>
+<p>Use the excellent helper classes EqualsBuilder and HashCodeBuilder from the
+Apache Commons Lang library. An example:</p>
+<div class="code"><pre class="code literal-block"><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">Person</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">name</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">age</span><span class="p">;</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="p">...</span>
+
+<span class="w">    </span><span class="nv">@Override</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">hashCode</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">HashCodeBuilder</span><span class="p">(</span><span class="mi">17</span><span class="p">,</span><span class="w"> </span><span class="mi">31</span><span class="p">).</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">two</span><span class="w"> </span><span class="n">randomly</span><span class="w"> </span><span class="n">chosen</span><span class="w"> </span><span class="n">prime</span><span class="w"> </span><span class="n">numbers</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nl">deriving</span><span class="p">:</span><span class="w"> </span><span class="n">appendSuper</span><span class="p">(</span><span class="n">super</span><span class="p">.</span><span class="n">hashCode</span><span class="p">()).</span>
+<span class="w">            </span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">).</span>
+<span class="w">            </span><span class="n">append</span><span class="p">(</span><span class="n">age</span><span class="p">).</span>
+<span class="w">            </span><span class="n">toHashCode</span><span class="p">();</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="nv">@Override</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">boolean</span><span class="w"> </span><span class="k">equals</span><span class="p">(</span><span class="k">Object</span><span class="w"> </span><span class="n">obj</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">       </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">!</span><span class="p">(</span><span class="n">obj</span><span class="w"> </span><span class="n">instanceof</span><span class="w"> </span><span class="n">Person</span><span class="p">))</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">obj</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">this</span><span class="p">)</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">Person</span><span class="w"> </span><span class="n">rhs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Person</span><span class="p">)</span><span class="w"> </span><span class="n">obj</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">EqualsBuilder</span><span class="p">().</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nl">deriving</span><span class="p">:</span><span class="w"> </span><span class="n">appendSuper</span><span class="p">(</span><span class="n">super</span><span class="p">.</span><span class="k">equals</span><span class="p">(</span><span class="n">obj</span><span class="p">)).</span>
+<span class="w">            </span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">.</span><span class="n">name</span><span class="p">).</span>
+<span class="w">            </span><span class="n">append</span><span class="p">(</span><span class="n">age</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">.</span><span class="n">age</span><span class="p">).</span>
+<span class="w">            </span><span class="n">isEquals</span><span class="p">();</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<h4>Also remember:</h4>
+<p>When using a hash-based Collection or Map such as HashSet, LinkedHashSet,
+HashMap, Hashtable, or WeakHashMap, make sure that the hashCode() of the key
+objects that you put into the collection never changes while the object is in
+the collection. The bulletproof way to ensure this is to make your keys
+immutable, which has also other benefits.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>There are some issues worth noticing if you're dealing with classes that are
+persisted using an Object-Relationship Mapper (ORM) like Hibernate, if you
+didn't think this was unreasonably complicated already!</p>
+<p><strong>Lazy loaded objects are subclasses</strong></p>
+<p>If your objects are persisted using an ORM, in many cases you will be dealing
+with dynamic proxies to avoid loading object too early from the data store.
+These proxies are implemented as subclasses of your own class. This means
+that<code>this.getClass() == o.getClass()</code> will return <code>false</code>. For example:</p>
+<div class="code"><pre class="code literal-block"><span class="n">Person</span><span class="w"> </span><span class="n">saved</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Person</span><span class="p">(</span><span class="s2">"John Doe"</span><span class="p">);</span>
+<span class="n">Long</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dao</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">saved</span><span class="p">);</span>
+<span class="n">dao</span><span class="o">.</span><span class="n">flush</span><span class="p">();</span>
+<span class="n">Person</span><span class="w"> </span><span class="n">retrieved</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dao</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">key</span><span class="p">);</span>
+<span class="n">saved</span><span class="o">.</span><span class="n">getClass</span><span class="p">()</span><span class="o">.</span><span class="n">equals</span><span class="p">(</span><span class="n">retrieved</span><span class="o">.</span><span class="n">getClass</span><span class="p">());</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Will</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="bp">false</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">Person</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">loaded</span><span class="w"> </span><span class="n">lazy</span>
+</pre></div>
+
+<p><em>If you're dealing with an ORM, using<code>o instanceof Person</code> is the only thing
+that will behave correctly.</em></p>
+<p><strong>Lazy loaded objects have null-fields</strong></p>
+<p>ORMs usually use the getters to force loading of lazy loaded objects. This
+means that <code>person.name</code> will be <code>null</code> if <code>person</code> is lazy loaded, even if
+<code>person.getName()</code> forces loading and returns "John Doe". In my experience,
+this crops up more often in <code>hashCode()</code> and <code>equals()</code>.</p>
+<p><em>If you're dealing with an ORM, make sure to always use getters, and never
+field references in<code>hashCode()</code> and <code>equals()</code>.</em></p>
+<p><strong>Saving an object will change its state</strong></p>
+<p>Persistent objects often use a <code>id</code> field to hold the key of the object. This
+field will be automatically updated when an object is first saved. Don't use
+an id field in <code>hashCode()</code>. But you can use it in <code>equals()</code>.</p>
+<p>A pattern I often use is</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">getId</span><span class="ss">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">other</span><span class="c1">;</span>
+}
+<span class="k">else</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">this</span>.<span class="nv">getId</span><span class="ss">()</span>.<span class="nv">equals</span><span class="ss">(</span><span class="nv">other</span>.<span class="nv">getId</span><span class="ss">())</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>But: you cannot include <code>getId()</code> in <code>hashCode()</code>. If you do, when an object
+is persisted, its <code>hashCode</code> changes. If the object is in a <code>HashSet</code>, you'll
+"never" find it again.</p>
+<p>In my <code>Person</code> example, I probably would use <code>getName()</code> for <code>hashCode</code> and
+<code>getId()</code> plus <code>getName()</code> (just for paranoia) for <code>equals()</code>. It's okay if
+there are some risk of "collisions" for <code>hashCode()</code>, but never okay for
+<code>equals()</code>.</p>
+<p><em><code>hashCode()</code> should use the non-changing subset of properties from
+<code>equals()</code></em></p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-sum-array-of-numbers-in-ruby/" class="u-url">How to sum array of numbers in Ruby?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -211,92 +331,6 @@ result: nothing is shown.</p>
 </pre></div>
 
 <p>Both work, just pick one and go with it :)</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-it-and-test-in-jest/" class="u-url">What is the difference between 'it' and 'test' in Jest?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-is-the-difference-between-it-and-test-in-jest/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T23:20:19+08:00" itemprop="datePublished" title="2023-02-17 23:20">2023-02-17 23:20</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have two tests in my test group. One of the tests use <code>it</code> and the other one
-uses <code>test</code>. Both of them seem to be working very similarly. What is the
-difference between them?</p>
-<div class="code"><pre class="code literal-block"><span class="nt">describe</span><span class="o">(</span><span class="s1">'updateAll'</span><span class="o">,</span><span class="w"> </span><span class="o">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="err">it('no</span><span class="w"> </span><span class="err">force',</span><span class="w"> </span><span class="err">()</span><span class="w"> </span><span class="err">=&gt;</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="err">return</span><span class="w"> </span><span class="err">updateAll(TableName,</span><span class="w"> </span><span class="cp">[</span><span class="s2">"fileName"</span><span class="cp">]</span><span class="err">,</span><span class="w"> </span><span class="err">{</span><span class="n">compandId</span><span class="p">:</span><span class="w"> </span><span class="s2">"test"</span><span class="p">}</span><span class="o">)</span>
-<span class="w">        </span><span class="p">.</span><span class="nc">then</span><span class="o">(</span><span class="nt">updatedItems</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">          </span><span class="err">let</span><span class="w"> </span><span class="err">undefinedCount</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
-<span class="w">          </span><span class="err">for</span><span class="w"> </span><span class="err">(let</span><span class="w"> </span><span class="err">item</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">updatedItems)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">            </span><span class="err">undefinedCount</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">item</span><span class="w"> </span><span class="err">===</span><span class="w"> </span><span class="err">undefined</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="err">1</span><span class="w"> </span><span class="err">:</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
-<span class="w">          </span><span class="p">}</span>
-<span class="w">          </span><span class="o">//</span><span class="w"> </span><span class="nt">console</span><span class="p">.</span><span class="nc">log</span><span class="o">(</span><span class="s2">"result"</span><span class="o">,</span><span class="w"> </span><span class="nt">result</span><span class="o">);</span>
-<span class="w">          </span><span class="nt">expect</span><span class="o">(</span><span class="nt">undefinedCount</span><span class="o">)</span><span class="p">.</span><span class="nc">toBe</span><span class="o">(</span><span class="nt">updatedItems</span><span class="p">.</span><span class="nc">length</span><span class="o">);</span>
-<span class="w">        </span><span class="err">}</span><span class="o">)</span>
-<span class="w">  </span><span class="err">}</span><span class="o">);</span>
-
-<span class="w">  </span><span class="nt">test</span><span class="o">(</span><span class="s1">'force update'</span><span class="o">,</span><span class="w"> </span><span class="o">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="err">return</span><span class="w"> </span><span class="err">updateAll(TableName,</span><span class="w"> </span><span class="cp">[</span><span class="s2">"fileName"</span><span class="cp">]</span><span class="err">,</span><span class="w"> </span><span class="err">{</span><span class="n">compandId</span><span class="p">:</span><span class="w"> </span><span class="s2">"test"</span><span class="p">}</span><span class="o">,</span><span class="w"> </span><span class="nt">true</span><span class="o">)</span>
-<span class="w">        </span><span class="p">.</span><span class="nc">then</span><span class="o">(</span><span class="nt">updatedItems</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">          </span><span class="err">let</span><span class="w"> </span><span class="err">undefinedCount</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
-<span class="w">          </span><span class="err">for</span><span class="w"> </span><span class="err">(let</span><span class="w"> </span><span class="err">item</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">updatedItems)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">            </span><span class="err">undefinedCount</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="err">item</span><span class="w"> </span><span class="err">===</span><span class="w"> </span><span class="err">undefined</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="err">1</span><span class="w"> </span><span class="err">:</span><span class="w"> </span><span class="err">0</span><span class="p">;</span>
-<span class="w">          </span><span class="p">}</span>
-<span class="w">          </span><span class="o">//</span><span class="w"> </span><span class="nt">console</span><span class="p">.</span><span class="nc">log</span><span class="o">(</span><span class="s2">"result"</span><span class="o">,</span><span class="w"> </span><span class="nt">result</span><span class="o">);</span>
-<span class="w">          </span><span class="nt">expect</span><span class="o">(</span><span class="nt">undefinedCount</span><span class="o">)</span><span class="p">.</span><span class="nc">toBe</span><span class="o">(</span><span class="nt">0</span><span class="o">);</span>
-<span class="w">        </span><span class="err">}</span><span class="o">)</span>
-<span class="w">  </span><span class="err">}</span><span class="o">);</span>
-<span class="err">}</span><span class="o">);</span>
-</pre></div>
-
-<hr>
-<p><strong>Update - Nov 2022:</strong></p>
-<p>It seems that <code>test</code> and <code>it</code> is interchangeable according to the official API
-of Jest. As @gwildu described here, you should choose one over the other for
-the sake of <strong>readability</strong>.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The Jest docs state <code>it</code> is an alias of <code>test</code>. So they are exactly the same
-from a functional point of view. They exist both to enable to make a readable
-English sentence from your test.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>They do the same thing, but their names are different and with that their
-interaction with the name of the test.</p>
-<p><em><strong><code>test</code></strong></em></p>
-<p>What you write:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">describe</span><span class="ss">(</span><span class="s1">'yourModule'</span>,<span class="w"> </span><span class="ss">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>{
-<span class="w">  </span><span class="nv">test</span><span class="ss">(</span><span class="s1">'if it does this thing'</span>,<span class="w"> </span><span class="ss">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>{}<span class="ss">)</span><span class="c1">;</span>
-<span class="w">  </span><span class="nv">test</span><span class="ss">(</span><span class="s1">'if it does the other thing'</span>,<span class="w"> </span><span class="ss">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>{}<span class="ss">)</span><span class="c1">;</span>
-}<span class="ss">)</span><span class="c1">;</span>
-</pre></div>
-
-<p>What you get if something fails:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">yourModule</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">it</span><span class="w"> </span><span class="nv">does</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">thing</span>
-</pre></div>
-
-<p><em><strong><code>it</code></strong></em></p>
-<p>What you write:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">describe</span><span class="ss">(</span><span class="s1">'yourModule'</span>,<span class="w"> </span><span class="ss">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>{
-<span class="w">  </span><span class="nv">it</span><span class="ss">(</span><span class="s1">'should do this thing'</span>,<span class="w"> </span><span class="ss">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>{}<span class="ss">)</span><span class="c1">;</span>
-<span class="w">  </span><span class="nv">it</span><span class="ss">(</span><span class="s1">'should do the other thing'</span>,<span class="w"> </span><span class="ss">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>{}<span class="ss">)</span><span class="c1">;</span>
-}<span class="ss">)</span><span class="c1">;</span>
-</pre></div>
-
-<p>What you get if something fails:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">yourModule</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">should</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">thing</span>
-</pre></div>
-
-<p>So it's about readability not about functionality.</p>
-<p>In my opinion, <code>it</code> really has a point when it comes to read the result of a
-failing test that you haven't written yourself. It helps to faster understand
-what the test is about.</p>
-<p>Some developer also shorten the <code>Should do this thing</code> to <code>Does this thing</code>
-which is a bit shorter and also fits semantically to the <code>it</code> notation.</p>
     </div>
     </article>
 </div>

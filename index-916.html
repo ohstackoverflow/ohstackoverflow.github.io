@@ -108,7 +108,51 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/sort-a-list-by-multiple-attributes/" class="u-url">Sort a list by multiple attributes?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-there-is-no-concurrenthashset-against-concurrenthashmap/" class="u-url">Why there is no ConcurrentHashSet against ConcurrentHashMap</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-there-is-no-concurrenthashset-against-concurrenthashmap/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T19:26:46+08:00" itemprop="datePublished" title="2023-02-17 19:26">2023-02-17 19:26</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>HashSet is based on HashMap.</p>
+<p>If we look at <code>HashSet&lt;E&gt;</code> implementation, everything is been managed under
+<code>HashMap&lt;E,Object&gt;</code>.</p>
+<p><code>&lt;E&gt;</code> is used as a key of <code>HashMap</code>.</p>
+<p>And we know that <code>HashMap</code> is not thread safe. That is why we have
+<code>ConcurrentHashMap</code> in Java.</p>
+<p>Based on this, I am confused that <strong>why we don't have a ConcurrentHashSet
+which should be based on the<code>ConcurrentHashMap</code>?</strong></p>
+<p>Is there anything else that I am missing? I need to use <code>Set</code> in a multi-
+threaded environment.</p>
+<p>Also, If I want to create my own <code>ConcurrentHashSet</code> can I achieve it by just
+replacing the <code>HashMap</code> to <code>ConcurrentHashMap</code> and leaving the rest as is?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>There's no built in type for <code>ConcurrentHashSet</code> because you can always
+<em>derive</em> a set from a map. Since there are many types of maps, you use a
+method to produce a set from a given map (or map class).</p>
+<p>Prior to Java 8, you produce a concurrent hash set backed by a concurrent hash
+map, by using <code>Collections.newSetFromMap(map)</code></p>
+<p>In Java 8 (pointed out by @Matt), you can get a concurrent hash set <em>view</em> via
+<code>ConcurrentHashMap.newKeySet()</code>. This is a bit simpler than the old
+<code>newSetFromMap</code> which required you to pass in an empty map object. But it is
+specific to <code>ConcurrentHashMap</code>.</p>
+<p>Anyway, the Java designers could have created a new set interface every time a
+new map interface was created, but that pattern would be impossible to enforce
+when third parties create their own maps. It is better to have the static
+methods that derive new sets; that approach always works, even when you create
+your own map implementations.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<div class="code"><pre class="code literal-block">Set&lt;String&gt; mySet = Collections.newSetFromMap(new ConcurrentHashMap&lt;String, Boolean&gt;());
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/sort-a-list-by-multiple-attributes/" class="u-url">Sort a list by multiple attributes?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -225,71 +269,6 @@ exists before trying to call it.</p>
 
 <p>As @plus- pointed in comments, latest version is available on their GitHub
 page</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-make-a-textbox-that-only-accepts-numbers/" class="u-url">How do I make a textbox that only accepts numbers?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-make-a-textbox-that-only-accepts-numbers/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T19:25:17+08:00" itemprop="datePublished" title="2023-02-17 19:25">2023-02-17 19:25</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a windows forms app with a textbox control that I want to only accept
-integer values. In the past I've done this kind of validation by overloading
-the KeyPress event and just removing characters which didn't fit the
-specification. I've looked at the MaskedTextBox control but I'd like a more
-general solution that could work with perhaps a regular expression, or depend
-on the values of other controls.</p>
-<p>Ideally this would behave such that pressing a non numeric character would
-either produce no result or immediately provide the user with feedback about
-the invalid character.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Two options:</p>
-<ol>
-<li>
-<p>Use a <code>NumericUpDown</code> instead. NumericUpDown does the filtering for you, which is nice. Of course it also gives your users the ability to hit the up and down arrows on the keyboard to increment and decrement the current value.</p>
-</li>
-<li>
-<p>Handle the appropriate keyboard events to prevent anything but numeric input. I've had success with this two event handlers on a standard TextBox:</p>
-<div class="code"><pre class="code literal-block">private void textBox1_KeyPress(object sender, KeyPressEventArgs e)
-</pre></div>
-
-<p>{
-    if (!char.IsControl(e.KeyChar) &amp;&amp; !char.IsDigit(e.KeyChar) &amp;&amp;
-        (e.KeyChar != '.'))
-    {
-            e.Handled = true;
-    }</p>
-<div class="code"><pre class="code literal-block"><span class="c1">// only allow one decimal point</span>
-<span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">e</span><span class="p">.</span><span class="n">KeyChar</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">'.'</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">((</span><span class="n">sender</span><span class="w"> </span><span class="n">as</span><span class="w"> </span><span class="n">TextBox</span><span class="p">).</span><span class="n">Text</span><span class="p">.</span><span class="n">IndexOf</span><span class="p">(</span><span class="s">'.'</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="n">e</span><span class="p">.</span><span class="n">Handled</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">true</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>}</p>
-</li>
-</ol>
-<p>You can remove the check for <code>'.'</code> (and the subsequent check for more than one
-<code>'.'</code>) if your TextBox shouldn't allow decimal places. You could also add a
-check for <code>'-'</code> if your TextBox should allow negative values.</p>
-<p>If you want to limit the user for number of digit, use: <code>textBox1.MaxLength =
-2; // this will allow the user to enter only 2 digits</code></p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>And just because it's always more fun to do stuff in one line...</p>
-<div class="code"><pre class="code literal-block"> private void textBox1_KeyPress(object sender, KeyPressEventArgs e)
-    {
-        e.Handled = !char.IsDigit(e.KeyChar) &amp;&amp; !char.IsControl(e.KeyChar);
-    }
-</pre></div>
-
-<p>NOTE: This DOES NOT prevent a user from Copy / Paste into this textbox. It's
-not a fail safe way to sanitize your data.</p>
     </div>
     </article>
 </div>

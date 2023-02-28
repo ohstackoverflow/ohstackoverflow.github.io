@@ -108,7 +108,155 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-iterate-through-two-lists-in-parallel/" class="u-url">How do I iterate through two lists in parallel?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/parsing-json-with-unix-tools/" class="u-url">Parsing JSON with Unix tools</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/parsing-json-with-unix-tools/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:30:10+08:00" itemprop="datePublished" title="2023-02-17 04:30">2023-02-17 04:30</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm trying to parse JSON returned from a curl request, like so:</p>
+<div class="code"><pre class="code literal-block"><span class="n">curl</span><span class="w"> </span><span class="s1">'http://twitter.com/users/username.json'</span><span class="w"> </span><span class="o">|</span>
+<span class="w">    </span><span class="n">sed</span><span class="w"> </span><span class="o">-</span><span class="n">e</span><span class="w"> </span><span class="s1">'s/[{}]/''/g'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span>
+<span class="w">    </span><span class="n">awk</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="w"> </span><span class="n">k</span><span class="o">=</span><span class="ss">"text"</span><span class="w"> </span><span class="s1">'{n=split($0,a,","); for (i=1; i&lt;=n; i++) print a[i]}'</span>
+</pre></div>
+
+<p>The above splits the JSON into fields, for example:</p>
+<div class="code"><pre class="code literal-block"><span class="c">% ...</span>
+<span class="s">"geo_enabled"</span><span class="p">:</span><span class="nb">false</span>
+<span class="s">"friends_count"</span><span class="p">:</span><span class="mi">245</span>
+<span class="s">"profile_text_color"</span><span class="p">:</span><span class="s">"000000"</span>
+<span class="s">"status"</span><span class="p">:</span><span class="s">"in_reply_to_screen_name"</span><span class="p">:</span><span class="nb">null</span>
+<span class="s">"source"</span><span class="p">:</span><span class="s">"web"</span>
+<span class="s">"truncated"</span><span class="p">:</span><span class="nb">false</span>
+<span class="s">"text"</span><span class="p">:</span><span class="s">"My status"</span>
+<span class="s">"favorited"</span><span class="p">:</span><span class="nb">false</span>
+<span class="c">% ...</span>
+</pre></div>
+
+<p>How do I print a specific field (denoted by the <code>-v k=text</code>)?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>There are a number of tools specifically designed for the purpose of
+manipulating JSON from the command line, and will be a lot easier and more
+reliable than doing it with Awk, such as <code>jq</code>:</p>
+<div class="code"><pre class="code literal-block">curl -s 'https://api.github.com/users/lambda' | jq -r '.name'
+</pre></div>
+
+<p>You can also do this with tools that are likely already installed on your
+system, like Python using the <code>json</code> module, and so avoid any extra
+dependencies, while still having the benefit of a proper JSON parser. The
+following assume you want to use UTF-8, which the original JSON should be
+encoded in and is what most modern terminals use as well:</p>
+<p>Python 3:</p>
+<div class="code"><pre class="code literal-block"><span class="n">curl</span> <span class="o">-</span><span class="n">s</span> <span class="s1">'https://api.github.com/users/lambda'</span> <span class="o">|</span> \
+    <span class="n">python3</span> <span class="o">-</span><span class="n">c</span> <span class="s2">"import sys, json; print(json.load(sys.stdin)['name'])"</span>
+</pre></div>
+
+<p>Python 2:</p>
+<div class="code"><pre class="code literal-block"><span class="n">export</span> <span class="n">PYTHONIOENCODING</span><span class="o">=</span><span class="n">utf8</span>
+<span class="n">curl</span> <span class="o">-</span><span class="n">s</span> <span class="s1">'https://api.github.com/users/lambda'</span> <span class="o">|</span> \
+    <span class="n">python2</span> <span class="o">-</span><span class="n">c</span> <span class="s2">"import sys, json; print json.load(sys.stdin)['name']"</span>
+</pre></div>
+
+<h3>Frequently Asked Questions</h3>
+<h4>Why not a pure shell solution?</h4>
+<p>The standard POSIX/Single Unix Specification shell is a very limited language
+which doesn't contain facilities for representing sequences (list or arrays)
+or associative arrays (also known as hash tables, maps, dicts, or objects in
+some other languages). This makes representing the result of parsing JSON
+somewhat tricky in portable shell scripts. There are somewhat hacky ways to do
+it, but many of them can break if keys or values contain certain special
+characters.</p>
+<p>Bash 4 and later, zsh, and ksh have support for arrays and associative arrays,
+but these shells are not universally available (macOS stopped updating Bash at
+Bash 3, due to a change from GPLv2 to GPLv3, while many Linux systems don't
+have zsh installed out of the box). It's possible that you could write a
+script that would work in either Bash 4 or zsh, one of which is available on
+most macOS, Linux, and BSD systems these days, but it would be tough to write
+a shebang line that worked for such a polyglot script.</p>
+<p>Finally, writing a full fledged JSON parser in shell would be a significant
+enough dependency that you might as well just use an existing dependency like
+jq or Python instead. It's not going to be a one-liner, or even small five-
+line snippet, to do a good implementation.</p>
+<h4>Why not use awk, sed, or grep?</h4>
+<p>It is possible to use these tools to do some quick extraction from JSON with a
+known shape and formatted in a known way, such as one key per line. There are
+several examples of suggestions for this in other answers.</p>
+<p>However, these tools are designed for line based or record based formats; they
+are not designed for recursive parsing of matched delimiters with possible
+escape characters.</p>
+<p>So these quick and dirty solutions using awk/sed/grep are likely to be
+fragile, and break if some aspect of the input format changes, such as
+collapsing whitespace, or adding additional levels of nesting to the JSON
+objects, or an escaped quote within a string. A solution that is robust enough
+to handle all JSON input without breaking will also be fairly large and
+complex, and so not too much different than adding another dependency on <code>jq</code>
+or Python.</p>
+<p>I have had to deal with large amounts of customer data being deleted due to
+poor input parsing in a shell script before, so I never recommend quick and
+dirty methods that may be fragile in this way. If you're doing some one-off
+processing, see the other answers for suggestions, but I still highly
+recommend just using an existing tested JSON parser.</p>
+<h3>Historical notes</h3>
+<p>This answer originally recommended jsawk, which should still work, but is a
+little more cumbersome to use than <code>jq</code>, and depends on a standalone
+JavaScript interpreter being installed which is less common than a Python
+interpreter, so the above answers are probably preferable:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">curl</span><span class="w"> </span><span class="o">-</span><span class="nv">s</span><span class="w"> </span><span class="s1">'https://api.github.com/users/lambda'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nv">jsawk</span><span class="w"> </span><span class="o">-</span><span class="nv">a</span><span class="w"> </span><span class="s1">'return this.name'</span>
+</pre></div>
+
+<p>This answer also originally used the Twitter API from the question, but that
+API no longer works, making it hard to copy the examples to test out, and the
+new Twitter API requires API keys, so I've switched to using the GitHub API
+which can be used easily without API keys. The first answer for the original
+question would be:</p>
+<div class="code"><pre class="code literal-block">curl 'http://twitter.com/users/username.json' | jq -r '.text'
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>To quickly extract the values for a particular key, I personally like to use
+"grep -o", which only returns the regex's match. For example, to get the
+"text" field from tweets, something like:</p>
+<div class="code"><pre class="code literal-block">grep -Po '"text":.*?[^\\]",' tweets.json
+</pre></div>
+
+<p>This regex is more robust than you might think; for example, it deals fine
+with strings having embedded commas and escaped quotes inside them. I think
+with a little more work you could make one that is actually guaranteed to
+extract the value, if it's atomic. (If it has nesting, then a regex can't do
+it of course.)</p>
+<p>And to further clean (albeit keeping the string's original escaping) you can
+use something like: <code>| perl -pe 's/"text"://; s/^"//; s/",$//'</code>. (I did this
+for this analysis.)</p>
+<p>To all the haters who insist you should use a real JSON parser -- yes, that is
+essential for correctness, but</p>
+<ol>
+<li>To do a really quick analysis, like counting values to check on data cleaning bugs or get a general feel for the data, banging out something on the command line is faster. Opening an editor to write a script is distracting.</li>
+<li>
+<code>grep -o</code> is orders of magnitude faster than the Python standard <code>json</code> library, at least when doing this for tweets (which are ~2 KB each). I'm not sure if this is just because <code>json</code> is slow (I should compare to yajl sometime); but in principle, a regex should be faster since it's finite state and much more optimizable, instead of a parser that has to support recursion, and in this case, spends lots of CPU building trees for structures you don't care about. (If someone wrote a finite state transducer that did proper (depth-limited) JSON parsing, that would be fantastic! In the meantime we have "grep -o".)</li>
+</ol>
+<p>To write maintainable code, I always use a real parsing library. I haven't
+tried jsawk, but if it works well, that would address point #1.</p>
+<p>One last, wackier, solution: I wrote a script that uses Python <code>json</code> and
+extracts the keys you want, into tab-separated columns; then I pipe through a
+wrapper around <code>awk</code> that allows named access to columns. In here: the
+json2tsv and tsvawk scripts. So for this example it would be:</p>
+<div class="code"><pre class="code literal-block">json2tsv id text &lt; tweets.json | tsvawk '{print "tweet " $id " is: " $text}'
+</pre></div>
+
+<p>This approach doesn't address #2, is more inefficient than a single Python
+script, and it's a little brittle: it forces normalization of newlines and
+tabs in string values, to play nice with awk's field/record-delimited view of
+the world. But it does let you stay on the command line, with more correctness
+than <code>grep -o</code>.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-iterate-through-two-lists-in-parallel/" class="u-url">How do I iterate through two lists in parallel?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -247,481 +395,6 @@ be displayed in the process listing, where you run it.</p>
 and do <code>docker run</code> with <code>--env-file</code> as mentioned here. Then you can control
 the access of that configuration file so that others having access to that
 machine wouldn't see your credentials.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/ukkonen-s-suffix-tree-algorithm-in-plain-english/" class="u-url">Ukkonen's suffix tree algorithm in plain English</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/ukkonen-s-suffix-tree-algorithm-in-plain-english/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T04:28:49+08:00" itemprop="datePublished" title="2023-02-17 04:28">2023-02-17 04:28</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I feel a bit thick at this point. I've spent days trying to fully wrap my head
-around suffix tree construction, but because I don't have a mathematical
-background, many of the explanations elude me as they start to make excessive
-use of mathematical symbology. The closest to a good explanation that I've
-found is <em>Fast String Searching With Suffix Trees</em> , but he glosses over
-various points and some aspects of the algorithm remain unclear.</p>
-<p>A step-by-step explanation of this algorithm here on Stack Overflow would be
-invaluable for many others besides me, I'm sure.</p>
-<p>For reference, here's Ukkonen's paper on the algorithm:
-http://www.cs.helsinki.fi/u/ukkonen/SuffixT1withFigs.pdf</p>
-<p>My basic understanding, so far:</p>
-<ul>
-<li>I need to iterate through each prefix P of a given string T</li>
-<li>I need to iterate through each suffix S in prefix P and add that to tree</li>
-<li>To add suffix S to the tree, I need to iterate through each character in S, with the iterations consisting of either walking down an existing branch that starts with the same set of characters C in S and potentially splitting an edge into descendent nodes when I reach a differing character in the suffix, OR if there was no matching edge to walk down. When no matching edge is found to walk down for C, a new leaf edge is created for C.</li>
-</ul>
-<p>The basic algorithm appears to be O(n2), as is pointed out in most
-explanations, as we need to step through all of the prefixes, then we need to
-step through each of the suffixes for each prefix. Ukkonen's algorithm is
-apparently unique because of the suffix pointer technique he uses, though I
-think <em>that</em> is what I'm having trouble understanding.</p>
-<p>I'm also having trouble understanding:</p>
-<ul>
-<li>exactly when and how the "active point" is assigned, used and changed</li>
-<li>what is going on with the canonization aspect of the algorithm</li>
-<li>Why the implementations I've seen need to "fix" bounding variables that they are using</li>
-</ul>
-<hr>
-<p>Here is the completed <strong>C#</strong> source code. It not only works correctly, but
-supports automatic canonization and renders a nicer looking text graph of the
-output. Source code and sample output is at:</p>
-<blockquote>
-<p><strong>https://gist.github.com/2373868</strong></p>
-</blockquote>
-<hr>
-<p><strong>Update 2017-11-04</strong></p>
-<p>After many years I've found a new use for suffix trees, and have implemented
-the algorithm in <strong>JavaScript</strong>. Gist is below. It should be bug-free. Dump it
-into a js file, <code>npm install chalk</code> from the same location, and then run with
-node.js to see some colourful output. There's a stripped down version in the
-same Gist, without any of the debugging code.</p>
-<blockquote>
-<p><strong>https://gist.github.com/axefrog/c347bf0f5e0723cbd09b1aaed6ec6fc6</strong></p>
-</blockquote>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The following is an attempt to describe the Ukkonen algorithm by first showing
-what it does when the string is simple (i.e. does not contain any repeated
-characters), and then extending it to the full algorithm.</p>
-<p><strong>First, a few preliminary statements.</strong></p>
-<ol>
-<li>
-<p>What we are building, is <em>basically</em> like a search trie. So there is a root node, edges going out of it leading to new nodes, and further edges going out of those, and so forth</p>
-</li>
-<li>
-<p><strong>But</strong> : Unlike in a search trie, the edge labels are not single characters. Instead, each edge is labeled using a pair of integers <code>[from,to]</code>. These are pointers into the text. In this sense, each edge carries a string label of arbitrary length, but takes only O(1) space (two pointers).</p>
-</li>
-</ol>
-<h3>Basic principle</h3>
-<p>I would like to first demonstrate how to create the suffix tree of a
-particularly simple string, a string with no repeated characters:</p>
-<div class="code"><pre class="code literal-block">abc
-</pre></div>
-
-<p>The algorithm <strong>works in steps, from left to right</strong>. There is <strong>one step for
-every character of the string</strong>. Each step might involve more than one
-individual operation, but we will see (see the final observations at the end)
-that the total number of operations is O(n).</p>
-<p>So, we start from the <em>left</em> , and first insert only the single character <code>a</code>
-by creating an edge from the root node (on the left) to a leaf, and labeling
-it as <code>[0,#]</code>, which means the edge represents the substring starting at
-position 0 and ending at <em>the current end</em>. I use the symbol <code>#</code> to mean <em>the
-current end</em> , which is at position 1 (right after <code>a</code>).</p>
-<p>So we have an initial tree, which looks like this:</p>
-<p><img alt="" src="images/aOwIL.png"></p>
-<p>And what it means is this:</p>
-<p><img alt="" src="images/SZH4k.png"></p>
-<p>Now we progress to position 2 (right after <code>b</code>). <strong>Our goal at each step</strong> is
-to insert <strong>all suffixes up to the current position</strong>. We do this by</p>
-<ul>
-<li>expanding the existing <code>a</code>-edge to <code>ab</code>
-</li>
-<li>inserting one new edge for <code>b</code>
-</li>
-</ul>
-<p>In our representation this looks like</p>
-<p><img alt="enter image description here" src="images/onmqt.png"></p>
-<p>And what it means is:</p>
-<p><img alt="" src="images/tchAx.png"></p>
-<p><strong>We observe</strong> two things:</p>
-<ul>
-<li>The edge representation for <code>ab</code> is <strong>the same</strong> as it used to be in the initial tree: <code>[0,#]</code>. Its meaning has automatically changed because we updated the current position <code>#</code> from 1 to 2.</li>
-<li>Each edge consumes O(1) space, because it consists of only two pointers into the text, regardless of how many characters it represents.</li>
-</ul>
-<p>Next we increment the position again and update the tree by appending a <code>c</code> to
-every existing edge and inserting one new edge for the new suffix <code>c</code>.</p>
-<p>In our representation this looks like</p>
-<p><img alt="" src="images/wCEdI.png"></p>
-<p>And what it means is:</p>
-<p><img alt="" src="images/UpUFw.png"></p>
-<p><strong>We observe:</strong></p>
-<ul>
-<li>The tree is the correct suffix tree <em>up to the current position</em> after each step</li>
-<li>There are as many steps as there are characters in the text</li>
-<li>The amount of work in each step is O(1), because all existing edges are updated automatically by incrementing <code>#</code>, and inserting the one new edge for the final character can be done in O(1) time. Hence for a string of length n, only O(n) time is required.</li>
-</ul>
-<h3>First extension: Simple repetitions</h3>
-<p>Of course this works so nicely only because our string does not contain any
-repetitions. We now look at a more realistic string:</p>
-<div class="code"><pre class="code literal-block">abcabxabcd
-</pre></div>
-
-<p>It starts with <code>abc</code> as in the previous example, then <code>ab</code> is repeated and
-followed by <code>x</code>, and then <code>abc</code> is repeated followed by <code>d</code>.</p>
-<p><strong>Steps 1 through 3:</strong> After the first 3 steps we have the tree from the
-previous example:</p>
-<p><img alt="" src="images/AclCh.png"></p>
-<p><strong>Step 4:</strong> We move <code>#</code> to position 4. This implicitly updates all existing
-edges to this:</p>
-<p><img alt="" src="images/xhVMY.png"></p>
-<p>and we need to insert the final suffix of the current step, <code>a</code>, at the root.</p>
-<p>Before we do this, we introduce <strong>two more variables</strong> (in addition to <code>#</code>),
-which of course have been there all the time but we haven't used them so far:</p>
-<ul>
-<li>The <strong>active point</strong> , which is a triple <code>(active_node,active_edge,active_length)</code>
-</li>
-<li>The <code>remainder</code>, which is an integer indicating how many new suffixes we need to insert</li>
-</ul>
-<p>The exact meaning of these two will become clear soon, but for now let's just
-say:</p>
-<ul>
-<li>In the simple <code>abc</code> example, the active point was always <code>(root,'\0x',0)</code>, i.e. <code>active_node</code> was the root node, <code>active_edge</code> was specified as the null character <code>'\0x'</code>, and <code>active_length</code> was zero. The effect of this was that the one new edge that we inserted in every step was inserted at the root node as a freshly created edge. We will see soon why a triple is necessary to represent this information.</li>
-<li>The <code>remainder</code> was always set to 1 at the beginning of each step. The meaning of this was that the number of suffixes we had to actively insert at the end of each step was 1 (always just the final character).</li>
-</ul>
-<p>Now this is going to change. When we insert the current final character <code>a</code> at
-the root, we notice that there is already an outgoing edge starting with <code>a</code>,
-specifically: <code>abca</code>. Here is what we do in such a case:</p>
-<ul>
-<li>We <strong>do not</strong> insert a fresh edge <code>[4,#]</code> at the root node. Instead we simply notice that the suffix <code>a</code> is already in our tree. It ends in the middle of a longer edge, but we are not bothered by that. We just leave things the way they are.</li>
-<li>We <strong>set the active point</strong> to <code>(root,'a',1)</code>. That means the active point is now somewhere in the middle of outgoing edge of the root node that starts with <code>a</code>, specifically, after position 1 on that edge. We notice that the edge is specified simply by its first character <code>a</code>. That suffices because there can be <em>only one</em> edge starting with any particular character (confirm that this is true after reading through the entire description).</li>
-<li>We also increment <code>remainder</code>, so at the beginning of the next step it will be 2.</li>
-</ul>
-<p><strong>Observation:</strong> When the final <strong>suffix we need to insert is found to exist
-in the tree already</strong> , the tree itself is <strong>not changed</strong> at all (we only
-update the active point and <code>remainder</code>). The tree is then not an accurate
-representation of the suffix tree <em>up to the current position</em> any more, but
-it <strong>contains</strong> all suffixes (because the final suffix <code>a</code> is contained
-<em>implicitly</em> ). Hence, apart from updating the variables (which are all of
-fixed length, so this is O(1)), there was <strong>no work</strong> done in this step.</p>
-<p><strong>Step 5:</strong> We update the current position <code>#</code> to 5. This automatically
-updates the tree to this:</p>
-<p><img alt="" src="images/XL6bg.png"></p>
-<p>And <strong>because<code>remainder</code> is 2</strong>, we need to insert two final suffixes of the
-current position: <code>ab</code> and <code>b</code>. This is basically because:</p>
-<ul>
-<li>The <code>a</code> suffix from the previous step has never been properly inserted. So it has <em>remained</em> , and since we have progressed one step, it has now grown from <code>a</code> to <code>ab</code>.</li>
-<li>And we need to insert the new final edge <code>b</code>.</li>
-</ul>
-<p>In practice this means that we go to the active point (which points to behind
-the <code>a</code> on what is now the <code>abcab</code> edge), and insert the current final
-character <code>b</code>. <strong>But:</strong> Again, it turns out that <code>b</code> is also already present
-on that same edge.</p>
-<p>So, again, we do not change the tree. We simply:</p>
-<ul>
-<li>Update the active point to <code>(root,'a',2)</code> (same node and edge as before, but now we point to behind the <code>b</code>)</li>
-<li>Increment the <code>remainder</code> to 3 because we still have not properly inserted the final edge from the previous step, and we don't insert the current final edge either.</li>
-</ul>
-<p>To be clear: We had to insert <code>ab</code> and <code>b</code> in the current step, but because
-<code>ab</code> was already found, we updated the active point and did not even attempt
-to insert <code>b</code>. Why? Because if <code>ab</code> is in the tree, <strong>every suffix</strong> of it
-(including <code>b</code>) must be in the tree, too. Perhaps only <em>implicitly</em> , but it
-must be there, because of the way we have built the tree so far.</p>
-<p>We proceed to <strong>step 6</strong> by incrementing <code>#</code>. The tree is automatically
-updated to:</p>
-<p><img alt="" src="images/bLLT9.png"></p>
-<p>Because <strong><code>remainder</code> is 3</strong>, we have to insert <code>abx</code>, <code>bx</code> and <code>x</code>. The
-active point tells us where <code>ab</code> ends, so we only need to jump there and
-insert the <code>x</code>. Indeed, <code>x</code> is not there yet, so we split the <code>abcabx</code> edge
-and insert an internal node:</p>
-<p><img alt="" src="images/6HYtR.png"></p>
-<p>The edge representations are still pointers into the text, so splitting and
-inserting an internal node can be done in O(1) time.</p>
-<p>So we have dealt with <code>abx</code> and decrement <code>remainder</code> to 2. Now we need to
-insert the next remaining suffix, <code>bx</code>. But before we do that we need to
-update the active point. The rule for this, after splitting and inserting an
-edge, will be called <strong>Rule 1</strong> below, and it applies whenever the
-<code>active_node</code> is root (we will learn rule 3 for other cases further below).
-Here is rule 1:</p>
-<blockquote>
-<p>After an insertion from root,</p>
-<ul>
-<li>
-<code>active_node</code> remains root</li>
-<li>
-<code>active_edge</code> is set to the first character of the new suffix we need to
-insert, i.e. <code>b</code>
-</li>
-<li>
-<code>active_length</code> is reduced by 1
-</li>
-</ul>
-</blockquote>
-<p>Hence, the new active-point triple <code>(root,'b',1)</code> indicates that the next
-insert has to be made at the <code>bcabx</code> edge, behind 1 character, i.e. behind
-<code>b</code>. We can identify the insertion point in O(1) time and check whether <code>x</code> is
-already present or not. If it was present, we would end the current step and
-leave everything the way it is. But <code>x</code> is not present, so we insert it by
-splitting the edge:</p>
-<p><img alt="" src="images/YVvbJ.png"></p>
-<p>Again, this took O(1) time and we update <code>remainder</code> to 1 and the active point
-to <code>(root,'x',0)</code> as rule 1 states.</p>
-<p>But there is one more thing we need to do. We'll call this <strong>Rule 2:</strong></p>
-<blockquote>
-<p>If we split an edge and insert a new node, and if that is <em>not the first
-node</em> created during the current step, we connect the previously inserted
-node and the new node through a special pointer, a <strong>suffix link</strong>. We will
-later see why that is useful. Here is what we get, the suffix link is
-represented as a dotted edge:</p>
-</blockquote>
-<p><img alt="" src="images/zL9yl.png"></p>
-<p>We still need to insert the final suffix of the current step, <code>x</code>. Since the
-<code>active_length</code> component of the active node has fallen to 0, the final insert
-is made at the root directly. Since there is no outgoing edge at the root node
-starting with <code>x</code>, we insert a new edge:</p>
-<p><img alt="" src="images/992gV.png"></p>
-<p>As we can see, in the current step all remaining inserts were made.</p>
-<p>We proceed to <strong>step 7</strong> by setting <code>#</code>=7, which automatically appends the
-next character, <code>a</code>, to all leaf edges, as always. Then we attempt to insert
-the new final character to the active point (the root), and find that it is
-there already. So we end the current step without inserting anything and
-update the active point to <code>(root,'a',1)</code>.</p>
-<p>In <strong>step 8</strong> , <code>#</code>=8, we append <code>b</code>, and as seen before, this only means we
-update the active point to <code>(root,'a',2)</code> and increment <code>remainder</code> without
-doing anything else, because <code>b</code> is already present. <strong>However,</strong> we notice
-(in O(1) time) that the active point is now at the end of an edge. We reflect
-this by re-setting it to <code>(node1,'\0x',0)</code>. Here, I use <code>node1</code> to refer to
-the internal node the <code>ab</code> edge ends at.</p>
-<p>Then, in <strong>step<code>#</code>=9</strong>, we need to insert 'c' and this will help us to
-understand the final trick:</p>
-<h3>Second extension: Using suffix links</h3>
-<p>As always, the <code>#</code> update appends <code>c</code> automatically to the leaf edges and we
-go to the active point to see if we can insert 'c'. It turns out 'c' exists
-already at that edge, so we set the active point to <code>(node1,'c',1)</code>, increment
-<code>remainder</code> and do nothing else.</p>
-<p>Now in <strong>step<code>#</code>=10</strong>, <code>remainder</code> is 4, and so we first need to insert <code>abcd</code>
-(which remains from 3 steps ago) by inserting <code>d</code> at the active point.</p>
-<p>Attempting to insert <code>d</code> at the active point causes an edge split in O(1)
-time:</p>
-<p><img alt="" src="images/Rkdzd.png"></p>
-<p>The <code>active_node</code>, from which the split was initiated, is marked in red above.
-Here is the final rule, <strong>Rule 3:</strong></p>
-<blockquote>
-<p>After splitting an edge from an <code>active_node</code> that is not the root node, we
-follow the suffix link going out of that node, if there is any, and reset
-the <code>active_node</code> to the node it points to. If there is no suffix link, we
-set the <code>active_node</code> to the root. <code>active_edge</code> and <code>active_length</code> remain
-unchanged.</p>
-</blockquote>
-<p>So the active point is now <code>(node2,'c',1)</code>, and <code>node2</code> is marked in red
-below:</p>
-<p><img alt="" src="images/0IS5C.png"></p>
-<p>Since the insertion of <code>abcd</code> is complete, we decrement <code>remainder</code> to 3 and
-consider the next remaining suffix of the current step, <code>bcd</code>. Rule 3 has set
-the active point to just the right node and edge so inserting <code>bcd</code> can be
-done by simply inserting its final character <code>d</code> at the active point.</p>
-<p>Doing this causes another edge split, and <strong>because of rule 2</strong> , we must
-create a suffix link from the previously inserted node to the new one:</p>
-<p><img alt="" src="images/DNVQO.png"></p>
-<p><strong>We observe:</strong> Suffix links enable us to reset the active point so we can
-make the next <em>remaining insert</em> at O(1) effort. Look at the graph above to
-confirm that indeed node at label <code>ab</code> is linked to the node at <code>b</code> (its
-suffix), and the node at <code>abc</code> is linked to <code>bc</code>.</p>
-<p>The current step is not finished yet. <code>remainder</code> is now 2, and we need to
-follow rule 3 to reset the active point again. Since the current <code>active_node</code>
-(red above) has no suffix link, we reset to root. The active point is now
-<code>(root,'c',1)</code>.</p>
-<p>Hence the next insert occurs at the one outgoing edge of the root node whose
-label starts with <code>c</code>: <code>cabxabcd</code>, behind the first character, i.e. behind
-<code>c</code>. This causes another split:</p>
-<p><img alt="" src="images/wZ7Bj.png"></p>
-<p>And since this involves the creation of a new internal node,we follow rule 2
-and set a new suffix link from the previously created internal node:</p>
-<p><img alt="" src="images/urgol.png"></p>
-<p>(I am using Graphviz Dot for these little graphs. The new suffix link caused
-dot to re-arrange the existing edges, so check carefully to confirm that the
-only thing that was inserted above is a new suffix link.)</p>
-<p>With this, <code>remainder</code> can be set to 1 and since the <code>active_node</code> is root, we
-use rule 1 to update the active point to <code>(root,'d',0)</code>. This means the final
-insert of the current step is to insert a single <code>d</code> at root:</p>
-<p><img alt="" src="images/TPxLe.png"></p>
-<p>That was the final step and we are done. There are number of <strong>final
-observations</strong> , though:</p>
-<ul>
-<li>
-<p>In each step we move <code>#</code> forward by 1 position. This automatically updates all leaf nodes in O(1) time.</p>
-</li>
-<li>
-<p>But it does not deal with a) any suffixes <em>remaining</em> from previous steps, and b) with the one final character of the current step.</p>
-</li>
-<li>
-<p><code>remainder</code> tells us how many additional inserts we need to make. These inserts correspond one-to-one to the final suffixes of the string that ends at the current position <code>#</code>. We consider one after the other and make the insert. <strong>Important:</strong> Each insert is done in O(1) time since the active point tells us exactly where to go, and we need to add only one single character at the active point. Why? Because the other characters are <em>contained implicitly</em> (otherwise the active point would not be where it is).</p>
-</li>
-<li>
-<p>After each such insert, we decrement <code>remainder</code> and follow the suffix link if there is any. If not we go to root (rule 3). If we are at root already, we modify the active point using rule 1. In any case, it takes only O(1) time.</p>
-</li>
-<li>
-<p>If, during one of these inserts, we find that the character we want to insert is already there, we don't do anything and end the current step, even if <code>remainder</code>&gt;0. The reason is that any inserts that remain will be suffixes of the one we just tried to make. Hence they are all <em>implicit</em> in the current tree. The fact that <code>remainder</code>&gt;0 makes sure we deal with the remaining suffixes later.</p>
-</li>
-<li>
-<p>What if at the end of the algorithm <code>remainder</code>&gt;0? This will be the case whenever the end of the text is a substring that occurred somewhere before. In that case we must append one extra character at the end of the string that has not occurred before. In the literature, usually the dollar sign <code>$</code> is used as a symbol for that. <strong>Why does that matter?</strong> --&gt; If later we use the completed suffix tree to search for suffixes, we must accept matches only if they <em>end at a leaf</em>. Otherwise we would get a lot of spurious matches, because there are <em>many</em> strings <em>implicitly</em> contained in the tree that are not actual suffixes of the main string. Forcing <code>remainder</code> to be 0 at the end is essentially a way to ensure that all suffixes end at a leaf node. <strong>However,</strong> if we want to use the tree to search for <em>general substrings</em> , not only <em>suffixes</em> of the main string, this final step is indeed not required, as suggested by the OP's comment below.</p>
-</li>
-<li>
-<p>So what is the complexity of the entire algorithm? If the text is n characters in length, there are obviously n steps (or n+1 if we add the dollar sign). In each step we either do nothing (other than updating the variables), or we make <code>remainder</code> inserts, each taking O(1) time. Since <code>remainder</code> indicates how many times we have done nothing in previous steps, and is decremented for every insert that we make now, the total number of times we do something is exactly n (or n+1). Hence, the total complexity is O(n).</p>
-</li>
-<li>
-<p>However, there is one small thing that I did not properly explain: It can happen that we follow a suffix link, update the active point, and then find that its <code>active_length</code> component does not work well with the new <code>active_node</code>. For example, consider a situation like this:</p>
-</li>
-</ul>
-<p><img alt="" src="images/7t0dg.png"></p>
-<p>(The dashed lines indicate the rest of the tree. The dotted line is a suffix
-link.)</p>
-<p>Now let the active point be <code>(red,'d',3)</code>, so it points to the place behind
-the <code>f</code> on the <code>defg</code> edge. Now assume we made the necessary updates and now
-follow the suffix link to update the active point according to rule 3. The new
-active point is <code>(green,'d',3)</code>. However, the <code>d</code>-edge going out of the green
-node is <code>de</code>, so it has only 2 characters. In order to find the correct active
-point, we obviously need to follow that edge to the blue node and reset to
-<code>(blue,'f',1)</code>.</p>
-<p>In a particularly bad case, the <code>active_length</code> could be as large as
-<code>remainder</code>, which can be as large as n. And it might very well happen that to
-find the correct active point, we need not only jump over one internal node,
-but perhaps many, up to n in the worst case. Does that mean the algorithm has
-a hidden O(n2) complexity, because in each step <code>remainder</code> is generally O(n),
-and the post-adjustments to the active node after following a suffix link
-could be O(n), too?</p>
-<p>No. The reason is that if indeed we have to adjust the active point (e.g. from
-green to blue as above), that brings us to a new node that has its own suffix
-link, and <code>active_length</code> will be reduced. As we follow down the chain of
-suffix links we make the remaining inserts, <code>active_length</code> can only decrease,
-and the number of active-point adjustments we can make on the way can't be
-larger than <code>active_length</code> at any given time. Since <code>active_length</code> can never
-be larger than <code>remainder</code>, and <code>remainder</code> is O(n) not only in every single
-step, but the total sum of increments ever made to <code>remainder</code> over the course
-of the entire process is O(n) too, the number of active point adjustments is
-also bounded by O(n).</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I tried to implement the Suffix Tree with the approach given in jogojapan's
-answer, but it didn't work for some cases due to wording used for the rules.
-Moreover, I've mentioned that nobody managed to implement an absolutely
-correct suffix tree using this approach. Below I will write an "overview" of
-jogojapan's answer with some modifications to the rules. I will also describe
-the case when we forget to create <strong><em>important</em></strong> suffix links.</p>
-<p><strong>Additional variables used</strong></p>
-<ol>
-<li>
-<strong>active point</strong> - a triple (active_node; active_edge; active_length), showing from where we must start inserting a new suffix.</li>
-<li>
-<strong>remainder</strong> - shows the number of suffixes we must add <em>explicitly</em>. For instance, if our word is 'abcaabca', and remainder = 3, it means we must process 3 last suffixes: <strong>bca</strong> , <strong>ca</strong> and <strong>a</strong>.</li>
-</ol>
-<p>Let's use a concept of an <strong>internal node</strong> - all the nodes, except the
-<em>root</em> and the <em>leafs</em> are <strong>internal nodes</strong>.</p>
-<p><strong>Observation 1</strong></p>
-<p>When the final suffix we need to insert is found to exist in the tree already,
-the tree itself is not changed at all (we only update the <code>active point</code> and
-<code>remainder</code>).</p>
-<p><strong>Observation 2</strong></p>
-<p>If at some point <code>active_length</code> is greater or equal to the length of current
-edge (<code>edge_length</code>), we move our <code>active point</code> down until <code>edge_length</code> is
-strictly greater than <code>active_length</code>.</p>
-<p>Now, let's redefine the rules:</p>
-<p><strong>Rule 1</strong></p>
-<blockquote>
-<p>If after an insertion from the <em>active node</em> = <em>root</em> , the <em>active length</em>
-is greater than 0, then:</p>
-<ol>
-<li>
-<em>active node</em> is not changed</li>
-<li>
-<em>active length</em> is decremented</li>
-<li>
-<em>active edge</em> is shifted right (to the first character of the next
-suffix we must insert)
-</li>
-</ol>
-</blockquote>
-<p><strong>Rule 2</strong></p>
-<blockquote>
-<p>If we create a new <em>internal node</em> <strong>OR</strong> make an inserter from an <em>internal
-node</em> , and this is not the first <strong>SUCH</strong> <em>internal node</em> at current step,
-then we link the previous <strong>SUCH</strong> node with <strong>THIS</strong> one through a <em>suffix
-link</em>.</p>
-</blockquote>
-<p>This definition of the <code>Rule 2</code> is different from jogojapan', as here we take
-into account not only the <em>newly created</em> internal nodes, but also the
-internal nodes, from which we make an insertion.</p>
-<p><strong>Rule 3</strong></p>
-<blockquote>
-<p>After an insert from the <em>active node</em> which is not the <em>root</em> node, we must
-follow the suffix link and set the <em>active node</em> to the node it points to.
-If there is no a suffix link, set the <em>active node</em> to the <em>root</em> node.
-Either way, <em>active edge</em> and <em>active length</em> stay unchanged.</p>
-</blockquote>
-<p>In this definition of <code>Rule 3</code> we also consider the inserts of leaf nodes (not
-only split-nodes).</p>
-<p><strong>And finally, Observation 3:</strong></p>
-<p>When the symbol we want to add to the tree is already on the edge, we,
-according to <code>Observation 1</code>, update only <code>active point</code> and <code>remainder</code>,
-leaving the tree unchanged. <strong>BUT</strong> if there is an <em>internal node</em> marked as
-<em>needing suffix link</em> , we must connect that node with our current <code>active
-node</code> through a suffix link.</p>
-<p>Let's look at the example of a suffix tree for <strong>cdddcdc</strong> if we add a suffix
-link in such case and if we don't:</p>
-<ol>
-<li>
-<p>If we <strong>DON'T</strong> connect the nodes through a suffix link:</p>
-<ul>
-<li>before adding the last letter <strong>c</strong> :</li>
-</ul>
-</li>
-</ol>
-<p><img alt="" src="images/zPiF1.png"></p>
-<div class="code"><pre class="code literal-block">* after adding the last letter **c** :
-</pre></div>
-
-<p><img alt="" src="images/5fsmd.png"></p>
-<ol>
-<li>
-<p>If we <strong>DO</strong> connect the nodes through a suffix link:</p>
-<ul>
-<li>before adding the last letter <strong>c</strong> :</li>
-</ul>
-</li>
-</ol>
-<p><img alt="" src="images/lZrAF.png"></p>
-<div class="code"><pre class="code literal-block">* after adding the last letter **c** :
-</pre></div>
-
-<p><img alt="" src="images/XUFjk.png"></p>
-<p>Seems like there is no significant difference: in the second case there are
-two more suffix links. But these suffix links are <em>correct</em> , and one of them
-- from the blue node to the red one - is very <strong>important</strong> for our approach
-with <strong>active point</strong>. The problem is that if we don't put a suffix link here,
-later, when we add some new letters to the tree, we might omit adding some
-nodes to the tree due to the <code>Rule 3</code>, because, according to it, if there's no
-a suffix link, then we must put the <code>active_node</code> to the root.</p>
-<p>When we were adding the last letter to the tree, the red node had <strong>already
-existed</strong> before we made an insert from the blue node (the edge labled <strong>'c'</strong>
-). As there was an insert from the blue node, we mark it as <em>needing a suffix
-link</em>. Then, relying on the <strong>active point</strong> approach, the <code>active node</code> was
-set to the red node. But we don't make an insert from the red node, as the
-letter <strong>'c'</strong> is already on the edge. Does it mean that the blue node must be
-left without a suffix link? No, we must connect the blue node with the red one
-through a suffix link. Why is it correct? Because the <strong>active point</strong>
-approach guarantees that we get to a right place, i.e., to the next place
-where we must process an insert of a <strong>shorter</strong> suffix.</p>
-<p>Finally, here are my implementations of the Suffix Tree:</p>
-<ol>
-<li>Java</li>
-<li>C++</li>
-</ol>
-<p>Hope that this "overview" combined with jogojapan's detailed answer will help
-somebody to implement his own Suffix Tree.</p>
     </div>
     </article>
 </div>

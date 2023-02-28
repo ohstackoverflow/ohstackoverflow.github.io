@@ -108,7 +108,126 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/are-https-urls-encrypted/" class="u-url">Are HTTPS URLs encrypted?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/master-branch-and-origin-master-have-diverged-how-to-undiverge-branches/" class="u-url">master branch and 'origin/master' have diverged, how to 'undiverge' branches'?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/master-branch-and-origin-master-have-diverged-how-to-undiverge-branches/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:04:59+08:00" itemprop="datePublished" title="2023-02-17 04:04">2023-02-17 04:04</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Somehow my <code>master</code> and my <code>origin/master</code> branch have diverged.<br>
+I actually don't want them to diverge.</p>
+<p>How can I view these differences and <strong>merge</strong> them?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You can review the differences with a:</p>
+<div class="code"><pre class="code literal-block">git log HEAD..origin/main
+
+# old repositories
+git log HEAD..origin/master
+</pre></div>
+
+<p>before pulling it (fetch + merge) (see also "How do you get git to always pull
+from a specific branch?")</p>
+<p>Note: since Git 2.28 (Q3 2020), the default branch is configurable, and now
+(2021+) set to <code>main</code>, no longer <code>master</code>.<br>
+The rest of the answer reflects that more recent convention.</p>
+<hr>
+<p>When you have a message like:</p>
+<blockquote>
+<p>"Your branch and 'origin/main' have diverged, # and have 1 and 1 different
+commit(s) each, respectively."</p>
+</blockquote>
+<p>Check if you need to update <code>origin</code>.<br>
+If <code>origin</code> is up-to-date, then some commits have been pushed to <code>origin</code> from
+another repo while you made your own commits locally.</p>
+<div class="code"><pre class="code literal-block">... o ---- o ---- A ---- B  origin/main (upstream work)
+                   \
+                    C  main(your work)
+</pre></div>
+
+<p>You based commit <code>C</code> on commit <code>A</code> because that was the latest work you had
+fetched from <code>upstream</code> at the time.</p>
+<p>However, before you tried to push back to <code>origin</code>, someone else pushed the
+commit <code>B</code>.<br>
+Development history has diverged into separate paths.</p>
+<p>You can then merge or rebase. See Pro Git: Git Branching - Rebasing for
+details.</p>
+<h3>Merge</h3>
+<p>Use the <code>git merge</code> command:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>merge<span class="w"> </span>origin/main
+
+<span class="c1"># old repositories</span>
+$<span class="w"> </span>git<span class="w"> </span>merge<span class="w"> </span>origin/master
+</pre></div>
+
+<p>This tells Git to integrate the changes from <code>origin/main</code> into your work and
+create a merge commit.<br>
+The graph of history now looks like this:</p>
+<div class="code"><pre class="code literal-block">... o ---- o ---- A ---- B  origin/main (upstream work)
+                   \      \
+                    C ---- M  main (your work)
+</pre></div>
+
+<p>The new merge, commit <code>M</code>, has <em>two</em> parents, each representing one path of
+development that led to the content stored in that commit.</p>
+<p>Note that the history behind <code>M</code> is now non-linear.</p>
+<h3>Rebase</h3>
+<p>Use the <code>git rebase</code> command:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>rebase<span class="w"> </span>origin/main
+
+<span class="c1"># old repositories</span>
+$<span class="w"> </span>git<span class="w"> </span>rebase<span class="w"> </span>origin/master
+</pre></div>
+
+<p>This tells Git to replay commit <code>C</code> (your work) as if you had based it on
+commit <code>B</code> instead of <code>A</code>.<br>
+CVS and Subversion users routinely rebase their local changes on top of
+<code>upstream</code> work when they update before commit.<br>
+Git just adds explicit separation between the commit and rebase steps.</p>
+<p>The graph of history now looks like this:</p>
+<div class="code"><pre class="code literal-block">... o ---- o ---- A ---- B  origin/main (upstream work)
+                          \
+                           C'  main (your work)
+</pre></div>
+
+<p>Commit <code>C'</code> is a new commit created by the <code>git rebase</code> command.<br>
+It is different from <code>C</code> in two ways:</p>
+<ol>
+<li>It has a different history: <code>B</code> instead of <code>A</code>.</li>
+<li>Its content accounts for changes in both <code>B</code> and <code>C</code>; it is the same as <code>M</code> from the merge example.</li>
+</ol>
+<p>Note that the history behind <code>C'</code> is still linear.<br>
+We have chosen (for now) to allow only linear history in
+<code>cmake.org/cmake.git</code>.<br>
+This approach preserves the CVS-based workflow used previously and may ease
+the transition.<br>
+An attempt to push <code>C'</code> into our repository will work (assuming you have
+permissions and no one has pushed while you were rebasing).</p>
+<p>The <code>git pull</code> command provides a shorthand way to <code>fetch</code> from <code>origin</code> and
+<code>rebase</code> local work on it:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>pull<span class="w"> </span>--rebase
+</pre></div>
+
+<p>This combines the above <code>fetch</code> and <code>rebase</code> steps into one command.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I had this and am mystified as to what has caused it, even after reading the
+above responses. My solution was to do</p>
+<div class="code"><pre class="code literal-block">git reset --hard origin/master
+</pre></div>
+
+<p>Then that just resets my (local) copy of master (which I assume is screwed up)
+to the correct point, as represented by (remote) origin/master.</p>
+<blockquote>
+<p><strong>WARNING</strong> : You will lose all changes not yet pushed to <code>origin/master</code>.</p>
+</blockquote>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/are-https-urls-encrypted/" class="u-url">Are HTTPS URLs encrypted?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -248,126 +367,6 @@ Folding section in the docs.</p>
 </blockquote>
 <p>*Fold Level: to fold all but the most outer classes, try <code>CTRL</code>+<code>K</code>, <code>CTRL</code>+<code>1</code></p>
 <p><em>Macs: use<code>⌘</code> instead of <code>CTRL</code> (thanks Prajeet)</em></p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-overcome-datetime-datetime-not-json-serializable/" class="u-url">How to overcome "datetime.datetime not JSON serializable"?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-overcome-datetime-datetime-not-json-serializable/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T04:03:10+08:00" itemprop="datePublished" title="2023-02-17 04:03">2023-02-17 04:03</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a basic dict as follows:</p>
-<div class="code"><pre class="code literal-block">sample = {}
-sample['title'] = "String"
-sample['somedate'] = somedatetimehere
-</pre></div>
-
-<p>When I try to do <code>jsonify(sample)</code> I get:</p>
-<div class="code"><pre class="code literal-block"><span class="n">TypeError</span><span class="o">:</span><span class="w"> </span><span class="n">datetime</span><span class="o">.</span><span class="na">datetime</span><span class="o">(</span><span class="mi">2012</span><span class="o">,</span><span class="w"> </span><span class="mi">8</span><span class="o">,</span><span class="w"> </span><span class="mi">8</span><span class="o">,</span><span class="w"> </span><span class="mi">21</span><span class="o">,</span><span class="w"> </span><span class="mi">46</span><span class="o">,</span><span class="w"> </span><span class="mi">24</span><span class="o">,</span><span class="w"> </span><span class="mi">862000</span><span class="o">)</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">JSON</span><span class="w"> </span><span class="n">serializable</span>
-</pre></div>
-
-<p>What can I do such that my dictionary sample can overcome the error above?</p>
-<p><strong>Note:</strong> Though it may not be relevant, the dictionaries are generated from
-the retrieval of records out of <code>mongodb</code> where when I print out
-<code>str(sample['somedate'])</code>, the output is <code>2012-08-08 21:46:24.862000</code>.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h2>Updated for 2018</h2>
-<p>The original answer accommodated the way MongoDB "date" fields were
-represented as:</p>
-<p><code>{"$date": 1506816000000}</code></p>
-<p>If you want a generic Python solution for serializing <code>datetime</code> to json,
-check out @jjmontes' answer for a quick solution which requires no
-dependencies.</p>
-<hr>
-<p>As you are using mongoengine (per comments) and pymongo is a dependency,
-pymongo has built-in utilities to help with json serialization:<br>
-http://api.mongodb.org/python/1.10.1/api/bson/json_util.html</p>
-<p>Example usage (serialization):</p>
-<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">bson</span> <span class="kn">import</span> <span class="n">json_util</span>
-<span class="kn">import</span> <span class="nn">json</span>
-
-<span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">anObject</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">json_util</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
-</pre></div>
-
-<p>Example usage (deserialization):</p>
-<div class="code"><pre class="code literal-block"><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">aJsonString</span><span class="p">,</span><span class="w"> </span><span class="n">object_hook</span><span class="o">=</span><span class="n">json_util</span><span class="o">.</span><span class="n">object_hook</span><span class="p">)</span>
-</pre></div>
-
-<hr>
-<h3>Django</h3>
-<p>Django provides a native <code>DjangoJSONEncoder</code> serializer that deals with this
-kind of properly.</p>
-<p>See
-https://docs.djangoproject.com/en/dev/topics/serialization/#djangojsonencoder</p>
-<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">django.core.serializers.json</span> <span class="kn">import</span> <span class="n">DjangoJSONEncoder</span>
-
-<span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
-  <span class="n">item</span><span class="p">,</span>
-  <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-  <span class="n">indent</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-  <span class="bp">cls</span><span class="o">=</span><span class="n">DjangoJSONEncoder</span>
-<span class="p">)</span>
-</pre></div>
-
-<p>One difference I've noticed between <code>DjangoJSONEncoder</code> and using a custom
-<code>default</code> like this:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">datetime</span>
-<span class="kn">import</span> <span class="nn">json</span>
-
-<span class="k">def</span> <span class="nf">default</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">)):</span>
-        <span class="k">return</span> <span class="n">o</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
-
-<span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
-  <span class="n">item</span><span class="p">,</span>
-  <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-  <span class="n">indent</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-  <span class="n">default</span><span class="o">=</span><span class="n">default</span>
-<span class="p">)</span>
-</pre></div>
-
-<p>Is that Django strips a bit of the data:</p>
-<div class="code"><pre class="code literal-block"> "last_login": "2018-08-03T10:51:42.990", # DjangoJSONEncoder 
- "last_login": "2018-08-03T10:51:42.990239", # default
-</pre></div>
-
-<p>So, you may need to be careful about that in some cases.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Building on other answers, a simple solution based on a specific serializer
-that just converts <code>datetime.datetime</code> and <code>datetime.date</code> objects to strings.</p>
-<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span><span class="p">,</span> <span class="n">datetime</span>
-
-<span class="k">def</span> <span class="nf">json_serial</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">"""JSON serializer for objects not serializable by default json code"""</span>
-
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">)):</span>
-        <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
-    <span class="k">raise</span> <span class="ne">TypeError</span> <span class="p">(</span><span class="s2">"Type </span><span class="si">%s</span><span class="s2"> not serializable"</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
-</pre></div>
-
-<p>As seen, the code just checks to find out if object is of class
-<code>datetime.datetime</code> or <code>datetime.date</code>, and then uses <code>.isoformat()</code> to
-produce a serialized version of it, according to ISO 8601 format, YYYY-MM-
-DDTHH:MM:SS (which is easily decoded by JavaScript). If more complex
-serialized representations are sought, other code could be used instead of
-str() (see other answers to this question for examples). The code ends by
-raising an exception, to deal with the case it is called with a non-
-serializable type.</p>
-<p>This json_serial function can be used as follows:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
-<span class="kn">from</span> <span class="nn">json</span> <span class="kn">import</span> <span class="n">dumps</span>
-
-<span class="nb">print</span> <span class="n">dumps</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span> <span class="n">default</span><span class="o">=</span><span class="n">json_serial</span><span class="p">)</span>
-</pre></div>
-
-<p>The details about how the default parameter to json.dumps works can be found
-in Section Basic Usage of the json module documentation.</p>
     </div>
     </article>
 </div>

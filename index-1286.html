@@ -108,7 +108,96 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/select-elements-by-attribute-in-css/" class="u-url">Select elements by attribute in CSS</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/expressionchangedafterithasbeencheckederror-explained/" class="u-url">ExpressionChangedAfterItHasBeenCheckedError Explained</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/expressionchangedafterithasbeencheckederror-explained/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:43:56+08:00" itemprop="datePublished" title="2023-02-18 05:43">2023-02-18 05:43</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Please explain to me why I keep getting this error:
+<code>ExpressionChangedAfterItHasBeenCheckedError: Expression has changed after it
+was checked.</code></p>
+<p>Obviously, I only get it in dev mode, it doesn't happen on my production
+build, but it's very annoying and I simply don't understand the benefits of
+having an error in my dev environment that won't show up on prod --probably
+because of my lack of understanding.</p>
+<p>Usually, the fix is easy enough, I just wrap the error causing code in a
+setTimeout like this:</p>
+<div class="code"><pre class="code literal-block">setTimeout(()=&gt; {
+    this.isLoading = true;
+}, 0);
+</pre></div>
+
+<p>Or force detect changes with a constructor like this: <code>constructor(private cd:
+ChangeDetectorRef) {}</code>:</p>
+<div class="code"><pre class="code literal-block">this.isLoading = true;
+this.cd.detectChanges();
+</pre></div>
+
+<p>But why do I constantly run into this error? I want to understand it so I can
+avoid these hacky fixes in the future.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>A lot of understanding came once I understood the Angular Lifecycle Hooks and
+their relationship with change detection.</p>
+<p>I was trying to get Angular to update a global flag bound to the <code>*ngIf</code> of an
+element, and I was trying to change that flag inside of the <code>ngOnInit()</code> life
+cycle hook of another component.</p>
+<p>According to the documentation, this method is called after Angular has
+already detected changes:</p>
+<blockquote>
+<p>Called once, after the first ngOnChanges().</p>
+</blockquote>
+<p>So updating the flag inside of <code>ngOnChanges()</code> won't initiate change
+detection. Then, once change detection has naturally triggered again, the
+flag's value has changed and the error is thrown.</p>
+<p>In my case, I changed this:</p>
+<div class="code"><pre class="code literal-block"><span class="n">constructor</span><span class="p">(</span><span class="n">private</span><span class="w"> </span><span class="n">globalEventsService</span><span class="p">:</span><span class="w"> </span><span class="n">GlobalEventsService</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="p">}</span>
+
+<span class="n">ngOnInit</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">globalEventsService</span><span class="o">.</span><span class="n">showCheckoutHeader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>To this:</p>
+<div class="code"><pre class="code literal-block"><span class="n">constructor</span><span class="p">(</span><span class="n">private</span><span class="w"> </span><span class="n">globalEventsService</span><span class="p">:</span><span class="w"> </span><span class="n">GlobalEventsService</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">globalEventsService</span><span class="o">.</span><span class="n">showCheckoutHeader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">ngOnInit</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+
+<span class="p">}</span>
+</pre></div>
+
+<p>and it fixed the problem :)</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>This error indicates a real problem in your application, therefore it makes
+sense to throw an exception.</p>
+<p>In <code>devMode</code> change detection adds an additional turn after every regular
+change detection run to check if the model has changed.</p>
+<p>If the model has changed between the regular and the additional change
+detection turn, this indicates that either</p>
+<ul>
+<li>change detection itself has caused a change</li>
+<li>a method or getter returns a different value every time it is called</li>
+</ul>
+<p>which are both bad, because it is not clear how to proceed because the model
+might never stabilize.</p>
+<p>If Angular runs change detection until the model stabilizes, it might run
+forever. If Angular doesn't run change detection, then the view might not
+reflect the current state of the model.</p>
+<p>See also What is difference between production and development mode in
+Angular2?</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/select-elements-by-attribute-in-css/" class="u-url">Select elements by attribute in CSS</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -258,79 +347,6 @@ and valid solution for commenting my bulky dependencies section in
 dependencies/comments either in Git commit diffs or in an editor while working
 with file <code>package.json</code>.</p>
 <p>And no extra tools are involved, just plain and valid JSON.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/check-if-inputs-are-empty-using-jquery/" class="u-url">Check if inputs are empty using jQuery</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/check-if-inputs-are-empty-using-jquery/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:42:34+08:00" itemprop="datePublished" title="2023-02-18 05:42">2023-02-18 05:42</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a form that I would like all fields to be filled in. If a field is
-clicked into and then not filled out, I would like to display a red
-background.</p>
-<p>Here is my code:</p>
-<div class="code"><pre class="code literal-block"><span class="o">$(</span><span class="s1">'#apply-form input'</span><span class="o">)</span><span class="p">.</span><span class="nc">blur</span><span class="o">(</span><span class="nt">function</span><span class="w"> </span><span class="o">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="err">if</span><span class="w"> </span><span class="err">($('</span><span class="n">input</span><span class="p">:</span><span class="kc">text</span><span class="s1">').is(":empty")) {</span>
-<span class="s1">    $(this).parents('</span><span class="n">p</span><span class="s1">').addClass('</span><span class="n">warning</span><span class="err">'</span><span class="p">);</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="err">}</span><span class="o">);</span>
-</pre></div>
-
-<p>It applies the warning class regardless of the field being filled in or not.</p>
-<p>What am I doing wrong?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<div class="code"><pre class="code literal-block">$<span class="ss">(</span><span class="s1">'#apply-form input'</span><span class="ss">)</span>.<span class="nv">blur</span><span class="ss">(</span><span class="nv">function</span><span class="ss">()</span>
-{
-<span class="w">    </span><span class="k">if</span><span class="ss">(</span><span class="w"> </span><span class="o">!</span>$<span class="ss">(</span><span class="nv">this</span><span class="ss">)</span>.<span class="nv">val</span><span class="ss">()</span><span class="w"> </span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">          </span>$<span class="ss">(</span><span class="nv">this</span><span class="ss">)</span>.<span class="nv">parents</span><span class="ss">(</span><span class="s1">'p'</span><span class="ss">)</span>.<span class="nv">addClass</span><span class="ss">(</span><span class="s1">'warning'</span><span class="ss">)</span><span class="c1">;</span>
-<span class="w">    </span>}
-}<span class="ss">)</span><span class="c1">;</span>
-</pre></div>
-
-<p>And you don't necessarily need <code>.length</code> or see if it's <code>&gt;0</code> since an empty
-string evaluates to false anyway but if you'd like to for readability
-purposes:</p>
-<div class="code"><pre class="code literal-block">$<span class="ss">(</span><span class="s1">'#apply-form input'</span><span class="ss">)</span>.<span class="nv">blur</span><span class="ss">(</span><span class="nv">function</span><span class="ss">()</span>
-{
-<span class="w">    </span><span class="k">if</span><span class="ss">(</span><span class="w"> </span>$<span class="ss">(</span><span class="nv">this</span><span class="ss">)</span>.<span class="nv">val</span><span class="ss">()</span>.<span class="nv">length</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">        </span>$<span class="ss">(</span><span class="nv">this</span><span class="ss">)</span>.<span class="nv">parents</span><span class="ss">(</span><span class="s1">'p'</span><span class="ss">)</span>.<span class="nv">addClass</span><span class="ss">(</span><span class="s1">'warning'</span><span class="ss">)</span><span class="c1">;</span>
-<span class="w">    </span>}
-}<span class="ss">)</span><span class="c1">;</span>
-</pre></div>
-
-<p>If you're sure it will always operate on a textfield element then you can just
-use <code>this.value</code>.</p>
-<div class="code"><pre class="code literal-block">$<span class="ss">(</span><span class="s1">'#apply-form input'</span><span class="ss">)</span>.<span class="nv">blur</span><span class="ss">(</span><span class="nv">function</span><span class="ss">()</span>
-{
-<span class="w">      </span><span class="k">if</span><span class="ss">(</span><span class="w"> </span><span class="o">!</span><span class="nv">this</span>.<span class="nv">value</span><span class="w"> </span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">            </span>$<span class="ss">(</span><span class="nv">this</span><span class="ss">)</span>.<span class="nv">parents</span><span class="ss">(</span><span class="s1">'p'</span><span class="ss">)</span>.<span class="nv">addClass</span><span class="ss">(</span><span class="s1">'warning'</span><span class="ss">)</span><span class="c1">;</span>
-<span class="w">      </span>}
-}<span class="ss">)</span><span class="c1">;</span>
-</pre></div>
-
-<p>Also you should take note that <code>$('input:text')</code> grabs multiple elements,
-specify a context or use the <code>this</code> keyword if you just want a reference to a
-lone element (provided there's one textfield in the context's
-descendants/children).</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Everybody has the right idea, but I like to be a little more explicit and trim
-the values.</p>
-<div class="code"><pre class="code literal-block">$<span class="ss">(</span><span class="s1">'#apply-form input'</span><span class="ss">)</span>.<span class="nv">blur</span><span class="ss">(</span><span class="nv">function</span><span class="ss">()</span><span class="w"> </span>{
-<span class="w">     </span><span class="k">if</span><span class="ss">(</span><span class="o">!</span>$.<span class="nv">trim</span><span class="ss">(</span><span class="nv">this</span>.<span class="nv">value</span><span class="ss">)</span>.<span class="nv">length</span><span class="ss">)</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nv">zero</span><span class="o">-</span><span class="nv">length</span><span class="w"> </span><span class="nv">string</span><span class="w"> </span><span class="nv">AFTER</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">trim</span>
-<span class="w">            </span>$<span class="ss">(</span><span class="nv">this</span><span class="ss">)</span>.<span class="nv">parents</span><span class="ss">(</span><span class="s1">'p'</span><span class="ss">)</span>.<span class="nv">addClass</span><span class="ss">(</span><span class="s1">'warning'</span><span class="ss">)</span><span class="c1">;</span>
-<span class="w">     </span>}
-}<span class="ss">)</span><span class="c1">;</span>
-</pre></div>
-
-<p>if you dont use .length , then an entry of '0' can get flagged as bad, and an
-entry of 5 spaces could get marked as ok without the $.trim . Best of Luck.</p>
     </div>
     </article>
 </div>

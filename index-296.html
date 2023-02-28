@@ -108,7 +108,123 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-do-a-line-break-line-continuation-in-python/" class="u-url">How can I do a line break (line continuation) in Python?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/utf-8-all-the-way-through/" class="u-url">UTF-8 all the way through</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/utf-8-all-the-way-through/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:16:58+08:00" itemprop="datePublished" title="2023-02-17 03:16">2023-02-17 03:16</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm setting up a new server and want to support UTF-8 fully in my web
+application. I have tried this in the past on existing servers and always seem
+to end up having to fall back to ISO-8859-1.</p>
+<p>Where exactly do I need to set the encoding/charsets? I'm aware that I need to
+configure Apache, MySQL, and PHP to do this — is there some standard checklist
+I can follow, or perhaps troubleshoot where the mismatches occur?</p>
+<p>This is for a new Linux server, running MySQL 5, PHP, 5 and Apache 2.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>Data Storage</strong> :</p>
+<ul>
+<li>
+<p>Specify the <code>utf8mb4</code> character set on all tables and text columns in your database. This makes MySQL physically store and retrieve values encoded natively in UTF-8. Note that MySQL will implicitly use <code>utf8mb4</code> encoding if a <code>utf8mb4_*</code> collation is specified (without any explicit character set).</p>
+</li>
+<li>
+<p>In older versions of MySQL (&lt; 5.5.3), you'll unfortunately be forced to use simply <code>utf8</code>, which only supports a subset of Unicode characters. I wish I were kidding.</p>
+</li>
+</ul>
+<p><strong>Data Access</strong> :</p>
+<ul>
+<li>
+<p>In your application code (e.g. PHP), in whatever DB access method you use, you'll need to set the connection charset to <code>utf8mb4</code>. This way, MySQL does no conversion from its native UTF-8 when it hands data off to your application and vice versa.</p>
+</li>
+<li>
+<p>Some drivers provide their own mechanism for configuring the connection character set, which both updates its own internal state and informs MySQL of the encoding to be used on the connection—this is usually the preferred approach. In PHP:</p>
+<ul>
+<li>
+<p>If you're using the PDO abstraction layer with PHP ≥ 5.3.6, you can specify <code>charset</code> in the DSN:</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span><span class="o">$</span><span class="nt">dbh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">new</span><span class="w"> </span><span class="nt">PDO</span><span class="o">(</span><span class="s1">'mysql:charset=utf8mb4'</span><span class="o">);</span>
+</pre></div>
+
+</li>
+<li>
+<p>If you're using mysqli, you can call <code>set_charset()</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="w">      </span><span class="err">$</span><span class="n">mysqli</span><span class="o">-&gt;</span><span class="n">set_charset</span><span class="p">(</span><span class="s">'utf8mb4'</span><span class="p">);</span><span class="w">       </span><span class="c1">// object oriented style</span>
+</pre></div>
+
+<p>mysqli_set_charset($link, 'utf8mb4');  // procedural style</p>
+</li>
+<li>
+<p>If you're stuck with plain mysql but happen to be running PHP ≥ 5.2.3, you can call <code>mysql_set_charset</code>.</p>
+</li>
+</ul>
+</li>
+<li>
+<p>If the driver does not provide its own mechanism for setting the connection character set, you may have to issue a query to tell MySQL how your application expects data on the connection to be encoded: <code>SET NAMES 'utf8mb4'</code>.</p>
+</li>
+<li>
+<p>The same consideration regarding <code>utf8mb4</code>/<code>utf8</code> applies as above.</p>
+</li>
+</ul>
+<p><strong>Output</strong> :</p>
+<ul>
+<li>UTF-8 should be set in the HTTP header, such as <code>Content-Type: text/html; charset=utf-8</code>. You can achieve that either by setting <code>default_charset</code> in php.ini (preferred), or manually using <code>header()</code> function.</li>
+<li>If your application transmits text to other systems, they will also need to be informed of the character encoding. With web applications, the browser must be informed of the encoding in which data is sent (through HTTP response headers or HTML metadata).</li>
+<li>When encoding the output using <code>json_encode()</code>, add <code>JSON_UNESCAPED_UNICODE</code> as a second parameter.</li>
+</ul>
+<p><strong>Input</strong> :</p>
+<ul>
+<li>Browsers will submit data in the character set specified for the document, hence nothing particular has to be done on the input.</li>
+<li>In case you have doubts about request encoding (in case it could be tampered with), you may verify every received string as being valid UTF-8 before you try to store it or use it anywhere. PHP's <code>mb_check_encoding()</code> does the trick, but you have to use it religiously. There's really no way around this, as malicious clients can submit data in whatever encoding they want, and I haven't found a trick to get PHP to do this for you reliably.</li>
+</ul>
+<p><strong>Other Code Considerations</strong> :</p>
+<ul>
+<li>
+<p>Obviously enough, all files you'll be serving (PHP, HTML, JavaScript, etc.) should be encoded in valid UTF-8.</p>
+</li>
+<li>
+<p>You need to make sure that every time you process a UTF-8 string, you do so safely. This is, unfortunately, the hard part. You'll probably want to make extensive use of PHP's <code>mbstring</code> extension.</p>
+</li>
+<li>
+<p><strong>PHP's built-in string operations are <em>not</em> by default UTF-8 safe.</strong> There are some things you can safely do with normal PHP string operations (like concatenation), but for most things you should use the equivalent <code>mbstring</code> function.</p>
+</li>
+<li>
+<p>To know what you're doing (read: not mess it up), you really need to know UTF-8 and how it works on the lowest possible level. Check out any of the links from utf8.com for some good resources to learn everything you need to know.</p>
+</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I'd like to add one thing to chazomaticus' excellent answer:</p>
+<p>Don't forget the META tag either (like this, or the HTML4 or XHTML version of
+it):</p>
+<div class="code"><pre class="code literal-block">&lt;meta charset="utf-8"&gt;
+</pre></div>
+
+<p>That seems trivial, but IE7 has given me problems with that before.</p>
+<p>I was doing everything right; the database, database connection and Content-
+Type HTTP header were all set to UTF-8, and it worked fine in all other
+browsers, but Internet Explorer still insisted on using the "Western European"
+encoding.</p>
+<p>It turned out the page was missing the META tag. Adding that solved the
+problem.</p>
+<p><strong>Edit:</strong></p>
+<p>The W3C actually has a rather large section dedicated to I18N. They have a
+number of articles related to this issue – describing the HTTP, (X)HTML and
+CSS side of things:</p>
+<ul>
+<li>FAQ: Changing (X)HTML page encoding to UTF-8</li>
+<li>Declaring character encodings in HTML</li>
+<li>Tutorial: Character sets &amp; encodings in XHTML, HTML and CSS</li>
+<li>Setting the HTTP charset parameter</li>
+</ul>
+<p>They recommend using both the HTTP header and HTML meta tag (or XML
+declaration in case of XHTML served as XML).</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-do-a-line-break-line-continuation-in-python/" class="u-url">How can I do a line break (line continuation) in Python?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -622,138 +738,6 @@ everything is fine. C++11 however immediately binds it to <code>B::f</code> and 
 a double-check when instantiating, checking whether the lookup still matches.
 However when instantiating <code>C&lt;A&gt;::g</code>, the Dominance Rule applies and lookup
 will find <code>A::f</code> instead.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/d-less-efficient-than-0-9/" class="u-url">\d less efficient than [0-9]</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/d-less-efficient-than-0-9/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T03:15:40+08:00" itemprop="datePublished" title="2023-02-17 03:15">2023-02-17 03:15</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I made a comment yesterday on an answer where someone had used <code>[0123456789]</code>
-in a regex rather than <code>[0-9]</code> or <code>\d</code>. I said it was probably more efficient
-to use a range or digit specifier than a character set.</p>
-<p>I decided to test that out today and found out to my surprise that (in the .net-c#
-regex engine at least) <code>\d</code> appears to be less efficient than either of the
-other two which don't seem to differ much. Here is my test output over 10000
-random strings of 1000 random characters with 5077 actually containing a
-digit:</p>
-<div class="code"><pre class="code literal-block">Regex \d           took 00:00:00.2141226 result: 5077/10000
-Regex [0-9]        took 00:00:00.1357972 result: 5077/10000  63.42 % of first
-Regex [0123456789] took 00:00:00.1388997 result: 5077/10000  64.87 % of first
-</pre></div>
-
-<p>It's a surprise to me for two reasons, that I would be interested if anyone
-can shed some light on:</p>
-<ol>
-<li>I would have thought the range would be implemented much more efficiently than the set.</li>
-<li>I can't understand why <code>\d</code> is worse than <code>[0-9]</code>. Is there more to <code>\d</code> than simply shorthand for <code>[0-9]</code>?</li>
-</ol>
-<p>Here is the test code:</p>
-<div class="code"><pre class="code literal-block"><span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">;</span>
-<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Collections</span><span class="p">.</span><span class="n">Generic</span><span class="p">;</span>
-<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Linq</span><span class="p">;</span>
-<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Text</span><span class="p">;</span>
-<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Diagnostics</span><span class="p">;</span>
-<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Text</span><span class="p">.</span><span class="n">RegularExpressions</span><span class="p">;</span>
-
-<span class="n">namespace</span><span class="w"> </span><span class="n">SO_RegexPerformance</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="n">Program</span>
-<span class="w">    </span><span class="p">{</span>
-<span class="w">        </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Main</span><span class="p">(</span><span class="n">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
-<span class="w">        </span><span class="p">{</span>
-<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">rand</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Random</span><span class="p">(</span><span class="mi">1234</span><span class="p">);</span>
-<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">strings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span><span class="p">();</span>
-<span class="w">            </span><span class="c1">//10K random strings</span>
-<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">var</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
-<span class="w">            </span><span class="p">{</span>
-<span class="w">                </span><span class="c1">//generate random string</span>
-<span class="w">                </span><span class="n">var</span><span class="w"> </span><span class="n">sb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">StringBuilder</span><span class="p">();</span>
-<span class="w">                </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">var</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="o">++</span><span class="p">)</span>
-<span class="w">                </span><span class="p">{</span>
-<span class="w">                    </span><span class="c1">//add a-z randomly</span>
-<span class="w">                    </span><span class="n">sb</span><span class="p">.</span><span class="n">Append</span><span class="p">((</span><span class="kt">char</span><span class="p">)(</span><span class="sc">'a'</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">rand</span><span class="p">.</span><span class="n">Next</span><span class="p">(</span><span class="mi">26</span><span class="p">)));</span>
-<span class="w">                </span><span class="p">}</span>
-<span class="w">                </span><span class="c1">//in roughly 50% of them, put a digit</span>
-<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">rand</span><span class="p">.</span><span class="n">Next</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
-<span class="w">                </span><span class="p">{</span>
-<span class="w">                    </span><span class="c1">//replace 1 char with a digit 0-9</span>
-<span class="w">                    </span><span class="n">sb</span><span class="p">[</span><span class="n">rand</span><span class="p">.</span><span class="n">Next</span><span class="p">(</span><span class="n">sb</span><span class="p">.</span><span class="n">Length</span><span class="p">)]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="p">)(</span><span class="sc">'0'</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">rand</span><span class="p">.</span><span class="n">Next</span><span class="p">(</span><span class="mi">10</span><span class="p">));</span>
-<span class="w">                </span><span class="p">}</span>
-<span class="w">                </span><span class="n">strings</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">sb</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
-<span class="w">            </span><span class="p">}</span>
-
-<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">baseTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">testPerfomance</span><span class="p">(</span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="s">@"\d"</span><span class="p">);</span>
-<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">();</span>
-<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">testTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">testPerfomance</span><span class="p">(</span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="s">"[0-9]"</span><span class="p">);</span>
-<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"  {0:P2} of first"</span><span class="p">,</span><span class="w"> </span><span class="n">testTime</span><span class="p">.</span><span class="n">TotalMilliseconds</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">baseTime</span><span class="p">.</span><span class="n">TotalMilliseconds</span><span class="p">);</span>
-<span class="w">            </span><span class="n">testTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">testPerfomance</span><span class="p">(</span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="s">"[0123456789]"</span><span class="p">);</span>
-<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"  {0:P2} of first"</span><span class="p">,</span><span class="w"> </span><span class="n">testTime</span><span class="p">.</span><span class="n">TotalMilliseconds</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">baseTime</span><span class="p">.</span><span class="n">TotalMilliseconds</span><span class="p">);</span>
-<span class="w">        </span><span class="p">}</span>
-
-<span class="w">        </span><span class="n">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">TimeSpan</span><span class="w"> </span><span class="n">testPerfomance</span><span class="p">(</span><span class="n">List</span><span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">regex</span><span class="p">)</span>
-<span class="w">        </span><span class="p">{</span>
-<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">sw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Stopwatch</span><span class="p">();</span>
-
-<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">successes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-
-<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">rex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="n">regex</span><span class="p">);</span>
-
-<span class="w">            </span><span class="n">sw</span><span class="p">.</span><span class="n">Start</span><span class="p">();</span>
-<span class="w">            </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">var</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">strings</span><span class="p">)</span>
-<span class="w">            </span><span class="p">{</span>
-<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">rex</span><span class="p">.</span><span class="n">Match</span><span class="p">(</span><span class="n">str</span><span class="p">).</span><span class="n">Success</span><span class="p">)</span>
-<span class="w">                </span><span class="p">{</span>
-<span class="w">                    </span><span class="n">successes</span><span class="o">++</span><span class="p">;</span>
-<span class="w">                </span><span class="p">}</span>
-<span class="w">            </span><span class="p">}</span>
-<span class="w">            </span><span class="n">sw</span><span class="p">.</span><span class="n">Stop</span><span class="p">();</span>
-
-<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">Write</span><span class="p">(</span><span class="s">"Regex {0,-12} took {1} result: {2}/{3}"</span><span class="p">,</span><span class="w"> </span><span class="n">regex</span><span class="p">,</span><span class="w"> </span><span class="n">sw</span><span class="p">.</span><span class="n">Elapsed</span><span class="p">,</span><span class="w"> </span><span class="n">successes</span><span class="p">,</span><span class="w"> </span><span class="n">strings</span><span class="p">.</span><span class="n">Count</span><span class="p">);</span>
-
-<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">sw</span><span class="p">.</span><span class="n">Elapsed</span><span class="p">;</span>
-<span class="w">        </span><span class="p">}</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p><code>\d</code> checks all Unicode digits, while <code>[0-9]</code> is limited to these 10
-characters. For example, Persian digits, <code>۱۲۳۴۵۶۷۸۹</code>, are an example of
-Unicode digits which are matched with <code>\d</code>, but not <code>[0-9]</code>.</p>
-<p>You can generate a list of all such characters using the following code:</p>
-<div class="code"><pre class="code literal-block"><span class="n">var</span><span class="w"> </span><span class="n">sb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">StringBuilder</span><span class="p">();</span>
-<span class="k">for</span><span class="p">(</span><span class="kt">UInt16</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="kt">UInt16</span><span class="p">.</span><span class="n">MaxValue</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
-<span class="p">{</span>
-<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Convert</span><span class="p">.</span><span class="n">ToChar</span><span class="p">(</span><span class="n">i</span><span class="p">).</span><span class="n">ToString</span><span class="p">();</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Regex</span><span class="p">.</span><span class="n">IsMatch</span><span class="p">(</span><span class="n">str</span><span class="p">,</span><span class="w"> </span><span class="s">@"\d"</span><span class="p">))</span>
-<span class="w">        </span><span class="n">sb</span><span class="p">.</span><span class="n">Append</span><span class="p">(</span><span class="n">str</span><span class="p">);</span>
-<span class="p">}</span>
-<span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">sb</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
-</pre></div>
-
-<p>Which generates:</p>
-<blockquote>
-<p>0123456789٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹߀߁߂߃߄߅߆߇߈߉०१२३४५६७८९০১২৩৪৫৬৭৮৯੦੧੨੩੪੫੬੭੮੯૦૧૨૩૪૫૬૭૮૯୦୧୨୩୪୫୬୭୮୯௦௧௨௩௪௫௬௭௮௯౦౧౨౩౪౫౬౭౮౯೦೧೨೩೪೫೬೭೮೯൦൧൨൩൪൫൬൭൮൯๐๑๒๓๔๕๖๗๘๙໐໑໒໓໔໕໖໗໘໙༠༡༢༣༤༥༦༧༨༩၀၁၂၃၄၅၆၇၈၉႐႑႒႓႔႕႖႗႘႙០១២៣៤៥៦៧៨៩᠐᠑᠒᠓᠔᠕᠖᠗᠘᠙᥆᥇᥈᥉᥊᥋᥌᥍᥎᥏᧐᧑᧒᧓᧔᧕᧖᧗᧘᧙᭐᭑᭒᭓᭔᭕᭖᭗᭘᭙᮰᮱᮲᮳᮴᮵᮶᮷᮸᮹᱀᱁᱂᱃᱄᱅᱆᱇᱈᱉᱐᱑᱒᱓᱔᱕᱖᱗᱘᱙꘠꘡꘢꘣꘤꘥꘦꘧꘨꘩꣐꣑꣒꣓꣔꣕꣖꣗꣘꣙꤀꤁꤂꤃꤄꤅꤆꤇꤈꤉꩐꩑꩒꩓꩔꩕꩖꩗꩘꩙０１２３４５６７８９</p>
-</blockquote>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Credit to ByteBlast for noticing this in the docs. Just changing the regex
-constructor:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">rex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span><span class="w"> </span><span class="n">RegexOptions</span><span class="o">.</span><span class="n">ECMAScript</span><span class="p">);</span>
-</pre></div>
-
-<p>Gives new timings:</p>
-<div class="code"><pre class="code literal-block">Regex \d           took 00:00:00.1355787 result: 5077/10000
-Regex [0-9]        took 00:00:00.1360403 result: 5077/10000  100.34 % of first
-Regex [0123456789] took 00:00:00.1362112 result: 5077/10000  100.47 % of first
-</pre></div>
     </div>
     </article>
 </div>

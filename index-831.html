@@ -108,7 +108,108 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-rake-db-migrate-db-reset-and-db-schema-load/" class="u-url">Difference between rake db:migrate db:reset and db:schema:load</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-are-static-variables-considered-evil/" class="u-url">Why are static variables considered evil?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-are-static-variables-considered-evil/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T17:08:30+08:00" itemprop="datePublished" title="2023-02-17 17:08">2023-02-17 17:08</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I am a Java programmer who is new to the corporate world. Recently I've
+developed an application using Groovy and Java. All through the code I wrote
+used quite a good number of statics. I was asked by the senior technical lot
+to cut down on the number of statics used. I've googled about the same, and I
+find that many programmers are fairly against using static variables.</p>
+<p>I find static variables more convenient to use. And I presume that they are
+efficient too (please correct me if I am wrong), because if I had to make
+10,000 calls to a function within a class, I would be glad to make the method
+static and use a straightforward <code>Class.methodCall()</code> on it instead of
+cluttering the memory with 10,000 instances of the class, right?</p>
+<p>Moreover statics reduce the inter-dependencies on the other parts of the code.
+They can act as perfect state holders. Adding to this I find that statics are
+widely implemented in some languages like Smalltalk and Scala. So why is this
+opposition to statics prevalent among programmers (especially in the world of
+Java)?</p>
+<p>PS: please do correct me if my assumptions about statics are wrong.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Static variables represent global state. That's hard to reason about and hard
+to test: if I create a new instance of an object, I can reason about its new
+state within tests. If I use code which is using static variables, it could be
+in any state - and anything could be modifying it.</p>
+<p>I could go on for quite a while, but the bigger concept to think about is that
+the tighter the scope of something, the easier it is to reason about. We're
+good at thinking about small things, but it's hard to reason about the state
+of a million line system if there's no modularity. This applies to all sorts
+of things, by the way - not just static variables.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>Its not very object oriented:</strong> One reason statics might be considered
+"evil" by some people is they are contrary the object-oriented paradigm. In
+particular, it violates the principle that data is encapsulated in objects
+(that can be extended, information hiding, etc). Statics, in the way you are
+describing using them, are essentially to use them as a global variable to
+avoid dealing with issues like scope. However, global variables is one of the
+defining characteristics of procedural or imperative programming paradigm, not
+a characteristic of "good" object oriented code. This is not to say the
+procedural paradigm is bad, but I get the impression your supervisor expects
+you to be writing "good object oriented code" and you're really wanting to
+write "good procedural code".</p>
+<p>There are many gotchyas in Java when you start using statics that are not
+always immediately obvious. For example, if you have two copies of your
+program running in the same VM, will they shre the static variable's value and
+mess with the state of each other? Or what happens when you extend the class,
+can you override the static member? Is your VM running out of memory because
+you have insane numbers of statics and that memory cannot be reclaimed for
+other needed instance objects?</p>
+<p><strong>Object Lifetime:</strong> Additionally, statics have a lifetime that matches the
+entire runtime of the program. This means, even once you're done using your
+class, the memory from all those static variables cannot be garbage collected.
+If, for example, instead, you made your variables non-static, and in your
+main() function you made a single instance of your class, and then asked your
+class to execute a particular function 10,000 times, once those 10,000 calls
+were done, and you delete your references to the single instance, all your
+static variables could be garbage collected and reused.</p>
+<p><strong>Prevents certain re-use:</strong> Also, static methods cannot be used to implement
+an interface, so static methods can prevent certain object oriented features
+from being usable.</p>
+<p><strong>Other Options:</strong> If efficiency is your primary concern, there might be other
+better ways to solve the speed problem than considering only the advantage of
+invocation being usually faster than creation. Consider whether the transient
+or volatile modifiers are needed anywhere. To preserve the ability to be
+inlined, a method could be marked as final instead of static. Method
+parameters and other variables can be marked final to permit certain compiler
+optimiazations based on assumptions about what can change those variables. An
+instance object could be reused multiple times rather than creating a new
+instance each time. There may be compliler optimization switches that should
+be turned on for the app in general. Perhaps, the design should be set up so
+that the 10,000 runs can be multi-threaded and take advantage of multi-
+processor cores. If portablity isn't a concern, maybe a native method would
+get you better speed than your statics do.</p>
+<p>If for some reason you do not want multiple copies of an object, the singleton
+design pattern, has advantages over static objects, such as thread-safety
+(presuming your singleton is coded well), permitting lazy-initialization,
+guaranteeing the object has been properly initialized when it is used, sub-
+classing, advantages in testing and refactoring your code, not to mention, if
+at some point you change your mind about only wanting one instance of an
+object it is MUCH easier to remove the code to prevent duplicate instances
+than it is to refactor all your static variable code to use instance
+variables. I've had to do that before, its not fun, and you end up having to
+edit a lot more classes, which increases your risk of introducing new
+bugs...so much better to set things up "right" the first time, even if it
+seems like it has its disadvantages. For me, the re-work required should you
+decide down the road you need multiple copies of something is probably one of
+most compelling reasons to use statics as infrequently as possible. And thus I
+would also disagree with your statement that statics reduce inter-
+dependencies, I think you will end up with code that is more coupled if you
+have lots of statics that can be directly accessed, rather than an object that
+"knows how to do something" on itself.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-rake-db-migrate-db-reset-and-db-schema-load/" class="u-url">Difference between rake db:migrate db:reset and db:schema:load</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -343,39 +444,6 @@ add a newline character without needing to use regex mode.</p>
 use this feature set the find window to regex mode and use <code>\n</code> as the newline
 character.</p>
 <p><img alt="Multiline find in VS Code gif" src="images/CTuAE.gif"></p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/set-imageview-width-and-height-programmatically/" class="u-url">Set ImageView width and height programmatically?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/set-imageview-width-and-height-programmatically/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T17:06:52+08:00" itemprop="datePublished" title="2023-02-17 17:06">2023-02-17 17:06</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How can I set an <code>ImageView</code>'s width and height programmatically?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>It may be too late but for the sake of others who have the same problem, to
-set the height of the <code>ImageView</code>:</p>
-<div class="code"><pre class="code literal-block">imageView.getLayoutParams().height = 20;
-</pre></div>
-
-<p><strong>Important.</strong> If you're setting the height after the layout has already been
-'laid out', make sure you also call:</p>
-<div class="code"><pre class="code literal-block">imageView.requestLayout();
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>If your image view is dynamic, the answer containing getLayout will fail with
-null-exception.</p>
-<p>In that case the correct way is:</p>
-<div class="code"><pre class="code literal-block">LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(100, 100);
-iv.setLayoutParams(layoutParams);
-</pre></div>
     </div>
     </article>
 </div>

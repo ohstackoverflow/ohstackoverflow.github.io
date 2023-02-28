@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Algorithms for realtime strategy wargame AI | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/algorithms-for-realtime-strategy-wargame-ai/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../what-are-the-differences-between-simulated-annealing-and-genetic-algorithms/" title="What are the differences between simulated annealing and genetic algorithms?" type="text/html">
+<link rel="next" href="../a-admissible-heuristics-on-a-grid-with-teleporters/" title="A* admissible heuristics on a grid with teleporters?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Algorithms for realtime strategy wargame AI">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/algorithms-for-realtime-strategy-wargame-ai/">
+<meta property="og:description" content="I'm designing a realtime strategy wargame where the AI will be responsible for
+controlling a large number of units (possibly 1000+) on a large hexagonal map.
+A unit has a number of action points which">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-28T02:49:17+08:00">
+<meta property="article:tag" content="algorithm">
+<meta property="article:tag" content="artificial-intelligence">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Algorithms for realtime strategy wargame AI</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T02:49:17+08:00" itemprop="datePublished" title="2023-02-28 02:49">2023-02-28 02:49</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I'm designing a realtime strategy wargame where the AI will be responsible for
+controlling a large number of units (possibly 1000+) on a large hexagonal map.</p>
+<p>A unit has a number of action points which can be expended on movement,
+attacking enemy units or various special actions (e.g. building new units).
+For example, a tank with 5 action points could spend 3 on movement then 2 in
+firing on an enemy within range. Different units have different costs for
+different actions etc.</p>
+<p>Some additional notes:</p>
+<ul>
+<li>The output of the AI is a "command" to any given unit</li>
+<li>Action points are allocated at the beginning of a time period, but may be spent at any point within the time period (this is to allow for realtime multiplayer games). Hence "do nothing and save action points for later" is a potentially valid tactic (e.g. a gun turret that cannot move waiting for an enemy to come within firing range)</li>
+<li>The game is updating in realtime, but the AI can get a consistent snapshot of the game state at any time (thanks to the game state being one of Clojure's persistent data structures)</li>
+<li>I'm not expecting "optimal" behaviour, just something that is not obviously stupid and provides reasonable fun/challenge to play against</li>
+</ul>
+<p>What can you recommend in terms of specific algorithms/approaches that would
+allow for the right balance between efficiency and reasonably intelligent
+behaviour?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>First you should aim to make your game turn based at some level for the AI
+(i.e. you can somehow model it turn based even if it may not be entirely turn
+based, in RTS you may be able to break discrete intervals of time into turns.)
+Second, you should determine how much information the AI should work with.
+That is, if the AI is allowed to cheat and know every move of its opponent
+(thereby making it stronger) or if it should know less or more. Third, you
+should define a cost function of a state. The idea being that a higher cost
+means a worse state for the computer to be in. Fourth you need a move
+generator, generating all valid states the AI can transition to from a given
+state (this may be homogeneous [state-independent] or heterogeneous [state-
+dependent].)</p>
+<p>The thing is, the cost function will be greatly influenced by what exactly you
+define the state to be. The more information you encode in the state the
+better balanced your AI will be but the more difficult it will be for it to
+perform, as it will have to search exponentially more for every additional
+state variable you include (in an exhaustive search.)</p>
+<p>If you provide a definition of a state and a cost function your problem
+transforms to a general problem in AI that can be tackled with any algorithm
+of your choice.</p>
+<p>Here is a summary of what I think would work well:</p>
+<ol>
+<li>
+<p>Evolutionary algorithms may work well if you put enough effort into them, but they will add a layer of complexity that will create room for bugs amongst other things that can go wrong. They will also require extreme amounts of tweaking of the fitness function etc. I don't have much experience working with these but if they are anything like neural networks (which I believe they are since both are heuristics inspired by biological models) you will quickly find they are fickle and far from consistent. Most importantly, I doubt they add any benefits over the option I describe in 3.</p>
+</li>
+<li>
+<p>With the cost function and state defined it would technically be possible for you to apply gradient decent (with the assumption that the state function is differentiable and the domain of the state variables are continuous) however this would probably yield inferior results, since the biggest weakness of gradient descent is getting stuck in local minima. To give an example, this method would be prone to something like attacking the enemy always as soon as possible because there is a non-zero chance of annihilating them. Clearly, this may not be desirable behaviour for a game, however, gradient decent is a greedy method and doesn't know better.</p>
+</li>
+<li>
+<p>This option would be my most highest recommended one: simulated annealing. Simulated annealing would (IMHO) have all the benefits of 1. without the added complexity while being much more robust than 2. In essence SA is just a random walk amongst the states. So in addition to the cost and states you will have to define a way to randomly transition between states. SA is also not prone to be stuck in local minima, while producing very good results quite consistently. The only tweaking required with SA would be the cooling schedule--which decides how fast SA will converge. The greatest advantage of SA I find is that it is conceptually simple and produces superior results empirically to most other methods I have tried. Information on SA can be found here with a long list of generic implementations at the bottom.</p>
+</li>
+</ol>
+<p>3b. ( <em>Edit Added much later</em> ) SA and the techniques I listed above are
+general AI techniques and not really specialized to AI for games. In general,
+the more specialized the algorithm the more chance it has at performing
+better. See No Free Lunch Theorem 2. Another extension of 3 is something
+called parallel tempering which dramatically improves the performance of SA by
+helping it avoid local optima. Some of the original papers on parallel
+tempering are quite dated 3, but others have been updated4.</p>
+<p>Regardless of what method you choose in the end, its going to be very
+important to break your problem down into states and a cost function as I said
+earlier. As a rule of thumb I would start with 20-50 state variables as your
+state search space is exponential in the number of these variables.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>First you should aim to make your game turn based at some level for the AI
+(i.e. you can somehow model it turn based even if it may not be entirely turn
+based, in RTS you may be able to break discrete intervals of time into turns.)
+Second, you should determine how much information the AI should work with.
+That is, if the AI is allowed to cheat and know every move of its opponent
+(thereby making it stronger) or if it should know less or more. Third, you
+should define a cost function of a state. The idea being that a higher cost
+means a worse state for the computer to be in. Fourth you need a move
+generator, generating all valid states the AI can transition to from a given
+state (this may be homogeneous [state-independent] or heterogeneous [state-
+dependent].)</p>
+<p>The thing is, the cost function will be greatly influenced by what exactly you
+define the state to be. The more information you encode in the state the
+better balanced your AI will be but the more difficult it will be for it to
+perform, as it will have to search exponentially more for every additional
+state variable you include (in an exhaustive search.)</p>
+<p>If you provide a definition of a state and a cost function your problem
+transforms to a general problem in AI that can be tackled with any algorithm
+of your choice.</p>
+<p>Here is a summary of what I think would work well:</p>
+<ol>
+<li>
+<p>Evolutionary algorithms may work well if you put enough effort into them, but they will add a layer of complexity that will create room for bugs amongst other things that can go wrong. They will also require extreme amounts of tweaking of the fitness function etc. I don't have much experience working with these but if they are anything like neural networks (which I believe they are since both are heuristics inspired by biological models) you will quickly find they are fickle and far from consistent. Most importantly, I doubt they add any benefits over the option I describe in 3.</p>
+</li>
+<li>
+<p>With the cost function and state defined it would technically be possible for you to apply gradient decent (with the assumption that the state function is differentiable and the domain of the state variables are continuous) however this would probably yield inferior results, since the biggest weakness of gradient descent is getting stuck in local minima. To give an example, this method would be prone to something like attacking the enemy always as soon as possible because there is a non-zero chance of annihilating them. Clearly, this may not be desirable behaviour for a game, however, gradient decent is a greedy method and doesn't know better.</p>
+</li>
+<li>
+<p>This option would be my most highest recommended one: simulated annealing. Simulated annealing would (IMHO) have all the benefits of 1. without the added complexity while being much more robust than 2. In essence SA is just a random walk amongst the states. So in addition to the cost and states you will have to define a way to randomly transition between states. SA is also not prone to be stuck in local minima, while producing very good results quite consistently. The only tweaking required with SA would be the cooling schedule--which decides how fast SA will converge. The greatest advantage of SA I find is that it is conceptually simple and produces superior results empirically to most other methods I have tried. Information on SA can be found here with a long list of generic implementations at the bottom.</p>
+</li>
+</ol>
+<p>3b. ( <em>Edit Added much later</em> ) SA and the techniques I listed above are
+general AI techniques and not really specialized to AI for games. In general,
+the more specialized the algorithm the more chance it has at performing
+better. See No Free Lunch Theorem 2. Another extension of 3 is something
+called parallel tempering which dramatically improves the performance of SA by
+helping it avoid local optima. Some of the original papers on parallel
+tempering are quite dated 3, but others have been updated4.</p>
+<p>Regardless of what method you choose in the end, its going to be very
+important to break your problem down into states and a cost function as I said
+earlier. As a rule of thumb I would start with 20-50 state variables as your
+state search space is exponential in the number of these variables.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/algorithm/" rel="tag">algorithm</a></li>
+            <li><a class="tag p-category" href="../../categories/artificial-intelligence/" rel="tag">artificial-intelligence</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../what-are-the-differences-between-simulated-annealing-and-genetic-algorithms/" rel="prev" title="What are the differences between simulated annealing and genetic algorithms?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../a-admissible-heuristics-on-a-grid-with-teleporters/" rel="next" title="A* admissible heuristics on a grid with teleporters?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

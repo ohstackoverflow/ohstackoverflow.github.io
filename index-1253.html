@@ -108,7 +108,87 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/on-design-patterns-when-should-i-use-the-singleton/" class="u-url">On design patterns: When should I use the singleton?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/java-util-date-vs-java-sql-date/" class="u-url">java.util.Date vs java.sql.Date</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/java-util-date-vs-java-sql-date/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T04:56:47+08:00" itemprop="datePublished" title="2023-02-18 04:56">2023-02-18 04:56</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p><code>java.util.Date</code> vs <code>java.sql.Date</code>: when to use which and why?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Congratulations, you've hit my favorite pet peeve with JDBC: Date class
+handling.</p>
+<p>Basically databases usually support at least <strong>three</strong> forms of datetime
+fields which are date, time and timestamp. Each of these have a corresponding
+class in JDBC and <strong>each of them extend<code>java.util.Date</code></strong>. Quick semantics of
+each of these three are the following:</p>
+<ul>
+<li>
+<code>java.sql.Date</code> corresponds to SQL DATE which means it stores <em>years, months and days</em> while <em>hour, minute, second and millisecond</em> are ignored. Additionally <code>sql.Date</code> isn't tied to timezones.</li>
+<li>
+<code>java.sql.Time</code> corresponds to SQL TIME and as should be obvious, only contains information about <em>hour, minutes, seconds and milliseconds</em>.</li>
+<li>
+<code>java.sql.Timestamp</code> corresponds to SQL TIMESTAMP which is exact date to the nanosecond ( <em>note that<code>util.Date</code> only supports milliseconds!</em>) with customizable precision.</li>
+</ul>
+<p><strong>One of the most common bugs when using JDBC drivers in relation to these
+three types is that the types are handled incorrectly.</strong> This means that
+<code>sql.Date</code> is timezone specific, <code>sql.Time</code> contains current year, month and
+day et cetera et cetera.</p>
+<h3>Finally: Which one to use?</h3>
+<p>Depends on the SQL type of the field, really. <code>PreparedStatement</code> has setters
+for all three values, <code>#setDate()</code> being the one for <code>sql.Date</code>, <code>#setTime()</code>
+for <code>sql.Time</code> and <code>#setTimestamp()</code> for <code>sql.Timestamp</code>.</p>
+<p>Do note that if you use <code>ps.setObject(fieldIndex, utilDateObject);</code> you can
+actually give a normal <code>util.Date</code> to most JDBC drivers which will happily
+devour it as if it was of the correct type but when you request the data
+afterwards, you may notice that you're actually missing stuff.</p>
+<h3>I'm really saying that none of the Dates should be used at all.</h3>
+<p>What I am saying that save the milliseconds/nanoseconds as plain longs and
+convert them to whatever objects you are using ( <em>obligatory joda-time plug</em>
+). One hacky way which can be done is to store the date component as one long
+and time component as another, for example right now would be 20100221 and
+154536123. These magic numbers can be used in SQL queries and will be portable
+from database to another and will let you avoid this part of JDBC/Java Date
+API:s entirely.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>LATE EDIT:</strong> Starting with Java 8 you should use neither <code>java.util.Date</code>
+nor <code>java.sql.Date</code> if you can at all avoid it, and instead prefer using the
+<code>java.time</code> package (based on Joda) rather than anything else. If you're not
+on Java 8, here's the original response:</p>
+<hr>
+<p><strong><code>java.sql.Date</code></strong> - when you call methods/constructors of libraries that
+use it (like JDBC). Not otherwise. You don't want to introduce dependencies to
+the database libraries for applications/modules that don't explicitly deal
+with JDBC.</p>
+<p><strong><code>java.util.Date</code></strong> - when using libraries that use it. Otherwise, as little
+as possible, for several reasons:</p>
+<ul>
+<li>
+<p>It's mutable, which means you have to make a defensive copy of it every time you pass it to or return it from a method. </p>
+</li>
+<li>
+<p>It doesn't handle dates very well, which backwards people like yours truly, think date handling classes should. </p>
+</li>
+<li>
+<p>Now, because j.u.D doesn't do it's job very well, the ghastly <code>Calendar</code> classes were introduced. They are also mutable, and awful to work with, and should be avoided if you don't have any choice.</p>
+</li>
+<li>
+<p>There are better alternatives, like the Joda Time API ( <del>which might even make it into Java 7 and become the new official date handling API</del> - a quick search says it won't).</p>
+</li>
+</ul>
+<p>If you feel it's overkill to introduce a new dependency like Joda, <code>long</code>s
+aren't all that bad to use for timestamp fields in objects, although I myself
+usually wrap them in j.u.D when passing them around, for type safety and as
+documentation.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/on-design-patterns-when-should-i-use-the-singleton/" class="u-url">On design patterns: When should I use the singleton?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -241,65 +321,6 @@ changes as well.</p>
 </pre></div>
 
 <p>Or you can use deepcopy as mentioned above.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-the-android-drawable-directory-contain-subdirectories/" class="u-url">Can the Android drawable directory contain subdirectories?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/can-the-android-drawable-directory-contain-subdirectories/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T04:55:33+08:00" itemprop="datePublished" title="2023-02-18 04:55">2023-02-18 04:55</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>In the Android SDK documentation, all of the examples used with the
-@drawable/my_image xml syntax directly address images that are stored in the
-res/drawable directory in my project.</p>
-<p>I am wondering if it is explicitly not okay to create a sub directory within
-the drawable directory.</p>
-<p>For example, if I had the following directory layout:</p>
-<div class="code"><pre class="code literal-block">res/drawable
--- sandwiches
-  -- tunaOnRye.png
-  -- hamAndSwiss.png
--- drinks
-  -- coldOne.png
-  -- hotTea.png
-</pre></div>
-
-<p>Could I reference the image of a tuna salad sandwich as
-@drawable/sandwiches/tunaOnRye</p>
-<p>Or do I have to keep the hierarchy flat in the drawable directory.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>No, the resources mechanism doesn't support subfolders in the drawable
-directory, so yes - you need to keep that hierarchy flat.</p>
-<p>The directory layout you showed would result in none of the images being
-available.</p>
-<p>From my own experiments it seems that having a subfolder with any items in it,
-within the <code>res/drawable</code> folder, will cause the resource compiler to fail --
-preventing the <code>R.java</code> file from being generated correctly.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>The workaround I'm using (and the one Android itself seems to favor) is to
-essentially substitute an underscore for a forward slash, so your structure
-would look something like this:</p>
-<div class="code"><pre class="code literal-block">sandwich_tunaOnRye.png
-sandwich_hamAndSwiss.png
-drink_coldOne.png
-drink_hotTea.png
-</pre></div>
-
-<p>The approach requires you to be meticulous in your naming and doesn't make it
-much easier to wrangle the files themselves (if you decided that drinks and
-sandwiches should really all be "<code>food</code>", you'd have to do a mass rename
-rather than simply moving them to the directory); but your programming logic's
-complexity doesn't suffer <em>too</em> badly compared to the folder structure
-equivalent.</p>
-<p>This situation sucks indeed. Android is a mixed bag of wonderful and terrible
-design decisions. We can only hope for the latter portion to get weeded out
-with all due haste :)</p>
     </div>
     </article>
 </div>

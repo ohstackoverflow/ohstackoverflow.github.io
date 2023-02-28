@@ -108,7 +108,122 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-the-browser-viewport-dimensions/" class="u-url">How to get the browser viewport dimensions?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-clone-a-single-branch-in-git/" class="u-url">How do I clone a single branch in Git?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-clone-a-single-branch-in-git/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T08:03:36+08:00" itemprop="datePublished" title="2023-02-17 08:03">2023-02-17 08:03</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a local Git repository in <code>~/local_repo</code>. It has a few branches:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>branch
+*<span class="w"> </span>master
+<span class="w">  </span>rails
+<span class="w">  </span>c
+<span class="w">  </span>c++
+</pre></div>
+
+<p>To clone the local repository, I do:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>~/local_repo<span class="w"> </span>new_repo
+Initialized<span class="w"> </span>empty<span class="w"> </span>Git<span class="w"> </span>repository<span class="w"> </span><span class="k">in</span><span class="w"> </span>/home/username/new_repo/.git/
+</pre></div>
+
+<p>The <code>new_repo</code> master branch points to the <code>local_repo</code> master branch, and I
+can push / pull.</p>
+<p>But I am unable to clone another branch. I want to only pull the branch I want
+(e.g. <code>rails</code>), so that the new repository has a <code>master</code> branch that pushes
+to and pulls from <code>local_repo</code>'s <code>rails</code> branch, by default. How do I
+accomplish this, or perhaps something similar with <code>local_repo</code> tracking the
+master <code>local_repo</code>?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Note: the <strong>git1.7.10 (April 2012)</strong> actually allows you to <strong>clone only one
+branch</strong> :</p>
+<div class="code"><pre class="code literal-block"># clone only the remote primary HEAD (default: origin/master)
+git clone &lt;url&gt; --single-branch
+
+# as in:
+git clone &lt;url&gt; --branch &lt;branch&gt; --single-branch &lt;folder&gt;
+</pre></div>
+
+<p>Note:</p>
+<ul>
+<li>
+<code>&lt;url&gt;</code> is the URL of the remote repository, and does not reference the branch cloned</li>
+<li>
+<code>&lt;folder&gt;</code> is the local folder where you want to clone the repository</li>
+</ul>
+<p>You can see it in <code>t5500-fetch-pack.sh</code>:</p>
+<div class="code"><pre class="code literal-block">test_expect_success 'single branch clone' '
+  git clone --single-branch "file://$(pwd)/." singlebranch
+'
+</pre></div>
+
+<p>Tobu comments that:</p>
+<blockquote>
+<p><strong>This is implicit when doing a shallow clone.<br>
+ This makes <code>git clone --depth 1</code> the easiest way to save bandwidth.</strong></p>
+</blockquote>
+<p>And since Git 1.9.0 (February 2014), shallow clones support data transfer
+(push/pull), so that option is even more useful now.<br>
+See more at "Is <code>git clone --depth 1</code> (shallow clone) more useful than it
+makes out?".</p>
+<hr>
+<p>"Undoing" a shallow clone is detailed at "Convert shallow clone to full clone"
+(git 1.8.3+)</p>
+<div class="code"><pre class="code literal-block">#<span class="w"> </span><span class="nv">unshallow</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">current</span><span class="w"> </span><span class="nv">branch</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">fetch</span><span class="w"> </span><span class="o">--</span><span class="nv">unshallow</span>
+
+#<span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">getting</span><span class="w"> </span><span class="nv">back</span><span class="w"> </span><span class="nv">all</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">branches</span><span class="w"> </span><span class="ss">(</span><span class="nv">see</span><span class="w"> </span><span class="nv">Peter</span><span class="w"> </span><span class="nv">Cordes</span><span class="err">' comment)</span>
+<span class="err">git config remote.origin.fetch refs/heads/*:refs/remotes/origin/*</span>
+<span class="err">git fetch --unshallow</span>
+</pre></div>
+
+<p>As Chris comments:</p>
+<blockquote>
+<p>the magic line for getting missing branches to reverse <code>--single-branch</code> is
+(git v2.1.4):</p>
+</blockquote>
+<div class="code"><pre class="code literal-block">git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*
+git fetch --unshallow
+</pre></div>
+
+<hr>
+<p>With Git 2.26 (Q1 2020), "<code>git clone --recurse-submodules --single-branch</code>"
+<strong>now uses the same single-branch option when cloning the submodules</strong>.</p>
+<p>See commit 132f600, commit 4731957 (21 Feb 2020) by Emily Shaffer
+(<code>nasamuffin</code>).<br>
+(Merged by Junio C Hamano -- <code>gitster</code> -- in commit b22db26, 05 Mar 2020)</p>
+<blockquote>
+<h3>
+<code>clone</code>: pass --single-branch during --recurse-submodules</h3>
+<p>Signed-off-by: Emily Shaffer<br>
+ Acked-by: Jeff King</p>
+<p>Previously, performing "<code>git clone --recurse-submodules --single-branch</code>"
+resulted in submodules cloning all branches even though the superproject
+cloned only one branch.</p>
+<p>Pipe <code>--single-branch</code> through the submodule helper framework to make it to
+'<code>clone</code>' later on.</p>
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<p>One way is to execute the following.</p>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">clone</span><span class="w"> </span><span class="k">user</span><span class="nv">@git</span><span class="o">-</span><span class="nl">server</span><span class="p">:</span><span class="n">project_name</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="o">-</span><span class="n">b</span><span class="w"> </span><span class="n">branch_name</span><span class="w"> </span><span class="o">/</span><span class="n">your</span><span class="o">/</span><span class="n">folder</span>
+</pre></div>
+
+<p>Where <code>branch_name</code> is the branch of your choice and "/your/folder" is the
+destination folder for that branch. It's true that this will bring other
+branches giving you the opportunity to merge back and forth.</p>
+<p><strong>Update</strong></p>
+<p>Now, starting with Git 1.7.10, you can now do this</p>
+<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">clone</span><span class="w"> </span><span class="k">user</span><span class="nv">@git</span><span class="o">-</span><span class="nl">server</span><span class="p">:</span><span class="n">project_name</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="o">-</span><span class="n">b</span><span class="w"> </span><span class="n">branch_name</span><span class="w"> </span><span class="c1">--single-branch /your/folder</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-the-browser-viewport-dimensions/" class="u-url">How to get the browser viewport dimensions?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -259,84 +374,6 @@ thing.</p>
 </blockquote>
 <p>from...</p>
 <p>Is there a built-in function to repeat string or char in .net?</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/php-random-string-generator/" class="u-url">PHP random string generator</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/php-random-string-generator/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T08:02:12+08:00" itemprop="datePublished" title="2023-02-17 08:02">2023-02-17 08:02</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm trying to create a randomized string in PHP, and I get absolutely no
-output with this:</p>
-<div class="code"><pre class="code literal-block"><span class="cp">&lt;?php</span>
-    <span class="k">function</span> <span class="nf">RandomString</span><span class="p">()</span>
-    <span class="p">{</span>
-        <span class="nv">$characters</span> <span class="o">=</span> <span class="s1">'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'</span><span class="p">;</span>
-        <span class="nv">$randstring</span> <span class="o">=</span> <span class="s1">''</span><span class="p">;</span>
-        <span class="k">for</span> <span class="p">(</span><span class="nv">$i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nv">$i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">;</span> <span class="nv">$i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
-            <span class="nv">$randstring</span> <span class="o">=</span> <span class="nv">$characters</span><span class="p">[</span><span class="nb">rand</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">strlen</span><span class="p">(</span><span class="nv">$characters</span><span class="p">))];</span>
-        <span class="p">}</span>
-        <span class="k">return</span> <span class="nv">$randstring</span><span class="p">;</span>
-    <span class="p">}</span>
-
-    <span class="nx">RandomString</span><span class="p">();</span>
-    <span class="k">echo</span> <span class="nv">$randstring</span><span class="p">;</span>
-</pre></div>
-
-<p>What am I doing wrong?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>To answer this question specifically, two problems:</p>
-<ol>
-<li>
-<code>$randstring</code> is not in scope when you echo it.</li>
-<li>The characters are not getting concatenated together in the loop.</li>
-</ol>
-<p>Here's a code snippet with the corrections:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">function</span><span class="w"> </span><span class="nv">generateRandomString</span><span class="ss">(</span>$<span class="nv">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">    </span><span class="mh">$c</span><span class="nv">haracters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'</span><span class="c1">;</span>
-<span class="w">    </span><span class="mh">$c</span><span class="nv">haractersLength</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">strlen</span><span class="ss">(</span><span class="mh">$c</span><span class="nv">haracters</span><span class="ss">)</span><span class="c1">;</span>
-<span class="w">    </span>$<span class="nv">randomString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">''</span><span class="c1">;</span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span>$<span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; $i &lt; $length; $i++) {</span>
-<span class="w">        </span>$<span class="nv">randomString</span><span class="w"> </span>.<span class="o">=</span><span class="w"> </span><span class="mh">$c</span><span class="nv">haracters</span>[<span class="nv">random_int</span><span class="ss">(</span><span class="mi">0</span>,<span class="w"> </span><span class="mh">$c</span><span class="nv">haractersLength</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="ss">)</span>]<span class="c1">;</span>
-<span class="w">    </span>}
-<span class="w">    </span><span class="k">return</span><span class="w"> </span>$<span class="nv">randomString</span><span class="c1">;</span>
-}
-</pre></div>
-
-<p>Output the random string with the call below:</p>
-<div class="code"><pre class="code literal-block"><span class="c1">// Echo the random string.</span>
-<span class="c1">// Optionally, you can give it a desired string length.</span>
-<span class="n">echo</span><span class="w"> </span><span class="n">generateRandomString</span><span class="p">();</span>
-</pre></div>
-
-<blockquote>
-<p><strong>Please note that previous version of this answer used<code>rand()</code> instead of
-<code>random_int()</code> and therefore generated predictable random strings. So it was
-changed to be more secure, following advice from this answer.</strong></p>
-</blockquote>
-<p><br></p>
-<h3>Suggest</h3>
-<blockquote>
-<p>Note: <code>str_shuffle()</code> internally uses <code>rand()</code>, which is unsuitable for
-cryptography purposes (e.g. generating random passwords). You want a secure
-random number generator instead. It also doesn't allow characters to repeat.</p>
-</blockquote>
-<h2>One more way.</h2>
-<p><strong>UPDATED</strong> <em>(now this generates any length of string):</em></p>
-<div class="code"><pre class="code literal-block"><span class="nv">function</span><span class="w"> </span><span class="nv">generateRandomString</span><span class="ss">(</span>$<span class="nv">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">substr</span><span class="ss">(</span><span class="nv">str_shuffle</span><span class="ss">(</span><span class="nv">str_repeat</span><span class="ss">(</span>$<span class="nv">x</span><span class="o">=</span><span class="s1">'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'</span>,<span class="w"> </span><span class="nv">ceil</span><span class="ss">(</span>$<span class="nv">length</span><span class="o">/</span><span class="k">strlen</span><span class="ss">(</span>$<span class="nv">x</span><span class="ss">))</span><span class="w"> </span><span class="ss">))</span>,<span class="mi">1</span>,$<span class="nv">length</span><span class="ss">)</span><span class="c1">;</span>
-}
-
-<span class="nv">echo</span><span class="w">  </span><span class="nv">generateRandomString</span><span class="ss">()</span><span class="c1">;  // OR: generateRandomString(24)</span>
-</pre></div>
-
-<p>That's it. :)</p>
     </div>
     </article>
 </div>

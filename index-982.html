@@ -108,7 +108,201 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-we-have-multiple-tbody-in-same-table/" class="u-url">Can we have multiple &lt;tbody&gt; in same &lt;table&gt;?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/git-difference-between-assume-unchanged-and-skip-worktree/" class="u-url">Git - Difference Between 'assume-unchanged' and 'skip-worktree'</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/git-difference-between-assume-unchanged-and-skip-worktree/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T21:30:18+08:00" itemprop="datePublished" title="2023-02-17 21:30">2023-02-17 21:30</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have local changes to a file that I don't want to commit to my repository.
+It is a configuration file for building the application on a server, but I
+want to build locally with different settings. Naturally, the file always
+shows up when I do 'git status' as something to be staged. I would like to
+hide this particular change and not commit it. I won't make any other changes
+to the file.</p>
+<p>To clarify, using .gitignore is not what I want since that only prevents new
+files from being added. I want to ignore changes to a file already in the
+repository.</p>
+<p>After some digging around, I see 2 options: <code>assume-unchanged</code> and <code>skip-
+worktree</code>. A previous question here talks about them but doesn't really
+explain their differences.</p>
+<p>How are the two commands different? Why would someone use one or the other?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You want <code>skip-worktree</code>.</p>
+<p><code>assume-unchanged</code> is designed for cases where it is expensive to check
+whether a group of files have been modified; when you set the bit, <code>git</code> (of
+course) assumes the files corresponding to that portion of the index have not
+been modified in the working copy. So it avoids a mess of <code>stat</code> calls. This
+bit is lost whenever the file's entry in the index changes (so, when the file
+is changed upstream).</p>
+<p><code>skip-worktree</code> is more than that: even where <code>git</code> <em>knows</em> that the file has
+been modified (or needs to be modified by a <code>reset --hard</code> or the like), it
+will pretend it has not been, using the version from the index instead. This
+persists until the index is discarded.</p>
+<p>There is a good summary of the ramifications of this difference and the
+typical use cases here: http://fallengamer.livejournal.com/93321.html .</p>
+<p>From that article:</p>
+<ul>
+<li>
+<code>--assume-unchanged</code> assumes that a developer <strong>shouldn’t</strong> change a file. This flag is meant for <strong>improving performance</strong> for not-changing folders like SDKs. </li>
+<li>
+<code>--skip-worktree</code> is useful when you instruct git not to touch a specific file ever because developers <strong>should</strong> change it. For example, if the main repository upstream hosts some production-ready <strong>configuration files</strong> and you don’t want to accidentally commit changes to those files, <code>--skip-worktree</code> is exactly what you want.</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Note: fallengamer did some tests in 2011 (so they may be outdated), and here
+are his findings:</p>
+<p><strong>Operations</strong></p>
+<ul>
+<li>
+<p>File is changed both in local repository and upstream<br><strong><code>git pull</code></strong> :<br>
+Git preserves local changes anyway.<br>
+Thus you wouldn’t accidentally lose any data that you marked with any of the
+flags.</p>
+<ul>
+<li>File with <strong><code>assume-unchanged</code></strong> flag: Git wouldn’t overwrite local file. Instead it would output conflicts and advices how to resolve them</li>
+<li>File with <strong><code>skip-worktree</code></strong> flag: Git wouldn’t overwrite local file. Instead it would output conflicts and advices how to resolve them</li>
+</ul>
+</li>
+</ul>
+<h2></h2>
+<ul>
+<li>
+<p>File is changed both in local repository and upstream, trying to pull anyway<br><strong><code>git stash</code></strong><br><strong><code>git pull</code></strong><br>
+Using <code>skip-worktree</code> results in some extra manual work but at least you
+wouldn’t lose any data if you had any local changes.</p>
+<ul>
+<li>File with <strong><code>assume-unchanged</code></strong> flag: Discards all local changes without any possibility to restore them. The effect is like ‘<code>git reset --hard</code>’. ‘<code>git pull</code>’ call will succeed</li>
+<li>File with <strong><code>skip-worktree</code></strong> flag: Stash wouldn’t work on <code>skip-worktree</code> files. ‘<code>git pull</code>’ will fail with the same error as above. Developer is forced to manually reset <code>skip-worktree</code> flag to be able to stash and complete the failing <code>pull</code>.</li>
+</ul>
+</li>
+</ul>
+<h2></h2>
+<ul>
+<li>
+<p>No local changes, upstream file changed<br><strong><code>git pull</code></strong><br>
+Both flags wouldn’t prevent you from getting upstream changes. Git detects
+that you broke <code>assume-unchanged</code> promise and choses to reflect the reality by
+resetting the flag.</p>
+<ul>
+<li>
+<p>File with <strong><code>assume-unchanged</code></strong> flag: Content is updated, flag is lost.<br>
+‘<code>git ls-files -v</code>’ would show that flag is modified to <code>H</code> (from <code>h</code>).</p>
+</li>
+<li>
+<p>File with <strong><code>skip-worktree</code></strong> flag: Content is updated, flag is preserved.<br>
+‘<code>git ls-files -v</code>' would show the same <code>S</code> flag as before the <code>pull</code>.</p>
+</li>
+</ul>
+</li>
+</ul>
+<h2></h2>
+<ul>
+<li>
+<p>With local file changed<br><strong><code>git reset --hard</code></strong><br>
+Git doesn’t touch <code>skip-worktree</code> file and reflects reality (the file promised
+to be unchanged actually was changed) for <code>assume-unchanged</code> file.</p>
+<ul>
+<li>File with <strong><code>assume-unchanged</code></strong> flag: File content is reverted. Flag is reset to <code>H</code> (from <code>h</code>).</li>
+<li>File with <strong><code>skip-worktree</code></strong> flag: File content is intact. Flag remains the same. </li>
+</ul>
+</li>
+</ul>
+<p>He adds the following analysis:</p>
+<ul>
+<li>
+<p>It looks like <strong><code>skip-worktree</code></strong> is <strong>trying very hard to preserve your local data</strong>. But it doesn’t prevent you to get upstream changes if it is safe. Plus git doesn’t reset the flag on <code>pull</code>.<br><strong>But ignoring the ‘<code>reset --hard</code>' command could become a nasty surprise</strong>
+for a developer.</p>
+</li>
+<li>
+<p><code>Assume-unchanged</code> flag could be lost on the <code>pull</code> operation and the local changes inside such files doesn’t seem to be important to git.</p>
+</li>
+</ul>
+<p>See:</p>
+<ul>
+<li>Junio's (current git maintainer) comment regarding intent of <code>assume-unchanged</code>,</li>
+</ul>
+<p>In particular, Junio points out that changes to <code>assume-unchanged</code> files could
+accidentally be committed: "if Git can determine a path that is marked as
+<code>assume-unchanged</code> has changed without incurring extra lstat(2) cost, it
+reserves the right to report that the path <em>has been</em> modified (as a result,
+<code>git commit -a</code> is free to commit that change)."</p>
+<ul>
+<li>difference between <code>assume-unchanged</code> and <code>skip-worktree</code> as discussed in git mailing list upon addition of <code>skip-worktree</code> patch.</li>
+</ul>
+<p>He concludes:</p>
+<p><strong>Actually neither of the flags is intuitive enough</strong>.</p>
+<ul>
+<li>
+<p><strong><code>assume-unchanged</code></strong> assumes that a developer shouldn’t change a file. If a file was changed – then that change is not important. This flag is meant for improving performance for not-changing folders like SDKs.<br>
+But if the promise is broken and a file is actually changed, git reverts the
+flag to reflect the reality. Probably it’s ok to have some inconsistent flags
+in generally not-meant-to-be-changed folders.</p>
+</li>
+<li>
+<p>On the other hand <strong><code>skip-worktree</code></strong> is useful when you instruct git not to touch a specific file ever. That is useful for an already tracked config file.<br>
+Upstream main repository hosts some production-ready config but you would like
+to change some settings in the config to be able to do some local testing. And
+you don’t want to accidentally check the changes in such file to affect the
+production config. In that case <code>skip-worktree</code> makes perfect scene.</p>
+</li>
+</ul>
+<hr>
+<p>With Git 2.25.1 (Feb. 2020), the "Actually neither of the flags is intuitive
+enough" mentioned above is further clarified:</p>
+<p>See commit 7a2dc95, commit 1b13e90 (22 Jan 2020) by brian m. carlson
+(<code>bk2204</code>).<br>
+(Merged by Junio C Hamano -- <code>gitster</code> -- in commit 53a8329, 30 Jan 2020)<br>
+(Git Mailing list)</p>
+<blockquote>
+<h3>
+<code>doc</code>: dissuade users from trying to ignore tracked files</h3>
+<p>Signed-off-by: Jeff King<br>
+ Signed-off-by: brian m. carlson</p>
+<p>It is quite common for users to want to ignore the changes to a file that
+Git tracks.</p>
+<p>Common scenarios for this case are IDE settings and configuration files,
+which should generally not be tracked and possibly generated from tracked
+files using a templating mechanism.</p>
+<p>However, users learn about the assume-unchanged and skip-worktree bits and
+try to use them to do this anyway.</p>
+<p>This is problematic, because when these bits are set, many operations behave
+as the user expects, but they usually do not help when <code>git checkout</code> needs
+to replace a file.</p>
+<p>There is no sensible behavior in this case, because sometimes the data is
+precious, such as certain configuration files, and sometimes it is
+irrelevant data that the user would be happy to discard.</p>
+<p><strong>Since this is not a supported configuration and users are prone to misuse
+the existing features for unintended purposes, causing general sadness and
+confusion</strong> , let's document the existing behavior and the pitfalls in the
+documentation for <code>git update-index</code> so that users know they should explore
+alternate solutions.</p>
+<p>In addition, let's provide a recommended solution to dealing with the common
+case of configuration files, since there are well-known approaches used
+successfully in many environments.</p>
+</blockquote>
+<p>The <code>git update-index</code> man page now includes:</p>
+<blockquote>
+<p>Users often try to use the <code>assume-unchanged</code> and <code>skip-worktree</code> bits to
+tell Git to ignore changes to files that are tracked. This does not work as
+expected, since Git may still check working tree files against the index
+when performing certain operations. In general, Git does not provide a way
+to ignore changes to tracked files, so alternate solutions are recommended.</p>
+<p>For example, if the file you want to change is some sort of config file, the
+repository can include a sample config file that can then be copied into the
+ignored name and modified. The repository can even include a script to treat
+the sample file as a template, modifying and copying it automatically.</p>
+</blockquote>
+<p>That last part is what I describe a typical content filter driver based on
+smudge/clean scripts.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-we-have-multiple-tbody-in-same-table/" class="u-url">Can we have multiple &lt;tbody&gt; in same &lt;table&gt;?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -222,90 +416,6 @@ change or manually download yourself:</p>
 
 <p>and eventually install it:</p>
 <div class="code"><pre class="code literal-block">sudo ./b2 install
-</pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jquery-selector-regular-expressions/" class="u-url">jQuery selector regular expressions</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/jquery-selector-regular-expressions/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T21:28:46+08:00" itemprop="datePublished" title="2023-02-17 21:28">2023-02-17 21:28</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am after documentation on using wildcard or regular expressions (not sure on
-the exact terminology) with a jQuery selector.</p>
-<p>I have looked for this myself but have been unable to find information on the
-syntax and how to use it. Does anyone know where the documentation for the
-syntax is?</p>
-<p>EDIT: The attribute filters allow you to select based on patterns of an
-attribute value.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>James Padolsey created a wonderful filter that allows regex to be used for
-selection.</p>
-<p>Say you have the following <code>div</code>:</p>
-<div class="code"><pre class="code literal-block">&lt;div class="asdf"&gt;
-</pre></div>
-
-<p>Padolsey's <code>:regex</code> filter can select it like so:</p>
-<div class="code"><pre class="code literal-block"><span class="err">$</span><span class="p">(</span><span class="s">"div:regex(class, .*sd.*)"</span><span class="p">)</span>
-</pre></div>
-
-<p>Also, check the official documentation on selectors.</p>
-<h3>UPDATE: <code>:</code> syntax Deprecation JQuery 3.0</h3>
-<p>Since <code>jQuery.expr[':']</code> used in Padolsey's implementation is already
-deprecated and will render a syntax error in the latest version of jQuery,
-here is his code adapted to jQuery 3+ syntax:</p>
-<div class="code"><pre class="code literal-block"><span class="n">jQuery</span><span class="o">.</span><span class="n">expr</span><span class="o">.</span><span class="n">pseudos</span><span class="o">.</span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">jQuery</span><span class="o">.</span><span class="n">expr</span><span class="o">.</span><span class="n">createPseudo</span><span class="p">(</span><span class="n">function</span><span class="w"> </span><span class="p">(</span><span class="n">expression</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="p">(</span><span class="n">elem</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">matchParams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">expression</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">),</span>
-<span class="w">            </span><span class="n">validLabels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">/^</span><span class="p">(</span><span class="n">data</span><span class="o">|</span><span class="n">css</span><span class="p">):</span><span class="o">/</span><span class="p">,</span>
-<span class="w">            </span><span class="n">attr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">                </span><span class="n">method</span><span class="p">:</span><span class="w"> </span><span class="n">matchParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="k">match</span><span class="p">(</span><span class="n">validLabels</span><span class="p">)</span><span class="w"> </span><span class="err">?</span>
-<span class="w">                    </span><span class="n">matchParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">':'</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s1">'attr'</span><span class="p">,</span>
-<span class="w">                </span><span class="n">property</span><span class="p">:</span><span class="w"> </span><span class="n">matchParams</span><span class="o">.</span><span class="n">shift</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">validLabels</span><span class="p">,</span><span class="w"> </span><span class="s1">''</span><span class="p">)</span>
-<span class="w">            </span><span class="p">},</span>
-<span class="w">            </span><span class="n">regexFlags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'ig'</span><span class="p">,</span>
-<span class="w">            </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">RegExp</span><span class="p">(</span><span class="n">matchParams</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">''</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="o">/^</span>\<span class="n">s</span><span class="o">+|</span>\<span class="n">s</span><span class="o">+$/</span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="s1">''</span><span class="p">),</span><span class="w"> </span><span class="n">regexFlags</span><span class="p">);</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">regex</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">jQuery</span><span class="p">(</span><span class="n">elem</span><span class="p">)[</span><span class="n">attr</span><span class="o">.</span><span class="n">method</span><span class="p">](</span><span class="n">attr</span><span class="o">.</span><span class="n">property</span><span class="p">));</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">});</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>James Padolsey created a wonderful filter that allows regex to be used for
-selection.</p>
-<p>Say you have the following <code>div</code>:</p>
-<div class="code"><pre class="code literal-block">&lt;div class="asdf"&gt;
-</pre></div>
-
-<p>Padolsey's <code>:regex</code> filter can select it like so:</p>
-<div class="code"><pre class="code literal-block"><span class="err">$</span><span class="p">(</span><span class="s">"div:regex(class, .*sd.*)"</span><span class="p">)</span>
-</pre></div>
-
-<p>Also, check the official documentation on selectors.</p>
-<h3>UPDATE: <code>:</code> syntax Deprecation JQuery 3.0</h3>
-<p>Since <code>jQuery.expr[':']</code> used in Padolsey's implementation is already
-deprecated and will render a syntax error in the latest version of jQuery,
-here is his code adapted to jQuery 3+ syntax:</p>
-<div class="code"><pre class="code literal-block"><span class="n">jQuery</span><span class="o">.</span><span class="n">expr</span><span class="o">.</span><span class="n">pseudos</span><span class="o">.</span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">jQuery</span><span class="o">.</span><span class="n">expr</span><span class="o">.</span><span class="n">createPseudo</span><span class="p">(</span><span class="n">function</span><span class="w"> </span><span class="p">(</span><span class="n">expression</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="p">(</span><span class="n">elem</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">matchParams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">expression</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">),</span>
-<span class="w">            </span><span class="n">validLabels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">/^</span><span class="p">(</span><span class="n">data</span><span class="o">|</span><span class="n">css</span><span class="p">):</span><span class="o">/</span><span class="p">,</span>
-<span class="w">            </span><span class="n">attr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">                </span><span class="n">method</span><span class="p">:</span><span class="w"> </span><span class="n">matchParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="k">match</span><span class="p">(</span><span class="n">validLabels</span><span class="p">)</span><span class="w"> </span><span class="err">?</span>
-<span class="w">                    </span><span class="n">matchParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">':'</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s1">'attr'</span><span class="p">,</span>
-<span class="w">                </span><span class="n">property</span><span class="p">:</span><span class="w"> </span><span class="n">matchParams</span><span class="o">.</span><span class="n">shift</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">validLabels</span><span class="p">,</span><span class="w"> </span><span class="s1">''</span><span class="p">)</span>
-<span class="w">            </span><span class="p">},</span>
-<span class="w">            </span><span class="n">regexFlags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'ig'</span><span class="p">,</span>
-<span class="w">            </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">RegExp</span><span class="p">(</span><span class="n">matchParams</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">''</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="o">/^</span>\<span class="n">s</span><span class="o">+|</span>\<span class="n">s</span><span class="o">+$/</span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="s1">''</span><span class="p">),</span><span class="w"> </span><span class="n">regexFlags</span><span class="p">);</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">regex</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">jQuery</span><span class="p">(</span><span class="n">elem</span><span class="p">)[</span><span class="n">attr</span><span class="o">.</span><span class="n">method</span><span class="p">](</span><span class="n">attr</span><span class="o">.</span><span class="n">property</span><span class="p">));</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">});</span>
 </pre></div>
     </div>
     </article>

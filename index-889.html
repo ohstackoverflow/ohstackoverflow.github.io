@@ -108,7 +108,101 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/csv-file-written-with-python-has-blank-lines-between-each-row/" class="u-url">CSV file written with Python has blank lines between each row</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/insert-text-with-single-quotes-in-postgresql/" class="u-url">Insert text with single quotes in PostgreSQL</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/insert-text-with-single-quotes-in-postgresql/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T18:42:36+08:00" itemprop="datePublished" title="2023-02-17 18:42">2023-02-17 18:42</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a table <code>test(id,name)</code>.</p>
+<p>I need to insert values like: <code>user's log</code>, <code>'my user'</code>, <code>customer's</code>.</p>
+<div class="code"><pre class="code literal-block"> insert into test values (1,'user's log');
+ insert into test values (2,''my users'');
+ insert into test values (3,'customer's');
+</pre></div>
+
+<p>I am getting an error if I run any of the above statements.</p>
+<p>If there is any method to do this correctly please share. I don't want any
+prepared statements.</p>
+<p>Is it possible using sql escaping mechanism?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h4>String literals</h4>
+<p>Escaping single quotes <code>'</code> by doubling them up → <code>''</code> is the standard way and
+works of course:</p>
+<div class="code"><pre class="code literal-block">~~'user's log'~~     -- incorrect syntax (unbalanced quote)
+'user''s log'
+</pre></div>
+
+<p>Plain single quotes (ASCII / UTF-8 code 39), mind you, not backticks <code>``,
+which have no special purpose in Postgres (unlike certain other RDBMS) and not
+double-quotes</code>"`, used for identifiers.</p>
+<p>In old versions or if you still run with <code>standard_conforming_strings = off</code>
+or, generally, if you prepend your string with <code>E</code> to declare <em>Posix escape
+string syntax</em> , you can also escape with the backslash <code>\</code>:</p>
+<div class="code"><pre class="code literal-block">E'user\'s log'
+</pre></div>
+
+<p>Backslash itself is escaped with another backslash. But that's generally not
+preferable.<br>
+If you have to deal with many single quotes or multiple layers of escaping,
+you can avoid quoting hell in PostgreSQL with <strong>dollar-quoted strings</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="o">'</span><span class="nv">escape</span><span class="w"> </span><span class="o">''</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="o">'''''</span>
+<span class="p">$$</span><span class="nv">escape</span><span class="w"> </span><span class="o">'</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="o">''</span><span class="p">$$</span>
+</pre></div>
+
+<p>To further avoid confusion among dollar-quotes, add a unique <em>token</em> to each
+pair:</p>
+<div class="code"><pre class="code literal-block"><span class="p">$</span><span class="k">to</span><span class="nv">ken</span><span class="p">$</span><span class="nv">escape</span><span class="w"> </span><span class="o">'</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="o">''</span><span class="p">$</span><span class="k">to</span><span class="nv">ken</span><span class="p">$</span>
+</pre></div>
+
+<p>Which can be nested any number of levels:</p>
+<div class="code"><pre class="code literal-block"><span class="p">$</span><span class="k">to</span><span class="nv">ken2</span><span class="p">$</span><span class="nv">Inner</span><span class="w"> </span><span class="nv">string</span><span class="o">:</span><span class="w"> </span><span class="p">$</span><span class="k">to</span><span class="nv">ken1</span><span class="p">$</span><span class="nv">escape</span><span class="w"> </span><span class="o">'</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="o">''</span><span class="p">$</span><span class="k">to</span><span class="nv">ken1</span><span class="p">$</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">nested</span><span class="p">$</span><span class="k">to</span><span class="nv">ken2</span><span class="p">$</span>
+</pre></div>
+
+<p>Pay attention if the <code>$</code> character should have special meaning in your client
+software. You may have to escape it in addition. This is not the case with
+standard PostgreSQL clients like psql or pgAdmin.</p>
+<p>That is all very useful for writing PL/pgSQL functions or ad-hoc SQL commands.
+It cannot alleviate the need to use prepared statements or some other method
+to safeguard against SQL injection in your application when user input is
+possible, though. @Craig's answer has more on that. More details:</p>
+<ul>
+<li>SQL injection in Postgres functions vs prepared queries</li>
+</ul>
+<h4>Values inside Postgres</h4>
+<p>When dealing with values inside the database, there are a couple of useful
+functions to quote strings properly:</p>
+<ul>
+<li>
+<p><code>quote_literal()</code> or <code>quote_nullable()</code> - the latter outputs the unquoted string <code>NULL</code> for null input.<br>
+There is also <code>quote_ident()</code> to <em>double-quote</em> strings where needed to get
+valid SQL <em>identifiers</em>.</p>
+</li>
+<li>
+<p><code>format()</code> with the format specifier <code>%L</code> is equivalent to <code>quote_nullable()</code>.<br>
+Like: <code>format('%L', string_var)</code></p>
+</li>
+<li>
+<p><del><code>concat()</code></del> or <del><code>concat_ws()</code></del> are typically no good for this purpose as those do <em>not</em> escape nested single quotes and backslashes.</p>
+</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>According to PostgreSQL documentation (4.1.2.1. String Constants):</p>
+<blockquote>
+<p>To include a single-quote character within a string constant, write two
+adjacent single quotes, e.g. 'Dianne''s horse'.</p>
+</blockquote>
+<p>See also the <code>standard_conforming_strings</code> parameter, which controls whether
+escaping with backslashes works.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/csv-file-written-with-python-has-blank-lines-between-each-row/" class="u-url">CSV file written with Python has blank lines between each row</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -254,55 +348,6 @@ file!</strong></p>
 </li>
 </ul>
 </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-difference-between-serialization-and-marshaling/" class="u-url">What is the difference between Serialization and Marshaling?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-is-the-difference-between-serialization-and-marshaling/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T18:41:18+08:00" itemprop="datePublished" title="2023-02-17 18:41">2023-02-17 18:41</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I know that in terms of several distributed techniques (such as RPC), the term
-"Marshaling" is used but don't understand how it differs from Serialization.
-Aren't they both transforming objects into series of bits?</p>
-<h4>Related:</h4>
-<p>What is Serialization?</p>
-<p>What is Object Marshalling?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Marshaling and serialization are <em>loosely</em> synonymous in the context of remote
-procedure call, but semantically different as a matter of intent.</p>
-<p>In particular, marshaling is about getting parameters from here to there,
-while serialization is about copying structured data to or from a primitive
-form such as a byte stream. In this sense, serialization is one means to
-perform marshaling, usually implementing pass-by-value semantics.</p>
-<p>It is also possible for an object to be marshaled by reference, in which case
-the data "on the wire" is simply location information for the original object.
-However, such an object may still be amenable to value serialization.</p>
-<p>As @Bill mentions, there may be additional metadata such as code base location
-or even object implementation code.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Both do one thing in common - that is <em>serializing</em> an Object. Serialization
-is used to transfer objects or to store them. But:</p>
-<ul>
-<li>
-<strong>Serialization:</strong> When you serialize an object, only the member data within that object is written to the byte stream; not the code that actually implements the object.</li>
-<li>
-<strong>Marshalling:</strong> Term Marshalling is used when we talk about <strong>passing Object to remote objects(RMI)</strong>. In Marshalling Object is serialized(member data is serialized) <strong>+</strong> Codebase is attached.</li>
-</ul>
-<p><strong>So Serialization is a part of Marshalling.</strong></p>
-<p><em>CodeBase</em> is information that tells the receiver of Object where the
-implementation of this object can be found. Any program that thinks it might
-ever pass an object to another program that may not have seen it before must
-set the codebase, so that the receiver can know where to download the code
-from, if it doesn't have the code available locally. The receiver will, upon
-deserializing the object, fetch the codebase from it and load the code from
-that location.</p>
-    </div>
     </article>
 </div>
 

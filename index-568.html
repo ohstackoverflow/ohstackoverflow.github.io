@@ -108,7 +108,298 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-s-the-difference-between-softreference-and-weakreference-in-java/" class="u-url">What's the difference between SoftReference and WeakReference in Java?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/efficiency-of-java-double-brace-initialization/" class="u-url">Efficiency of Java "Double Brace Initialization"?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/efficiency-of-java-double-brace-initialization/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T10:10:41+08:00" itemprop="datePublished" title="2023-02-17 10:10">2023-02-17 10:10</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>In Hidden Features of Java the top answer mentions Double Brace
+Initialization, with a <em>very</em> enticing syntax:</p>
+<div class="code"><pre class="code literal-block">Set&lt;String&gt; flavors = new HashSet&lt;String&gt;() {{
+    add("vanilla");
+    add("strawberry");
+    add("chocolate");
+    add("butter pecan");
+}};
+</pre></div>
+
+<p>This idiom creates an anonymous inner class with just an instance initializer
+in it, which "can use any [...] methods in the containing scope".</p>
+<p>Main question: Is this as <strong>inefficient</strong> as it sounds? Should its use be
+limited to one-off initializations? (And of course showing off!)</p>
+<p>Second question: The new HashSet must be the "this" used in the instance
+initializer ... can anyone shed light on the mechanism?</p>
+<p>Third question: Is this idiom too <strong>obscure</strong> to use in production code?</p>
+<p><strong>Summary:</strong> Very, very nice answers, thanks everyone. On question (3), people
+felt the syntax should be clear (though I'd recommend an occasional comment,
+especially if your code will pass on to developers who may not be familiar
+with it).</p>
+<p>On question (1), the generated code should run quickly. The extra .class files
+do cause jar file clutter, and slow program startup slightly (thanks to
+@coobird for measuring that). @Thilo pointed out that garbage collection can
+be affected, and the memory cost for the extra loaded classes may be a factor
+in some cases.</p>
+<p>Question (2) turned out to be most interesting to me. If I understand the
+answers, what's happening in DBI is that the anonymous inner class extends the
+class of the object being constructed by the new operator, and hence has a
+"this" value referencing the instance being constructed. Very neat.</p>
+<p>Overall, DBI strikes me as something of an intellectual curiousity. Coobird
+and others point out you can achieve the same effect with Arrays.asList,
+varargs methods, Google Collections, and the proposed Java 7 Collection
+literals. Newer JVM languages like Scala, JRuby, and Groovy also offer concise
+notations for list construction, and interoperate well with Java. Given that
+DBI clutters up the classpath, slows down class loading a bit, and makes the
+code a tad more obscure, I'd probably shy away from it. However, I plan to
+spring this on a friend who's just gotten his SCJP and loves good natured
+jousts about Java semantics! ;-) Thanks everyone!</p>
+<p>7/2017: Baeldung has a good summary of double brace initialization and
+considers it an anti-pattern.</p>
+<p>12/2017: @Basil Bourque notes that in the new Java 9 you can say:</p>
+<div class="code"><pre class="code literal-block">Set&lt;String&gt; flavors = Set.of("vanilla", "strawberry", "chocolate", "butter pecan");
+</pre></div>
+
+<p>That's for sure the way to go. If you're stuck with an earlier version, take a
+look at Google Collections' ImmutableSet.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Here's the problem when I get too carried away with anonymous inner classes:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">602</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">1.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">976</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">10.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">919</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">11.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">2</span><span class="p">,</span><span class="mf">404</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">12.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">197</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">13.</span><span class="n">class</span>
+
+<span class="o">/*</span><span class="w"> </span><span class="n">snip</span><span class="w"> </span><span class="o">*/</span>
+
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">953</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">30.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">910</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">31.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">2</span><span class="p">,</span><span class="mf">007</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">32.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">               </span><span class="mf">926</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">33</span><span class="err">$</span><span class="mf">1</span><span class="err">$</span><span class="mf">1.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">4</span><span class="p">,</span><span class="mf">104</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">33</span><span class="err">$</span><span class="mf">1.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">2</span><span class="p">,</span><span class="mf">849</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">33.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">               </span><span class="mf">926</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">34</span><span class="err">$</span><span class="mf">1</span><span class="err">$</span><span class="mf">1.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">4</span><span class="p">,</span><span class="mf">234</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">34</span><span class="err">$</span><span class="mf">1.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">2</span><span class="p">,</span><span class="mf">849</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">34.</span><span class="n">class</span>
+
+<span class="o">/*</span><span class="w"> </span><span class="n">snip</span><span class="w"> </span><span class="o">*/</span>
+
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">               </span><span class="mf">614</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">40.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">2</span><span class="p">,</span><span class="mf">344</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">5.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">551</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">6.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">604</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">7.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">1</span><span class="p">,</span><span class="mf">809</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">8.</span><span class="n">class</span>
+<span class="mf">2009</span><span class="o">/</span><span class="mf">05</span><span class="o">/</span><span class="mf">27</span><span class="w">  </span><span class="mf">16</span><span class="p">:</span><span class="mf">35</span><span class="w">             </span><span class="mf">2</span><span class="p">,</span><span class="mf">022</span><span class="w"> </span><span class="n">DemoApp2$</span><span class="mf">9.</span><span class="n">class</span>
+</pre></div>
+
+<p>These are all classes which were generated when I was making a simple
+application, and used copious amounts of anonymous inner classes -- each class
+will be compiled into a separate <code>class</code> file.</p>
+<p>The "double brace initialization", as already mentioned, is an anonymous inner
+class with an instance initialization block, which means that a new class is
+created for each "initialization", all for the purpose of usually making a
+single object.</p>
+<p>Considering that the Java Virtual Machine will need to read all those classes
+when using them, that can lead to some time in the bytecode verfication
+process and such. Not to mention the increase in the needed disk space in
+order to store all those <code>class</code> files.</p>
+<p>It seems as if there is a bit of overhead when utilizing double-brace
+initialization, so it's probably not such a good idea to go too overboard with
+it. But as Eddie has noted in the comments, it's not possible to be absolutely
+sure of the impact.</p>
+<hr>
+<p>Just for reference, double brace initialization is the following:</p>
+<div class="code"><pre class="code literal-block">List&lt;String&gt; list = new ArrayList&lt;String&gt;() {{
+    add("Hello");
+    add("World!");
+}};
+</pre></div>
+
+<p>It looks like a "hidden" feature of Java, but it is just a rewrite of:</p>
+<div class="code"><pre class="code literal-block">List&lt;String&gt; list = new ArrayList&lt;String&gt;() {
+
+    // Instance initialization block
+    {
+        add("Hello");
+        add("World!");
+    }
+};
+</pre></div>
+
+<p>So it's basically a instance initialization block that is part of an anonymous
+inner class.</p>
+<hr>
+<p>Joshua Bloch's Collection Literals proposal for Project Coin was along the
+lines of:</p>
+<div class="code"><pre class="code literal-block">List&lt;Integer&gt; intList = [1, 2, 3, 4];
+
+Set&lt;String&gt; strSet = {"Apple", "Banana", "Cactus"};
+
+Map&lt;String, Integer&gt; truthMap = { "answer" : 42 };
+</pre></div>
+
+<p>Sadly, it didn't make its way into neither Java 7 nor 8 and was shelved
+indefinitely.</p>
+<hr>
+<p><strong>Experiment</strong></p>
+<p>Here's the simple experiment I've tested -- make 1000 <code>ArrayList</code>s with the
+elements <code>"Hello"</code> and <code>"World!"</code> added to them via the <code>add</code> method, using
+the two methods:</p>
+<p><em>Method 1: Double Brace Initialization</em></p>
+<div class="code"><pre class="code literal-block">List&lt;String&gt; l = new ArrayList&lt;String&gt;() {{
+  add("Hello");
+  add("World!");
+}};
+</pre></div>
+
+<p><em>Method 2: Instantiate an<code>ArrayList</code> and <code>add</code></em></p>
+<div class="code"><pre class="code literal-block">List&lt;String&gt; l = new ArrayList&lt;String&gt;();
+l.add("Hello");
+l.add("World!");
+</pre></div>
+
+<p>I created a simple program to write out a Java source file to perform 1000
+initializations using the two methods:</p>
+<p><em>Test 1:</em></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Test1</span> {
+  <span class="n">public</span> <span class="n">static</span> <span class="n">void</span> <span class="n">main</span>(<span class="n">String</span>[] <span class="nb">s</span>) {
+    <span class="nb">long</span> <span class="n">st</span> = <span class="n">System</span>.<span class="n">currentTimeMillis</span>();
+
+    <span class="nb">List</span><span class="s">&lt;String&gt;</span> <span class="n">l0</span> = <span class="nb">new</span> <span class="n">ArrayList</span><span class="s">&lt;String&gt;</span>() {{
+      <span class="nb">add</span>(<span class="s">"Hello"</span>);
+      <span class="nb">add</span>(<span class="s">"World!"</span>);
+    }};
+
+    <span class="nb">List</span><span class="s">&lt;String&gt;</span> <span class="n">l1</span> = <span class="nb">new</span> <span class="n">ArrayList</span><span class="s">&lt;String&gt;</span>() {{
+      <span class="nb">add</span>(<span class="s">"Hello"</span>);
+      <span class="nb">add</span>(<span class="s">"World!"</span>);
+    }};
+
+    /* <span class="n">snip</span> */
+
+    <span class="nb">List</span><span class="s">&lt;String&gt;</span> <span class="n">l999</span> = <span class="nb">new</span> <span class="n">ArrayList</span><span class="s">&lt;String&gt;</span>() {{
+      <span class="nb">add</span>(<span class="s">"Hello"</span>);
+      <span class="nb">add</span>(<span class="s">"World!"</span>);
+    }};
+
+    <span class="n">System</span>.<span class="n">out</span>.<span class="n">println</span>(<span class="n">System</span>.<span class="n">currentTimeMillis</span>() - <span class="n">st</span>);
+  }
+}
+</pre></div>
+
+<p><em>Test 2:</em></p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Test2</span> {
+  <span class="n">public</span> <span class="n">static</span> <span class="n">void</span> <span class="n">main</span>(<span class="n">String</span>[] <span class="nb">s</span>) {
+    <span class="nb">long</span> <span class="n">st</span> = <span class="n">System</span>.<span class="n">currentTimeMillis</span>();
+
+    <span class="nb">List</span><span class="s">&lt;String&gt;</span> <span class="n">l0</span> = <span class="nb">new</span> <span class="n">ArrayList</span><span class="s">&lt;String&gt;</span>();
+    <span class="n">l0</span>.<span class="nb">add</span>(<span class="s">"Hello"</span>);
+    <span class="n">l0</span>.<span class="nb">add</span>(<span class="s">"World!"</span>);
+
+    <span class="nb">List</span><span class="s">&lt;String&gt;</span> <span class="n">l1</span> = <span class="nb">new</span> <span class="n">ArrayList</span><span class="s">&lt;String&gt;</span>();
+    <span class="n">l1</span>.<span class="nb">add</span>(<span class="s">"Hello"</span>);
+    <span class="n">l1</span>.<span class="nb">add</span>(<span class="s">"World!"</span>);
+
+    /* <span class="n">snip</span> */
+
+    <span class="nb">List</span><span class="s">&lt;String&gt;</span> <span class="n">l999</span> = <span class="nb">new</span> <span class="n">ArrayList</span><span class="s">&lt;String&gt;</span>();
+    <span class="n">l999</span>.<span class="nb">add</span>(<span class="s">"Hello"</span>);
+    <span class="n">l999</span>.<span class="nb">add</span>(<span class="s">"World!"</span>);
+
+    <span class="n">System</span>.<span class="n">out</span>.<span class="n">println</span>(<span class="n">System</span>.<span class="n">currentTimeMillis</span>() - <span class="n">st</span>);
+  }
+}
+</pre></div>
+
+<p>Please note, that the elapsed time to initialize the 1000 <code>ArrayList</code>s and the
+1000 anonymous inner classes extending <code>ArrayList</code> is checked using the
+<code>System.currentTimeMillis</code>, so the timer does not have a very high resolution.
+On my Windows system, the resolution is around 15-16 milliseconds.</p>
+<p>The results for 10 runs of the two tests were the following:</p>
+<div class="code"><pre class="code literal-block">Test1 Times (ms)           Test2 Times (ms)
+----------------           ----------------
+           187                          0
+           203                          0
+           203                          0
+           188                          0
+           188                          0
+           187                          0
+           203                          0
+           188                          0
+           188                          0
+           203                          0
+</pre></div>
+
+<p>As can be seen, the double brace initialization has a noticeable execution
+time of around 190 ms.</p>
+<p>Meanwhile, the <code>ArrayList</code> initialization execution time came out to be 0 ms.
+Of course, the timer resolution should be taken into account, but it is likely
+to be under 15 ms.</p>
+<p>So, there seems to be a noticeable difference in the execution time of the two
+methods. It does appear that there is indeed some overhead in the two
+initialization methods.</p>
+<p>And yes, there were 1000 <code>.class</code> files generated by compiling the <code>Test1</code>
+double brace initialization test program.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>One property of this approach that has not been pointed out so far is that
+because you create inner classes, the whole containing class is captured in
+its scope. This means that as long as your Set is alive, it will retain a
+pointer to the containing instance (<code>this$0</code>) and keep that from being
+garbage-collected, which could be an issue.</p>
+<p>This, and the fact that a new class gets created in the first place even
+though a regular HashSet would work just fine (or even better), makes me not
+want to use this construct (even though I really long for the syntactic
+sugar).</p>
+<blockquote>
+<p>Second question: The new HashSet must be the "this" used in the instance
+initializer ... can anyone shed light on the mechanism? I'd have naively
+expected "this" to refer to the object initializing "flavors".</p>
+</blockquote>
+<p>This is just how inner classes work. They get their own <code>this</code>, but they also
+have pointers to the parent instance, so that you can call methods on the
+containing object as well. In case of a naming conflict, the inner class (in
+your case HashSet) takes precedence, but you can prefix "this" with a
+classname to get the outer method as well.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">class</span><span class="w"> </span><span class="nv">Test</span><span class="w"> </span>{
+
+<span class="w">    </span><span class="nv">public</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">add</span><span class="ss">(</span><span class="nv">Object</span><span class="w"> </span><span class="nv">o</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span>}
+
+<span class="w">    </span><span class="nv">public</span><span class="w"> </span><span class="nv">Set</span><span class="o">&lt;</span><span class="nv">String</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">makeSet</span><span class="ss">()</span><span class="w"> </span>{
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">HashSet</span><span class="o">&lt;</span><span class="nv">String</span><span class="o">&gt;</span><span class="ss">()</span><span class="w"> </span>{
+<span class="w">            </span>{
+<span class="w">              </span><span class="nv">add</span><span class="ss">(</span><span class="s2">"hello"</span><span class="ss">)</span><span class="c1">; // HashSet</span>
+<span class="w">              </span><span class="nv">Test</span>.<span class="nv">this</span>.<span class="nv">add</span><span class="ss">(</span><span class="s2">"hello"</span><span class="ss">)</span><span class="c1">; // outer instance </span>
+<span class="w">            </span>}
+<span class="w">        </span>}<span class="c1">;</span>
+<span class="w">    </span>}
+}
+</pre></div>
+
+<p>To be clear on the anonymous subclass being created, you could define methods
+in there as well. For example override <code>HashSet.add()</code></p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">Set</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">makeSet</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">HashSet</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="err">{</span>
+<span class="w">              </span><span class="k">add</span><span class="p">(</span><span class="ss">"hello"</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">HashSet</span><span class="w"> </span><span class="n">anymore</span><span class="w"> </span><span class="p">...</span>
+<span class="w">            </span><span class="err">}</span>
+
+<span class="w">            </span><span class="nv">@Override</span>
+<span class="w">            </span><span class="k">boolean</span><span class="w"> </span><span class="k">add</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">s</span><span class="p">)</span><span class="err">{</span>
+
+<span class="w">            </span><span class="err">}</span>
+
+<span class="w">        </span><span class="err">}</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-s-the-difference-between-softreference-and-weakreference-in-java/" class="u-url">What's the difference between SoftReference and WeakReference in Java?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -258,96 +549,6 @@ IE9).</p>
 <p>This would be some kind of one time initialization of the object.</p>
 <p>Note that you are actually assigning the return value of <code>init()</code> to <code>foo</code>,
 therefore you have to <code>return this</code>.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/check-if-an-element-contains-a-class-in-javascript/" class="u-url">Check if an element contains a class in JavaScript?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/check-if-an-element-contains-a-class-in-javascript/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T10:08:06+08:00" itemprop="datePublished" title="2023-02-17 10:08">2023-02-17 10:08</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Using plain JavaScript (not jQuery), Is there any way to check if an element
-<em>contains</em> a class?</p>
-<p>Currently, I'm doing this:</p>
-<div class="code"><pre class="code literal-block">var<span class="w"> </span>test<span class="w"> </span>=<span class="w"> </span>document.getElementById("test");
-var<span class="w"> </span>testClass<span class="w"> </span>=<span class="w"> </span>test.className;
-
-switch<span class="w"> </span>(testClass)<span class="w"> </span>{
-<span class="w">  </span>case<span class="w"> </span>"class1":
-<span class="w">    </span>test.innerHTML<span class="w"> </span>=<span class="w"> </span>"I<span class="w"> </span>have<span class="w"> </span>class1";
-<span class="w">    </span>break;
-<span class="w">  </span>case<span class="w"> </span>"class2":
-<span class="w">    </span>test.innerHTML<span class="w"> </span>=<span class="w"> </span>"I<span class="w"> </span>have<span class="w"> </span>class2";
-<span class="w">    </span>break;
-<span class="w">  </span>case<span class="w"> </span>"class3":
-<span class="w">    </span>test.innerHTML<span class="w"> </span>=<span class="w"> </span>"I<span class="w"> </span>have<span class="w"> </span>class3";
-<span class="w">    </span>break;
-<span class="w">  </span>case<span class="w"> </span>"class4":
-<span class="w">    </span>test.innerHTML<span class="w"> </span>=<span class="w"> </span>"I<span class="w"> </span>have<span class="w"> </span>class4";
-<span class="w">    </span>break;
-<span class="w">  </span>default:
-<span class="w">    </span>test.innerHTML<span class="w"> </span>=<span class="w"> </span>"";
-}
-
-
-<span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="w"> </span><span class="na">class=</span><span class="s">"class1"</span><span class="nt">&gt;&lt;/div&gt;</span>
-</pre></div>
-
-<p>The issue is that if I change the HTML to this...</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;div</span><span class="w"> </span><span class="na">id=</span><span class="s">"test"</span><span class="w"> </span><span class="na">class=</span><span class="s">"class1 class5"</span><span class="nt">&gt;&lt;/div&gt;</span>
-</pre></div>
-
-<p>...there's no longer an exact match, so I get the default output of nothing
-(<code>""</code>). But I still want the output to be <code>I have class1</code> because the <code>&lt;div&gt;</code>
-still <em>contains</em> the <code>.class1</code> class.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Use <code>element.classList</code> <code>.contains</code> method:</p>
-<div class="code"><pre class="code literal-block">element.classList.contains(class);
-</pre></div>
-
-<p>This works on all current browsers and there are polyfills to support older
-browsers too.</p>
-<hr>
-<p><strong>Alternatively</strong> , if you work with older browsers and don't want to use
-polyfills to fix them, using <code>indexOf</code> is correct, but you have to tweak it a
-little:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">function</span><span class="w"> </span><span class="nv">hasClass</span><span class="ss">(</span><span class="nv">element</span>,<span class="w"> </span><span class="nv">className</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="ss">(</span><span class="s1">' '</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">element</span>.<span class="nv">className</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s1">' '</span><span class="ss">)</span>.<span class="nv">indexOf</span><span class="ss">(</span><span class="s1">' '</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">className</span><span class="o">+</span><span class="w"> </span><span class="s1">' '</span><span class="ss">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="c1">;</span>
-}
-</pre></div>
-
-<p>Otherwise you will also get <code>true</code> if the class you are looking for is part of
-another class name.</p>
-<p><strong>DEMO</strong></p>
-<p>jQuery uses a similar (if not the same) method.</p>
-<hr>
-<p><strong>Applied to the example:</strong></p>
-<p>As this does not work together with the switch statement, you could achieve
-the same effect with this code:</p>
-<div class="code"><pre class="code literal-block"><span class="nf">var</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">document</span><span class="p">.</span><span class="n">getElementById</span><span class="p">(</span><span class="ss">"test"</span><span class="p">),</span>
-<span class="w">    </span><span class="n">classes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">[</span><span class="n">'class1', 'class2', 'class3', 'class4'</span><span class="o">]</span><span class="p">;</span>
-
-<span class="n">test</span><span class="p">.</span><span class="n">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">""</span><span class="p">;</span>
-
-<span class="k">for</span><span class="p">(</span><span class="nf">var</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">classes</span><span class="p">.</span><span class="n">length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">j</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="n">hasClass</span><span class="p">(</span><span class="n">test</span><span class="p">,</span><span class="w"> </span><span class="n">classes</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">))</span><span class="w"> </span><span class="err">{</span>
-<span class="w">        </span><span class="n">test</span><span class="p">.</span><span class="n">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"I have "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">classes</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">;</span>
-<span class="w">        </span><span class="k">break</span><span class="p">;</span>
-<span class="w">    </span><span class="err">}</span>
-<span class="err">}</span>
-</pre></div>
-
-<p>It's also less redundant ;)</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>The easy and effective solution is trying <strong>.contains</strong> method.</p>
-<div class="code"><pre class="code literal-block">test.classList.contains(testClass);
-</pre></div>
     </div>
     </article>
 </div>

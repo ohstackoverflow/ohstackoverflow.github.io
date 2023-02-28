@@ -108,7 +108,137 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/another-git-process-seems-to-be-running-in-this-repository/" class="u-url">Another Git process seems to be running in this repository</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-does-the-c-preprocessor-interpret-the-word-linux-as-the-constant-1/" class="u-url">Why does the C preprocessor interpret the word "linux" as the constant "1"?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-does-the-c-preprocessor-interpret-the-word-linux-as-the-constant-1/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T06:00:31+08:00" itemprop="datePublished" title="2023-02-17 06:00">2023-02-17 06:00</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Why does the <strong>C</strong> preprocessor in <strong>GCC</strong> interpret the word <code>linux</code> (small
+letters) as the constant <code>1</code>?</p>
+<p><strong>test.c:</strong></p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span><span class="w">       </span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">linux</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Result of <code>$ gcc -E test.c</code> (stop after the preprocessing stage):</p>
+<div class="code"><pre class="code literal-block">....
+<span class="nv">int</span><span class="w"> </span><span class="nv">main</span><span class="ss">(</span><span class="nv">void</span><span class="ss">)</span>
+{
+<span class="w">    </span><span class="nv">int</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>Which of course yields an error.</p>
+<p>(BTW: There is no <code>#define linux</code> in the <code>stdio.h</code> file.)</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>In the Old Days (pre-ANSI), predefining symbols such as <code>unix</code> and <code>vax</code> was a
+way to allow code to detect at compile time what system it was being compiled
+for. There was no official language standard back then (beyond the reference
+material at the back of the first edition of K&amp;R), and C code of any
+complexity was typically a complex maze of <code>#ifdef</code>s to allow for differences
+between systems. These macro definitions were generally set by the compiler
+itself, not defined in a library header file. Since there were no real rules
+about which identifiers could be used by the implementation and which were
+reserved for programmers, compiler writers felt free to use simple names like
+<code>unix</code> and assumed that programmers would simply avoid using those names for
+their own purposes.</p>
+<p>The 1989 ANSI C standard introduced rules restricting what symbols an
+implementation could legally predefine. A macro predefined by the compiler
+could only have a name starting with two underscores, or with an underscore
+followed by an uppercase letter, leaving programmers free to use identifiers
+not matching that pattern and not used in the standard library.</p>
+<p>As a result, any compiler that predefines <code>unix</code> or <code>linux</code> is non-conforming,
+since it will fail to compile perfectly legal code that uses something like
+<code>int linux = 5;</code>.</p>
+<p>As it happens, gcc is non-conforming by default -- but it can be made to
+conform (reasonably well) with the right command-line options:</p>
+<div class="code"><pre class="code literal-block">gcc -std=c90 -pedantic ... # or -std=c89 or -ansi
+gcc -std=c99 -pedantic
+gcc -std=c11 -pedantic
+</pre></div>
+
+<p>See the gcc manual for more details.</p>
+<p>gcc will be phasing out these definitions in future releases, so you shouldn't
+write code that depends on them. If your program needs to know whether it's
+being compiled for a Linux target or not it can check whether <code>__linux__</code> is
+defined (assuming you're using gcc or a compiler that's compatible with it).
+See the GNU C preprocessor manual for more information.</p>
+<p>A largely irrelevant aside: the "Best One Liner" winner of the 1987
+International Obfuscated C Code Contest, by David Korn (yes, the author of the
+Korn Shell) took advantage of the predefined <code>unix</code> macro:</p>
+<div class="code"><pre class="code literal-block">main() { printf(&amp;unix["\021%six\012\0"],(unix)["have"]+"fun"-0x60);}
+</pre></div>
+
+<p>It prints <code>"unix"</code>, but for reasons that have absolutely nothing to do with
+the spelling of the macro name.</p>
+<p>I don't want to post any spoilers here, and I encourage anyone reading this to
+try to understand that code on their own first. But if you really want to give
+up, I've posted an explanation here: https://gist.github.com/Keith-S-
+Thompson/6920347</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>This appears to be an (undocumented) "GNU extension": [ <em>correction</em> : I
+finally found a mention in the docs. See below.]</p>
+<p>The following command uses the <code>-dM</code> option to print all preprocessor defines;
+since the input "file" is empty, it shows exactly the predefined macros. It
+was run with gcc-4.7.3 on a standard ubuntu install. You can see that the
+preprocessor is standard-aware. In total, there 243 macros with <code>-std=gnu99</code>
+and 240 with <code>-std=c99</code>; I filtered the output for relevance.</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>cpp<span class="w"> </span>--std<span class="o">=</span>c89<span class="w"> </span>-dM<span class="w"> </span>&lt;<span class="w"> </span>/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>linux
+<span class="c1">#define __linux 1</span>
+<span class="c1">#define __linux__ 1</span>
+<span class="c1">#define __gnu_linux__ 1</span>
+
+$<span class="w"> </span>cpp<span class="w"> </span>--std<span class="o">=</span>gnu89<span class="w"> </span>-dM<span class="w"> </span>&lt;<span class="w"> </span>/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>linux
+<span class="c1">#define __linux 1</span>
+<span class="c1">#define __linux__ 1</span>
+<span class="c1">#define __gnu_linux__ 1</span>
+<span class="c1">#define linux 1</span>
+
+$<span class="w"> </span>cpp<span class="w"> </span>--std<span class="o">=</span>c99<span class="w"> </span>-dM<span class="w"> </span>&lt;<span class="w"> </span>/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>linux
+<span class="c1">#define __linux 1</span>
+<span class="c1">#define __linux__ 1</span>
+<span class="c1">#define __gnu_linux__ 1</span>
+
+$<span class="w"> </span>cpp<span class="w"> </span>--std<span class="o">=</span>gnu99<span class="w"> </span>-dM<span class="w"> </span>&lt;<span class="w"> </span>/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>linux
+<span class="c1">#define __linux 1</span>
+<span class="c1">#define __linux__ 1</span>
+<span class="c1">#define __gnu_linux__ 1</span>
+<span class="c1">#define linux 1</span>
+</pre></div>
+
+<p>The "gnu standard" versions also <code>#define unix</code>. (Using <code>c11</code> and <code>gnu11</code>
+produces the same results.)</p>
+<p>I suppose they had their reasons, but it seems to me to make the default
+installation of gcc (which compiles C code with <code>-std=gnu89</code> unless otherwise
+specified) non-conformant, and -- as in this question -- surprising. Polluting
+the global namespace with macros whose names don't begin with an underscore is
+not permitted in a conformant implementation. (6.8.10p2: "Any other predefined
+macro names shall begin with a leading underscore followed by an uppercase
+letter or a second underscore," but, as mentioned in Appendix J.5 (portability
+issues), such names are often predefined.)</p>
+<p>When I originally wrote this answer, I wasn't able to find any documentation
+in gcc about this issue, but I did finally discover it, not in C
+implementation-defined behaviour nor in C extensions but in the <code>cpp</code> manual
+section 3.7.3, where it notes that:</p>
+<blockquote>
+<p>We are slowly phasing out all predefined macros which are outside the
+reserved namespace. You should never use them in new programs…</p>
+</blockquote>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/another-git-process-seems-to-be-running-in-this-repository/" class="u-url">Another Git process seems to be running in this repository</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -291,77 +421,6 @@ worth mentioning.</p>
 </blockquote>
 <p>The brackets are golden when you need only specific components from the
 module, which makes smaller footprints for bundlers like webpack.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-the-sizes-of-the-tables-of-a-mysql-database/" class="u-url">How to get the sizes of the tables of a MySQL database?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-get-the-sizes-of-the-tables-of-a-mysql-database/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T05:59:04+08:00" itemprop="datePublished" title="2023-02-17 05:59">2023-02-17 05:59</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I can run this query to get the sizes of all tables in a MySQL database:</p>
-<div class="code"><pre class="code literal-block"><span class="k">show</span><span class="w"> </span><span class="nv">table</span><span class="w"> </span><span class="nv">status</span><span class="w"> </span><span class="nv">from</span><span class="w"> </span><span class="nv">myDatabaseName</span><span class="c1">;</span>
-</pre></div>
-
-<p>I would like some help in understanding the results. I am looking for tables
-with the largest sizes.</p>
-<p>Which column should I look at?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You can use this query to show the size of a table (although you need to
-substitute the variables first):</p>
-<div class="code"><pre class="code literal-block"><span class="k">SELECT</span><span class="w"> </span>
-<span class="w">    </span><span class="k">table_name</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n n-Quoted">`Table`</span><span class="p">,</span><span class="w"> </span>
-<span class="w">    </span><span class="nf">round</span><span class="p">(((</span><span class="n">data_length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index_length</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="p">),</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="n n-Quoted">`Size in MB`</span><span class="w"> </span>
-<span class="k">FROM</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="k">TABLES</span><span class="w"> </span>
-<span class="k">WHERE</span><span class="w"> </span><span class="n">table_schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"$DB_NAME"</span>
-<span class="w">    </span><span class="k">AND</span><span class="w"> </span><span class="k">table_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"$TABLE_NAME"</span><span class="p">;</span>
-</pre></div>
-
-<p>or this query to list the size of every table in every database, largest
-first:</p>
-<div class="code"><pre class="code literal-block"><span class="k">SELECT</span><span class="w"> </span>
-<span class="w">     </span><span class="n">table_schema</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n n-Quoted">`Database`</span><span class="p">,</span><span class="w"> </span>
-<span class="w">     </span><span class="k">table_name</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n n-Quoted">`Table`</span><span class="p">,</span><span class="w"> </span>
-<span class="w">     </span><span class="nf">round</span><span class="p">(((</span><span class="n">data_length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index_length</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="p">),</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="n n-Quoted">`Size in MB`</span><span class="w"> </span>
-<span class="k">FROM</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="k">TABLES</span><span class="w"> </span>
-<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="p">(</span><span class="n">data_length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index_length</span><span class="p">)</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<div class="code"><pre class="code literal-block">SELECT TABLE_NAME AS "Table Name", 
-table_rows AS "Quant of Rows", ROUND( (
-data_length + index_length
-) /1024, 2 ) AS "Total Size Kb"
-FROM information_schema.TABLES
-WHERE information_schema.TABLES.table_schema = 'YOUR SCHEMA NAME/DATABASE NAME HERE'
-LIMIT 0 , 30
-</pre></div>
-
-<p>You can get schema name from " <strong>information_schema</strong> " -&gt; <strong>SCHEMATA</strong> table
--&gt; " <strong>SCHEMA_NAME</strong> " column</p>
-<hr>
-<p><strong>Additional</strong> You can get <strong>size of the mysql databases</strong> as following.</p>
-<div class="code"><pre class="code literal-block">SELECT table_schema "DB Name", 
-Round(Sum(data_length + index_length) / 1024 / 1024, 1) "DB Size in MB" 
-FROM   information_schema.tables 
-GROUP  BY table_schema
-ORDER BY `DB Size in MB` DESC;
-</pre></div>
-
-<p><strong>Result</strong></p>
-<div class="code"><pre class="code literal-block">DB Name              |      DB Size in MB
-
-mydatabase_wrdp             39.1
-information_schema          0.0
-</pre></div>
-
-<p>You can get additional details in here.</p>
     </div>
     </article>
 </div>

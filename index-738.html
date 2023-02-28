@@ -108,7 +108,120 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/there-is-already-an-open-datareader-associated-with-this-command-which-must-be-closed-first/" class="u-url">There is already an open DataReader associated with this Command which must be closed first</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/html-encoding-lost-when-attribute-read-from-input-field/" class="u-url">HTML-encoding lost when attribute read from input field</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/html-encoding-lost-when-attribute-read-from-input-field/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T14:39:56+08:00" itemprop="datePublished" title="2023-02-17 14:39">2023-02-17 14:39</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I’m using JavaScript to pull a value out from a hidden field and display it in
+a textbox. The value in the hidden field is encoded.</p>
+<p>For example,</p>
+<div class="code"><pre class="code literal-block">&lt;input id='hiddenId' type='hidden' value='chalk &amp;amp; cheese' /&gt;
+</pre></div>
+
+<p>gets pulled into</p>
+<div class="code"><pre class="code literal-block">&lt;input type='text' value='chalk &amp;amp; cheese' /&gt;
+</pre></div>
+
+<p>via some jQuery to get the value from the hidden field (it’s at this point
+that I lose the encoding):</p>
+<div class="code"><pre class="code literal-block">$('#hiddenId').attr('value')
+</pre></div>
+
+<p>The problem is that when I read <code>chalk &amp;amp; cheese</code> from the hidden field,
+JavaScript seems to lose the encoding. I do not want the value to be <code>chalk &amp;
+cheese</code>. I want the literal <code>amp;</code> to be retained.</p>
+<p>Is there a JavaScript library or a jQuery method that will HTML-encode a
+string?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>EDIT:</strong> This answer was posted a long ago, and the <code>htmlDecode</code> function
+introduced a XSS vulnerability. It has been modified changing the temporary
+element from a <code>div</code> to a <code>textarea</code> reducing the XSS chance. But nowadays, I
+would encourage you to use the DOMParser API as suggested in other anwswer.</p>
+<hr>
+<p>I use these functions:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">function</span><span class="w"> </span><span class="nv">htmlEncode</span><span class="ss">(</span><span class="nv">value</span><span class="ss">)</span>{
+<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="nv">Create</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">in</span><span class="o">-</span><span class="nv">memory</span><span class="w"> </span><span class="nv">element</span>,<span class="w"> </span><span class="nv">set</span><span class="w"> </span><span class="nv">its</span><span class="w"> </span><span class="nv">inner</span><span class="w"> </span><span class="nv">text</span><span class="w"> </span><span class="ss">(</span><span class="nv">which</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">automatically</span><span class="w"> </span><span class="nv">encoded</span><span class="ss">)</span>
+<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="k">Then</span><span class="w"> </span><span class="nv">grab</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">encoded</span><span class="w"> </span><span class="nv">contents</span><span class="w"> </span><span class="nv">back</span><span class="w"> </span><span class="nv">out</span>.<span class="w"> </span><span class="nv">The</span><span class="w"> </span><span class="nv">element</span><span class="w"> </span><span class="nv">never</span><span class="w"> </span><span class="nv">exists</span><span class="w"> </span><span class="nv">on</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">DOM</span>.
+<span class="w">  </span><span class="k">return</span><span class="w"> </span>$<span class="ss">(</span><span class="s1">'&lt;textarea/&gt;'</span><span class="ss">)</span>.<span class="nv">text</span><span class="ss">(</span><span class="nv">value</span><span class="ss">)</span>.<span class="nv">html</span><span class="ss">()</span><span class="c1">;</span>
+}
+
+<span class="nv">function</span><span class="w"> </span><span class="nv">htmlDecode</span><span class="ss">(</span><span class="nv">value</span><span class="ss">)</span>{
+<span class="w">  </span><span class="k">return</span><span class="w"> </span>$<span class="ss">(</span><span class="s1">'&lt;textarea/&gt;'</span><span class="ss">)</span>.<span class="nv">html</span><span class="ss">(</span><span class="nv">value</span><span class="ss">)</span>.<span class="nv">text</span><span class="ss">()</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>Basically a textarea element is created in memory, but it is never appended to
+the document.</p>
+<p>On the <code>htmlEncode</code> function I set the <code>innerText</code> of the element, and
+retrieve the encoded <code>innerHTML</code>; on the <code>htmlDecode</code> function I set the
+<code>innerHTML</code> value of the element and the <code>innerText</code> is retrieved.</p>
+<p>Check a running example here.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>The jQuery trick doesn't encode quote marks and in IE it will strip your
+whitespace.</p>
+<p>Based on the <strong>escape</strong> templatetag in Django, which I guess is heavily
+used/tested already, I made this function which does what's needed.</p>
+<p>It's arguably simpler (and possibly faster) than any of the workarounds for
+the whitespace-stripping issue - and it encodes quote marks, which is
+essential if you're going to use the result inside an attribute value for
+example.</p>
+<div class="code"><pre class="code literal-block"><span class="nt">function</span><span class="w"> </span><span class="nt">htmlEscape</span><span class="o">(</span><span class="nt">str</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">return</span><span class="w"> </span><span class="err">str</span>
+<span class="w">        </span><span class="err">.replace(/&amp;/g,</span><span class="w"> </span><span class="err">'&amp;amp</span><span class="p">;</span><span class="err">')</span>
+<span class="w">        </span><span class="err">.replace(/"/g,</span><span class="w"> </span><span class="err">'&amp;quot</span><span class="p">;</span><span class="err">')</span>
+<span class="w">        </span><span class="err">.replace(/'/g,</span><span class="w"> </span><span class="err">'&amp;#39</span><span class="p">;</span><span class="err">')</span>
+<span class="w">        </span><span class="err">.replace(/&lt;/g,</span><span class="w"> </span><span class="err">'&amp;lt</span><span class="p">;</span><span class="err">')</span>
+<span class="w">        </span><span class="err">.replace(/&gt;/g,</span><span class="w"> </span><span class="err">'&amp;gt</span><span class="p">;</span><span class="err">')</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">//</span><span class="w"> </span><span class="nt">I</span><span class="w"> </span><span class="nt">needed</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">opposite</span><span class="w"> </span><span class="nt">function</span><span class="w"> </span><span class="nt">today</span><span class="o">,</span><span class="w"> </span><span class="nt">so</span><span class="w"> </span><span class="nt">adding</span><span class="w"> </span><span class="nt">here</span><span class="w"> </span><span class="nt">too</span><span class="o">:</span>
+<span class="nt">function</span><span class="w"> </span><span class="nt">htmlUnescape</span><span class="o">(</span><span class="nt">str</span><span class="o">)</span><span class="p">{</span>
+<span class="w">    </span><span class="err">return</span><span class="w"> </span><span class="err">str</span>
+<span class="w">        </span><span class="err">.replace(/&amp;quot</span><span class="p">;</span><span class="err">/g,</span><span class="w"> </span><span class="err">'"')</span>
+<span class="w">        </span><span class="err">.replace(/&amp;#39</span><span class="p">;</span><span class="err">/g,</span><span class="w"> </span><span class="err">"'")</span>
+<span class="w">        </span><span class="err">.replace(/&amp;lt</span><span class="p">;</span><span class="err">/g,</span><span class="w"> </span><span class="err">'&lt;')</span>
+<span class="w">        </span><span class="err">.replace(/&amp;gt</span><span class="p">;</span><span class="err">/g,</span><span class="w"> </span><span class="err">'&gt;')</span>
+<span class="w">        </span><span class="err">.replace(/&amp;amp</span><span class="p">;</span><span class="err">/g,</span><span class="w"> </span><span class="err">'&amp;')</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>Update 2013-06-17:</strong><br>
+In the search for the fastest escaping I have found this implementation of a
+<code>replaceAll</code> method:<br>
+http://dumpsite.com/forum/index.php?topic=4.msg29#msg29<br>
+(also referenced here: Fastest method to replace all instances of a character
+in a string)<br>
+Some performance results here:<br>
+http://jsperf.com/htmlencoderegex/25</p>
+<p>It gives identical result string to the builtin <code>replace</code> chains above. I'd be
+very happy if someone could explain why it's faster!?</p>
+<p><strong>Update 2015-03-04:</strong><br>
+I just noticed that AngularJS are using exactly the method above:<br>
+https://github.com/angular/angular.js/blob/v1.3.14/src/ngSanitize/sanitize.js#L435</p>
+<p>They add a couple of refinements - they appear to be handling an obscure
+Unicode issue as well as converting all non-alphanumeric characters to
+entities. I was under the impression the latter was not necessary as long as
+you have an UTF8 charset specified for your document.</p>
+<p>I will note that (4 years later) Django still does not do either of these
+things, so I'm not sure how important they are:<br>
+https://github.com/django/django/blob/1.8b1/django/utils/html.py#L44</p>
+<p><strong>Update 2016-04-06:</strong><br>
+You may also wish to escape forward-slash <code>/</code>. This is not required for
+correct HTML encoding, however it is recommended by OWASP as an anti-XSS
+safety measure. (thanks to @JNF for suggesting this in comments)</p>
+<div class="code"><pre class="code literal-block">        .replace(/\//g, '&amp;#x2F;');
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/there-is-already-an-open-datareader-associated-with-this-command-which-must-be-closed-first/" class="u-url">There is already an open DataReader associated with this Command which must be closed first</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -273,50 +386,6 @@ calculating the absolute difference:</p>
 <p>More on php's <code>DateInterval</code> format can be found here:
 https://www.php.net/manual/en/dateinterval.format.php</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/cannot-inline-bytecode-built-with-jvm-target-1-8-into-bytecode-that-is-being-built-with-jvm-target-1-6/" class="u-url">Cannot inline bytecode built with JVM target 1.8 into bytecode that is being built with JVM target 1.6</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/cannot-inline-bytecode-built-with-jvm-target-1-8-into-bytecode-that-is-being-built-with-jvm-target-1-6/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T14:38:34+08:00" itemprop="datePublished" title="2023-02-17 14:38">2023-02-17 14:38</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>When trying to run the Example CorDapp (GitHub CorDapp) via IntelliJ, I
-receive the following error:</p>
-<blockquote>
-<p>Cannot inline bytecode built with JVM target 1.8 into bytecode that is being
-built with JVM target 1.6</p>
-</blockquote>
-<p>How can I modify the IntelliJ settings so that all the bytecode is built with
-the same JVM target?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You can fix this issue as follows:</p>
-<ul>
-<li>Open the IntelliJ preferences</li>
-<li>Go to <code>Build, Execution, Deployment</code> &gt; <code>Compiler</code> &gt; <code>Kotlin Compiler</code> <strong>BUT</strong> <code>Other Settings</code> &gt; <code>Kotlin compiler</code> if Android Studio &gt; <code>3.4</code>
-</li>
-<li>Change the <code>Target JVM version</code> to <code>1.8</code>
-</li>
-<li>Click <code>Apply</code>
-</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You can fix this issue as follows:</p>
-<ul>
-<li>Open the IntelliJ preferences</li>
-<li>Go to <code>Build, Execution, Deployment</code> &gt; <code>Compiler</code> &gt; <code>Kotlin Compiler</code> <strong>BUT</strong> <code>Other Settings</code> &gt; <code>Kotlin compiler</code> if Android Studio &gt; <code>3.4</code>
-</li>
-<li>Change the <code>Target JVM version</code> to <code>1.8</code>
-</li>
-<li>Click <code>Apply</code>
-</li>
-</ul>
-</div>
     </article>
 </div>
 

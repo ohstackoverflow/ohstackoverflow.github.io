@@ -108,7 +108,140 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-fix-missing-dependency-warning-when-using-useeffect-react-hook/" class="u-url">How to fix missing dependency warning when using useEffect React Hook</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-access-previous-promise-results-in-a-then-chain/" class="u-url">How do I access previous promise results in a .then() chain?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-access-previous-promise-results-in-a-then-chain/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T15:39:24+08:00" itemprop="datePublished" title="2023-02-17 15:39">2023-02-17 15:39</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have restructured my code to promises, and built a wonderful long <strong>flat
+promise chain</strong> , consisting of multiple <code>.then()</code> callbacks. In the end I
+want to return some composite value, and need to access multiple
+<strong>intermediate promise results</strong>. However the resolution values from the
+middle of the sequence are not in scope in the last callback, how do I access
+them?</p>
+<div class="code"><pre class="code literal-block"><span class="nv">function</span><span class="w"> </span><span class="nv">getExample</span><span class="ss">()</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">promiseA</span><span class="ss">(</span>…<span class="ss">)</span>.<span class="k">then</span><span class="ss">(</span><span class="nv">function</span><span class="ss">(</span><span class="nv">resultA</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="nv">Some</span><span class="w"> </span><span class="nv">processing</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nv">promiseB</span><span class="ss">(</span>…<span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span>}<span class="ss">)</span>.<span class="k">then</span><span class="ss">(</span><span class="nv">function</span><span class="ss">(</span><span class="nv">resultB</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="nv">More</span><span class="w"> </span><span class="nv">processing</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nv">How</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">I</span><span class="w"> </span><span class="nv">gain</span><span class="w"> </span><span class="nv">access</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">resultA</span><span class="w"> </span><span class="nv">here</span>?
+<span class="w">    </span>}<span class="ss">)</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<h2>ECMAScript Harmony</h2>
+<p>Of course, this problem was recognized by the language designers as well. They
+did a lot of work and the async functions proposal finally made it into</p>
+<h3>ECMAScript 8</h3>
+<p>You don't need a single <code>then</code> invocation or callback function anymore, as in
+an asynchronous function (that returns a promise when being called) you can
+simply wait for promises to resolve directly. It also features arbitrary
+control structures like conditions, loops and try-catch-clauses, but for the
+sake of convenience we don't need them here:</p>
+<div class="code"><pre class="code literal-block"><span class="n">async</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">getExample</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">resultA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">promiseA</span><span class="p">(</span><span class="err">…</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">processing</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">resultB</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">promiseB</span><span class="p">(</span><span class="err">…</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">more</span><span class="w"> </span><span class="n">processing</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="n">using</span><span class="w"> </span><span class="n">both</span><span class="w"> </span><span class="n">resultA</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">resultB</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3>ECMAScript 6</h3>
+<p>While we were waiting for ES8, we already did use a very similar kind of
+syntax. ES6 came with generator functions, which allow breaking the execution
+apart in pieces at arbitrarily placed <code>yield</code> keywords. Those slices can be
+run after each other, independently, even asynchronously - and that's just
+what we do when we want to wait for a promise resolution before running the
+next step.</p>
+<p>There are dedicated libraries (like co or task.js), but also many promise
+libraries have helper functions (Q, Bluebird, when, …) that do this async
+step-by-step execution for you when you give them a generator function that
+yields promises.</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">getExample</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Promise</span><span class="o">.</span><span class="n">coroutine</span><span class="p">(</span><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="o">//</span><span class="w">               </span><span class="o">^^^^^^^^^^^^^^^^^</span><span class="w"> </span><span class="n">Bluebird</span><span class="w"> </span><span class="n">syntax</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">resultA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">promiseA</span><span class="p">(</span><span class="err">…</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">processing</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">resultB</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">promiseB</span><span class="p">(</span><span class="err">…</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">more</span><span class="w"> </span><span class="n">processing</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="n">using</span><span class="w"> </span><span class="n">both</span><span class="w"> </span><span class="n">resultA</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">resultB</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>This did work in Node.js since version 4.0, also a few browsers (or their dev
+editions) did support generator syntax relatively early.</p>
+<h3>ECMAScript 5</h3>
+<p>However, if you want/need to be backward-compatible you cannot use those
+without a transpiler. Both generator functions and async functions are
+supported by the current tooling, see for example the documentation of Babel
+on generators and async functions.</p>
+<p>And then, there are also many other compile-to-JS languages that are dedicated
+to easing asynchronous programming. They usually use a syntax similar to
+<code>await</code>, (e.g. Iced CoffeeScript), but there are also others that feature a
+Haskell-like <code>do</code>-notation (e.g. LatteJs, monadic, PureScript or LispyScript).</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h2>ECMAScript Harmony</h2>
+<p>Of course, this problem was recognized by the language designers as well. They
+did a lot of work and the async functions proposal finally made it into</p>
+<h3>ECMAScript 8</h3>
+<p>You don't need a single <code>then</code> invocation or callback function anymore, as in
+an asynchronous function (that returns a promise when being called) you can
+simply wait for promises to resolve directly. It also features arbitrary
+control structures like conditions, loops and try-catch-clauses, but for the
+sake of convenience we don't need them here:</p>
+<div class="code"><pre class="code literal-block"><span class="n">async</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">getExample</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">resultA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">promiseA</span><span class="p">(</span><span class="err">…</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">processing</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">resultB</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">promiseB</span><span class="p">(</span><span class="err">…</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">more</span><span class="w"> </span><span class="n">processing</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="n">using</span><span class="w"> </span><span class="n">both</span><span class="w"> </span><span class="n">resultA</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">resultB</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3>ECMAScript 6</h3>
+<p>While we were waiting for ES8, we already did use a very similar kind of
+syntax. ES6 came with generator functions, which allow breaking the execution
+apart in pieces at arbitrarily placed <code>yield</code> keywords. Those slices can be
+run after each other, independently, even asynchronously - and that's just
+what we do when we want to wait for a promise resolution before running the
+next step.</p>
+<p>There are dedicated libraries (like co or task.js), but also many promise
+libraries have helper functions (Q, Bluebird, when, …) that do this async
+step-by-step execution for you when you give them a generator function that
+yields promises.</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">getExample</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Promise</span><span class="o">.</span><span class="n">coroutine</span><span class="p">(</span><span class="n">function</span><span class="o">*</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="o">//</span><span class="w">               </span><span class="o">^^^^^^^^^^^^^^^^^</span><span class="w"> </span><span class="n">Bluebird</span><span class="w"> </span><span class="n">syntax</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">resultA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">promiseA</span><span class="p">(</span><span class="err">…</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">some</span><span class="w"> </span><span class="n">processing</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">resultB</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">yield</span><span class="w"> </span><span class="n">promiseB</span><span class="p">(</span><span class="err">…</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">more</span><span class="w"> </span><span class="n">processing</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">something</span><span class="w"> </span><span class="n">using</span><span class="w"> </span><span class="n">both</span><span class="w"> </span><span class="n">resultA</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">resultB</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>This did work in Node.js since version 4.0, also a few browsers (or their dev
+editions) did support generator syntax relatively early.</p>
+<h3>ECMAScript 5</h3>
+<p>However, if you want/need to be backward-compatible you cannot use those
+without a transpiler. Both generator functions and async functions are
+supported by the current tooling, see for example the documentation of Babel
+on generators and async functions.</p>
+<p>And then, there are also many other compile-to-JS languages that are dedicated
+to easing asynchronous programming. They usually use a syntax similar to
+<code>await</code>, (e.g. Iced CoffeeScript), but there are also others that feature a
+Haskell-like <code>do</code>-notation (e.g. LatteJs, monadic, PureScript or LispyScript).</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-fix-missing-dependency-warning-when-using-useeffect-react-hook/" class="u-url">How to fix missing dependency warning when using useEffect React Hook</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -415,46 +548,6 @@ setTimeout(generateRandomArticle.bind(null,<span class="w"> </span>++title),<spa
 <span class="w">  </span><span class="nt">&lt;/article&gt;</span>
 <span class="nt">&lt;/section&gt;</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/set-default-syntax-to-different-filetype-in-sublime-text-2/" class="u-url">Set default syntax to different filetype in Sublime Text 2</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/set-default-syntax-to-different-filetype-in-sublime-text-2/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T15:37:31+08:00" itemprop="datePublished" title="2023-02-17 15:37">2023-02-17 15:37</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do I set a default filetype for a certain file extension in Sublime Text
-2? Specifically I want to have *.cfg files default to having Ini syntax
-highlighting but I cannot seem to figure out how I could create this custom
-setting.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>In the current version of Sublime Text 2 (Build: 2139), you can set the syntax
-for all files of a certain file extension using an option in the menu bar.
-Open a file with the extension you want to set a default for and navigate
-through the following menus: <code>View -&gt; Syntax -&gt; Open all with current
-extension as... -&gt;[your syntax choice]</code>.</p>
-<p><strong>Updated 2012-06-28:</strong> Recent builds of Sublime Text 2 (at least since Build
-2181) have allowed the syntax to be set by clicking the current syntax type in
-the lower right corner of the window. This will open the syntax selection menu
-with the option to <code>Open all with current extension as...</code> at the top of the
-menu.</p>
-<p><strong>Updated 2016-04-19:</strong> As of now, this also works for Sublime Text 3.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Go to a <code>Packages/User</code>, create (or edit) a <code>.sublime-settings</code> file named
-after the Syntax where you want to add the extensions, <code>Ini.sublime-settings</code>
-in your case, then write there something like this:</p>
-<div class="code"><pre class="code literal-block">{
-    "extensions":["cfg"]
-}
-</pre></div>
-
-<p>And then restart Sublime Text</p>
     </div>
     </article>
 </div>

@@ -108,7 +108,96 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-back-to-the-latest-commit-after-checking-out-a-previous-commit/" class="u-url">How to get back to the latest commit after checking out a previous commit?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/when-should-i-really-use-noexcept/" class="u-url">When should I really use noexcept?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/when-should-i-really-use-noexcept/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T18:43:58+08:00" itemprop="datePublished" title="2023-02-17 18:43">2023-02-17 18:43</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>The <code>noexcept</code> keyword can be appropriately applied to many function
+signatures, but I am unsure as to when I should consider using it in practice.
+Based on what I have read so far, the last-minute addition of <code>noexcept</code> seems
+to address some important issues that arise when move constructors throw.
+However, I am still unable to provide satisfactory answers to some practical
+questions that led me to read more about <code>noexcept</code> in the first place.</p>
+<ol>
+<li>There are many examples of functions that I know will never throw, but for which the compiler cannot determine so on its own. Should I append <code>noexcept</code> to the function declaration in <strong>all such cases?</strong>
+</li>
+</ol>
+<p>Having to think about whether or not I need to append <code>noexcept</code> after
+<strong>every</strong> function declaration would greatly reduce programmer productivity
+(and frankly, would be a pain in the neck). For which situations should I be
+more careful about the use of <code>noexcept</code>, and for which situations can I get
+away with the implied <code>noexcept(false)</code>?</p>
+<ol>
+<li>When can I realistically expect to observe a performance improvement after using <code>noexcept</code>? In particular, give an example of code for which a C++ compiler is able to generate better machine code after the addition of <code>noexcept</code>.</li>
+</ol>
+<p>Personally, I care about <code>noexcept</code> because of the increased freedom provided
+to the compiler to safely apply certain kinds of optimizations. Do modern
+compilers take advantage of <code>noexcept</code> in this way? If not, can I expect some
+of them to do so in the near future?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I think it is too early to give a "best practices" answer for this as there
+hasn't been enough time to use it in practice. If this was asked about throw
+specifiers right after they came out then the answers would be very different
+to now.</p>
+<blockquote>
+<p>Having to think about whether or not I need to append <code>noexcept</code> after every
+function declaration would greatly reduce programmer productivity (and
+frankly, would be a pain).</p>
+</blockquote>
+<p>Well, then use it when it's obvious that the function will never throw.</p>
+<blockquote>
+<p>When can I realistically expect to observe a performance improvement after
+using <code>noexcept</code>? [...] Personally, I care about <code>noexcept</code> because of the
+increased freedom provided to the compiler to safely apply certain kinds of
+optimizations.</p>
+</blockquote>
+<p>It seems like the biggest optimization gains are from user optimizations, not
+compiler ones due to the possibility of checking <code>noexcept</code> and overloading on
+it. Most compilers follow a no-penalty-if-you-don't-throw exception handling
+method, so I doubt it would change much (or anything) on the machine code
+level of your code, although perhaps reduce the binary size by removing the
+handling code.</p>
+<p>Using <code>noexcept</code> in the big four (constructors, assignment, not destructors as
+they're already <code>noexcept</code>) will likely cause the best improvements as
+<code>noexcept</code> checks are 'common' in template code such as in <code>std</code> containers.
+For instance, <code>std::vector</code> won't use your class's move unless it's marked
+<code>noexcept</code> (or the compiler can deduce it otherwise).</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>As I keep repeating these days: <strong>semantics first</strong>.</p>
+<p>Adding <code>noexcept</code>, <code>noexcept(true)</code> and <code>noexcept(false)</code> is first and
+foremost about semantics. It only incidentally condition a number of possible
+optimizations.</p>
+<p>As a programmer reading code, the presence of <code>noexcept</code> is akin to that of
+<code>const</code>: it helps me better grok what may or may not happen. Therefore, it is
+worthwhile spending some time thinking about whether or not you know if the
+function will throw. For a reminder, any kind of dynamic memory allocation may
+throw.</p>
+<hr>
+<p>Okay, now on to the possible optimizations.</p>
+<p>The most obvious optimizations are actually performed in the libraries. C++11
+provides a number of traits that allows knowing whether a function is
+<code>noexcept</code> or not, and the Standard Library implementation themselves will use
+those traits to favor <code>noexcept</code> operations on the user-defined objects they
+manipulate, if possible. Such as <em>move semantics</em>.</p>
+<p>The compiler may only shave a bit of fat (perhaps) from the exception handling
+data, because it <em>has</em> to take into account the fact that you may have lied.
+If a function marked <code>noexcept</code> does throw, then <code>std::terminate</code> is called.</p>
+<p>These semantics were chosen for two reasons:</p>
+<ul>
+<li>immediately benefiting from <code>noexcept</code> even when dependencies do not use it already (backward compatibility)</li>
+<li>allowing the specification of <code>noexcept</code> when calling functions that may theoretically throw, but are not expected to for the given arguments</li>
+</ul>
+</div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-back-to-the-latest-commit-after-checking-out-a-previous-commit/" class="u-url">How to get back to the latest commit after checking out a previous commit?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -204,100 +293,6 @@ I know of).</p>
 with no overhead over a native C array.</p>
 <p><strong>C++17</strong> has <code>std::size()</code> in the <code>&lt;iterator&gt;</code> header which does the same and
 works for STL containers too (thanks to @Jon C).</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/insert-text-with-single-quotes-in-postgresql/" class="u-url">Insert text with single quotes in PostgreSQL</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/insert-text-with-single-quotes-in-postgresql/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T18:42:36+08:00" itemprop="datePublished" title="2023-02-17 18:42">2023-02-17 18:42</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a table <code>test(id,name)</code>.</p>
-<p>I need to insert values like: <code>user's log</code>, <code>'my user'</code>, <code>customer's</code>.</p>
-<div class="code"><pre class="code literal-block"> insert into test values (1,'user's log');
- insert into test values (2,''my users'');
- insert into test values (3,'customer's');
-</pre></div>
-
-<p>I am getting an error if I run any of the above statements.</p>
-<p>If there is any method to do this correctly please share. I don't want any
-prepared statements.</p>
-<p>Is it possible using sql escaping mechanism?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h4>String literals</h4>
-<p>Escaping single quotes <code>'</code> by doubling them up → <code>''</code> is the standard way and
-works of course:</p>
-<div class="code"><pre class="code literal-block">~~'user's log'~~     -- incorrect syntax (unbalanced quote)
-'user''s log'
-</pre></div>
-
-<p>Plain single quotes (ASCII / UTF-8 code 39), mind you, not backticks <code>``,
-which have no special purpose in Postgres (unlike certain other RDBMS) and not
-double-quotes</code>"`, used for identifiers.</p>
-<p>In old versions or if you still run with <code>standard_conforming_strings = off</code>
-or, generally, if you prepend your string with <code>E</code> to declare <em>Posix escape
-string syntax</em> , you can also escape with the backslash <code>\</code>:</p>
-<div class="code"><pre class="code literal-block">E'user\'s log'
-</pre></div>
-
-<p>Backslash itself is escaped with another backslash. But that's generally not
-preferable.<br>
-If you have to deal with many single quotes or multiple layers of escaping,
-you can avoid quoting hell in PostgreSQL with <strong>dollar-quoted strings</strong> :</p>
-<div class="code"><pre class="code literal-block"><span class="o">'</span><span class="nv">escape</span><span class="w"> </span><span class="o">''</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="o">'''''</span>
-<span class="p">$$</span><span class="nv">escape</span><span class="w"> </span><span class="o">'</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="o">''</span><span class="p">$$</span>
-</pre></div>
-
-<p>To further avoid confusion among dollar-quotes, add a unique <em>token</em> to each
-pair:</p>
-<div class="code"><pre class="code literal-block"><span class="p">$</span><span class="k">to</span><span class="nv">ken</span><span class="p">$</span><span class="nv">escape</span><span class="w"> </span><span class="o">'</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="o">''</span><span class="p">$</span><span class="k">to</span><span class="nv">ken</span><span class="p">$</span>
-</pre></div>
-
-<p>Which can be nested any number of levels:</p>
-<div class="code"><pre class="code literal-block"><span class="p">$</span><span class="k">to</span><span class="nv">ken2</span><span class="p">$</span><span class="nv">Inner</span><span class="w"> </span><span class="nv">string</span><span class="o">:</span><span class="w"> </span><span class="p">$</span><span class="k">to</span><span class="nv">ken1</span><span class="p">$</span><span class="nv">escape</span><span class="w"> </span><span class="o">'</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="o">''</span><span class="p">$</span><span class="k">to</span><span class="nv">ken1</span><span class="p">$</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">nested</span><span class="p">$</span><span class="k">to</span><span class="nv">ken2</span><span class="p">$</span>
-</pre></div>
-
-<p>Pay attention if the <code>$</code> character should have special meaning in your client
-software. You may have to escape it in addition. This is not the case with
-standard PostgreSQL clients like psql or pgAdmin.</p>
-<p>That is all very useful for writing PL/pgSQL functions or ad-hoc SQL commands.
-It cannot alleviate the need to use prepared statements or some other method
-to safeguard against SQL injection in your application when user input is
-possible, though. @Craig's answer has more on that. More details:</p>
-<ul>
-<li>SQL injection in Postgres functions vs prepared queries</li>
-</ul>
-<h4>Values inside Postgres</h4>
-<p>When dealing with values inside the database, there are a couple of useful
-functions to quote strings properly:</p>
-<ul>
-<li>
-<p><code>quote_literal()</code> or <code>quote_nullable()</code> - the latter outputs the unquoted string <code>NULL</code> for null input.<br>
-There is also <code>quote_ident()</code> to <em>double-quote</em> strings where needed to get
-valid SQL <em>identifiers</em>.</p>
-</li>
-<li>
-<p><code>format()</code> with the format specifier <code>%L</code> is equivalent to <code>quote_nullable()</code>.<br>
-Like: <code>format('%L', string_var)</code></p>
-</li>
-<li>
-<p><del><code>concat()</code></del> or <del><code>concat_ws()</code></del> are typically no good for this purpose as those do <em>not</em> escape nested single quotes and backslashes.</p>
-</li>
-</ul>
-<p><br></p>
-<h3>Suggest</h3>
-<p>According to PostgreSQL documentation (4.1.2.1. String Constants):</p>
-<blockquote>
-<p>To include a single-quote character within a string constant, write two
-adjacent single quotes, e.g. 'Dianne''s horse'.</p>
-</blockquote>
-<p>See also the <code>standard_conforming_strings</code> parameter, which controls whether
-escaping with backslashes works.</p>
     </div>
     </article>
 </div>

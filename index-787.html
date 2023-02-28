@@ -108,7 +108,242 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-is-my-spring-autowired-field-null/" class="u-url">Why is my Spring @Autowired field null?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/dynamic-linq-orderby-on-ienumerable-t-iqueryable-t/" class="u-url">Dynamic LINQ OrderBy on IEnumerable&lt;T&gt; / IQueryable&lt;T&gt;</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/dynamic-linq-orderby-on-ienumerable-t-iqueryable-t/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T15:58:51+08:00" itemprop="datePublished" title="2023-02-17 15:58">2023-02-17 15:58</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I found an example in the VS2008 Examples for Dynamic LINQ that allows you to
+use a SQL-like string (e.g. <code>OrderBy("Name, Age DESC"))</code> for ordering.
+Unfortunately, the method included only works on <code>IQueryable&lt;T&gt;</code>. Is there any
+way to get this functionality on <code>IEnumerable&lt;T&gt;</code>?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Just stumbled into this oldie...</p>
+<p>To do this without the dynamic LINQ library, you just need the code as below.
+This covers most common scenarios including nested properties.</p>
+<p>To get it working with <code>IEnumerable&lt;T&gt;</code> you could add some wrapper methods
+that go via <code>AsQueryable</code> - but the code below is the core <code>Expression</code> logic
+needed.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">static</span><span class="w"> </span><span class="nv">IOrderedQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">OrderBy</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">this</span><span class="w"> </span><span class="nv">IQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">source</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">property</span><span class="ss">)</span>
+{
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">ApplyOrder</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span><span class="nv">source</span>,<span class="w"> </span><span class="nv">property</span>,<span class="w"> </span><span class="s2">"OrderBy"</span><span class="ss">)</span><span class="c1">;</span>
+}
+
+<span class="nv">public</span><span class="w"> </span><span class="nv">static</span><span class="w"> </span><span class="nv">IOrderedQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">OrderByDescending</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">this</span><span class="w"> </span><span class="nv">IQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">source</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">property</span><span class="ss">)</span>
+{
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">ApplyOrder</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span><span class="nv">source</span>,<span class="w"> </span><span class="nv">property</span>,<span class="w"> </span><span class="s2">"OrderByDescending"</span><span class="ss">)</span><span class="c1">;</span>
+}
+
+<span class="nv">public</span><span class="w"> </span><span class="nv">static</span><span class="w"> </span><span class="nv">IOrderedQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">ThenBy</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">this</span><span class="w"> </span><span class="nv">IOrderedQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">source</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">property</span><span class="ss">)</span>
+{
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">ApplyOrder</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span><span class="nv">source</span>,<span class="w"> </span><span class="nv">property</span>,<span class="w"> </span><span class="s2">"ThenBy"</span><span class="ss">)</span><span class="c1">;</span>
+}
+
+<span class="nv">public</span><span class="w"> </span><span class="nv">static</span><span class="w"> </span><span class="nv">IOrderedQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">ThenByDescending</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">this</span><span class="w"> </span><span class="nv">IOrderedQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">source</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">property</span><span class="ss">)</span>
+{
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">ApplyOrder</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span><span class="nv">source</span>,<span class="w"> </span><span class="nv">property</span>,<span class="w"> </span><span class="s2">"ThenByDescending"</span><span class="ss">)</span><span class="c1">;</span>
+}
+
+<span class="nv">static</span><span class="w"> </span><span class="nv">IOrderedQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">ApplyOrder</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">IQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">source</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">property</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">methodName</span><span class="ss">)</span><span class="w"> </span>
+{
+<span class="w">    </span><span class="nv">string</span>[]<span class="w"> </span><span class="nv">props</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">property</span>.<span class="nv">Split</span><span class="ss">(</span><span class="s1">'.'</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">Type</span><span class="w"> </span><span class="nv">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">typeof</span><span class="ss">(</span><span class="nv">T</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">ParameterExpression</span><span class="w"> </span><span class="nv">arg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">Expression</span>.<span class="nv">Parameter</span><span class="ss">(</span><span class="nv">type</span>,<span class="w"> </span><span class="s2">"x"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">Expression</span><span class="w"> </span><span class="nv">expr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">arg</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">foreach</span><span class="ss">(</span><span class="nv">string</span><span class="w"> </span><span class="nv">prop</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">props</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="nv">use</span><span class="w"> </span><span class="nv">reflection</span><span class="w"> </span><span class="ss">(</span><span class="nv">not</span><span class="w"> </span><span class="nv">ComponentModel</span><span class="ss">)</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">mirror</span><span class="w"> </span><span class="nv">LINQ</span>
+<span class="w">        </span><span class="nv">PropertyInfo</span><span class="w"> </span><span class="nv">pi</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">type</span>.<span class="nv">GetProperty</span><span class="ss">(</span><span class="nv">prop</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">        </span><span class="nv">expr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">Expression</span>.<span class="nv">Property</span><span class="ss">(</span><span class="nv">expr</span>,<span class="w"> </span><span class="nv">pi</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">        </span><span class="nv">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">pi</span>.<span class="nv">PropertyType</span><span class="c1">;</span>
+<span class="w">    </span>}
+<span class="w">    </span><span class="nv">Type</span><span class="w"> </span><span class="nv">delegateType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">typeof</span><span class="ss">(</span><span class="nv">Func</span><span class="o">&lt;</span>,<span class="o">&gt;</span><span class="ss">)</span>.<span class="nv">MakeGenericType</span><span class="ss">(</span><span class="nv">typeof</span><span class="ss">(</span><span class="nv">T</span><span class="ss">)</span>,<span class="w"> </span><span class="nv">type</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">LambdaExpression</span><span class="w"> </span><span class="nv">lambda</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">Expression</span>.<span class="nv">Lambda</span><span class="ss">(</span><span class="nv">delegateType</span>,<span class="w"> </span><span class="nv">expr</span>,<span class="w"> </span><span class="nv">arg</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">    </span><span class="nv">object</span><span class="w"> </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">typeof</span><span class="ss">(</span><span class="nv">Queryable</span><span class="ss">)</span>.<span class="nv">GetMethods</span><span class="ss">()</span>.<span class="nv">Single</span><span class="ss">(</span>
+<span class="w">            </span><span class="nv">method</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nv">method</span>.<span class="nv">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">methodName</span>
+<span class="w">                    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">method</span>.<span class="nv">IsGenericMethodDefinition</span>
+<span class="w">                    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">method</span>.<span class="nv">GetGenericArguments</span><span class="ss">()</span>.<span class="nv">Length</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">                    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">method</span>.<span class="nv">GetParameters</span><span class="ss">()</span>.<span class="nv">Length</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="ss">)</span>
+<span class="w">            </span>.<span class="nv">MakeGenericMethod</span><span class="ss">(</span><span class="nv">typeof</span><span class="ss">(</span><span class="nv">T</span><span class="ss">)</span>,<span class="w"> </span><span class="nv">type</span><span class="ss">)</span>
+<span class="w">            </span>.<span class="nv">Invoke</span><span class="ss">(</span><span class="nv">null</span>,<span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">object</span>[]<span class="w"> </span>{<span class="nv">source</span>,<span class="w"> </span><span class="nv">lambda</span>}<span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="ss">(</span><span class="nv">IOrderedQueryable</span><span class="o">&lt;</span><span class="nv">T</span><span class="o">&gt;</span><span class="ss">)</span><span class="nb">result</span><span class="c1">;</span>
+}
+</pre></div>
+
+<hr>
+<p>Edit: it gets more fun if you want to mix that with <code>dynamic</code> - although note
+that <code>dynamic</code> only applies to LINQ-to-Objects (expression-trees for ORMs etc
+can't really represent <code>dynamic</code> queries - <code>MemberExpression</code> doesn't support
+it). But here's a way to do it with LINQ-to-Objects. Note that the choice of
+<code>Hashtable</code> is due to favorable locking semantics:</p>
+<div class="code"><pre class="code literal-block"><span class="k">using</span><span class="w"> </span><span class="n">Microsoft</span><span class="p">.</span><span class="n">CSharp</span><span class="p">.</span><span class="n">RuntimeBinder</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="k">System</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="k">System</span><span class="p">.</span><span class="n">Collections</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="k">System</span><span class="p">.</span><span class="n">Collections</span><span class="p">.</span><span class="n">Generic</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="k">System</span><span class="p">.</span><span class="k">Dynamic</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="k">System</span><span class="p">.</span><span class="n">Linq</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="k">System</span><span class="p">.</span><span class="n">Runtime</span><span class="p">.</span><span class="n">CompilerServices</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">Program</span>
+<span class="err">{</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">AccessorCache</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="n">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">readonly</span><span class="w"> </span><span class="n">Hashtable</span><span class="w"> </span><span class="n">accessors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Hashtable</span><span class="p">();</span>
+
+<span class="w">        </span><span class="n">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">readonly</span><span class="w"> </span><span class="n">Hashtable</span><span class="w"> </span><span class="n">callSites</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Hashtable</span><span class="p">();</span>
+
+<span class="w">        </span><span class="n">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">CallSite</span><span class="o">&lt;</span><span class="n">Func</span><span class="o">&lt;</span><span class="n">CallSite</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">GetCallSiteLocked</span><span class="p">(</span>
+<span class="w">            </span><span class="n">string</span><span class="w"> </span><span class="n">name</span><span class="p">)</span><span class="w"> </span>
+<span class="w">        </span><span class="err">{</span>
+<span class="w">            </span><span class="nf">var</span><span class="w"> </span><span class="n">callSite</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">CallSite</span><span class="o">&lt;</span><span class="n">Func</span><span class="o">&lt;</span><span class="n">CallSite</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;&gt;</span><span class="p">)</span><span class="n">callSites</span><span class="o">[</span><span class="n">name</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="k">if</span><span class="p">(</span><span class="n">callSite</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+<span class="w">            </span><span class="err">{</span>
+<span class="w">                </span><span class="n">callSites</span><span class="o">[</span><span class="n">name</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">callSite</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CallSite</span><span class="o">&lt;</span><span class="n">Func</span><span class="o">&lt;</span><span class="n">CallSite</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;&gt;</span>
+<span class="w">                    </span><span class="p">.</span><span class="k">Create</span><span class="p">(</span><span class="n">Binder</span><span class="p">.</span><span class="n">GetMember</span><span class="p">(</span>
+<span class="w">                                </span><span class="n">CSharpBinderFlags</span><span class="p">.</span><span class="k">None</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                </span><span class="n">name</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                </span><span class="n">typeof</span><span class="p">(</span><span class="n">AccessorCache</span><span class="p">),</span>
+<span class="w">                                </span><span class="k">new</span><span class="w"> </span><span class="n">CSharpArgumentInfo</span><span class="err">[]</span><span class="w"> </span><span class="err">{</span><span class="w"> </span>
+<span class="w">                                    </span><span class="n">CSharpArgumentInfo</span><span class="p">.</span><span class="k">Create</span><span class="p">(</span>
+<span class="w">                                        </span><span class="n">CSharpArgumentInfoFlags</span><span class="p">.</span><span class="k">None</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                        </span><span class="k">null</span><span class="p">)</span><span class="w"> </span>
+<span class="w">                                </span><span class="err">}</span><span class="p">));</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">callSite</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+
+<span class="w">        </span><span class="n">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Func</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="p">,</span><span class="k">object</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetAccessor</span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">name</span><span class="p">)</span>
+<span class="w">        </span><span class="err">{</span>
+<span class="w">            </span><span class="n">Func</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;</span><span class="w"> </span><span class="n">accessor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Func</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;</span><span class="p">)</span><span class="n">accessors</span><span class="o">[</span><span class="n">name</span><span class="o">]</span><span class="p">;</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">accessor</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+<span class="w">            </span><span class="err">{</span>
+<span class="w">                </span><span class="n">lock</span><span class="w"> </span><span class="p">(</span><span class="n">accessors</span><span class="w"> </span><span class="p">)</span>
+<span class="w">                </span><span class="err">{</span>
+<span class="w">                    </span><span class="n">accessor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Func</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;</span><span class="p">)</span><span class="n">accessors</span><span class="o">[</span><span class="n">name</span><span class="o">]</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">accessor</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+<span class="w">                    </span><span class="err">{</span>
+<span class="w">                        </span><span class="k">if</span><span class="p">(</span><span class="n">name</span><span class="p">.</span><span class="n">IndexOf</span><span class="p">(</span><span class="s1">'.'</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                            </span><span class="n">string</span><span class="err">[]</span><span class="w"> </span><span class="n">props</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">name</span><span class="p">.</span><span class="n">Split</span><span class="p">(</span><span class="s1">'.'</span><span class="p">);</span>
+<span class="w">                            </span><span class="n">CallSite</span><span class="o">&lt;</span><span class="n">Func</span><span class="o">&lt;</span><span class="n">CallSite</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;&gt;</span><span class="err">[]</span><span class="w"> </span><span class="n">arr</span><span class="w"> </span>
+<span class="w">                                </span><span class="o">=</span><span class="w"> </span><span class="k">Array</span><span class="p">.</span><span class="n">ConvertAll</span><span class="p">(</span><span class="n">props</span><span class="p">,</span><span class="w"> </span><span class="n">GetCallSiteLocked</span><span class="p">);</span>
+<span class="w">                            </span><span class="n">accessor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">=&gt;</span>
+<span class="w">                            </span><span class="err">{</span>
+<span class="w">                                </span><span class="k">object</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">object</span><span class="p">)</span><span class="n">target</span><span class="p">;</span>
+<span class="w">                                </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">arr</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">                                </span><span class="err">{</span>
+<span class="w">                                    </span><span class="nf">var</span><span class="w"> </span><span class="n">cs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">arr</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">;</span>
+<span class="w">                                    </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cs</span><span class="p">.</span><span class="n">Target</span><span class="p">(</span><span class="n">cs</span><span class="p">,</span><span class="w"> </span><span class="n">val</span><span class="p">);</span>
+<span class="w">                                </span><span class="err">}</span>
+<span class="w">                                </span><span class="k">return</span><span class="w"> </span><span class="n">val</span><span class="p">;</span>
+<span class="w">                            </span><span class="err">}</span><span class="p">;</span>
+<span class="w">                        </span><span class="err">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="err">{</span>
+<span class="w">                            </span><span class="nf">var</span><span class="w"> </span><span class="n">callSite</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GetCallSiteLocked</span><span class="p">(</span><span class="n">name</span><span class="p">);</span>
+<span class="w">                            </span><span class="n">accessor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">=&gt;</span>
+<span class="w">                            </span><span class="err">{</span>
+<span class="w">                                </span><span class="k">return</span><span class="w"> </span><span class="n">callSite</span><span class="p">.</span><span class="n">Target</span><span class="p">(</span><span class="n">callSite</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="k">object</span><span class="p">)</span><span class="n">target</span><span class="p">);</span>
+<span class="w">                            </span><span class="err">}</span><span class="p">;</span>
+<span class="w">                        </span><span class="err">}</span>
+<span class="w">                        </span><span class="n">accessors</span><span class="o">[</span><span class="n">name</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">accessor</span><span class="p">;</span>
+<span class="w">                    </span><span class="err">}</span>
+<span class="w">                </span><span class="err">}</span>
+<span class="w">            </span><span class="err">}</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">accessor</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">IOrderedEnumerable</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="o">&gt;</span><span class="w"> </span><span class="n">OrderBy</span><span class="p">(</span>
+<span class="w">        </span><span class="n">this</span><span class="w"> </span><span class="n">IEnumerable</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="o">&gt;</span><span class="w"> </span><span class="n">source</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="n">string</span><span class="w"> </span><span class="n">property</span><span class="p">)</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Enumerable</span><span class="p">.</span><span class="n">OrderBy</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">            </span><span class="n">source</span><span class="p">,</span><span class="w"> </span>
+<span class="w">            </span><span class="n">AccessorCache</span><span class="p">.</span><span class="n">GetAccessor</span><span class="p">(</span><span class="n">property</span><span class="p">),</span><span class="w"> </span>
+<span class="w">            </span><span class="n">Comparer</span><span class="o">&lt;</span><span class="k">object</span><span class="o">&gt;</span><span class="p">.</span><span class="k">Default</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">IOrderedEnumerable</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="o">&gt;</span><span class="w"> </span><span class="n">OrderByDescending</span><span class="p">(</span>
+<span class="w">        </span><span class="n">this</span><span class="w"> </span><span class="n">IEnumerable</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="o">&gt;</span><span class="w"> </span><span class="n">source</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="n">string</span><span class="w"> </span><span class="n">property</span><span class="p">)</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Enumerable</span><span class="p">.</span><span class="n">OrderByDescending</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">            </span><span class="n">source</span><span class="p">,</span><span class="w"> </span>
+<span class="w">            </span><span class="n">AccessorCache</span><span class="p">.</span><span class="n">GetAccessor</span><span class="p">(</span><span class="n">property</span><span class="p">),</span><span class="w"> </span>
+<span class="w">            </span><span class="n">Comparer</span><span class="o">&lt;</span><span class="k">object</span><span class="o">&gt;</span><span class="p">.</span><span class="k">Default</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">IOrderedEnumerable</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ThenBy</span><span class="p">(</span>
+<span class="w">        </span><span class="n">this</span><span class="w"> </span><span class="n">IOrderedEnumerable</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="o">&gt;</span><span class="w"> </span><span class="n">source</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="n">string</span><span class="w"> </span><span class="n">property</span><span class="p">)</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Enumerable</span><span class="p">.</span><span class="n">ThenBy</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">            </span><span class="n">source</span><span class="p">,</span><span class="w"> </span>
+<span class="w">            </span><span class="n">AccessorCache</span><span class="p">.</span><span class="n">GetAccessor</span><span class="p">(</span><span class="n">property</span><span class="p">),</span><span class="w"> </span>
+<span class="w">            </span><span class="n">Comparer</span><span class="o">&lt;</span><span class="k">object</span><span class="o">&gt;</span><span class="p">.</span><span class="k">Default</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">IOrderedEnumerable</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ThenByDescending</span><span class="p">(</span>
+<span class="w">        </span><span class="n">this</span><span class="w"> </span><span class="n">IOrderedEnumerable</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="o">&gt;</span><span class="w"> </span><span class="n">source</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="n">string</span><span class="w"> </span><span class="n">property</span><span class="p">)</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Enumerable</span><span class="p">.</span><span class="n">ThenByDescending</span><span class="o">&lt;</span><span class="k">dynamic</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">            </span><span class="n">source</span><span class="p">,</span><span class="w"> </span>
+<span class="w">            </span><span class="n">AccessorCache</span><span class="p">.</span><span class="n">GetAccessor</span><span class="p">(</span><span class="n">property</span><span class="p">),</span><span class="w"> </span>
+<span class="w">            </span><span class="n">Comparer</span><span class="o">&lt;</span><span class="k">object</span><span class="o">&gt;</span><span class="p">.</span><span class="k">Default</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">Main</span><span class="p">()</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">        </span><span class="k">dynamic</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ExpandoObject</span><span class="p">(),</span><span class="w"> </span>
+<span class="w">                </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ExpandoObject</span><span class="p">(),</span><span class="w"> </span>
+<span class="w">                </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ExpandoObject</span><span class="p">();</span>
+<span class="w">        </span><span class="n">a</span><span class="p">.</span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"abc"</span><span class="p">;</span>
+<span class="w">        </span><span class="n">b</span><span class="p">.</span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"ghi"</span><span class="p">;</span>
+<span class="w">        </span><span class="n">c</span><span class="p">.</span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"def"</span><span class="p">;</span>
+<span class="w">        </span><span class="k">dynamic</span><span class="err">[]</span><span class="w"> </span><span class="k">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="err">[]</span><span class="w"> </span><span class="err">{</span><span class="w"> </span>
+<span class="w">            </span><span class="k">new</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">Y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="err">}</span><span class="p">,</span>
+<span class="w">            </span><span class="k">new</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">Y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="err">}</span><span class="p">,</span><span class="w"> </span>
+<span class="w">            </span><span class="k">new</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">Y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="err">}</span><span class="w"> </span>
+<span class="w">        </span><span class="err">}</span><span class="p">;</span>
+
+<span class="w">        </span><span class="nf">var</span><span class="w"> </span><span class="n">ordered</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">data</span><span class="p">.</span><span class="n">OrderByDescending</span><span class="p">(</span><span class="ss">"Y.X"</span><span class="p">).</span><span class="n">ToArray</span><span class="p">();</span>
+<span class="w">        </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="nf">var</span><span class="w"> </span><span class="n">obj</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">ordered</span><span class="p">)</span>
+<span class="w">        </span><span class="err">{</span>
+<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">obj</span><span class="p">.</span><span class="n">Y</span><span class="p">.</span><span class="n">X</span><span class="p">);</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Too easy without any complication:</p>
+<ol>
+<li>Add <code>using System.Linq.Dynamic;</code> at the top.</li>
+<li>Use <code>vehicles = vehicles.AsQueryable().OrderBy("Make ASC, Year DESC").ToList();</code>
+</li>
+</ol>
+<p><strong>Edit</strong> : to save some time, the <strong>System.Linq.Dynamic.Core</strong>
+(System.Linq.Dynamic is deprecated) assembly is not part of the framework, but
+can be installed from nuget: System.Linq.Dynamic.Core</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-is-my-spring-autowired-field-null/" class="u-url">Why is my Spring @Autowired field null?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -391,69 +626,6 @@ function so that they are remembered later on (according to the Java
 implementation of <code>bcrypt</code>). Put another way, the "hash" generated by <code>bcrypt</code>
 is not <strong><em>just</em></strong> the hash. Rather, it is the hash <strong><em>and</em></strong> the salt
 concatenated.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/do-i-use-img-object-or-embed-for-svg-files/" class="u-url">Do I use &lt;img&gt;, &lt;object&gt;, or &lt;embed&gt; for SVG files?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/do-i-use-img-object-or-embed-for-svg-files/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T15:57:29+08:00" itemprop="datePublished" title="2023-02-17 15:57">2023-02-17 15:57</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Should I use <code>&lt;img&gt;</code>, <code>&lt;object&gt;</code>, or <code>&lt;embed&gt;</code> for loading SVG files into a
-page in a way similar to loading a <code>jpg</code>, <code>gif</code> or <code>png</code>?</p>
-<p>What is the code for each to ensure it works as well as possible? <em>(I'm seeing
-references to including the mimetype or pointing to fallback SVG renderers in
-my research and not seeing a good state of the art reference).</em></p>
-<p>Assume I am checking for SVG support with Modernizr and falling back (probably
-doing a replacement with a plain <code>&lt;img&gt;</code> tag)for non SVG-capable browsers.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I can recommend the SVG Primer (published by the W3C), which covers this
-topic: http://www.w3.org/Graphics/SVG/IG/resources/svgprimer.html#SVG_in_HTML</p>
-<p>If you use <code>&lt;object&gt;</code> then you get raster fallback for free*:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;object</span><span class="w"> </span><span class="na">data=</span><span class="s">"your.svg"</span><span class="w"> </span><span class="na">type=</span><span class="s">"image/svg+xml"</span><span class="nt">&gt;</span>
-<span class="w">  </span><span class="nt">&lt;img</span><span class="w"> </span><span class="na">src=</span><span class="s">"yourfallback.jpg"</span><span class="w"> </span><span class="nt">/&gt;</span>
-<span class="nt">&lt;/object&gt;</span>
-</pre></div>
-
-<p>*) Well, not quite for free, because some browsers download both resources, see Larry's suggestion below for how to get around that.</p>
-<p><strong>2014 update:</strong></p>
-<ul>
-<li>If you want a non-interactive svg, use <code>&lt;img&gt;</code> with script fallbacks to png version (for older IE and android &lt; 3). One clean and simple way to do that:</li>
-</ul>
-<p><code>&lt;img src="your.svg" onerror="this.src='your.png'"&gt;</code>.</p>
-<p>This will behave much like a GIF image, and if your browser supports
-declarative animations (SMIL) then those will play.</p>
-<ul>
-<li>
-<p>If you want an interactive svg, use either <code>&lt;iframe&gt;</code> or <code>&lt;object&gt;</code>. </p>
-</li>
-<li>
-<p>If you need to provide older browsers the ability to use an svg plugin, then use <code>&lt;embed&gt;</code>.</p>
-</li>
-<li>
-<p>For svg in css <code>background-image</code> and similar properties, modernizr is one choice for switching to fallback images, another is depending on multiple backgrounds to do it automatically:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">div</span><span class="w"> </span><span class="p">{</span>
-<span class="k">background-image</span><span class="p">:</span><span class="w"> </span><span class="nb">url</span><span class="p">(</span><span class="sx">fallback.png</span><span class="p">);</span>
-<span class="k">background-image</span><span class="p">:</span><span class="w"> </span><span class="nb">url</span><span class="p">(</span><span class="sx">your.svg</span><span class="p">),</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
-</pre></div>
-
-<p>}</p>
-</li>
-</ul>
-<p><strong><em>Note</em></strong> <em>: the multiple backgrounds strategy doesn't work on Android 2.3
-because it supports multiple backgrounds but not svg.</em></p>
-<p>An additional good read is this blogpost on svg fallbacks.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>From IE9 and above you can use SVG in a ordinary IMG tag..</p>
-<p>https://caniuse.com/svg-img</p>
-<div class="code"><pre class="code literal-block">&lt;img src="/static/image.svg"&gt;
-</pre></div>
     </div>
     </article>
 </div>

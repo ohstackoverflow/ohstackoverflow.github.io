@@ -108,7 +108,80 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/do-swift-based-applications-work-on-os-x-10-9-ios-7-and-lower/" class="u-url">Do Swift-based applications work on OS X 10.9/iOS 7 and lower?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jwt-json-web-token-automatic-prolongation-of-expiration/" class="u-url">JWT (JSON Web Token) automatic prolongation of expiration</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/jwt-json-web-token-automatic-prolongation-of-expiration/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T22:20:16+08:00" itemprop="datePublished" title="2023-02-17 22:20">2023-02-17 22:20</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I would like to implement JWT-based authentication to our new REST API. But
+since the expiration is set in the token, is it possible to automatically
+prolong it? I don't want users to need to sign in after every X minutes if
+they were actively using the application in that period. That would be a huge
+UX fail.</p>
+<p>But prolonging the expiration creates a new token (and the old one is still
+valid until it expires). And generating a new token after each request sounds
+silly to me. Sounds like a security issue when more than one token is valid at
+the same time. Of course I could invalidate the old used one using a blacklist
+but I would need to store the tokens. And one of the benefits of JWT is no
+storage.</p>
+<p>I found how Auth0 solved it. They use not only JWT token but also a refresh
+token: https://auth0.com/docs/tokens/refresh-tokens</p>
+<p>But again, to implement this (without Auth0) I'd need to store refresh tokens
+and maintain their expiration. What is the real benefit then? Why not have
+only one token (not JWT) and keep the expiration on the server?</p>
+<p>Are there other options? Is using JWT not suited for this scenario?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I work at Auth0 and I was involved in the design of the refresh token feature.</p>
+<p>It all depends on the type of application and here is our recommended
+approach.</p>
+<h4>Web applications</h4>
+<p>A good pattern is to refresh the token before it expires.</p>
+<p>Set the token expiration to one week and refresh the token every time the user
+opens the web application and every one hour. If a user doesn't open the
+application for more than a week, they will have to login again and this is
+acceptable web application UX.</p>
+<p>To refresh the token, your API needs a new endpoint that receives a valid, not
+expired JWT and returns the same signed JWT with the new expiration field.
+Then the web application will store the token somewhere.</p>
+<h4>Mobile/Native applications</h4>
+<p>Most native applications do login once and only once.</p>
+<p>The idea is that the refresh token never expires and it can be exchanged
+always for a valid JWT.</p>
+<p>The problem with a token that never expires is that <strong>never</strong> means never.
+What do you do if you lose your phone? So, it needs to be identifiable by the
+user somehow and the application needs to provide a way to revoke access. We
+decided to use the device's name, e.g. "maryo's iPad". Then the user can go to
+the application and revoke access to "maryo's iPad".</p>
+<p>Another approach is to revoke the refresh token on specific events. An
+interesting event is changing the password.</p>
+<p>We believe that JWT is not useful for these use cases, so we use a random
+generated string and we store it on our side.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>In the case where you handle the auth yourself (i.e don't use a provider like
+Auth0), the following may work:</p>
+<ol>
+<li>Issue JWT token with relatively short expiry, say 15min.</li>
+<li>Application checks token expiry date before any transaction requiring a token (token contains expiry date). If token has expired, then it first asks API to 'refresh' the token (this is done transparently to the UX).</li>
+<li>API gets token refresh request, but first checks user database to see if a 'reauth' flag has been set against that user profile (token can contain user id). If the flag is present, then the token refresh is denied, otherwise a new token is issued.</li>
+<li>Repeat.</li>
+</ol>
+<p>The 'reauth' flag in the database backend would be set when, for example, the
+user has reset their password. The flag gets removed when the user logs in
+next time.</p>
+<p>In addition, let's say you have a policy whereby a user must login at least
+once every 72hrs. In that case, your API token refresh logic would also check
+the user's last login date from the user database and deny/allow the token
+refresh on that basis.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/do-swift-based-applications-work-on-os-x-10-9-ios-7-and-lower/" class="u-url">Do Swift-based applications work on OS X 10.9/iOS 7 and lower?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -210,69 +283,6 @@ himself),</p>
 <div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">None</span><span class="p">:</span>
 <span class="w">   </span><span class="o">...</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/getting-a-map-to-return-a-list-in-python-3-x/" class="u-url">Getting a map() to return a list in Python 3.x</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/getting-a-map-to-return-a-list-in-python-3-x/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T22:18:40+08:00" itemprop="datePublished" title="2023-02-17 22:18">2023-02-17 22:18</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm trying to map a list into hex, and then use the list elsewhere. In python
-2.6, this was easy:</p>
-<p><strong>A:</strong> Python 2.6:</p>
-<div class="code"><pre class="code literal-block">&gt;&gt;&gt; map(chr, [66, 53, 0, 94])
-['B', '5', '\x00', '^']
-</pre></div>
-
-<p>However, in Python 3.1, the above returns a map object.</p>
-<p><strong>B:</strong> Python 3.1:</p>
-<div class="code"><pre class="code literal-block">&gt;&gt;&gt; map(chr, [66, 53, 0, 94])
-&lt;map object at 0x00AF5570&gt;
-</pre></div>
-
-<p>How do I retrieve the mapped list (as in <strong>A</strong> above) on Python 3.x?</p>
-<p>Alternatively, is there a better way of doing this? My initial list object has
-around 45 items and id like to convert them to hex.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Do this:</p>
-<div class="code"><pre class="code literal-block">list(map(chr,[66,53,0,94]))
-</pre></div>
-
-<p>In Python 3+, many processes that iterate over iterables return iterators
-themselves. In most cases, this ends up saving memory, and should make things
-go faster.</p>
-<p>If all you're going to do is iterate over this list eventually, there's no
-need to even convert it to a list, because you can still iterate over the
-<code>map</code> object like so:</p>
-<div class="code"><pre class="code literal-block">#<span class="w"> </span><span class="nv">Prints</span><span class="w"> </span><span class="s2">"ABCD"</span>
-<span class="k">for</span><span class="w"> </span><span class="nv">ch</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">map</span><span class="ss">(</span><span class="nv">chr</span>,[<span class="mi">65</span>,<span class="mi">66</span>,<span class="mi">67</span>,<span class="mi">68</span>]<span class="ss">)</span>:
-<span class="w">    </span><span class="nv">print</span><span class="ss">(</span><span class="nv">ch</span><span class="ss">)</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>New and neat in Python 3.5:</p>
-<div class="code"><pre class="code literal-block">[*map(chr, [66, 53, 0, 94])]
-</pre></div>
-
-<p>Thanks to Additional Unpacking Generalizations</p>
-<p><strong>UPDATE</strong></p>
-<p>Always seeking for shorter ways, I discovered this one also works:</p>
-<div class="code"><pre class="code literal-block">*map(chr, [66, 53, 0, 94]),
-</pre></div>
-
-<p>Unpacking works in tuples too. Note the comma at the end. This makes it a
-tuple of 1 element. That is, it's equivalent to <code>(*map(chr, [66, 53, 0,
-94]),)</code></p>
-<p>It's shorter by only one char from the version with the list-brackets, but, in
-my opinion, better to write, because you start right ahead with the asterisk -
-the expansion syntax, so I feel it's softer on the mind. :)</p>
     </div>
     </article>
 </div>

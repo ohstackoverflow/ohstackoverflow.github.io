@@ -108,7 +108,124 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-you-clear-the-sql-server-transaction-log/" class="u-url">How do you clear the SQL Server transaction log?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-maximum-possible-length-of-a-query-string/" class="u-url">What is the maximum possible length of a query string?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-is-the-maximum-possible-length-of-a-query-string/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T19:45:27+08:00" itemprop="datePublished" title="2023-02-17 19:45">2023-02-17 19:45</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is it browser dependent? Also, do different web stacks have different limits
+on how much data they can get from the request?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>RFC 2616 (Hypertext Transfer Protocol — HTTP/1.1) states there is no limit to
+the length of a query string (section 3.2.1). RFC 3986 (Uniform Resource
+Identifier — URI) also states there is no limit, but indicates the hostname is
+limited to 255 characters because of DNS limitations (section 2.3.3).</p>
+<p>While the specifications do not specify any maximum length, practical limits
+are imposed by web browser and server software. Based on research which is
+unfortunately no longer available on its original site (it leads to a shady
+seeming loan site) but which can still be found at Internet Archive Of
+Boutell.com:</p>
+<ul>
+<li>
+<p><strong>Microsoft Edge (Browser)</strong><br>
+The limit appears to be around 81578 characters. See URL Length limitation of
+Microsoft Edge</p>
+</li>
+<li>
+<p><strong>Chrome</strong><br>
+It stops <em>displaying</em> the URL after 64k characters, but can serve more than
+100k characters. No further testing was done beyond that.</p>
+</li>
+<li>
+<p><strong>Firefox (Browser)</strong><br>
+After 65,536 characters, the location bar no longer displays the URL in
+Windows Firefox 1.5.x. However, longer URLs will work. No further testing was
+done after 100,000 characters.</p>
+</li>
+<li>
+<p><strong>Safari (Browser)</strong><br>
+At least 80,000 characters will work. Testing was not tried beyond that.</p>
+</li>
+<li>
+<p><strong>Opera (Browser)</strong><br>
+At least 190,000 characters will work. Stopped testing after 190,000
+characters. Opera 9 for Windows continued to display a fully editable,
+copyable and pasteable URL in the location bar even at 190,000 characters.</p>
+</li>
+<li>
+<p><strong>Microsoft Internet Explorer (Browser)</strong><br>
+Microsoft states that the maximum length of a URL in Internet Explorer is
+2,083 characters, with no more than 2,048 characters in the path portion of
+the URL. Attempts to use URLs longer than this produced a clear error message
+in Internet Explorer.</p>
+</li>
+<li>
+<p><strong>Apache (Server)</strong><br>
+Early attempts to measure the maximum URL length in web browsers bumped into a
+server URL length limit of approximately 4,000 characters, after which Apache
+produces a "413 Entity Too Large" error. The current up to date Apache build
+found in Red Hat Enterprise Linux 4 was used. The official Apache
+documentation only mentions an 8,192-byte limit on an individual field in a
+request.</p>
+</li>
+<li>
+<p><strong>Microsoft Internet Information Server (Server)</strong><br>
+The default limit is 16,384 characters (yes, Microsoft's web server accepts
+longer URLs than Microsoft's web browser). This is configurable.</p>
+</li>
+<li>
+<p><strong>Perl HTTP::Daemon (Server)</strong><br>
+Up to 8,000 bytes will work. Those constructing web application servers with
+Perl's HTTP::Daemon module will encounter a 16,384 byte limit on the combined
+size of all HTTP request headers. This does not include POST-method form data,
+file uploads, etc., but it does include the URL. In practice this resulted in
+a 413 error when a URL was significantly longer than 8,000 characters. This
+limitation can be easily removed. Look for all occurrences of 16x1024 in
+Daemon.pm and replace them with a larger value. Of course, this does increase
+your exposure to denial of service attacks.</p>
+</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>Recommended Security and Performance Max: 2048 CHARACTERS</strong></p>
+<p>Although officially there is no limit specified by RFC 2616, many security
+protocols and recommendations state that maxQueryStrings on a server should be
+set to a maximum character limit of 1024. While the entire URL, including the
+querystring, should be set to a max of 2048 characters. This is to prevent the
+Slow HTTP Request DDOS/DOS attack vulnerability on a web server. This
+typically shows up as a vulnerability on the Qualys Web Application Scanner
+and other security scanners.</p>
+<p>Please see the below example code for Windows IIS Servers with Web.config:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">&lt;system.webServer&gt;</span>
+<span class="nt">&lt;security&gt;</span>
+<span class="w">    </span><span class="nt">&lt;requestFiltering&gt;</span>
+<span class="w">        </span><span class="nt">&lt;requestLimits</span><span class="w"> </span><span class="na">maxQueryString=</span><span class="s">"1024"</span><span class="w"> </span><span class="na">maxUrl=</span><span class="s">"2048"</span><span class="nt">&gt;</span>
+<span class="w">           </span><span class="nt">&lt;headerLimits&gt;</span>
+<span class="w">              </span><span class="nt">&lt;add</span><span class="w"> </span><span class="na">header=</span><span class="s">"Content-type"</span><span class="w"> </span><span class="na">sizeLimit=</span><span class="s">"100"</span><span class="w"> </span><span class="nt">/&gt;</span>
+<span class="w">           </span><span class="nt">&lt;/headerLimits&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/requestLimits&gt;</span>
+<span class="w">     </span><span class="nt">&lt;/requestFiltering&gt;</span>
+<span class="nt">&lt;/security&gt;</span>
+<span class="nt">&lt;/system.webServer&gt;</span>
+</pre></div>
+
+<p>This would also work on a server level using machine.config.</p>
+<p>This is just for windows operating system based servers, I'm not sure if there
+is a similar issue on apache or other servers.</p>
+<p>Note: Limiting query string and URL length may not completely prevent Slow
+HTTP Requests DDOS attack but it is one step you can take to prevent it.</p>
+<p><strong>Adding a reference as requested in the comments:</strong>
+https://www.raiseupwa.com/writing-tips/what-is-the-limit-of-query-string-in-
+asp-net/</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-you-clear-the-sql-server-transaction-log/" class="u-url">How do you clear the SQL Server transaction log?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -349,62 +466,6 @@ book/function. So anyone who wants to use the (shared) library needs to know
 where it is, because you have to "go get" the book/function. With a static
 library, the book/function is yours to own, and you keep it within your
 home/program, and once you have it you don't care where or when you got it.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/attempt-to-present-uiviewcontroller-on-uiviewcontroller-whose-view-is-not-in-the-window-hierarchy/" class="u-url">Attempt to present UIViewController on UIViewController whose view is not in the window hierarchy</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/attempt-to-present-uiviewcontroller-on-uiviewcontroller-whose-view-is-not-in-the-window-hierarchy/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T19:44:06+08:00" itemprop="datePublished" title="2023-02-17 19:44">2023-02-17 19:44</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Just started using Xcode 4.5 and I got this error in the console:</p>
-<blockquote>
-<p>Warning: Attempt to present &lt; finishViewController: 0x1e56e0a0 &gt; on &lt;
-ViewController: 0x1ec3e000&gt; whose view is not in the window hierarchy!</p>
-</blockquote>
-<p>The view is still being presented and everything in the app is working fine.
-Is this something new in iOS 6?</p>
-<p>This is the code I'm using to change between views:</p>
-<div class="code"><pre class="code literal-block"><span class="bp">UIStoryboard</span><span class="w"> </span><span class="o">*</span><span class="n">storyboard</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">self</span><span class="p">.</span><span class="n">storyboard</span><span class="p">;</span>
-<span class="n">finishViewController</span><span class="w"> </span><span class="o">*</span><span class="n">finished</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
-<span class="p">[</span><span class="n">storyboard</span><span class="w"> </span><span class="n">instantiateViewControllerWithIdentifier</span><span class="o">:</span><span class="s">@"finishViewController"</span><span class="p">];</span>
-
-<span class="p">[</span><span class="nb">self</span><span class="w"> </span><span class="n">presentViewController</span><span class="o">:</span><span class="n">finished</span><span class="w"> </span><span class="n">animated</span><span class="o">:</span><span class="nb">NO</span><span class="w"> </span><span class="n">completion</span><span class="o">:</span><span class="nb">NULL</span><span class="p">];</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Where are you calling this method from? I had an issue where I was attempting
-to present a modal view controller within the <code>viewDidLoad</code> method. The
-solution for me was to move this call to the <code>viewDidAppear:</code> method.</p>
-<p>My presumption is that the view controller's view <strong><em>is not</em></strong> in the window's
-view hierarchy at the point that it has been loaded (when the <code>viewDidLoad</code>
-message is sent), but it <strong><em>is</em></strong> in the window hierarchy after it has been
-presented (when the <code>viewDidAppear:</code> message is sent).</p>
-<hr>
-<p><strong>Caution</strong></p>
-<p>If you do make a call to <code>presentViewController:animated:completion:</code> in the
-<code>viewDidAppear:</code> you may run into an issue whereby the modal view controller
-is always being presented whenever the view controller's view appears (which
-makes sense!) and so the modal view controller being presented will never go
-away...</p>
-<p>Maybe this isn't the best place to present the modal view controller, or
-perhaps some additional state needs to be kept which allows the presenting
-view controller to decide whether or not it should present the modal view
-controller immediately.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Another potential cause:</p>
-<p>I had this issue when I was accidentally presenting the same view controller
-twice. (Once with <code>performSegueWithIdentifer:sender:</code> which was called when
-the button was pressed, and a second time with a segue connected directly to
-the button).</p>
-<p>Effectively, two segues were firing at the same time, and I got the error:
-<code>Attempt to present X on Y whose view is not in the window hierarchy!</code></p>
     </div>
     </article>
 </div>

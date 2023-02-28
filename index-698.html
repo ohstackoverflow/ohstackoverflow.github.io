@@ -108,7 +108,90 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-rename-a-project-folder-from-within-visual-studio/" class="u-url">How can I rename a project folder from within Visual Studio?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/shuffle-dataframe-rows/" class="u-url">Shuffle DataFrame rows</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/shuffle-dataframe-rows/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T13:35:55+08:00" itemprop="datePublished" title="2023-02-17 13:35">2023-02-17 13:35</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have the following DataFrame:</p>
+<div class="code"><pre class="code literal-block">    Col1  Col2  Col3  Type
+0      1     2     3     1
+1      4     5     6     1
+...
+20     7     8     9     2
+21    10    11    12     2
+...
+45    13    14    15     3
+46    16    17    18     3
+...
+</pre></div>
+
+<p>The DataFrame is read from a CSV file. All rows which have <code>Type</code> 1 are on
+top, followed by the rows with <code>Type</code> 2, followed by the rows with <code>Type</code> 3,
+etc.</p>
+<p>I would like to shuffle the order of the DataFrame's rows so that all <code>Type</code>'s
+are mixed. A possible result could be:</p>
+<div class="code"><pre class="code literal-block">    Col1  Col2  Col3  Type
+0      7     8     9     2
+1     13    14    15     3
+...
+20     1     2     3     1
+21    10    11    12     2
+...
+45     4     5     6     1
+46    16    17    18     3
+...
+</pre></div>
+
+<p>How can I achieve this?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The idiomatic way to do this with Pandas is to use the <code>.sample</code> method of
+your data frame to sample all rows without replacement:</p>
+<div class="code"><pre class="code literal-block">df.sample(frac=1)
+</pre></div>
+
+<p>The <code>frac</code> keyword argument specifies the fraction of rows to return in the
+random sample, so <code>frac=1</code> means to return all rows (in random order).</p>
+<hr>
+<p><strong>Note:</strong> If you wish to shuffle your dataframe in-place and reset the index,
+you could do e.g.</p>
+<div class="code"><pre class="code literal-block">df = df.sample(frac=1).reset_index(drop=True)
+</pre></div>
+
+<p>Here, specifying <code>drop=True</code> prevents <code>.reset_index</code> from creating a column
+containing the old index entries.</p>
+<p><strong>Follow-up note:</strong> Although it may not look like the above operation is <em>in-
+place</em> , python/pandas is smart enough not to do another malloc for the
+shuffled object. That is, even though the <em>reference</em> object has changed (by
+which I mean <code>id(df_old)</code> is not the same as <code>id(df_new)</code>), the underlying C
+object is still the same. To show that this is indeed the case, you could run
+a simple memory profiler:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>python3<span class="w"> </span>-m<span class="w"> </span>memory_profiler<span class="w"> </span>.<span class="se">\t</span>est.py
+Filename:<span class="w"> </span>.<span class="se">\t</span>est.py
+
+Line<span class="w"> </span><span class="c1">#    Mem usage    Increment   Line Contents</span>
+<span class="o">================================================</span>
+<span class="w">     </span><span class="m">5</span><span class="w">     </span><span class="m">68</span>.5<span class="w"> </span>MiB<span class="w">     </span><span class="m">68</span>.5<span class="w"> </span>MiB<span class="w">   </span>@profile
+<span class="w">     </span><span class="m">6</span><span class="w">                             </span>def<span class="w"> </span>shuffle<span class="o">()</span>:
+<span class="w">     </span><span class="m">7</span><span class="w">    </span><span class="m">847</span>.8<span class="w"> </span>MiB<span class="w">    </span><span class="m">779</span>.3<span class="w"> </span>MiB<span class="w">       </span><span class="nv">df</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>pd.DataFrame<span class="o">(</span>np.random.randn<span class="o">(</span><span class="m">100</span>,<span class="w"> </span><span class="m">1000000</span><span class="o">))</span>
+<span class="w">     </span><span class="m">8</span><span class="w">    </span><span class="m">847</span>.9<span class="w"> </span>MiB<span class="w">      </span><span class="m">0</span>.1<span class="w"> </span>MiB<span class="w">       </span><span class="nv">df</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>df.sample<span class="o">(</span><span class="nv">frac</span><span class="o">=</span><span class="m">1</span><span class="o">)</span>.reset_index<span class="o">(</span><span class="nv">drop</span><span class="o">=</span>True<span class="o">)</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>You can simply use <code>sklearn</code> for this</p>
+<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">sklearn.utils</span> <span class="kn">import</span> <span class="n">shuffle</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">shuffle</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-rename-a-project-folder-from-within-visual-studio/" class="u-url">How can I rename a project folder from within Visual Studio?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -252,109 +335,6 @@ you can use <code>hasattr()</code> to avoid an <code>AttributeError</code> excep
 
 <p>Anyway static variables are rather rare, and you should find a better place
 for this variable, most likely inside a class.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-determine-whether-my-calculation-of-pi-is-accurate/" class="u-url">How do I determine whether my calculation of pi is accurate?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-determine-whether-my-calculation-of-pi-is-accurate/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T13:34:25+08:00" itemprop="datePublished" title="2023-02-17 13:34">2023-02-17 13:34</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I was trying various methods to implement a program that gives the digits of
-pi sequentially. I tried the Taylor series method, but it proved to converge
-extremely slowly (when I compared my result with the online values after some
-time). Anyway, I am trying better algorithms.</p>
-<p>So, while writing the program I got stuck on a problem, as with all
-algorithms: How do I know that the <code>n</code> digits that I've calculated are
-accurate?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Since I'm the current world record holder for the most digits of pi, I'll add
-my two cents:</p>
-<p>Unless you're actually setting a new world record, the common practice is just
-to verify the computed digits against the known values. So that's simple
-enough.</p>
-<p>In fact, I have a webpage that lists snippets of digits for the purpose of
-verifying computations against them: http://www.numberworld.org/digits/Pi/</p>
-<hr>
-<p>But when you get into world-record territory, there's nothing to compare
-against.</p>
-<p>Historically, the standard approach for verifying that computed digits are
-correct is to recompute the digits using a second algorithm. So if either
-computation goes bad, the digits at the end won't match.</p>
-<p>This does typically more than double the amount of time needed (since the
-second algorithm is usually slower). But it's the only way to verify the
-computed digits once you've wandered into the uncharted territory of never-
-before-computed digits and a new world record.</p>
-<hr>
-<p>Back in the days where supercomputers were setting the records, two different
-AGM algorithms were commonly used:</p>
-<ul>
-<li>Gauss–Legendre algorithm</li>
-<li>Borwein's algorithm</li>
-</ul>
-<p>These are both <code>O(N log(N)^2)</code> algorithms that were fairly easy to implement.</p>
-<p>However, nowadays, things are a bit different. In the last three world
-records, instead of performing two computations, we performed only one
-computation using the fastest known formula (Chudnovsky Formula):</p>
-<p><img alt="Enter image description here" src="images/YO0MI.png"></p>
-<p>This algorithm is much harder to implement, but it is a lot faster than the
-AGM algorithms.</p>
-<p>Then we verify the binary digits using the BBP formulas for digit extraction.</p>
-<p><img alt="Enter image description here" src="images/yC73N.png"></p>
-<p>This formula allows you to compute arbitrary binary digits <em>without</em> computing
-all the digits before it. So it is used to verify the last few computed binary
-digits. Therefore it is <strong><em>much</em></strong> faster than a full computation.</p>
-<p>The advantage of this is:</p>
-<ol>
-<li>Only one expensive computation is needed.</li>
-</ol>
-<p>The disadvantage is:</p>
-<ol>
-<li>An implementation of the Bailey–Borwein–Plouffe (BBP) formula is needed.</li>
-<li>An additional step is needed to verify the radix conversion from binary to decimal.</li>
-</ol>
-<p>I've glossed over some details of why verifying the last few digits implies
-that all the digits are correct. But it is easy to see this since any
-computation error will propagate to the last digits.</p>
-<hr>
-<p>Now this last step (verifying the conversion) is actually fairly important.
-One of the previous world record holders <strong><em>actually called us out</em></strong> on this
-because, initially, I didn't give a sufficient description of how it worked.</p>
-<p>So I've pulled this snippet from my blog:</p>
-<div class="code"><pre class="code literal-block">N = # of decimal digits desired
-p = 64-bit prime number
-</pre></div>
-
-<p><img alt="Enter image description here" src="images/eM9bu.png"></p>
-<p>Compute A using base 10 arithmetic and B using binary arithmetic.</p>
-<p><img alt="Enter image description here" src="images/pyxWt.png"></p>
-<p>If <code>A = B</code>, then with "extremely high probability", the conversion is correct.</p>
-<hr>
-<p>For further reading, see my blog post <strong>Pi - 5 Trillion Digits</strong>.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Undoubtedly, for your purposes (which I assume is just a programming
-exercise), the best thing is to check your results against any of the listings
-of the digits of pi on the web.</p>
-<p>And how do we know that those values are correct? Well, I could say that there
-are computer-science-y ways to prove that an implementation of an algorithm is
-correct.</p>
-<p>More pragmatically, if different people use different algorithms, and they all
-agree to (pick a number) a thousand (million, whatever) decimal places, that
-should give you a warm fuzzy feeling that they got it right.</p>
-<p>Historically, William Shanks published pi to 707 decimal places in 1873. Poor
-guy, he made a mistake starting at the 528th decimal place.</p>
-<p>Very interestingly, in 1995 an algorithm was published that had the property
-that would directly calculate the nth digit (base 16) of pi <em>without having to
-calculate all the previous digits</em>!</p>
-<p>Finally, I hope your initial algorithm wasn't <code>pi/4 = 1 - 1/3 + 1/5 - 1/7 +
-...</code> That may be the simplest to program, but it's also one of the slowest
-ways to do so. Check out the pi article on Wikipedia for faster approaches.</p>
     </div>
     </article>
 </div>

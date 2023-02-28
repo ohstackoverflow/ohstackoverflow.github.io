@@ -108,7 +108,83 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-of-keywords-typename-and-class-in-templates/" class="u-url">Difference of keywords 'typename' and 'class' in templates?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-write-standard-error-to-a-file-while-using-tee-with-a-pipe/" class="u-url">How do I write standard error to a file while using "tee" with a pipe?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-write-standard-error-to-a-file-while-using-tee-with-a-pipe/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T16:20:07+08:00" itemprop="datePublished" title="2023-02-17 16:20">2023-02-17 16:20</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I know how to use <code>tee</code> to write the output (standard output) of <code>aaa.sh</code> to
+<code>bbb.out</code>, while still displaying it in the terminal:</p>
+<div class="code"><pre class="code literal-block">./aaa.sh | tee bbb.out
+</pre></div>
+
+<p>How would I now also write standard error to a file named <code>ccc.out</code>, while
+still having it displayed?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I'm assuming you want to still see standard error and standard output on the
+terminal. You could go for Josh Kelley's answer, but I find keeping a <code>tail</code>
+around in the background which outputs your log file very hackish and cludgy.
+Notice how you need to keep an extra file descriptor and do cleanup afterward
+by killing it and technically should be doing that in a <code>trap '...' EXIT</code>.</p>
+<p>There is a better way to do this, and you've already discovered it: <code>tee</code>.</p>
+<p>Only, instead of just using it for your standard output, have a tee for
+standard output and one for standard error. How will you accomplish this?
+Process substitution and file redirection:</p>
+<div class="code"><pre class="code literal-block">command &gt; &gt;(tee -a stdout.log) 2&gt; &gt;(tee -a stderr.log &gt;&amp;2)
+</pre></div>
+
+<p>Let's split it up and explain:</p>
+<div class="code"><pre class="code literal-block">&gt; &gt;(..)
+</pre></div>
+
+<p><code>&gt;(...)</code> (process substitution) creates a FIFO and lets <code>tee</code> listen on it.
+Then, it uses <code>&gt;</code> (file redirection) to redirect the standard output of
+<code>command</code> to the FIFO that your first <code>tee</code> is listening on.</p>
+<p>The same thing for the second:</p>
+<div class="code"><pre class="code literal-block"><span class="mf">2</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&gt;</span><span class="p">(</span><span class="n">tee</span><span class="w"> </span><span class="o">-</span><span class="n">a</span><span class="w"> </span><span class="n">stderr</span><span class="mf">.</span><span class="nb">log</span><span class="w"> </span><span class="o">&gt;</span><span class="err">&amp;</span><span class="mf">2</span><span class="p">)</span>
+</pre></div>
+
+<p>We use process substitution again to make a <code>tee</code> process that reads from
+standard input and dumps it into <code>stderr.log</code>. <code>tee</code> outputs its input back on
+standard output, but since its input is our standard error, we want to
+redirect <code>tee</code>'s standard output to our standard error again. Then we use file
+redirection to redirect <code>command</code>'s standard error to the FIFO's input
+(<code>tee</code>'s standard input).</p>
+<p>See <em>Input And Output</em></p>
+<p>Process substitution is one of those really lovely things you get as a bonus
+of choosing Bash as your shell as opposed to <code>sh</code> (POSIX or Bourne).</p>
+<hr>
+<p>In <code>sh</code>, you'd have to do things manually:</p>
+<div class="code"><pre class="code literal-block"><span class="s s-Atom">out=</span><span class="s2">"${TMPDIR:-/tmp}/out.$$"</span> <span class="s s-Atom">err=</span><span class="s2">"${TMPDIR:-/tmp}/err.$$"</span>
+<span class="s s-Atom">mkfifo</span> <span class="s2">"$out"</span> <span class="s2">"$err"</span>
+<span class="s s-Atom">trap</span> <span class="s s-Atom">'rm "$out" "$err"'</span> <span class="nv">EXIT</span>
+<span class="s s-Atom">tee</span> <span class="o">-</span><span class="s s-Atom">a</span> <span class="s s-Atom">stdout</span><span class="p">.</span><span class="s s-Atom">log</span> <span class="o">&lt;</span> <span class="s2">"$out"</span> <span class="s s-Atom">&amp;</span>
+<span class="s s-Atom">tee</span> <span class="o">-</span><span class="s s-Atom">a</span> <span class="s s-Atom">stderr</span><span class="p">.</span><span class="s s-Atom">log</span> <span class="o">&lt;</span> <span class="s2">"$err"</span> <span class="s s-Atom">&gt;&amp;</span><span class="mi">2</span> <span class="s s-Atom">&amp;</span>
+<span class="s s-Atom">command</span> <span class="s s-Atom">&gt;</span><span class="s2">"$out"</span> <span class="mi">2</span><span class="s s-Atom">&gt;</span><span class="s2">"$err"</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Simply:</p>
+<div class="code"><pre class="code literal-block">./aaa.sh 2&gt;&amp;1 | tee -a log
+</pre></div>
+
+<p>This simply redirects standard error to standard output, so tee echoes both to
+<em>log</em> and to the screen. Maybe I'm missing something, because some of the
+other solutions seem really complicated.</p>
+<p><strong>Note:</strong> Since Bash version 4 you may use <code>|&amp;</code> as an abbreviation for <code>2&gt;&amp;1
+|</code>:</p>
+<div class="code"><pre class="code literal-block">./aaa.sh |&amp; tee -a log
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-of-keywords-typename-and-class-in-templates/" class="u-url">Difference of keywords 'typename' and 'class' in templates?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -250,104 +326,6 @@ and outputting directly to the terminal for me.</p>
 <p><strong>Update</strong> : Since curl 7.67.0 there is a new option <code>--no-progress-meter</code>
 which does precisely this and nothing else, see clonejo's answer for more
 details.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/move-an-array-element-from-one-array-position-to-another/" class="u-url">Move an array element from one array position to another</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/move-an-array-element-from-one-array-position-to-another/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T16:18:47+08:00" itemprop="datePublished" title="2023-02-17 16:18">2023-02-17 16:18</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I'm having a hard time figuring out how to move an element of an array. For
-example, given the following:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="s1">'a'</span><span class="p">,</span><span class="w"> </span><span class="s1">'b'</span><span class="p">,</span><span class="w"> </span><span class="s1">'c'</span><span class="p">,</span><span class="w"> </span><span class="s1">'d'</span><span class="p">,</span><span class="w"> </span><span class="s1">'e'</span><span class="p">];</span>
-</pre></div>
-
-<p>How can I write a function to move the element <code>'d'</code> to the left of <code>'b'</code> ?</p>
-<p>Or <code>'a'</code> to the right of <code>'c'</code>?</p>
-<p>After moving the elements, the indexes of the rest of the elements should be
-updated. The resulting array would be:</p>
-<div class="code"><pre class="code literal-block">array = ['a', 'd', 'b', 'c', 'e']
-</pre></div>
-
-<p>This seems like it should be pretty simple, but I can't wrap my head around
-it.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>If you'd like a version on npm, array-move is the closest to this answer,
-although it's not the same implementation. See its usage section for more
-details. The previous version of this answer (that modified
-Array.prototype.move) can be found on npm at array.prototype.move.</p>
-<hr>
-<p>I had fairly good success with this function:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">array_move</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span><span class="w"> </span><span class="n">old_index</span><span class="p">,</span><span class="w"> </span><span class="n">new_index</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">new_index</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">arr</span><span class="o">.</span><span class="n">length</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_index</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">arr</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">k</span><span class="o">--</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="n">arr</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">undefined</span><span class="p">);</span>
-<span class="w">        </span><span class="p">}</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="n">arr</span><span class="o">.</span><span class="n">splice</span><span class="p">(</span><span class="n">new_index</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">arr</span><span class="o">.</span><span class="n">splice</span><span class="p">(</span><span class="n">old_index</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]);</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">arr</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">testing</span>
-<span class="p">};</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">]</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">array_move</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
-</pre></div>
-
-<p>Note that the last <code>return</code> is simply for testing purposes: <code>splice</code> performs
-operations on the array in-place, so a return is not necessary. By extension,
-this <code>move</code> is an in-place operation. If you want to avoid that and return a
-copy, use <code>slice</code>.</p>
-<p>Stepping through the code:</p>
-<ol>
-<li>If <code>new_index</code> is greater than the length of the array, we want (I presume) to pad the array properly with new <code>undefined</code>s. This little snippet handles this by pushing <code>undefined</code> on the array until we have the proper length.</li>
-<li>Then, in <code>arr.splice(old_index, 1)[0]</code>, we splice out the old element. <code>splice</code> returns the element that was spliced out, but it's in an array. In our above example, this was <code>[1]</code>. So we take the first index of that array to get the raw <code>1</code> there.</li>
-<li>Then we use <code>splice</code> to insert this element in the new_index's place. Since we padded the array above if <code>new_index &gt; arr.length</code>, it will probably appear in the right place, unless they've done something strange like pass in a negative number. </li>
-</ol>
-<p>A fancier version to account for negative indices:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">array_move</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span><span class="w"> </span><span class="n">old_index</span><span class="p">,</span><span class="w"> </span><span class="n">new_index</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">old_index</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">old_index</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">arr</span><span class="o">.</span><span class="n">length</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">new_index</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">new_index</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">arr</span><span class="o">.</span><span class="n">length</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">new_index</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">arr</span><span class="o">.</span><span class="n">length</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_index</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">arr</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">k</span><span class="o">--</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="n">arr</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">undefined</span><span class="p">);</span>
-<span class="w">        </span><span class="p">}</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="n">arr</span><span class="o">.</span><span class="n">splice</span><span class="p">(</span><span class="n">new_index</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">arr</span><span class="o">.</span><span class="n">splice</span><span class="p">(</span><span class="n">old_index</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]);</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">arr</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">testing</span><span class="w"> </span><span class="n">purposes</span>
-<span class="p">};</span>
-
-<span class="o">//</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
-<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">array_move</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">],</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">2</span><span class="p">));</span>
-</pre></div>
-
-<p>Which should account for things like <code>array_move([1, 2, 3], -1, -2)</code> properly
-(move the last element to the second to last place). Result for that should be
-<code>[1, 3, 2]</code>.</p>
-<p>Either way, in your original question, you would do <code>array_move(arr, 0, 2)</code>
-for <code>a</code> after <code>c</code>. For <code>d</code> before <code>b</code>, you would do <code>array_move(arr, 3, 1)</code>.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I like this way. It's concise and it works.</p>
-<div class="code"><pre class="code literal-block"><span class="k">function</span><span class="w"> </span><span class="n">arraymove</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span><span class="w"> </span><span class="n">fromIndex</span><span class="p">,</span><span class="w"> </span><span class="n">toIndex</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="nf">var</span><span class="w"> </span><span class="k">element</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">arr</span><span class="o">[</span><span class="n">fromIndex</span><span class="o">]</span><span class="p">;</span>
-<span class="w">    </span><span class="n">arr</span><span class="p">.</span><span class="n">splice</span><span class="p">(</span><span class="n">fromIndex</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
-<span class="w">    </span><span class="n">arr</span><span class="p">.</span><span class="n">splice</span><span class="p">(</span><span class="n">toIndex</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="k">element</span><span class="p">);</span>
-<span class="err">}</span>
-</pre></div>
-
-<p>Note: always remember to check your array bounds.</p>
-<p>Run Snippet in jsFiddle</p>
     </div>
     </article>
 </div>

@@ -108,7 +108,109 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-revert-multiple-git-commits/" class="u-url">How can I revert multiple Git commits?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-join-merge-data-frames-inner-outer-left-right/" class="u-url">How to join (merge) data frames (inner, outer, left, right)</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-join-merge-data-frames-inner-outer-left-right/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:49:31+08:00" itemprop="datePublished" title="2023-02-17 01:49">2023-02-17 01:49</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Given two data frames:</p>
+<div class="code"><pre class="code literal-block">df1 = data.frame(CustomerId = c(1:6), Product = c(rep("Toaster", 3), rep("Radio", 3)))
+df2 = data.frame(CustomerId = c(2, 4, 6), State = c(rep("Alabama", 2), rep("Ohio", 1)))
+
+df1
+#  CustomerId Product
+#           1 Toaster
+#           2 Toaster
+#           3 Toaster
+#           4   Radio
+#           5   Radio
+#           6   Radio
+
+df2
+#  CustomerId   State
+#           2 Alabama
+#           4 Alabama
+#           6    Ohio
+</pre></div>
+
+<p>How can I do database style, i.e., sql style, joins? That is, how do I get:</p>
+<ul>
+<li>
+<p>An inner join of <code>df1</code> and <code>df2</code>:<br>
+Return only the rows in which the left table have matching keys in the right
+table.</p>
+</li>
+<li>
+<p>An outer join of <code>df1</code> and <code>df2</code>:<br>
+Returns all rows from both tables, join records from the left which have
+matching keys in the right table.</p>
+</li>
+<li>
+<p>A left outer join (or simply left join) of <code>df1</code> and <code>df2</code><br>
+Return all rows from the left table, and any rows with matching keys from the
+right table.</p>
+</li>
+<li>
+<p>A right outer join of <code>df1</code> and <code>df2</code><br>
+Return all rows from the right table, and any rows with matching keys from the
+left table.</p>
+</li>
+</ul>
+<hr>
+<p><strong>Extra credit:</strong></p>
+<p>How can I do a SQL style select statement?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>By using the <code>merge</code> function and its optional parameters:</p>
+<p><strong><em>Inner join:</em></strong> <code>merge(df1, df2)</code> will work for these examples because R
+automatically joins the frames by common variable names, but you would most
+likely want to specify <code>merge(df1, df2, by = "CustomerId")</code> to make sure that
+you were matching on only the fields you desired. You can also use the <code>by.x</code>
+and <code>by.y</code> parameters if the matching variables have different names in the
+different data frames.</p>
+<p><strong><em>Outer join:</em></strong> <code>merge(x = df1, y = df2, by = "CustomerId", all = TRUE)</code></p>
+<p><strong><em>Left outer:</em></strong> <code>merge(x = df1, y = df2, by = "CustomerId", all.x = TRUE)</code></p>
+<p><strong><em>Right outer:</em></strong> <code>merge(x = df1, y = df2, by = "CustomerId", all.y = TRUE)</code></p>
+<p><strong><em>Cross join:</em></strong> <code>merge(x = df1, y = df2, by = NULL)</code></p>
+<p><del>Just as with the inner join, you would probably want to explicitly pass
+"CustomerId" to R as the matching variable.</del> I think it's almost always best
+to explicitly state the identifiers on which you want to merge; it's safer if
+the input data.frames change unexpectedly and easier to read later on.</p>
+<p>You can merge on multiple columns by giving <code>by</code> a vector, e.g., <code>by =
+c("CustomerId", "OrderId")</code>.</p>
+<p>If the column names to merge on are not the same, you can specify, e.g., <code>by.x
+= "CustomerId_in_df1", by.y = "CustomerId_in_df2"</code> where <code>CustomerId_in_df1</code>
+is the name of the column in the first data frame and <code>CustomerId_in_df2</code> is
+the name of the column in the second data frame. (These can also be vectors if
+you need to merge on multiple columns.)</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I would recommend checking out Gabor Grothendieck's sqldf package, which
+allows you to express these operations in SQL.</p>
+<div class="code"><pre class="code literal-block"><span class="nf">library</span><span class="p">(</span><span class="n">sqldf</span><span class="p">)</span>
+
+<span class="c1">## inner join</span>
+<span class="n">df3</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">sqldf</span><span class="p">(</span><span class="s">"SELECT CustomerId, Product, State </span>
+<span class="s">              FROM df1</span>
+<span class="s">              JOIN df2 USING(CustomerID)"</span><span class="p">)</span>
+
+<span class="c1">## left join (substitute 'right' for right join)</span>
+<span class="n">df4</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">sqldf</span><span class="p">(</span><span class="s">"SELECT CustomerId, Product, State </span>
+<span class="s">              FROM df1</span>
+<span class="s">              LEFT JOIN df2 USING(CustomerID)"</span><span class="p">)</span>
+</pre></div>
+
+<p>I find the SQL syntax to be simpler and more natural than its R equivalent
+(but this may just reflect my RDBMS bias).</p>
+<p>See Gabor's sqldf GitHub for more information on joins.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-revert-multiple-git-commits/" class="u-url">How can I revert multiple Git commits?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -366,87 +468,6 @@ Content-Type: application/json
 mandtory condition browser will submit the actual Cross-Domain request, and
 cache the result in " </em><em>Preflight-Result-Cache</em>* ".</p>
 <p>I blogged about CORS three years ago: AJAX Cross-Origin HTTP request</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-create-a-file-and-write-to-it/" class="u-url">How do I create a file and write to it?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-create-a-file-and-write-to-it/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T01:47:54+08:00" itemprop="datePublished" title="2023-02-17 01:47">2023-02-17 01:47</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What's the simplest way to create and write to a (text) file in Java?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p><em>Note that each of the code samples below may throw<code>IOException</code>.
-Try/catch/finally blocks have been omitted for brevity. See this tutorial for
-information about exception handling.</em></p>
-<p><em>Note that each of the code samples below will overwrite the file if it
-already exists</em></p>
-<p>Creating a text file:</p>
-<div class="code"><pre class="code literal-block">PrintWriter writer = new PrintWriter("the-file-name.txt", "UTF-8");
-writer.println("The first line");
-writer.println("The second line");
-writer.close();
-</pre></div>
-
-<p>Creating a binary file:</p>
-<div class="code"><pre class="code literal-block">byte data[] = ...
-FileOutputStream out = new FileOutputStream("the-file-name");
-out.write(data);
-out.close();
-</pre></div>
-
-<p><strong>Java 7+</strong> users can use the <code>Files</code> class to write to files:</p>
-<p>Creating a text file:</p>
-<div class="code"><pre class="code literal-block"><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">Arrays</span><span class="p">.</span><span class="n">asList</span><span class="p">(</span><span class="s">"The first line"</span><span class="p">,</span> <span class="s">"The second line"</span><span class="p">);</span>
-<span class="n">Path</span> <span class="n">file</span> <span class="o">=</span> <span class="n">Paths</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"the-file-name.txt"</span><span class="p">);</span>
-<span class="n">Files</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">lines</span><span class="p">,</span> <span class="n">StandardCharsets</span><span class="p">.</span><span class="n">UTF_8</span><span class="p">);</span>
-<span class="o">//</span><span class="n">Files</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">lines</span><span class="p">,</span> <span class="n">StandardCharsets</span><span class="p">.</span><span class="n">UTF_8</span><span class="p">,</span> <span class="n">StandardOpenOption</span><span class="p">.</span><span class="n">APPEND</span><span class="p">);</span>
-</pre></div>
-
-<p>Creating a binary file:</p>
-<div class="code"><pre class="code literal-block"><span class="n">byte</span> <span class="n">data</span><span class="p">[]</span> <span class="o">=</span> <span class="p">...</span>
-<span class="n">Path</span> <span class="n">file</span> <span class="o">=</span> <span class="n">Paths</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"the-file-name"</span><span class="p">);</span>
-<span class="n">Files</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">data</span><span class="p">);</span>
-<span class="o">//</span><span class="n">Files</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">StandardOpenOption</span><span class="p">.</span><span class="n">APPEND</span><span class="p">);</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>In Java 7 and up:</p>
-<div class="code"><pre class="code literal-block">try (Writer writer = new BufferedWriter(new OutputStreamWriter(
-              new FileOutputStream("filename.txt"), "utf-8"))) {
-   writer.write("something");
-}
-</pre></div>
-
-<p>There are useful utilities for that though:</p>
-<ul>
-<li>FileUtils.writeStringtoFile(..) from commons-io</li>
-<li>Files.write(..) from guava</li>
-</ul>
-<p>Note also that you <em>can</em> use a <code>FileWriter</code>, but it uses the default encoding,
-which is often a bad idea - it's best to specify the encoding explicitly.</p>
-<p>Below is the original, prior-to-Java 7 answer</p>
-<hr>
-<div class="code"><pre class="code literal-block">Writer writer = null;
-
-try {
-    writer = new BufferedWriter(new OutputStreamWriter(
-          new FileOutputStream("filename.txt"), "utf-8"));
-    writer.write("Something");
-} catch (IOException ex) {
-    // Report
-} finally {
-   try {writer.close();} catch (Exception ex) {/*ignore*/}
-}
-</pre></div>
-
-<p>See also: Reading, Writing, and Creating Files (includes NIO2).</p>
     </div>
     </article>
 </div>

@@ -108,7 +108,131 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/getting-a-random-value-from-a-javascript-array/" class="u-url">Getting a random value from a JavaScript array</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-t-create-handler-inside-thread-that-has-not-called-looper-prepare/" class="u-url">Can't create handler inside thread that has not called Looper.prepare()</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/can-t-create-handler-inside-thread-that-has-not-called-looper-prepare/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T04:48:43+08:00" itemprop="datePublished" title="2023-02-17 04:48">2023-02-17 04:48</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What does the following exception mean; how can I fix it?</p>
+<p>This is the code:</p>
+<div class="code"><pre class="code literal-block">Toast toast = Toast.makeText(mContext, "Something", Toast.LENGTH_SHORT);
+</pre></div>
+
+<p>This is the exception:</p>
+<div class="code"><pre class="code literal-block">java.lang.RuntimeException: Can't create handler inside thread that has not called Looper.prepare()
+     at android.os.Handler.&lt;init&gt;(Handler.java:121)
+     at android.widget.Toast.&lt;init&gt;(Toast.java:68)
+     at android.widget.Toast.makeText(Toast.java:231)
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You're calling it from a worker thread. You need to call <code>Toast.makeText()</code>
+(and most other functions dealing with the UI) from within the main thread.
+You could use a handler, for example.</p>
+<p>Look up Communicating with the UI Thread in the documentation. In a nutshell:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// Set this up in the UI thread.</span>
+
+<span class="n">mHandler</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Handler</span><span class="p">(</span><span class="n">Looper</span><span class="p">.</span><span class="n">getMainLooper</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">handleMessage</span><span class="p">(</span><span class="n">Message</span><span class="w"> </span><span class="n">message</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// This is where you do your work in the UI thread.</span>
+<span class="w">        </span><span class="c1">// Your worker tells you in the message what to do.</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="n">void</span><span class="w"> </span><span class="n">workerThread</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// And this is how you call it from the worker thread:</span>
+<span class="w">    </span><span class="n">Message</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">mHandler</span><span class="p">.</span><span class="n">obtainMessage</span><span class="p">(</span><span class="n">command</span><span class="p">,</span><span class="w"> </span><span class="n">parameter</span><span class="p">);</span>
+<span class="w">    </span><span class="n">message</span><span class="p">.</span><span class="n">sendToTarget</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>Other options:</strong></p>
+<p>You could use <code>Activity.runOnUiThread()</code>. Straightforward if you have an
+<code>Activity</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@WorkerThread</span>
+<span class="n">void</span><span class="w"> </span><span class="n">workerThread</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">myActivity</span><span class="p">.</span><span class="n">runOnUiThread</span><span class="p">(()</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">UI</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="n">goes</span><span class="p">.</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>You could also post to the main looper. This works great if all you have is a
+<code>Context</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@WorkerThread</span>
+<span class="n">void</span><span class="w"> </span><span class="n">workerThread</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">ContextCompat</span><span class="p">.</span><span class="n">getMainExecutor</span><span class="p">(</span><span class="n">context</span><span class="p">).</span><span class="k">execute</span><span class="p">(()</span><span class="w">  </span><span class="o">-&gt;</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">UI</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="n">goes</span><span class="p">.</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><strong>Deprecated:</strong></p>
+<p>You could use an AsyncTask, that works well for most things running in the
+background. It has hooks that you can call to indicate the progress, and when
+it's done.</p>
+<p>It's convenient, but can leak contexts if not used correctly. It's been
+officially deprecated, and you shouldn't use it anymore.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>You're calling it from a worker thread. You need to call <code>Toast.makeText()</code>
+(and most other functions dealing with the UI) from within the main thread.
+You could use a handler, for example.</p>
+<p>Look up Communicating with the UI Thread in the documentation. In a nutshell:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// Set this up in the UI thread.</span>
+
+<span class="n">mHandler</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Handler</span><span class="p">(</span><span class="n">Looper</span><span class="p">.</span><span class="n">getMainLooper</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">handleMessage</span><span class="p">(</span><span class="n">Message</span><span class="w"> </span><span class="n">message</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// This is where you do your work in the UI thread.</span>
+<span class="w">        </span><span class="c1">// Your worker tells you in the message what to do.</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="n">void</span><span class="w"> </span><span class="n">workerThread</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// And this is how you call it from the worker thread:</span>
+<span class="w">    </span><span class="n">Message</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">mHandler</span><span class="p">.</span><span class="n">obtainMessage</span><span class="p">(</span><span class="n">command</span><span class="p">,</span><span class="w"> </span><span class="n">parameter</span><span class="p">);</span>
+<span class="w">    </span><span class="n">message</span><span class="p">.</span><span class="n">sendToTarget</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>Other options:</strong></p>
+<p>You could use <code>Activity.runOnUiThread()</code>. Straightforward if you have an
+<code>Activity</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@WorkerThread</span>
+<span class="n">void</span><span class="w"> </span><span class="n">workerThread</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">myActivity</span><span class="p">.</span><span class="n">runOnUiThread</span><span class="p">(()</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">UI</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="n">goes</span><span class="p">.</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>You could also post to the main looper. This works great if all you have is a
+<code>Context</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@WorkerThread</span>
+<span class="n">void</span><span class="w"> </span><span class="n">workerThread</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">ContextCompat</span><span class="p">.</span><span class="n">getMainExecutor</span><span class="p">(</span><span class="n">context</span><span class="p">).</span><span class="k">execute</span><span class="p">(()</span><span class="w">  </span><span class="o">-&gt;</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">UI</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="n">goes</span><span class="p">.</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><strong>Deprecated:</strong></p>
+<p>You could use an AsyncTask, that works well for most things running in the
+background. It has hooks that you can call to indicate the progress, and when
+it's done.</p>
+<p>It's convenient, but can leak contexts if not used correctly. It's been
+officially deprecated, and you shouldn't use it anymore.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/getting-a-random-value-from-a-javascript-array/" class="u-url">Getting a random value from a JavaScript array</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -285,105 +409,6 @@ not</strong> be used in contexts which allows initialization statements</p>
 <p>The alias declaration is compatible with templates, whereas the C style
 typedef is not.</p>
 </blockquote>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-pass-command-line-arguments-to-a-rake-task/" class="u-url">How to pass command line arguments to a rake task</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-pass-command-line-arguments-to-a-rake-task/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T04:47:17+08:00" itemprop="datePublished" title="2023-02-17 04:47">2023-02-17 04:47</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a rake task that needs to insert a value into multiple databases.</p>
-<p>I'd like to pass this value into the rake task from the command line, or from
-<em>another</em> rake task.</p>
-<p>How can I do this?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Options and dependencies need to be inside arrays:</p>
-<div class="code"><pre class="code literal-block"><span class="kd">namespace</span><span class="w"> </span><span class="o">:</span><span class="n">thing</span><span class="w"> </span><span class="k">do</span>
-<span class="w">  </span><span class="n">desc</span><span class="w"> </span><span class="s2">"it does a thing"</span>
-<span class="w">  </span><span class="n">task</span><span class="w"> </span><span class="o">:</span><span class="n">work</span><span class="o">,</span><span class="w"> </span><span class="o">[:</span><span class="n">option</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">foo</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">bar</span><span class="o">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="n">task</span><span class="o">,</span><span class="w"> </span><span class="n">args</span><span class="o">|</span>
-<span class="w">    </span><span class="n">puts</span><span class="w"> </span><span class="s2">"work"</span><span class="o">,</span><span class="w"> </span><span class="n">args</span>
-<span class="w">  </span><span class="n">end</span>
-
-<span class="w">  </span><span class="n">task</span><span class="w"> </span><span class="o">:</span><span class="n">another</span><span class="o">,</span><span class="w"> </span><span class="o">[:</span><span class="n">option</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">foo</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">bar</span><span class="o">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="n">task</span><span class="o">,</span><span class="w"> </span><span class="n">args</span><span class="o">|</span>
-<span class="w">    </span><span class="n">puts</span><span class="w"> </span><span class="s2">"another #{args}"</span>
-<span class="w">    </span><span class="n">Rake</span><span class="o">::</span><span class="n">Task</span><span class="o">[</span><span class="s2">"thing:work"</span><span class="o">].</span><span class="n">invoke</span><span class="o">(</span><span class="n">args</span><span class="o">[:</span><span class="n">option</span><span class="o">],</span><span class="w"> </span><span class="n">args</span><span class="o">[:</span><span class="n">foo</span><span class="o">],</span><span class="w"> </span><span class="n">args</span><span class="o">[:</span><span class="n">bar</span><span class="o">])</span>
-<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">or</span><span class="w"> </span><span class="n">splat</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">args</span>
-<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">Rake</span><span class="o">::</span><span class="n">Task</span><span class="o">[</span><span class="s2">"thing:work"</span><span class="o">].</span><span class="n">invoke</span><span class="o">(*</span><span class="n">args</span><span class="o">)</span>
-<span class="w">  </span><span class="n">end</span>
-
-<span class="n">end</span>
-</pre></div>
-
-<p>Then</p>
-<div class="code"><pre class="code literal-block">rake thing:work[1,2,3]
-=&gt; work: {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
-
-rake thing:another[1,2,3]
-=&gt; another {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
-=&gt; work: {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
-</pre></div>
-
-<blockquote>
-<p>NOTE: variable <code>task</code> is the task object, not very helpful unless you
-know/care about Rake internals.</p>
-</blockquote>
-<p><strong>RAILS NOTE:</strong></p>
-<blockquote>
-<p>If running the task from Rails, it's best to preload the environment by
-adding <code>=&gt; [:environment]</code> which is a way to setup <em>dependent</em> tasks.</p>
-</blockquote>
-<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nv">task</span><span class="w"> </span>:<span class="nv">work</span>,<span class="w"> </span>[:<span class="nv">option</span>,<span class="w"> </span>:<span class="nv">foo</span>,<span class="w"> </span>:<span class="nv">bar</span>]<span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>[:<span class="nv">environment</span>]<span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="nv">task</span>,<span class="w"> </span><span class="nv">args</span><span class="o">|</span>
-<span class="w">    </span><span class="nv">puts</span><span class="w"> </span><span class="s2">"work"</span>,<span class="w"> </span><span class="nv">args</span>
-<span class="w">  </span><span class="k">end</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Options and dependencies need to be inside arrays:</p>
-<div class="code"><pre class="code literal-block"><span class="kd">namespace</span><span class="w"> </span><span class="o">:</span><span class="n">thing</span><span class="w"> </span><span class="k">do</span>
-<span class="w">  </span><span class="n">desc</span><span class="w"> </span><span class="s2">"it does a thing"</span>
-<span class="w">  </span><span class="n">task</span><span class="w"> </span><span class="o">:</span><span class="n">work</span><span class="o">,</span><span class="w"> </span><span class="o">[:</span><span class="n">option</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">foo</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">bar</span><span class="o">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="n">task</span><span class="o">,</span><span class="w"> </span><span class="n">args</span><span class="o">|</span>
-<span class="w">    </span><span class="n">puts</span><span class="w"> </span><span class="s2">"work"</span><span class="o">,</span><span class="w"> </span><span class="n">args</span>
-<span class="w">  </span><span class="n">end</span>
-
-<span class="w">  </span><span class="n">task</span><span class="w"> </span><span class="o">:</span><span class="n">another</span><span class="o">,</span><span class="w"> </span><span class="o">[:</span><span class="n">option</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">foo</span><span class="o">,</span><span class="w"> </span><span class="o">:</span><span class="n">bar</span><span class="o">]</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="n">task</span><span class="o">,</span><span class="w"> </span><span class="n">args</span><span class="o">|</span>
-<span class="w">    </span><span class="n">puts</span><span class="w"> </span><span class="s2">"another #{args}"</span>
-<span class="w">    </span><span class="n">Rake</span><span class="o">::</span><span class="n">Task</span><span class="o">[</span><span class="s2">"thing:work"</span><span class="o">].</span><span class="n">invoke</span><span class="o">(</span><span class="n">args</span><span class="o">[:</span><span class="n">option</span><span class="o">],</span><span class="w"> </span><span class="n">args</span><span class="o">[:</span><span class="n">foo</span><span class="o">],</span><span class="w"> </span><span class="n">args</span><span class="o">[:</span><span class="n">bar</span><span class="o">])</span>
-<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">or</span><span class="w"> </span><span class="n">splat</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">args</span>
-<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">Rake</span><span class="o">::</span><span class="n">Task</span><span class="o">[</span><span class="s2">"thing:work"</span><span class="o">].</span><span class="n">invoke</span><span class="o">(*</span><span class="n">args</span><span class="o">)</span>
-<span class="w">  </span><span class="n">end</span>
-
-<span class="n">end</span>
-</pre></div>
-
-<p>Then</p>
-<div class="code"><pre class="code literal-block">rake thing:work[1,2,3]
-=&gt; work: {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
-
-rake thing:another[1,2,3]
-=&gt; another {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
-=&gt; work: {:option=&gt;"1", :foo=&gt;"2", :bar=&gt;"3"}
-</pre></div>
-
-<blockquote>
-<p>NOTE: variable <code>task</code> is the task object, not very helpful unless you
-know/care about Rake internals.</p>
-</blockquote>
-<p><strong>RAILS NOTE:</strong></p>
-<blockquote>
-<p>If running the task from Rails, it's best to preload the environment by
-adding <code>=&gt; [:environment]</code> which is a way to setup <em>dependent</em> tasks.</p>
-</blockquote>
-<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="nv">task</span><span class="w"> </span>:<span class="nv">work</span>,<span class="w"> </span>[:<span class="nv">option</span>,<span class="w"> </span>:<span class="nv">foo</span>,<span class="w"> </span>:<span class="nv">bar</span>]<span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span>[:<span class="nv">environment</span>]<span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">|</span><span class="nv">task</span>,<span class="w"> </span><span class="nv">args</span><span class="o">|</span>
-<span class="w">    </span><span class="nv">puts</span><span class="w"> </span><span class="s2">"work"</span>,<span class="w"> </span><span class="nv">args</span>
-<span class="w">  </span><span class="k">end</span>
-</pre></div>
     </div>
     </article>
 </div>

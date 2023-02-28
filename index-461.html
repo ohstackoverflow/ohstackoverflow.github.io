@@ -108,7 +108,132 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-copy-to-clipboard-in-vim/" class="u-url">How to copy to clipboard in Vim?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-retrieve-a-single-file-from-a-specific-revision-in-git/" class="u-url">How to retrieve a single file from a specific revision in Git?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-retrieve-a-single-file-from-a-specific-revision-in-git/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T07:25:36+08:00" itemprop="datePublished" title="2023-02-17 07:25">2023-02-17 07:25</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a Git repository and I'd like to see how some files looked a few months
+ago. I found the revision at that date; it's
+<code>27cf8e84bb88e24ae4b4b3df2b77aab91a3735d8</code>. I need to see what one file looks
+like, and also save it as a ("new") file.</p>
+<p>I managed to see the file using <code>gitk</code>, but it doesn't have an option to save
+it. I tried with command-line tools, the closest I got was:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="o">-</span><span class="k">show</span><span class="w"> </span><span class="mi">27</span><span class="nv">cf8e84bb88e24ae4b4b3df2b77aab91a3735d8</span><span class="w"> </span><span class="nv">my_file</span>.<span class="nv">txt</span>
+</pre></div>
+
+<p>However, this command shows a diff, and not the file contents. I know I can
+later use something like <code>PAGER=cat</code> and redirect output to a file, but I
+don't know how to get to the actual file content.</p>
+<p>Basically, I'm looking for something like <strong>svn cat</strong>.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>Using <code>git show</code>
+</h3>
+<p>To complete your own answer, the syntax is indeed</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="nv">object</span>
+<span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span>$<span class="nv">REV</span>:<span class="mh">$F</span><span class="nv">ILE</span>
+<span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="nv">somebranch</span>:<span class="nv">from</span><span class="o">/</span><span class="nv">the</span><span class="o">/</span><span class="nv">root</span><span class="o">/</span><span class="nv">myfile</span>.<span class="nv">txt</span>
+<span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="nv">HEAD</span><span class="o">^^^</span>:<span class="nv">test</span><span class="o">/</span><span class="nv">test</span>.<span class="nv">py</span>
+</pre></div>
+
+<p>The command takes the usual style of revision, meaning you can use any of the
+following:</p>
+<ol>
+<li>branch name (as suggested by ash)</li>
+<li>
+<code>HEAD</code> + x number of <code>^</code> characters</li>
+<li>The SHA1 hash of a given revision</li>
+<li>The first few (maybe 5) characters of a given SHA1 hash</li>
+</ol>
+<p><strong>Tip</strong> It's important to remember that when using "<code>git show</code>", <strong>always
+specify a path from the root of the repository</strong> , not your current directory
+position.</p>
+<p>(Although Mike Morearty mentions that, at least with git 1.7.5.4, you can
+specify a relative path by putting "<code>./</code>" at the beginning of the path. For
+example:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="nv">HEAD</span><span class="o">^^</span>:.<span class="o">/</span><span class="nv">test</span>.<span class="nv">py</span>
+</pre></div>
+
+<p>)</p>
+<h3>Using <code>git restore</code>
+</h3>
+<p>With Git 2.23+ (August 2019), you can also use <strong><code>git restore</code></strong> which
+replaces the confusing <code>git checkout</code> command</p>
+<div class="code"><pre class="code literal-block">git restore -s &lt;SHA1&gt;     -- afile
+git restore -s somebranch -- afile
+</pre></div>
+
+<p>That would restore on the working tree only the file as present in the
+<strong>"source" (<code>-s</code>)</strong> commit SHA1 or branch <code>somebranch</code>.<br>
+To restore also the index:</p>
+<div class="code"><pre class="code literal-block">git restore -s &lt;SHA1&gt; -SW -- afile
+</pre></div>
+
+<p>(<code>-SW</code>: short for <code>--staged --worktree</code>)</p>
+<hr>
+<p>As noted in the comments by starwarswii</p>
+<blockquote>
+<p>It lets you pipe the contents into a file, which is great if you want to
+just quickly compare files from a commit.</p>
+<p>E.g. you can do:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="mi">1234</span>:<span class="nv">path</span><span class="o">/</span><span class="nv">to</span><span class="o">/</span><span class="nv">file</span>.<span class="nv">txt</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">new</span>.<span class="nv">txt</span>
+<span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="mi">1234</span><span class="o">~</span>:<span class="nv">path</span><span class="o">/</span><span class="nv">to</span><span class="o">/</span><span class="nv">file</span>.<span class="nv">txt</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">old</span>.<span class="nv">txt</span>
+</pre></div>
+
+<p>then compare them.</p>
+</blockquote>
+<hr>
+<h3>Using low-level git plumbing commands</h3>
+<p>Before git1.5.x, this was done with some plumbing:</p>
+<p><code>git ls-tree &lt;rev&gt;</code><br>
+show a list of one or more 'blob' objects within a commit</p>
+<p><code>git cat-file blob &lt;file-SHA1&gt;</code><br>
+cat a file as it has been committed within a specific revision (similar to svn
+cat). use <code>git ls-tree</code> to retrieve the value of a given file-sha1</p>
+<div class="code"><pre class="code literal-block">git cat-file -p $(git-ls-tree $REV $file | cut -d " " -f 3 | cut -f 1)::
+</pre></div>
+
+<p><code>git-ls-tree</code> lists the object ID for <code>$file</code> in revision <code>$REV</code>, this is cut
+out of the output and used as an argument to <code>git-cat-file</code>, which should
+really be called <code>git-cat-object</code>, and simply dumps that object to <code>stdout</code>.</p>
+<hr>
+<p>Note: since Git 2.11 (Q4 2016), you can apply a content filter to the <code>git
+cat-file</code> output.</p>
+<p>See commit 3214594, commit 7bcf341 (09 Sep 2016), commit 7bcf341 (09 Sep
+2016), and commit b9e62f6, commit 16dcc29 (24 Aug 2016) by Johannes Schindelin
+(<code>dscho</code>).<br>
+(Merged by Junio C Hamano -- <code>gitster</code> -- in commit 7889ed2, 21 Sep 2016)</p>
+<div class="code"><pre class="code literal-block">git config diff.txt.textconv "tr A-Za-z N-ZA-Mn-za-m &lt;"
+git cat-file --textconv --batch
+</pre></div>
+
+<p>Note: "<code>git cat-file --textconv</code>" started segfaulting recently (2017), which
+has been corrected in Git 2.15 (Q4 2017)</p>
+<p>See commit cc0ea7c (21 Sep 2017) by Jeff King (<code>peff</code>).<br>
+(Merged by Junio C Hamano -- <code>gitster</code> -- in commit bfbc2fc, 28 Sep 2017)</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>If you wish to <strong>replace/overwrite</strong> the content of a file in your current
+branch with the content of the file from a previous commit or a different
+branch, you can do so with these commands:</p>
+<div class="code"><pre class="code literal-block">git checkout 08618129e66127921fbfcbc205a06153c92622fe path/to/file.txt
+</pre></div>
+
+<p>or</p>
+<div class="code"><pre class="code literal-block">git checkout mybranchname path/to/file.txt
+</pre></div>
+
+<p>You will then have to commit those changes in order for them to be effective
+in the current branch.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-copy-to-clipboard-in-vim/" class="u-url">How to copy to clipboard in Vim?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -317,39 +442,6 @@ event)? See Run JavaScript after all window.onload scripts have completed?</p>
 <p>What if you need to make sure your script runs <em>after</em> some other script,
 regardless of when it is run? This answer to the above question has that
 covered too.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-stop-gitignore-from-appearing-in-the-list-of-untracked-files/" class="u-url">How can I stop .gitignore from appearing in the list of untracked files?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-can-i-stop-gitignore-from-appearing-in-the-list-of-untracked-files/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T07:24:08+08:00" itemprop="datePublished" title="2023-02-17 07:24">2023-02-17 07:24</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I just did a <code>git init</code> on the root of my new project.</p>
-<p>Then I created a <code>.gitignore</code> file.</p>
-<p>Now, when I type <code>git status</code>, <strong>.gitignore</strong> file appears in the list of
-untracked files. Why is that?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The <code>.gitignore</code> file should be in your repository, so it should indeed be
-added and committed in, as <code>git status</code> suggests. It has to be a part of the
-repository tree, so that changes to it can be merged and so on.</p>
-<p>So, add it to your repository, it should not be gitignored.</p>
-<p>If you really want you can add <code>.gitignore</code> to the <code>.gitignore</code> file if you
-don't want it to be committed. However, in that case it's probably better to
-add the ignores to <code>.git/info/exclude</code>, a special checkout-local file that
-works just like .gitignore but does not show up in "git status" since it's in
-the <code>.git</code> folder.</p>
-<p>See also https://help.github.com/articles/ignoring-files</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>If you want to store the list of ignored files outside of your Git tree, you
-can use the <em>.git/info/exclude</em> file. It is applied only to your checkout of
-the repo.</p>
     </div>
     </article>
 </div>

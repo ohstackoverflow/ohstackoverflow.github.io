@@ -108,7 +108,241 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-null-check-needed-before-calling-instanceof/" class="u-url">Is null check needed before calling instanceof?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-update-the-gui-from-another-thread/" class="u-url">How do I update the GUI from another thread?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-do-i-update-the-gui-from-another-thread/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T01:30:32+08:00" itemprop="datePublished" title="2023-02-17 01:30">2023-02-17 01:30</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Which is the simplest way to update a <code>Label</code> from another <code>Thread</code>?</p>
+<ul>
+<li>
+<p>I have a <code>Form</code> running on <code>thread1</code>, and from that I'm starting another thread (<code>thread2</code>). </p>
+</li>
+<li>
+<p>While <code>thread2</code> is processing some files I would like to update a <code>Label</code> on the <code>Form</code> with the current status of <code>thread2</code>'s work.</p>
+</li>
+</ul>
+<p>How could I do that?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>For .NET 2.0, here's a nice bit of code I wrote that does exactly what you
+want, and works for any property on a <code>Control</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">private</span><span class="w"> </span><span class="nv">delegate</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">SetControlPropertyThreadSafeDelegate</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">Control</span><span class="w"> </span><span class="nv">control</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">propertyName</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">object</span><span class="w"> </span><span class="nv">propertyValue</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="nv">public</span><span class="w"> </span><span class="nv">static</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">SetControlPropertyThreadSafe</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">Control</span><span class="w"> </span><span class="nv">control</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">propertyName</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">object</span><span class="w"> </span><span class="nv">propertyValue</span><span class="ss">)</span>
+{
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">control</span>.<span class="nv">InvokeRequired</span><span class="ss">)</span>
+<span class="w">  </span>{
+<span class="w">    </span><span class="nv">control</span>.<span class="nv">Invoke</span><span class="ss">(</span><span class="nv">new</span><span class="w"> </span><span class="nv">SetControlPropertyThreadSafeDelegate</span><span class="w">               </span>
+<span class="w">    </span><span class="ss">(</span><span class="nv">SetControlPropertyThreadSafe</span><span class="ss">)</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">new</span><span class="w"> </span><span class="nv">object</span>[]<span class="w"> </span>{<span class="w"> </span><span class="nv">control</span>,<span class="w"> </span><span class="nv">propertyName</span>,<span class="w"> </span><span class="nv">propertyValue</span><span class="w"> </span>}<span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span>}
+<span class="w">  </span><span class="k">else</span>
+<span class="w">  </span>{
+<span class="w">    </span><span class="nv">control</span>.<span class="nv">GetType</span><span class="ss">()</span>.<span class="nv">InvokeMember</span><span class="ss">(</span>
+<span class="w">        </span><span class="nv">propertyName</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">BindingFlags</span>.<span class="nv">SetProperty</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">null</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">control</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">new</span><span class="w"> </span><span class="nv">object</span>[]<span class="w"> </span>{<span class="w"> </span><span class="nv">propertyValue</span><span class="w"> </span>}<span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span>}
+}
+</pre></div>
+
+<p>Call it like this:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// thread-safe equivalent of</span>
+<span class="c1">// myLabel.Text = status;</span>
+<span class="n">SetControlPropertyThreadSafe</span><span class="p">(</span><span class="n">myLabel</span><span class="p">,</span><span class="w"> </span><span class="s">"Text"</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">);</span>
+</pre></div>
+
+<p>If you're using .NET 3.0 or above, you could rewrite the above method as an
+extension method of the <code>Control</code> class, which would then simplify the call
+to:</p>
+<div class="code"><pre class="code literal-block">myLabel.SetPropertyThreadSafe("Text", status);
+</pre></div>
+
+<p><strong>UPDATE 05/10/2010:</strong></p>
+<p>For .NET 3.0 you should use this code:</p>
+<div class="code"><pre class="code literal-block"><span class="n">private</span><span class="w"> </span><span class="n">delegate</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">SetPropertyThreadSafeDelegate</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">    </span><span class="n">Control</span><span class="w"> </span><span class="err">@</span><span class="n">this</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">Expression</span><span class="o">&lt;</span><span class="n">Func</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">property</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">TResult</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+
+<span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">SetPropertyThreadSafe</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">    </span><span class="n">this</span><span class="w"> </span><span class="n">Control</span><span class="w"> </span><span class="err">@</span><span class="n">this</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">Expression</span><span class="o">&lt;</span><span class="n">Func</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">property</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">TResult</span><span class="w"> </span><span class="n">value</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">propertyInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">property</span><span class="o">.</span><span class="n">Body</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">MemberExpression</span><span class="p">)</span><span class="o">.</span><span class="n">Member</span><span class="w"> </span>
+<span class="w">      </span><span class="k">as</span><span class="w"> </span><span class="n">PropertyInfo</span><span class="p">;</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">propertyInfo</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="w"> </span><span class="o">||</span>
+<span class="w">      </span><span class="o">!</span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">GetType</span><span class="p">()</span><span class="o">.</span><span class="n">IsSubclassOf</span><span class="p">(</span><span class="n">propertyInfo</span><span class="o">.</span><span class="n">ReflectedType</span><span class="p">)</span><span class="w"> </span><span class="o">||</span>
+<span class="w">      </span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">GetType</span><span class="p">()</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span>
+<span class="w">          </span><span class="n">propertyInfo</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="n">propertyInfo</span><span class="o">.</span><span class="n">PropertyType</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ArgumentException</span><span class="p">(</span><span class="s2">"The lambda expression 'property' must reference a valid property on this Control."</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">InvokeRequired</span><span class="p">)</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">      </span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">Invoke</span><span class="p">(</span><span class="n">new</span><span class="w"> </span><span class="n">SetPropertyThreadSafeDelegate</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;</span><span class="w"> </span>
+<span class="w">      </span><span class="p">(</span><span class="n">SetPropertyThreadSafe</span><span class="p">),</span><span class="w"> </span>
+<span class="w">      </span><span class="n">new</span><span class="w"> </span><span class="n">object</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">@</span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">property</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">else</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">      </span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">GetType</span><span class="p">()</span><span class="o">.</span><span class="n">InvokeMember</span><span class="p">(</span>
+<span class="w">          </span><span class="n">propertyInfo</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="n">BindingFlags</span><span class="o">.</span><span class="n">SetProperty</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="nb nb-Type">null</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="err">@</span><span class="n">this</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="n">new</span><span class="w"> </span><span class="n">object</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>which uses LINQ and lambda expressions to allow much cleaner, simpler and
+safer syntax:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// status has to be of type string or this will fail to compile</span>
+<span class="n">myLabel</span><span class="p">.</span><span class="n">SetPropertyThreadSafe</span><span class="p">(()</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="n">myLabel</span><span class="p">.</span><span class="n">Text</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">);</span>
+</pre></div>
+
+<p>Not only is the property name now checked at compile time, the property's type
+is as well, so it's impossible to (for example) assign a string value to a
+boolean property, and hence cause a runtime exception.</p>
+<p>Unfortunately this doesn't stop anyone from doing stupid things such as
+passing in another <code>Control</code>'s property and value, so the following will
+happily compile:</p>
+<div class="code"><pre class="code literal-block">myLabel.SetPropertyThreadSafe(() =&gt; aForm.ShowIcon, false);
+</pre></div>
+
+<p>Hence I added the runtime checks to ensure that the passed-in property does
+actually belong to the <code>Control</code> that the method's being called on. Not
+perfect, but still a lot better than the .NET 2.0 version.</p>
+<p>If anyone has any further suggestions on how to improve this code for compile-
+time safety, please comment!</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>For .NET 2.0, here's a nice bit of code I wrote that does exactly what you
+want, and works for any property on a <code>Control</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">private</span><span class="w"> </span><span class="nv">delegate</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">SetControlPropertyThreadSafeDelegate</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">Control</span><span class="w"> </span><span class="nv">control</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">propertyName</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">object</span><span class="w"> </span><span class="nv">propertyValue</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="nv">public</span><span class="w"> </span><span class="nv">static</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">SetControlPropertyThreadSafe</span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">Control</span><span class="w"> </span><span class="nv">control</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">string</span><span class="w"> </span><span class="nv">propertyName</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">object</span><span class="w"> </span><span class="nv">propertyValue</span><span class="ss">)</span>
+{
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">control</span>.<span class="nv">InvokeRequired</span><span class="ss">)</span>
+<span class="w">  </span>{
+<span class="w">    </span><span class="nv">control</span>.<span class="nv">Invoke</span><span class="ss">(</span><span class="nv">new</span><span class="w"> </span><span class="nv">SetControlPropertyThreadSafeDelegate</span><span class="w">               </span>
+<span class="w">    </span><span class="ss">(</span><span class="nv">SetControlPropertyThreadSafe</span><span class="ss">)</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">new</span><span class="w"> </span><span class="nv">object</span>[]<span class="w"> </span>{<span class="w"> </span><span class="nv">control</span>,<span class="w"> </span><span class="nv">propertyName</span>,<span class="w"> </span><span class="nv">propertyValue</span><span class="w"> </span>}<span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span>}
+<span class="w">  </span><span class="k">else</span>
+<span class="w">  </span>{
+<span class="w">    </span><span class="nv">control</span>.<span class="nv">GetType</span><span class="ss">()</span>.<span class="nv">InvokeMember</span><span class="ss">(</span>
+<span class="w">        </span><span class="nv">propertyName</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">BindingFlags</span>.<span class="nv">SetProperty</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">null</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">control</span>,<span class="w"> </span>
+<span class="w">        </span><span class="nv">new</span><span class="w"> </span><span class="nv">object</span>[]<span class="w"> </span>{<span class="w"> </span><span class="nv">propertyValue</span><span class="w"> </span>}<span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span>}
+}
+</pre></div>
+
+<p>Call it like this:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// thread-safe equivalent of</span>
+<span class="c1">// myLabel.Text = status;</span>
+<span class="n">SetControlPropertyThreadSafe</span><span class="p">(</span><span class="n">myLabel</span><span class="p">,</span><span class="w"> </span><span class="s">"Text"</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">);</span>
+</pre></div>
+
+<p>If you're using .NET 3.0 or above, you could rewrite the above method as an
+extension method of the <code>Control</code> class, which would then simplify the call
+to:</p>
+<div class="code"><pre class="code literal-block">myLabel.SetPropertyThreadSafe("Text", status);
+</pre></div>
+
+<p><strong>UPDATE 05/10/2010:</strong></p>
+<p>For .NET 3.0 you should use this code:</p>
+<div class="code"><pre class="code literal-block"><span class="n">private</span><span class="w"> </span><span class="n">delegate</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">SetPropertyThreadSafeDelegate</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">    </span><span class="n">Control</span><span class="w"> </span><span class="err">@</span><span class="n">this</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">Expression</span><span class="o">&lt;</span><span class="n">Func</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">property</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">TResult</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+
+<span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">SetPropertyThreadSafe</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">    </span><span class="n">this</span><span class="w"> </span><span class="n">Control</span><span class="w"> </span><span class="err">@</span><span class="n">this</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">Expression</span><span class="o">&lt;</span><span class="n">Func</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">property</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="n">TResult</span><span class="w"> </span><span class="n">value</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">propertyInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">property</span><span class="o">.</span><span class="n">Body</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">MemberExpression</span><span class="p">)</span><span class="o">.</span><span class="n">Member</span><span class="w"> </span>
+<span class="w">      </span><span class="k">as</span><span class="w"> </span><span class="n">PropertyInfo</span><span class="p">;</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">propertyInfo</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="w"> </span><span class="o">||</span>
+<span class="w">      </span><span class="o">!</span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">GetType</span><span class="p">()</span><span class="o">.</span><span class="n">IsSubclassOf</span><span class="p">(</span><span class="n">propertyInfo</span><span class="o">.</span><span class="n">ReflectedType</span><span class="p">)</span><span class="w"> </span><span class="o">||</span>
+<span class="w">      </span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">GetType</span><span class="p">()</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span>
+<span class="w">          </span><span class="n">propertyInfo</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="n">propertyInfo</span><span class="o">.</span><span class="n">PropertyType</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ArgumentException</span><span class="p">(</span><span class="s2">"The lambda expression 'property' must reference a valid property on this Control."</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">InvokeRequired</span><span class="p">)</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">      </span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">Invoke</span><span class="p">(</span><span class="n">new</span><span class="w"> </span><span class="n">SetPropertyThreadSafeDelegate</span><span class="o">&lt;</span><span class="n">TResult</span><span class="o">&gt;</span><span class="w"> </span>
+<span class="w">      </span><span class="p">(</span><span class="n">SetPropertyThreadSafe</span><span class="p">),</span><span class="w"> </span>
+<span class="w">      </span><span class="n">new</span><span class="w"> </span><span class="n">object</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">@</span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">property</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">else</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">      </span><span class="err">@</span><span class="n">this</span><span class="o">.</span><span class="n">GetType</span><span class="p">()</span><span class="o">.</span><span class="n">InvokeMember</span><span class="p">(</span>
+<span class="w">          </span><span class="n">propertyInfo</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="n">BindingFlags</span><span class="o">.</span><span class="n">SetProperty</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="nb nb-Type">null</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="err">@</span><span class="n">this</span><span class="p">,</span><span class="w"> </span>
+<span class="w">          </span><span class="n">new</span><span class="w"> </span><span class="n">object</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>which uses LINQ and lambda expressions to allow much cleaner, simpler and
+safer syntax:</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// status has to be of type string or this will fail to compile</span>
+<span class="n">myLabel</span><span class="p">.</span><span class="n">SetPropertyThreadSafe</span><span class="p">(()</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="n">myLabel</span><span class="p">.</span><span class="n">Text</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">);</span>
+</pre></div>
+
+<p>Not only is the property name now checked at compile time, the property's type
+is as well, so it's impossible to (for example) assign a string value to a
+boolean property, and hence cause a runtime exception.</p>
+<p>Unfortunately this doesn't stop anyone from doing stupid things such as
+passing in another <code>Control</code>'s property and value, so the following will
+happily compile:</p>
+<div class="code"><pre class="code literal-block">myLabel.SetPropertyThreadSafe(() =&gt; aForm.ShowIcon, false);
+</pre></div>
+
+<p>Hence I added the runtime checks to ensure that the passed-in property does
+actually belong to the <code>Control</code> that the method's being called on. Not
+perfect, but still a lot better than the .NET 2.0 version.</p>
+<p>If anyone has any further suggestions on how to improve this code for compile-
+time safety, please comment!</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-null-check-needed-before-calling-instanceof/" class="u-url">Is null check needed before calling instanceof?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -159,103 +393,6 @@ overrides the default of hiding everything that begins with an underscore.</p>
 <h3>Suggest</h3>
 <p>It's a list of public objects of that module, as interpreted by <code>import *</code>. It
 overrides the default of hiding everything that begins with an underscore.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/create-a-branch-in-git-from-another-branch/" class="u-url">Create a branch in Git from another branch</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/create-a-branch-in-git-from-another-branch/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T01:29:08+08:00" itemprop="datePublished" title="2023-02-17 01:29">2023-02-17 01:29</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have two branches: <strong>master</strong> and <strong>dev</strong></p>
-<p>I want to create a "feature branch" from the <em>dev</em> branch.</p>
-<p>Currently on the branch <em>dev</em> , I do:</p>
-<div class="code"><pre class="code literal-block">git checkout -b myfeature dev
-</pre></div>
-
-<p>... (some work)</p>
-<div class="code"><pre class="code literal-block">git commit -am "blablabla"
-git push origin myfeature
-</pre></div>
-
-<p>But, after visualizing my branches, I got:</p>
-<div class="code"><pre class="code literal-block">--**master**
-------0-----0-----0-----0-----0
-------------------------**dev**----**myfeature**
-</pre></div>
-
-<p>I mean that the branch seems fast-forward merged, and I don't understand
-why...</p>
-<p>What am I doing wrong?</p>
-<p>How can you branch off from another branch and push back to the remote
-repository for the feature branch?</p>
-<p>All that in a branching model like the one described here.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>If you like the method in the link you've posted, have a look at Git Flow.</p>
-<p>It's a set of scripts he created for that workflow.</p>
-<p>But to answer your question:</p>
-<div class="code"><pre class="code literal-block">git checkout -b myFeature dev
-</pre></div>
-
-<p>Creates the <em>MyFeature</em> branch off <em>dev</em>. Do your work and then</p>
-<div class="code"><pre class="code literal-block">git commit -am "Your message"
-</pre></div>
-
-<p>Now merge your changes to <em>dev</em> without a fast-forward</p>
-<div class="code"><pre class="code literal-block">git checkout dev
-git merge --no-ff myFeature
-</pre></div>
-
-<p>Now push the changes to the server</p>
-<div class="code"><pre class="code literal-block">git push origin dev
-git push origin myFeature
-</pre></div>
-
-<p>And you'll see it how you want it.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>If you want create a new branch from any of the existing branches in Git, just
-follow the options.</p>
-<p>First change/checkout into the branch from where you want to create a new
-branch. For example, if you have the following branches like:</p>
-<ul>
-<li><strong>master</strong></li>
-<li><strong>dev</strong></li>
-<li><strong>branch1</strong></li>
-</ul>
-<p>So if you want to create a new branch called <em><strong>"subbranch_of_b1"</strong></em> under the
-branch named <em><strong>"branch1"</strong></em> follow the steps:</p>
-<ol>
-<li>
-<p>Checkout or change into <strong>"branch1"</strong></p>
-<div class="code"><pre class="code literal-block"> git checkout branch1
-</pre></div>
-
-</li>
-<li>
-<p>Now create your new branch called <strong>"subbranch_of_b1"</strong> under the <strong>"branch1"</strong> using the following command.</p>
-<div class="code"><pre class="code literal-block"> git checkout -b subbranch_of_b1 branch1
-</pre></div>
-
-</li>
-</ol>
-<p>The above will create a new branch called <strong>subbranch_of_b1</strong> under the branch
-<strong>branch1</strong> (note that <code>branch1</code> in the above command isn't mandatory since
-the HEAD is currently pointing to it, you can precise it if you are on a
-different branch though).</p>
-<ol>
-<li>Now after working with the <strong>subbranch_of_b1</strong> you can commit and push or merge it locally or remotely.</li>
-</ol>
-<p><img alt="A sample Graphical Illustration Of Creating Branches Under another
-Branch" src="images/6qEWk.jpg"></p>
-<p>Push the <em>subbranch_of_b1</em> to remote:</p>
-<div class="code"><pre class="code literal-block"> git push origin subbranch_of_b1
-</pre></div>
     </div>
     </article>
 </div>

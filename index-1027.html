@@ -108,7 +108,118 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-the-android-layout-folder-contain-subfolders/" class="u-url">Can the Android layout folder contain subfolders?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/sqlalchemy-what-s-the-difference-between-flush-and-commit/" class="u-url">SQLAlchemy: What's the difference between flush() and commit()?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/sqlalchemy-what-s-the-difference-between-flush-and-commit/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T22:59:44+08:00" itemprop="datePublished" title="2023-02-17 22:59">2023-02-17 22:59</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>What the difference is between <code>flush()</code> and <code>commit()</code> in SQLAlchemy?</p>
+<p>I've read the docs, but am none the wiser - they seem to assume a pre-
+understanding that I don't have.</p>
+<p>I'm particularly interested in their impact on memory usage. I'm loading some
+data into a database from a series of files (around 5 million rows in total)
+and my session is occasionally falling over - it's a large database and a
+machine with not much memory.</p>
+<p>I'm wondering if I'm using too many <code>commit()</code> and not enough <code>flush()</code> calls
+- but without really understanding what the difference is, it's hard to tell!</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>A Session object is basically an ongoing transaction of changes to a database
+(update, insert, delete). These operations aren't persisted to the database
+until they are committed (if your program aborts for some reason in mid-
+session transaction, any uncommitted changes within are lost).</p>
+<p>The session object registers transaction operations with <code>session.add()</code>, but
+doesn't yet communicate them to the database until <code>session.flush()</code> is
+called.</p>
+<p><code>session.flush()</code> communicates a series of operations to the database (insert,
+update, delete). The database maintains them as pending operations in a
+transaction. The changes aren't persisted permanently to disk, or visible to
+other transactions until the database receives a COMMIT for the current
+transaction (which is what <code>session.commit()</code> does).</p>
+<p><code>session.commit()</code> commits (persists) those changes to the database.</p>
+<p><code>flush()</code> is <em>always</em> called as part of a call to <code>commit()</code> (1).</p>
+<p>When you use a Session object to query the database, the query will return
+results both from the database and from the flushed parts of the uncommitted
+transaction it holds. By default, Session objects <code>autoflush</code> their
+operations, but this can be disabled.</p>
+<p>Hopefully this example will make this clearer:</p>
+<div class="code"><pre class="code literal-block">#---
+s = Session()
+
+s.add(Foo('A')) # The Foo('A') object has been added to the session.
+                # It has not been committed to the database yet,
+                #   but is returned as part of a query.
+print 1, s.query(Foo).all()
+s.commit()
+
+#---
+s2 = Session()
+s2.autoflush = False
+
+s2.add(Foo('B'))
+print 2, s2.query(Foo).all() # The Foo('B') object is *not* returned
+                             #   as part of this query because it hasn't
+                             #   been flushed yet.
+s2.flush()                   # Now, Foo('B') is in the same state as
+                             #   Foo('A') was above.
+print 3, s2.query(Foo).all() 
+s2.rollback()                # Foo('B') has not been committed, and rolling
+                             #   back the session's transaction removes it
+                             #   from the session.
+print 4, s2.query(Foo).all()
+
+#---
+Output:
+1 [&lt;Foo('A')&gt;]
+2 [&lt;Foo('A')&gt;]
+3 [&lt;Foo('A')&gt;, &lt;Foo('B')&gt;]
+4 [&lt;Foo('A')&gt;]
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>This does not strictly answer the original question but some people have
+mentioned that with <code>session.autoflush = True</code> you don't have to use
+<code>session.flush()</code>... And this is not always true.</p>
+<p><strong>If you want to use the id of a newly created object in the middle of a
+transaction</strong> , you must call <code>session.flush()</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="c1"># Given a model with at least this id</span>
+<span class="k">class</span> <span class="n">AModel</span>(<span class="n">Base</span>):
+   <span class="nb">id</span> = <span class="n">Column</span>(<span class="n">Integer</span>, <span class="n">primary_key</span>=<span class="nb">True</span>)  <span class="c1"># autoincrement by default on integer primary key</span>
+
+<span class="n">session</span>.<span class="n">autoflush</span> = <span class="nb">True</span>
+
+<span class="n">a</span> = <span class="n">AModel</span>()
+<span class="n">session</span>.<span class="nb">add</span>(<span class="n">a</span>)
+<span class="n">a</span>.<span class="nb">id</span>  <span class="c1"># None</span>
+<span class="n">session</span>.<span class="nb">flush</span>()
+<span class="n">a</span>.<span class="nb">id</span>  <span class="c1"># autoincremented integer</span>
+</pre></div>
+
+<p>This is because <code>autoflush</code> does <strong>NOT</strong> auto fill the id (although a query of
+the object will, which sometimes can cause confusion as in "why this works
+here but not there?" But snapshoe already covered this part).</p>
+<hr>
+<p>One related aspect that seems pretty important to me and wasn't really
+mentioned:</p>
+<p><strong>Why would you not commit all the time?</strong> - The answer is <strong>atomicity</strong>.</p>
+<p>A fancy word to say: an ensemble of operations have to <strong>all</strong> be executed
+successfully OR none of them will take effect.</p>
+<p>For example, if you want to create/update/delete some object (A) and then
+create/update/delete another (B), but if (B) fails you want to revert (A).
+This means those 2 operations are <strong>atomic</strong>.</p>
+<p>Therefore, if (B) needs a result of (A), you want to call <code>flush</code> after (A)
+and <code>commit</code> after (B).</p>
+<p>Also, if <code>session.autoflush is True</code>, except for the case that I mentioned
+above or others in Jimbo's answer, you will not need to call <code>flush</code> manually.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-the-android-layout-folder-contain-subfolders/" class="u-url">Can the Android layout folder contain subfolders?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -223,34 +334,6 @@ Boolean) functions are designed for this.</p>
 <span class="c1">## returns a vector TRUE FALSE</span>
 <span class="nf">is.element</span><span class="p">(</span><span class="n">subv</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">)</span>
 <span class="c1">## returns a vector TRUE FALSE</span>
-</pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-get-the-directory-from-a-file-s-full-path/" class="u-url">How do I get the directory from a file's full path?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-get-the-directory-from-a-file-s-full-path/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T22:58:10+08:00" itemprop="datePublished" title="2023-02-17 22:58">2023-02-17 22:58</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What is the simplest way to get the directory that a file is in? I'm using
-this to set a working directory.</p>
-<div class="code"><pre class="code literal-block"><span class="n">string</span><span class="w"> </span><span class="n">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">@"C:\MyDirectory\MyFile.bat"</span><span class="p">;</span>
-</pre></div>
-
-<p>In this example, I should get "C:\MyDirectory".</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>If you've definitely got an absolute path, use <code>Path.GetDirectoryName(path)</code>.</p>
-<p>If you might only get a relative name, use <code>new
-FileInfo(path).Directory.FullName</code>.</p>
-<p>Note that <code>Path</code> and <code>FileInfo</code> are both found in the namespace <code>System.IO</code>.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<div class="code"><pre class="code literal-block">System.IO.Path.GetDirectoryName(filename)
 </pre></div>
     </div>
     </article>

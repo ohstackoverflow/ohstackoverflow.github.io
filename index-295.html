@@ -108,7 +108,139 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-wait-vs-sleep-in-java/" class="u-url">Difference between "wait()" vs "sleep()" in Java</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/d-less-efficient-than-0-9/" class="u-url">\d less efficient than [0-9]</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/d-less-efficient-than-0-9/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:15:40+08:00" itemprop="datePublished" title="2023-02-17 03:15">2023-02-17 03:15</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I made a comment yesterday on an answer where someone had used <code>[0123456789]</code>
+in a regex rather than <code>[0-9]</code> or <code>\d</code>. I said it was probably more efficient
+to use a range or digit specifier than a character set.</p>
+<p>I decided to test that out today and found out to my surprise that (in the .net-c#
+regex engine at least) <code>\d</code> appears to be less efficient than either of the
+other two which don't seem to differ much. Here is my test output over 10000
+random strings of 1000 random characters with 5077 actually containing a
+digit:</p>
+<div class="code"><pre class="code literal-block">Regex \d           took 00:00:00.2141226 result: 5077/10000
+Regex [0-9]        took 00:00:00.1357972 result: 5077/10000  63.42 % of first
+Regex [0123456789] took 00:00:00.1388997 result: 5077/10000  64.87 % of first
+</pre></div>
+
+<p>It's a surprise to me for two reasons, that I would be interested if anyone
+can shed some light on:</p>
+<ol>
+<li>I would have thought the range would be implemented much more efficiently than the set.</li>
+<li>I can't understand why <code>\d</code> is worse than <code>[0-9]</code>. Is there more to <code>\d</code> than simply shorthand for <code>[0-9]</code>?</li>
+</ol>
+<p>Here is the test code:</p>
+<div class="code"><pre class="code literal-block"><span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Collections</span><span class="p">.</span><span class="n">Generic</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Linq</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Text</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Diagnostics</span><span class="p">;</span>
+<span class="n">using</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Text</span><span class="p">.</span><span class="n">RegularExpressions</span><span class="p">;</span>
+
+<span class="n">namespace</span><span class="w"> </span><span class="n">SO_RegexPerformance</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="n">Program</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Main</span><span class="p">(</span><span class="n">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">rand</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Random</span><span class="p">(</span><span class="mi">1234</span><span class="p">);</span>
+<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">strings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">            </span><span class="c1">//10K random strings</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">var</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">//generate random string</span>
+<span class="w">                </span><span class="n">var</span><span class="w"> </span><span class="n">sb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">StringBuilder</span><span class="p">();</span>
+<span class="w">                </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">var</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="o">++</span><span class="p">)</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="c1">//add a-z randomly</span>
+<span class="w">                    </span><span class="n">sb</span><span class="p">.</span><span class="n">Append</span><span class="p">((</span><span class="kt">char</span><span class="p">)(</span><span class="sc">'a'</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">rand</span><span class="p">.</span><span class="n">Next</span><span class="p">(</span><span class="mi">26</span><span class="p">)));</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="c1">//in roughly 50% of them, put a digit</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">rand</span><span class="p">.</span><span class="n">Next</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="c1">//replace 1 char with a digit 0-9</span>
+<span class="w">                    </span><span class="n">sb</span><span class="p">[</span><span class="n">rand</span><span class="p">.</span><span class="n">Next</span><span class="p">(</span><span class="n">sb</span><span class="p">.</span><span class="n">Length</span><span class="p">)]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="p">)(</span><span class="sc">'0'</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">rand</span><span class="p">.</span><span class="n">Next</span><span class="p">(</span><span class="mi">10</span><span class="p">));</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">strings</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">sb</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
+<span class="w">            </span><span class="p">}</span>
+
+<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">baseTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">testPerfomance</span><span class="p">(</span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="s">@"\d"</span><span class="p">);</span>
+<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">();</span>
+<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">testTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">testPerfomance</span><span class="p">(</span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="s">"[0-9]"</span><span class="p">);</span>
+<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"  {0:P2} of first"</span><span class="p">,</span><span class="w"> </span><span class="n">testTime</span><span class="p">.</span><span class="n">TotalMilliseconds</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">baseTime</span><span class="p">.</span><span class="n">TotalMilliseconds</span><span class="p">);</span>
+<span class="w">            </span><span class="n">testTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">testPerfomance</span><span class="p">(</span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="s">"[0123456789]"</span><span class="p">);</span>
+<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"  {0:P2} of first"</span><span class="p">,</span><span class="w"> </span><span class="n">testTime</span><span class="p">.</span><span class="n">TotalMilliseconds</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">baseTime</span><span class="p">.</span><span class="n">TotalMilliseconds</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="n">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">TimeSpan</span><span class="w"> </span><span class="n">testPerfomance</span><span class="p">(</span><span class="n">List</span><span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">regex</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">sw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Stopwatch</span><span class="p">();</span>
+
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">successes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">            </span><span class="n">var</span><span class="w"> </span><span class="n">rex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="n">regex</span><span class="p">);</span>
+
+<span class="w">            </span><span class="n">sw</span><span class="p">.</span><span class="n">Start</span><span class="p">();</span>
+<span class="w">            </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">var</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">strings</span><span class="p">)</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">rex</span><span class="p">.</span><span class="n">Match</span><span class="p">(</span><span class="n">str</span><span class="p">).</span><span class="n">Success</span><span class="p">)</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">successes</span><span class="o">++</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">sw</span><span class="p">.</span><span class="n">Stop</span><span class="p">();</span>
+
+<span class="w">            </span><span class="n">Console</span><span class="p">.</span><span class="n">Write</span><span class="p">(</span><span class="s">"Regex {0,-12} took {1} result: {2}/{3}"</span><span class="p">,</span><span class="w"> </span><span class="n">regex</span><span class="p">,</span><span class="w"> </span><span class="n">sw</span><span class="p">.</span><span class="n">Elapsed</span><span class="p">,</span><span class="w"> </span><span class="n">successes</span><span class="p">,</span><span class="w"> </span><span class="n">strings</span><span class="p">.</span><span class="n">Count</span><span class="p">);</span>
+
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">sw</span><span class="p">.</span><span class="n">Elapsed</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p><code>\d</code> checks all Unicode digits, while <code>[0-9]</code> is limited to these 10
+characters. For example, Persian digits, <code>۱۲۳۴۵۶۷۸۹</code>, are an example of
+Unicode digits which are matched with <code>\d</code>, but not <code>[0-9]</code>.</p>
+<p>You can generate a list of all such characters using the following code:</p>
+<div class="code"><pre class="code literal-block"><span class="n">var</span><span class="w"> </span><span class="n">sb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">StringBuilder</span><span class="p">();</span>
+<span class="k">for</span><span class="p">(</span><span class="kt">UInt16</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="kt">UInt16</span><span class="p">.</span><span class="n">MaxValue</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Convert</span><span class="p">.</span><span class="n">ToChar</span><span class="p">(</span><span class="n">i</span><span class="p">).</span><span class="n">ToString</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Regex</span><span class="p">.</span><span class="n">IsMatch</span><span class="p">(</span><span class="n">str</span><span class="p">,</span><span class="w"> </span><span class="s">@"\d"</span><span class="p">))</span>
+<span class="w">        </span><span class="n">sb</span><span class="p">.</span><span class="n">Append</span><span class="p">(</span><span class="n">str</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">sb</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
+</pre></div>
+
+<p>Which generates:</p>
+<blockquote>
+<p>0123456789٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹߀߁߂߃߄߅߆߇߈߉०१२३४५६७८९০১২৩৪৫৬৭৮৯੦੧੨੩੪੫੬੭੮੯૦૧૨૩૪૫૬૭૮૯୦୧୨୩୪୫୬୭୮୯௦௧௨௩௪௫௬௭௮௯౦౧౨౩౪౫౬౭౮౯೦೧೨೩೪೫೬೭೮೯൦൧൨൩൪൫൬൭൮൯๐๑๒๓๔๕๖๗๘๙໐໑໒໓໔໕໖໗໘໙༠༡༢༣༤༥༦༧༨༩၀၁၂၃၄၅၆၇၈၉႐႑႒႓႔႕႖႗႘႙០១២៣៤៥៦៧៨៩᠐᠑᠒᠓᠔᠕᠖᠗᠘᠙᥆᥇᥈᥉᥊᥋᥌᥍᥎᥏᧐᧑᧒᧓᧔᧕᧖᧗᧘᧙᭐᭑᭒᭓᭔᭕᭖᭗᭘᭙᮰᮱᮲᮳᮴᮵᮶᮷᮸᮹᱀᱁᱂᱃᱄᱅᱆᱇᱈᱉᱐᱑᱒᱓᱔᱕᱖᱗᱘᱙꘠꘡꘢꘣꘤꘥꘦꘧꘨꘩꣐꣑꣒꣓꣔꣕꣖꣗꣘꣙꤀꤁꤂꤃꤄꤅꤆꤇꤈꤉꩐꩑꩒꩓꩔꩕꩖꩗꩘꩙０１２３４５６７８９</p>
+</blockquote>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Credit to ByteBlast for noticing this in the docs. Just changing the regex
+constructor:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">rex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span><span class="w"> </span><span class="n">RegexOptions</span><span class="o">.</span><span class="n">ECMAScript</span><span class="p">);</span>
+</pre></div>
+
+<p>Gives new timings:</p>
+<div class="code"><pre class="code literal-block">Regex \d           took 00:00:00.1355787 result: 5077/10000
+Regex [0-9]        took 00:00:00.1360403 result: 5077/10000  100.34 % of first
+Regex [0123456789] took 00:00:00.1362112 result: 5077/10000  100.47 % of first
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-wait-vs-sleep-in-java/" class="u-url">Difference between "wait()" vs "sleep()" in Java</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -236,65 +368,6 @@ would be using the output clause.</p>
 </pre></div>
 
 </blockquote>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-terminate-a-script/" class="u-url">How do I terminate a script?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-terminate-a-script/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T03:14:19+08:00" itemprop="datePublished" title="2023-02-17 03:14">2023-02-17 03:14</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How do I exit a script early, like the <code>die()</code> command in PHP?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">sys</span>
-<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
-</pre></div>
-
-<p>details from the <code>sys</code> module documentation:</p>
-<blockquote>
-<p><code>sys. **exit** ([ _arg_ ])</code></p>
-<p>Exit from Python. This is implemented by raising the <code>SystemExit</code> exception,
-so cleanup actions specified by finally clauses of <code>try</code> statements are
-honored, and it is possible to intercept the exit attempt at an outer level.</p>
-<p>The optional argument <em>arg</em> can be an integer giving the exit status
-(defaulting to zero), or another type of object. If it is an integer, zero
-is considered “successful termination” and any nonzero value is considered
-“abnormal termination” by shells and the like. Most systems require it to be
-in the range 0-127, and produce undefined results otherwise. Some systems
-have a convention for assigning specific meanings to specific exit codes,
-but these are generally underdeveloped; Unix programs generally use 2 for
-command line syntax errors and 1 for all other kind of errors. If another
-type of object is passed, None is equivalent to passing zero, and any other
-object is printed to <code>stderr</code> and results in an exit code of 1. In
-particular, <code>sys.exit("some error message")</code> is a quick way to exit a
-program when an error occurs.</p>
-<p>Since <code>exit()</code> ultimately “only” raises an exception, it will only exit the
-process when called from the main thread, and the exception is not
-intercepted.</p>
-</blockquote>
-<p>Note that this is the 'nice' way to exit. @glyphtwistedmatrix below points out
-that if you want a 'hard exit', you can use <code>os._exit(*errorcode*)</code>, though
-it's likely os-specific to some extent (it might not take an errorcode under
-windows, for example), and it definitely is less friendly since it doesn't let
-the interpreter do any cleanup before the process dies. On the other hand, it
-<em>does</em> kill the entire process, including all running threads, while
-<code>sys.exit()</code> (as it says in the docs) only exits if called from the main
-thread, with no other threads running.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>A simple way to terminate a Python script early is to use the built-in
-<code>quit()</code> function. There is no need to import any library, and it is efficient
-and simple.</p>
-<p>Example:</p>
-<div class="code"><pre class="code literal-block">#<span class="k">do</span><span class="w"> </span><span class="nv">stuff</span>
-<span class="k">if</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">that</span>:
-<span class="w">  </span><span class="nv">quit</span><span class="ss">()</span>
-</pre></div>
     </div>
     </article>
 </div>

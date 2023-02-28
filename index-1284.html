@@ -108,7 +108,133 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/python-datetime-to-string-without-microsecond-component/" class="u-url">Python datetime to string without microsecond component</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/convert-python-dict-into-a-dataframe/" class="u-url">Convert Python dict into a dataframe</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/convert-python-dict-into-a-dataframe/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:41:14+08:00" itemprop="datePublished" title="2023-02-18 05:41">2023-02-18 05:41</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have a Python dictionary like the following:</p>
+<div class="code"><pre class="code literal-block">{u'2012-06-08': 388,
+ u'2012-06-09': 388,
+ u'2012-06-10': 388,
+ u'2012-06-11': 389,
+ u'2012-06-12': 389,
+ u'2012-06-13': 389,
+ u'2012-06-14': 389,
+ u'2012-06-15': 389,
+ u'2012-06-16': 389,
+ u'2012-06-17': 389,
+ u'2012-06-18': 390,
+ u'2012-06-19': 390,
+ u'2012-06-20': 390,
+ u'2012-06-21': 390,
+ u'2012-06-22': 390,
+ u'2012-06-23': 390,
+ u'2012-06-24': 390,
+ u'2012-06-25': 391,
+ u'2012-06-26': 391,
+ u'2012-06-27': 391,
+ u'2012-06-28': 391,
+ u'2012-06-29': 391,
+ u'2012-06-30': 391,
+ u'2012-07-01': 391,
+ u'2012-07-02': 392,
+ u'2012-07-03': 392,
+ u'2012-07-04': 392,
+ u'2012-07-05': 392,
+ u'2012-07-06': 392}
+</pre></div>
+
+<p>The keys are Unicode dates and the values are integers. I would like to
+convert this into a pandas dataframe by having the dates and their
+corresponding values as two separate columns. Example: col1: Dates col2:
+DateValue (the dates are still Unicode and datevalues are still integers)</p>
+<div class="code"><pre class="code literal-block">     Date         DateValue
+0    2012-07-01    391
+1    2012-07-02    392
+2    2012-07-03    392
+.    2012-07-04    392
+.    ...           ...
+.    ...           ...
+</pre></div>
+
+<p>Any help in this direction would be much appreciated. I am unable to find
+resources on the pandas docs to help me with this.</p>
+<p>I know one solution might be to convert each key-value pair in this dict, into
+a dict so the entire structure becomes a dict of dicts, and then we can add
+each row individually to the dataframe. But I want to know if there is an
+easier way and a more direct way to do this.</p>
+<p>So far I have tried converting the dict into a series object but this doesn't
+seem to maintain the relationship between the columns:</p>
+<div class="code"><pre class="code literal-block">s  = Series(my_dict,index=my_dict.keys())
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The error here, is since calling the DataFrame constructor with scalar values
+(where it expects values to be a list/dict/... i.e. have multiple columns):</p>
+<div class="code"><pre class="code literal-block"><span class="nv">pd</span>.<span class="nv">DataFrame</span><span class="ss">(</span><span class="nv">d</span><span class="ss">)</span>
+<span class="nv">ValueError</span>:<span class="w"> </span><span class="k">If</span><span class="w"> </span><span class="nv">using</span><span class="w"> </span><span class="nv">all</span><span class="w"> </span><span class="nv">scalar</span><span class="w"> </span><span class="nv">values</span>,<span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="nv">must</span><span class="w"> </span><span class="nv">must</span><span class="w"> </span><span class="nv">pass</span><span class="w"> </span><span class="nv">an</span><span class="w"> </span><span class="nv">index</span>
+</pre></div>
+
+<p>You could take the items from the dictionary (i.e. the key-value pairs):</p>
+<div class="code"><pre class="code literal-block">In [11]: pd.DataFrame(d.items())  # or list(d.items()) in python 3
+Out[11]:
+             0    1
+0   2012-07-02  392
+1   2012-07-06  392
+2   2012-06-29  391
+3   2012-06-28  391
+...
+
+In [12]: pd.DataFrame(d.items(), columns=['Date', 'DateValue'])
+Out[12]:
+          Date  DateValue
+0   2012-07-02        392
+1   2012-07-06        392
+2   2012-06-29        391
+</pre></div>
+
+<p>But I think it makes more sense to pass the Series constructor:</p>
+<div class="code"><pre class="code literal-block">In [21]: s = pd.Series(d, name='DateValue')
+Out[21]:
+2012-06-08    388
+2012-06-09    388
+2012-06-10    388
+
+In [22]: s.index.name = 'Date'
+
+In [23]: s.reset_index()
+Out[23]:
+          Date  DateValue
+0   2012-06-08        388
+1   2012-06-09        388
+2   2012-06-10        388
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>When converting a dictionary into a pandas dataframe where you want the keys
+to be the columns of said dataframe and the values to be the row values, you
+can do simply put brackets around the dictionary like this:</p>
+<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">dict_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="s1">'key 1'</span><span class="err">:</span><span class="w"> </span><span class="s1">'value 1'</span><span class="p">,</span><span class="w"> </span><span class="s1">'key 2'</span><span class="err">:</span><span class="w"> </span><span class="s1">'value 2'</span><span class="p">,</span><span class="w"> </span><span class="s1">'key 3'</span><span class="err">:</span><span class="w"> </span><span class="s1">'value 3'</span><span class="err">}</span>
+<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">pd</span><span class="p">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="o">[</span><span class="n">dict_</span><span class="o">]</span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">key</span><span class="w"> </span><span class="mi">1</span><span class="w">     </span><span class="k">key</span><span class="w"> </span><span class="mi">2</span><span class="w">     </span><span class="k">key</span><span class="w"> </span><span class="mi">3</span>
+<span class="mi">0</span><span class="w">   </span><span class="k">value</span><span class="w"> </span><span class="mi">1</span><span class="w">   </span><span class="k">value</span><span class="w"> </span><span class="mi">2</span><span class="w">   </span><span class="k">value</span><span class="w"> </span><span class="mi">3</span>
+</pre></div>
+
+<p>EDIT: In the pandas docs one option for the <code>data</code> parameter in the DataFrame
+constructor is a list of dictionaries. Here we're passing a list with one
+dictionary in it.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/python-datetime-to-string-without-microsecond-component/" class="u-url">Python datetime to string without microsecond component</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -200,68 +326,6 @@ Android API</strong> to solve the problem. It can apply to any view.</p>
 <p>Use this in the button specifications:</p>
 <div class="code"><pre class="code literal-block"><span class="n">android</span><span class="o">:</span><span class="n">background</span><span class="o">=</span><span class="s2">"?android:selectableItemBackground"</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/managing-large-binary-files-with-git/" class="u-url">Managing large binary files with Git</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/managing-large-binary-files-with-git/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:39:52+08:00" itemprop="datePublished" title="2023-02-18 05:39">2023-02-18 05:39</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am looking for opinions of how to handle large binary files on which my
-source code (web application) is dependent. We are currently discussing
-several alternatives:</p>
-<ol>
-<li>Copy the binary files by hand. <ul>
-<li>Pro: Not sure.</li>
-<li>Contra: I am strongly against this, as it increases the likelihood of errors when setting up a new site/migrating the old one. Builds up another hurdle to take.</li>
-</ul>
-</li>
-<li>Manage them all with <em>Git</em>. <ul>
-<li>Pro: Removes the possibility to 'forget' to copy a important file</li>
-<li>Contra: Bloats the repository and decreases flexibility to manage the code-base and checkouts, clones, etc. will take quite a while.</li>
-</ul>
-</li>
-<li>Separate repositories. <ul>
-<li>Pro: Checking out/cloning the source code is fast as ever, and the images are properly archived in their own repository.</li>
-<li>Contra: Removes the simpleness of having <em>the one and only</em> Git repository on the project. It surely introduces some other things I haven't thought about.</li>
-</ul>
-</li>
-</ol>
-<p>What are your experiences/thoughts regarding this?</p>
-<p>Also: Does anybody have experience with multiple Git repositories and managing
-them in one project?</p>
-<p>The files are images for a program which generates PDFs with those files in
-it. The files will not change very often (as in years), but they are very
-relevant to a program. The program will not work without the files.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>If the program won't work without the files it seems like splitting them into
-a separate repo is a bad idea. We have large test suites that we break into a
-separate repo but those are truly "auxiliary" files.</p>
-<p>However, you may be able to manage the files in a separate repo and then use
-<code>git-submodule</code> to pull them into your project in a sane way. So, you'd still
-have the full history of all your source but, as I understand it, you'd only
-have the one relevant revision of your images submodule. The <code>git-submodule</code>
-facility should help you keep the correct version of the code in line with the
-correct version of the images.</p>
-<p>Here's a good introduction to submodules from Git Book.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>If the program won't work without the files it seems like splitting them into
-a separate repo is a bad idea. We have large test suites that we break into a
-separate repo but those are truly "auxiliary" files.</p>
-<p>However, you may be able to manage the files in a separate repo and then use
-<code>git-submodule</code> to pull them into your project in a sane way. So, you'd still
-have the full history of all your source but, as I understand it, you'd only
-have the one relevant revision of your images submodule. The <code>git-submodule</code>
-facility should help you keep the correct version of the code in line with the
-correct version of the images.</p>
-<p>Here's a good introduction to submodules from Git Book.</p>
     </div>
     </article>
 </div>

@@ -108,7 +108,113 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-does-dereferencing-a-pointer-mean/" class="u-url">What does "dereferencing" a pointer mean?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/async-await-when-to-return-a-task-vs-void/" class="u-url">async/await - when to return a Task vs void?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/async-await-when-to-return-a-task-vs-void/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T19:23:20+08:00" itemprop="datePublished" title="2023-02-17 19:23">2023-02-17 19:23</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Under what scenarios would one want to use</p>
+<div class="code"><pre class="code literal-block">public async Task AsyncMethod(int num)
+</pre></div>
+
+<p>instead of</p>
+<div class="code"><pre class="code literal-block">public async void AsyncMethod(int num)
+</pre></div>
+
+<p>The only scenario that I can think of is if you need the task to be able to
+track its progress.</p>
+<p>Additionally, in the following method, are the async and await keywords
+unnecessary?</p>
+<div class="code"><pre class="code literal-block">public static async void AsyncMethod2(int num)
+{
+    await Task.Factory.StartNew(() =&gt; Thread.Sleep(num));
+}
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<ol>
+<li>
+<p>Normally, you would want to return a <code>Task</code>. The main exception should be when you <em>need</em> to have a <code>void</code> return type (for events). If there's no reason to disallow having the caller <code>await</code> your task, why disallow it?</p>
+</li>
+<li>
+<p><code>async</code> methods that return <code>void</code> are special in another aspect: they represent <em>top-level async operations</em> , and have additional rules that come into play when your task returns an exception. The easiest way is to show the difference is with an example:</p>
+<p>static async void f()
+{
+    await h();
+}</p>
+<p>static async Task g()
+{
+    await h();
+}</p>
+<p>static async Task h()
+{
+    throw new NotImplementedException();
+}</p>
+<p>private void button1_Click(object sender, EventArgs e)
+{
+    f();
+}</p>
+<p>private void button2_Click(object sender, EventArgs e)
+{
+    g();
+}</p>
+<p>private void button3_Click(object sender, EventArgs e)
+{
+    GC.Collect();
+}</p>
+</li>
+</ol>
+<p><code>f</code>'s exception is always "observed". An exception that leaves a top-level
+asynchronous method is simply treated like any other unhandled exception.
+<code>g</code>'s exception is never observed. When the garbage collector comes to clean
+up the task, it sees that the task resulted in an exception, and nobody
+handled the exception. When that happens, the
+<code>TaskScheduler.UnobservedTaskException</code> handler runs. You should never let
+this happen. To use your example,</p>
+<div class="code"><pre class="code literal-block">public static async void AsyncMethod2(int num)
+{
+    await Task.Factory.StartNew(() =&gt; Thread.Sleep(num));
+}
+</pre></div>
+
+<p>Yes, use <code>async</code> and <code>await</code> here, they make sure your method still works
+correctly if an exception is thrown.</p>
+<p>For more information see: https://learn.microsoft.com/en-us/archive/msdn-
+magazine/2013/march/async-await-best-practices-in-asynchronous-programming</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I have come across this very useful article about <code>async</code> and <code>void</code> written
+by Jérôme Laban: https://jaylee.org/archive/2012/07/08/c-sharp-async-tips-and-
+tricks-part-2-async-void.html</p>
+<p>The bottom line is that an <code>async+void</code> can crash the system and usually
+should be used only on the UI side event handlers.</p>
+<blockquote>
+<p>The reason behind this is the Synchronization Context used by the
+AsyncVoidMethodBuilder, being none in this example. When there is no ambient
+Synchronization Context, any exception that is unhandled by the body of an
+async void method is rethrown on the ThreadPool. While there is seemingly no
+other logical place where that kind of unhandled exception could be thrown,
+the unfortunate effect is that the process is being terminated, because
+unhandled exceptions on the ThreadPool effectively terminate the process
+since .NET 2.0. You may intercept all unhandled exception using the
+AppDomain.UnhandledException event, but there is no way to recover the
+process from this event.</p>
+<p>When writing UI event handlers, async void methods are somehow painless
+because exceptions are treated the same way found in non-async methods; they
+are thrown on the Dispatcher. There is a possibility to recover from such
+exceptions, with is more than correct for most cases. Outside of UI event
+handlers however, async void methods are somehow dangerous to use and may
+not that easy to find.</p>
+</blockquote>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-does-dereferencing-a-pointer-mean/" class="u-url">What does "dereferencing" a pointer mean?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -555,60 +661,6 @@ part of this object graph.</p>
 <p>The best jol documentation is the jol samples in the jol repository. The
 samples demonstrate common jol operations and show how you can use jol to
 analyze VM and garbage collector internals.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-would-you-make-a-comma-separated-string-from-a-list-of-strings/" class="u-url">How would you make a comma-separated string from a list of strings?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-would-you-make-a-comma-separated-string-from-a-list-of-strings/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T19:21:48+08:00" itemprop="datePublished" title="2023-02-17 19:21">2023-02-17 19:21</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>What would be your preferred way to concatenate strings from a sequence such
-that between every two consecutive pairs a comma is added. That is, how do you
-map, for instance, <code>['a', 'b', 'c']</code> to <code>'a,b,c'</code>? (The cases <code>['s']</code> and <code>[]</code>
-should be mapped to <code>'s'</code> and <code>''</code>, respectively.)</p>
-<p>I usually end up using something like <code>''.join(map(lambda x: x+',',l))[:-1]</code>,
-but also feeling somewhat unsatisfied.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<div class="code"><pre class="code literal-block">my_list = ['a', 'b', 'c', 'd']
-my_string = ','.join(my_list)
-
-
-
-'a,b,c,d'
-</pre></div>
-
-<p>This won't work if the list contains integers</p>
-<hr>
-<p>And if the list contains non-string types (such as integers, floats, bools,
-None) then do:</p>
-<div class="code"><pre class="code literal-block">my_string = ','.join(map(str, my_list))
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Why the <code>map</code>/<code>lambda</code> magic? Doesn't this work?</p>
-<div class="code"><pre class="code literal-block">&gt;&gt;&gt; foo = ['a', 'b', 'c']
-&gt;&gt;&gt; print(','.join(foo))
-a,b,c
-&gt;&gt;&gt; print(','.join([]))
-
-&gt;&gt;&gt; print(','.join(['a']))
-a
-</pre></div>
-
-<p>In case if there are numbers in the list, you could use list comprehension:</p>
-<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="s1">','</span>.<span class="nv">join</span><span class="ss">(</span>[<span class="nv">str</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">foo</span>]<span class="ss">)</span>
-</pre></div>
-
-<p>or a generator expression:</p>
-<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="s1">','</span>.<span class="nv">join</span><span class="ss">(</span><span class="nv">str</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">foo</span><span class="ss">)</span>
-</pre></div>
     </div>
     </article>
 </div>

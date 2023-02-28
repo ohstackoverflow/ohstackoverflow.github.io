@@ -108,7 +108,144 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-do-and-stand-for/" class="u-url">What do &amp;lt; and &amp;gt; stand for?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/java-8-lambda-function-that-throws-exception/" class="u-url">Java 8 Lambda function that throws exception?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/java-8-lambda-function-that-throws-exception/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:27:39+08:00" itemprop="datePublished" title="2023-02-18 00:27">2023-02-18 00:27</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I know how to create a reference to a method that has a <code>String</code> parameter and
+returns an <code>int</code>, it's:</p>
+<div class="code"><pre class="code literal-block">Function&lt;String, Integer&gt;
+</pre></div>
+
+<p>However, this doesn't work if the function throws an exception, say it's
+defined as:</p>
+<div class="code"><pre class="code literal-block">Integer myMethod(String s) throws IOException
+</pre></div>
+
+<p>How would I define this reference?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You'll need to do one of the following.</p>
+<ul>
+<li>If it's your code, then define your own functional interface that declares the checked exception:<div class="code"><pre class="code literal-block"><span class="nv">@FunctionalInterface</span>
+</pre></div>
+
+<p>public interface CheckedFunction<t r> {
+   R apply(T t) throws IOException;
+}</t></p>
+</li>
+</ul>
+<p>and use it:</p>
+<div class="code"><pre class="code literal-block">    void foo (CheckedFunction f) { ... }
+</pre></div>
+
+<ul>
+<li>Otherwise, wrap <code>Integer myMethod(String s)</code> in a method that doesn't declare a checked exception:<div class="code"><pre class="code literal-block"><span class="nv">public</span><span class="w"> </span><span class="nv">Integer</span><span class="w"> </span><span class="nv">myWrappedMethod</span><span class="ss">(</span><span class="nv">String</span><span class="w"> </span><span class="nv">s</span><span class="ss">)</span><span class="w"> </span>{
+<span class="nv">try</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">myMethod</span><span class="ss">(</span><span class="nv">s</span><span class="ss">)</span><span class="c1">;</span>
+}
+<span class="nv">catch</span><span class="ss">(</span><span class="nv">IOException</span><span class="w"> </span><span class="nv">e</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">throw</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">UncheckedIOException</span><span class="ss">(</span><span class="nv">e</span><span class="ss">)</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>}</p>
+</li>
+</ul>
+<p>and then:</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="kr">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="p">,</span><span class="w"> </span><span class="n">Integer</span><span class="o">&gt;</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">String</span><span class="w"> </span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">myWrappedMethod</span><span class="p">(</span><span class="n">t</span><span class="p">);</span>
+</pre></div>
+
+<p>or:</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="kr">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="p">,</span><span class="w"> </span><span class="n">Integer</span><span class="o">&gt;</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="p">(</span><span class="kt">String</span><span class="w"> </span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">           </span><span class="kr">return</span><span class="w"> </span><span class="n">myMethod</span><span class="p">(</span><span class="n">t</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">catch</span><span class="p">(</span><span class="n">IOException</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">UncheckedIOException</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">};</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>You can actually extend <code>Consumer</code> (and <code>Function</code> etc.) with a new interface
+that handles exceptions -- using Java 8's <strong>default methods</strong>!</p>
+<p>Consider this interface (extends <code>Consumer</code>):</p>
+<div class="code"><pre class="code literal-block"><span class="err">@</span><span class="n">FunctionalInterface</span>
+<span class="n">public</span><span class="w"> </span><span class="n">interface</span><span class="w"> </span><span class="n">ThrowingConsumer</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Consumer</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">    </span><span class="n">default</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">accept</span><span class="p">(</span><span class="n">final</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">elem</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">acceptThrows</span><span class="p">(</span><span class="n">elem</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">final</span><span class="w"> </span><span class="n">Exception</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Implement</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">own</span><span class="w"> </span><span class="n">exception</span><span class="w"> </span><span class="n">handling</span><span class="w"> </span><span class="n">logic</span><span class="w"> </span><span class="n">here</span><span class="o">..</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">For</span><span class="w"> </span><span class="n">example</span><span class="p">:</span>
+<span class="w">            </span><span class="n">System</span><span class="o">.</span><span class="n">out</span><span class="o">.</span><span class="n">println</span><span class="p">(</span><span class="s2">"handling an exception..."</span><span class="p">);</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Or</span><span class="w"> </span><span class="o">...</span>
+<span class="w">            </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">RuntimeException</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">acceptThrows</span><span class="p">(</span><span class="n">T</span><span class="w"> </span><span class="n">elem</span><span class="p">)</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="n">Exception</span><span class="p">;</span>
+
+<span class="p">}</span>
+</pre></div>
+
+<p>Then, for example, if you have a list:</p>
+<div class="code"><pre class="code literal-block">final List&lt;String&gt; list = Arrays.asList("A", "B", "C");
+</pre></div>
+
+<p>If you want to consume it (eg. with <code>forEach</code>) with some code that throws
+exceptions, you would traditionally have set up a try/catch block:</p>
+<div class="code"><pre class="code literal-block"><span class="n">final</span><span class="w"> </span><span class="n">Consumer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">consumer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">aps</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// maybe some other code here...</span>
+<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Exception</span><span class="p">(</span><span class="s">"asdas"</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">final</span><span class="w"> </span><span class="n">Exception</span><span class="w"> </span><span class="n">ex</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">System</span><span class="p">.</span><span class="n">out</span><span class="p">.</span><span class="n">println</span><span class="p">(</span><span class="s">"handling an exception..."</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+<span class="n">list</span><span class="p">.</span><span class="n">forEach</span><span class="p">(</span><span class="n">consumer</span><span class="p">);</span>
+</pre></div>
+
+<p>But with this new interface, you can instantiate it with a lambda expression
+and the compiler will not complain:</p>
+<div class="code"><pre class="code literal-block"><span class="n">final</span><span class="w"> </span><span class="n">ThrowingConsumer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">throwingConsumer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">aps</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// maybe some other code here...</span>
+<span class="w">    </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Exception</span><span class="p">(</span><span class="s">"asdas"</span><span class="p">);</span>
+<span class="p">};</span>
+<span class="n">list</span><span class="p">.</span><span class="n">forEach</span><span class="p">(</span><span class="n">throwingConsumer</span><span class="p">);</span>
+</pre></div>
+
+<p>Or even just cast it to be more succinct!:</p>
+<div class="code"><pre class="code literal-block"><span class="n">list</span><span class="p">.</span><span class="n">forEach</span><span class="p">((</span><span class="n">ThrowingConsumer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="n">aps</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// maybe some other code here...</span>
+<span class="w">    </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Exception</span><span class="p">(</span><span class="s">"asda"</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+
+<h2>Update</h2>
+<p>Looks like there's a very nice utility library part of Durian called Errors
+which can be used to solve this problem with a lot more flexibility. For
+example, in my implementation above I've explicitly defined the error handling
+policy (<code>System.out...</code> or <code>throw RuntimeException</code>), whereas Durian's Errors
+allow you to apply a policy on the fly via a large suite of utility methods.
+Thanks for sharing it, @NedTwigg!.</p>
+<p>Sample usage:</p>
+<div class="code"><pre class="code literal-block"><span class="n">list</span><span class="p">.</span><span class="n">forEach</span><span class="p">(</span><span class="n">Errors</span><span class="p">.</span><span class="n">rethrow</span><span class="p">().</span><span class="n">wrap</span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">somethingThatThrows</span><span class="p">(</span><span class="n">c</span><span class="p">)));</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-do-and-stand-for/" class="u-url">What do &amp;lt; and &amp;gt; stand for?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -428,57 +565,6 @@ very annoying.</p>
 </tr>
 </table></div>
 <p>Tested on git 2.16.1.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-there-a-max-function-in-sql-server-that-takes-two-values-like-math-max-in-net/" class="u-url">Is there a Max function in SQL Server that takes two values like Math.Max in .NET?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/is-there-a-max-function-in-sql-server-that-takes-two-values-like-math-max-in-net/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T00:26:02+08:00" itemprop="datePublished" title="2023-02-18 00:26">2023-02-18 00:26</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I want to write a query like this:</p>
-<div class="code"><pre class="code literal-block">SELECT o.OrderId, MAX(o.NegotiatedPrice, o.SuggestedPrice)
-FROM Order o
-</pre></div>
-
-<p>But this isn't how the <code>MAX</code> function works, right? It is an aggregate
-function so it expects a single parameter and then returns the MAX of all
-rows.</p>
-<p>Does anyone know how to do it my way?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You'd need to make a <code>User-Defined Function</code> if you wanted to have syntax
-similar to your example, but could you do what you want to do, inline, fairly
-easily with a <code>CASE</code> statement, as the others have said.</p>
-<p>The <code>UDF</code> could be something like this:</p>
-<div class="code"><pre class="code literal-block"><span class="k">create</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">dbo</span><span class="p">.</span><span class="n">InlineMax</span><span class="p">(</span><span class="nv">@val1</span><span class="w"> </span><span class="nc">int</span><span class="p">,</span><span class="w"> </span><span class="nv">@val2</span><span class="w"> </span><span class="nc">int</span><span class="p">)</span>
-<span class="k">returns</span><span class="w"> </span><span class="nc">int</span>
-<span class="k">as</span>
-<span class="k">begin</span>
-<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nv">@val1</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">@val2</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">@val1</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nf">isnull</span><span class="p">(</span><span class="nv">@val2</span><span class="p">,</span><span class="nv">@val1</span><span class="p">)</span>
-<span class="k">end</span>
-</pre></div>
-
-<p>... and you would call it like so ...</p>
-<div class="code"><pre class="code literal-block">SELECT o.OrderId, dbo.InlineMax(o.NegotiatedPrice, o.SuggestedPrice) 
-FROM Order o
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>Can be done in one line:</p>
-<div class="code"><pre class="code literal-block"><span class="o">--</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">following</span><span class="w"> </span><span class="n">expression</span><span class="w"> </span><span class="n">calculates</span><span class="w"> </span><span class="o">==&gt;</span><span class="w"> </span><span class="nf">max</span><span class="p">(</span><span class="nv">@val1</span><span class="p">,</span><span class="w"> </span><span class="nv">@val2</span><span class="p">)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">((</span><span class="nv">@val1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">@val2</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nf">ABS</span><span class="p">(</span><span class="nv">@val1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">@val2</span><span class="p">))</span>
-</pre></div>
-
-<p><strong>Edit:</strong> <em>If you're dealing with very large numbers you'll have to convert
-the value variables into bigint in order to avoid an integer overflow.</em></p>
     </div>
     </article>
 </div>

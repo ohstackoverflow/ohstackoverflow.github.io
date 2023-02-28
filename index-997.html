@@ -108,7 +108,101 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-implement-class-constants/" class="u-url">How to implement class constants?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-does-a-lock-statement-do-under-the-hood/" class="u-url">What does a lock statement do under the hood?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-does-a-lock-statement-do-under-the-hood/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T22:01:53+08:00" itemprop="datePublished" title="2023-02-17 22:01">2023-02-17 22:01</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I see that for using objects which are not thread safe we wrap the code with a
+lock like this:</p>
+<div class="code"><pre class="code literal-block">private static readonly Object obj = new Object();
+
+lock (obj)
+{
+    // thread unsafe code
+}
+</pre></div>
+
+<p>So, what happens when multiple threads access the same code (let's assume that
+it is running in a ASP.NET web application). Are they queued? If so how long
+will they wait?</p>
+<p>What is the performance impact because of using locks?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The <code>lock</code> statement is translated by C# 3.0 to the following:</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">temp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">obj</span><span class="p">;</span>
+
+<span class="n">Monitor</span><span class="o">.</span><span class="n">Enter</span><span class="p">(</span><span class="n">temp</span><span class="p">);</span>
+
+<span class="n">try</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">body</span>
+<span class="p">}</span>
+<span class="n">finally</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Monitor</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">temp</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>In C# 4.0 this has changed and it is now generated as follows:</p>
+<div class="code"><pre class="code literal-block"><span class="nb nb-Type">bool</span><span class="w"> </span><span class="n">lockWasTaken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">false</span><span class="p">;</span>
+<span class="k">var</span><span class="w"> </span><span class="n">temp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">obj</span><span class="p">;</span>
+<span class="n">try</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Monitor</span><span class="o">.</span><span class="n">Enter</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span><span class="w"> </span><span class="n">ref</span><span class="w"> </span><span class="n">lockWasTaken</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">body</span>
+<span class="p">}</span>
+<span class="n">finally</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">lockWasTaken</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Monitor</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">temp</span><span class="p">);</span><span class="w"> </span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>You can find more info about what <code>Monitor.Enter</code> does here. To quote MSDN:</p>
+<blockquote>
+<p>Use <code>Enter</code> to acquire the Monitor on the object passed as the parameter. If
+another thread has executed an <code>Enter</code> on the object but has not yet
+executed the corresponding <code>Exit</code>, the current thread will block until the
+other thread releases the object. It is legal for the same thread to invoke
+<code>Enter</code> more than once without it blocking; however, an equal number of
+<code>Exit</code> calls must be invoked before other threads waiting on the object will
+unblock.</p>
+</blockquote>
+<p>The <code>Monitor.Enter</code> method will wait infinitely; it will <em>not</em> time out.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Its simpler than you think-</p>
+<p>According to Microsoft: The <code>lock</code> keyword ensures that one thread does not
+enter a critical section of code while another thread is in the critical
+section. If another thread tries to enter a locked code, it will wait, block,
+until the object is released.</p>
+<p>The <code>lock</code> keyword calls <code>Enter</code> at the start of the block and <code>Exit</code> at the
+end of the block. <code>lock</code> keyword actually handles <code>Monitor</code> class at back end.</p>
+<p>For example:</p>
+<div class="code"><pre class="code literal-block">private static readonly Object obj = new Object();
+
+lock (obj)
+{
+    // critical section
+}
+</pre></div>
+
+<p>In the above code, first the thread enters a critical section, and then it
+will lock <code>obj</code>. When another thread tries to enter, it will also try to lock
+<code>obj</code>, which is already locked by the first thread. Second thread will have to
+wait for the first thread to release <code>obj</code>. When the first thread leaves, then
+another thread will lock <code>obj</code> and will enter the critical section.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-implement-class-constants/" class="u-url">How to implement class constants?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -307,52 +401,6 @@ Vehicle class delegates the execution of that code to the relevant sub-class.</p
 <p>This code is said to be polymorphic, as the exact code which is executed is
 determined by the sub-class being referenced at runtime.</p>
 <p>I hope that this helps you.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-change-to-an-older-version-of-node-js/" class="u-url">How to change to an older version of Node.js</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-change-to-an-older-version-of-node-js/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T22:00:15+08:00" itemprop="datePublished" title="2023-02-17 22:00">2023-02-17 22:00</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am running Node.js version <code>v0.5.9-pre</code> on Ubuntu 10.10.</p>
-<p>I would like to be using version <code>v0.5.0-pre</code>.</p>
-<p>How do I roll back to the older version of node?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>One way is to use NVM, the Node Version Manager.</p>
-<p>Use following command to get nvm</p>
-<div class="code"><pre class="code literal-block">curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.34.0/install.sh | bash
-</pre></div>
-
-<p>You can find it at https://github.com/creationix/nvm</p>
-<p>It allows you to easily install and manage multiple versions of node. Here's a
-snippet from the help:</p>
-<div class="code"><pre class="code literal-block"><span class="n">Usage</span><span class="p">:</span>
-<span class="n">nvm</span><span class="w"> </span><span class="n">install</span><span class="w"> </span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="w">       </span><span class="n">Download</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">install</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
-<span class="n">nvm</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="w">           </span><span class="n">Modify</span><span class="w"> </span><span class="n">PATH</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
-<span class="n">nvm</span><span class="w"> </span><span class="n">ls</span><span class="w">                      </span><span class="n">List</span><span class="w"> </span><span class="n">versions</span><span class="w"> </span><span class="p">(</span><span class="n">installed</span><span class="w"> </span><span class="n">versions</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">blue</span><span class="p">)</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>One way is to use NVM, the Node Version Manager.</p>
-<p>Use following command to get nvm</p>
-<div class="code"><pre class="code literal-block">curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.34.0/install.sh | bash
-</pre></div>
-
-<p>You can find it at https://github.com/creationix/nvm</p>
-<p>It allows you to easily install and manage multiple versions of node. Here's a
-snippet from the help:</p>
-<div class="code"><pre class="code literal-block"><span class="n">Usage</span><span class="p">:</span>
-<span class="n">nvm</span><span class="w"> </span><span class="n">install</span><span class="w"> </span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="w">       </span><span class="n">Download</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">install</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
-<span class="n">nvm</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="w">           </span><span class="n">Modify</span><span class="w"> </span><span class="n">PATH</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
-<span class="n">nvm</span><span class="w"> </span><span class="n">ls</span><span class="w">                      </span><span class="n">List</span><span class="w"> </span><span class="n">versions</span><span class="w"> </span><span class="p">(</span><span class="n">installed</span><span class="w"> </span><span class="n">versions</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">blue</span><span class="p">)</span>
-</pre></div>
     </div>
     </article>
 </div>

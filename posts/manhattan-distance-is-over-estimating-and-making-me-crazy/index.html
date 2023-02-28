@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manhattan distance is over estimating and making me crazy | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/manhattan-distance-is-over-estimating-and-making-me-crazy/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../should-there-be-one-bias-per-layer-or-one-bias-for-each-node/" title="Should there be one bias per layer or one bias for each node?" type="text/html">
+<link rel="next" href="../what-are-the-differences-between-simulated-annealing-and-genetic-algorithms/" title="What are the differences between simulated annealing and genetic algorithms?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Manhattan distance is over estimating and making me crazy">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/manhattan-distance-is-over-estimating-and-making-me-crazy/">
+<meta property="og:description" content="I'm implementing a-star algorithm with Manhattan distance to solve the
+8-puzzle (in C). It seems to work very well and passes a lot of unit tests
+but it fails to find the shortest path in one case (it">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-02-28T02:48:35+08:00">
+<meta property="article:tag" content="algorithm">
+<meta property="article:tag" content="artificial-intelligence">
+<meta property="article:tag" content="c">
+<meta property="article:tag" content="heuristics">
+<meta property="article:tag" content="path-finding">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Manhattan distance is over estimating and making me crazy</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T02:48:35+08:00" itemprop="datePublished" title="2023-02-28 02:48">2023-02-28 02:48</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I'm implementing <strong>a-star algorithm</strong> with <strong>Manhattan distance</strong> to solve the
+<strong>8-puzzle</strong> (in C). It seems to work very well and passes a lot of unit tests
+but it fails to find the shortest path in one case (it finds 27 steps instead
+of 25).</p>
+<p>When I change the heuristic function to Hamming distance it finds in 25 steps.
+Also finds in 25 steps when I make the Manhattan distance function to return a
+half of the actual cost.</p>
+<p>That's why I believe the problem lies somewhere in Manhattan distance function
+and it is over estimating the cost (hence inadmissible). I thought maybe
+something else is going wrong in the C program so I wrote a little Python
+script to test and verify the output of the Manhattan distance function only
+and they both produce the exact same result.</p>
+<p>I'm really confused because the heuristic function seems to be the only point
+of failure and it seems to be correct at the same time.</p>
+<p><img alt="8-puzzle start goal" src="../../images/R8fXD.gif"></p>
+<p>You can try <strong>this solver</strong> and put the tile order like "2,6,1,0,7,8,3,5,4"
+Choose the algorithm <em>Manhattan distance</em> and it finds in 25 steps. Now change
+it to <em>Manhattan distance + linear conflict</em> and it finds 27 steps.</p>
+<p>But my Manhattan distance (without linear conflict) finds in 27 steps.</p>
+<p>Here's my general algorithm:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">manhattan_distance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="nv">iterate</span><span class="w"> </span><span class="nv">over</span><span class="w"> </span><span class="nv">all</span><span class="w"> </span><span class="nv">tiles</span>
+<span class="k">if</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">tile</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">blank</span><span class="w"> </span><span class="nv">tile</span>:
+<span class="nv">find</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">coordinates</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">tile</span><span class="w"> </span><span class="nv">on</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">goal</span><span class="w"> </span><span class="nv">board</span>
+<span class="nv">manhattan_distance</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nv">abs</span><span class="ss">(</span><span class="nv">x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">goal_x</span><span class="ss">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">abs</span><span class="ss">(</span><span class="nv">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">goal_y</span><span class="ss">)</span>
+</pre></div>
+
+<p>I think if there was something very badly wrong with some important part it
+wouldn't pass all 25+ previous tests so this might be some sort of edge case.</p>
+<p>Here's commented Manhattan distance function in C:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">ManhattanDistance</span><span class="ss">(</span><span class="nv">Puzzle</span><span class="w"> </span><span class="nv">p</span>,<span class="w"> </span><span class="nv">State</span><span class="w"> </span><span class="nv">b</span><span class="ss">)</span>{
+<span class="w">   </span><span class="nv">State</span><span class="w"> </span><span class="nv">goal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">getFinalState</span><span class="ss">(</span><span class="nv">p</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">   </span><span class="nv">int</span><span class="w"> </span><span class="nv">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">getSize</span><span class="ss">(</span><span class="nv">b</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">   </span><span class="nv">int</span><span class="w"> </span><span class="nv">distance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">;</span>
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">getSize</span><span class="ss">(</span><span class="nv">goal</span><span class="ss">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">size</span><span class="ss">)</span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nv">both</span><span class="w"> </span><span class="nv">states</span><span class="w"> </span><span class="nv">are</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">same</span><span class="w"> </span><span class="nv">size</span>
+<span class="w">      </span><span class="nv">int</span><span class="w"> </span><span class="nv">i</span>,<span class="w"> </span><span class="nv">j</span><span class="c1">;</span>
+<span class="w">      </span><span class="k">for</span><span class="ss">(</span><span class="nv">i</span><span class="o">=</span><span class="mi">0</span><span class="c1">; i&lt;size; i++){</span>
+<span class="w">         </span><span class="k">for</span><span class="ss">(</span><span class="nv">j</span><span class="o">=</span><span class="mi">0</span><span class="c1">; j&lt;size; j++){ // iterate over all tiles</span>
+<span class="w">            </span><span class="nv">int</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">getStateValue</span><span class="ss">(</span><span class="nv">b</span>,<span class="w"> </span><span class="nv">i</span>,<span class="w"> </span><span class="nv">j</span><span class="ss">)</span><span class="c1">; // what is the number on this tile?</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">a</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s1">'B'</span><span class="ss">)</span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">it</span><span class="err">'s not the blank tile</span>
+<span class="err">               int final_cordinates[2];</span>
+<span class="err">               getTileCoords(goal, a, final_cordinates); // find the coordinates on the other board</span>
+<span class="err">               int final_i = final_cordinates[0];</span>
+<span class="err">               int final_j = final_cordinates[1];</span>
+<span class="err">               distance +=  abs(i - final_i) + abs(j - final_j);</span>
+<span class="err">            }</span>
+<span class="err">         }</span>
+<span class="err">      }</span>
+<span class="err">   }</span>
+<span class="err">   return distance;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>Please help me.</p>
+<p><strong>EDIT:</strong> As discussed in comments, the code provided for opening nodes can be
+found here</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The problem seems to be not in your heuristic function, but in the algorithm
+itself. From your description of the problem, and the fact that it occures
+only on some specific cases, I believe it has to do with the re-opening of a
+closed vertice, once you find a better path to it.</p>
+<p>While reading the code you have provided [in comments], I think I understood
+where the problem lays, in line 20:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="p">(</span><span class="n">getG</span><span class="p">(</span><span class="k">current</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">getG</span><span class="p">(</span><span class="n">children</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">))</span><span class="err">{</span>
+</pre></div>
+
+<p>This is wrong! You are checking if <code>g(current) + 1 &lt; g(children[i])</code>, you
+actually want to check for: <code>f(current) + 1 + h(children[i]) &lt;
+g(children[i])</code>, since you want to check this value with the heuristic
+function of <code>children[i]</code>, and not of <code>current</code>!<br>
+Note that it is identical as to set <code>f(children[i]) =
+min{f(children[i]),f(current)+1}</code>, and then adding <code>h(children[i])</code> to get the
+<code>g</code> value.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/algorithm/" rel="tag">algorithm</a></li>
+            <li><a class="tag p-category" href="../../categories/artificial-intelligence/" rel="tag">artificial-intelligence</a></li>
+            <li><a class="tag p-category" href="../../categories/c/" rel="tag">c</a></li>
+            <li><a class="tag p-category" href="../../categories/heuristics/" rel="tag">heuristics</a></li>
+            <li><a class="tag p-category" href="../../categories/path-finding/" rel="tag">path-finding</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../should-there-be-one-bias-per-layer-or-one-bias-for-each-node/" rel="prev" title="Should there be one bias per layer or one bias for each node?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-are-the-differences-between-simulated-annealing-and-genetic-algorithms/" rel="next" title="What are the differences between simulated annealing and genetic algorithms?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

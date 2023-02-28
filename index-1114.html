@@ -108,7 +108,248 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-make-an-android-device-vibrate-with-different-frequency/" class="u-url">How to make an Android device vibrate? with different frequency?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-determine-whether-a-2d-point-is-within-a-polygon/" class="u-url">How can I determine whether a 2D Point is within a Polygon?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-can-i-determine-whether-a-2d-point-is-within-a-polygon/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T01:35:07+08:00" itemprop="datePublished" title="2023-02-18 01:35">2023-02-18 01:35</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm trying to create a <em>fast</em> 2D point inside polygon algorithm, for use in
+hit-testing (e.g. <code>Polygon.contains(p:Point)</code>). Suggestions for effective
+techniques would be appreciated.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>For graphics, I'd rather not prefer integers. Many systems use integers for UI
+painting (pixels are ints after all), but macOS, for example, uses float for
+everything. macOS only knows points and a point can translate to one pixel,
+but depending on monitor resolution, it might translate to something else. On
+retina screens half a point (0.5/0.5) is pixel. Still, I never noticed that
+macOS UIs are significantly slower than other UIs. After all, 3D APIs (OpenGL
+or Direct3D) also work with floats and modern graphics libraries very often
+take advantage of GPU acceleration.</p>
+<p>Now you said speed is your main concern, okay, let's go for speed. Before you
+run any sophisticated algorithm, first do a simple test. Create an <em>axis
+aligned bounding box</em> around your polygon. This is very easy, fast and can
+already save you a lot of calculations. How does that work? Iterate over all
+points of the polygon and find the min/max values of X and Y.</p>
+<p>E.g. you have the points <code>(9/1), (4/3), (2/7), (8/2), (3/6)</code>. This means Xmin
+is 2, Xmax is 9, Ymin is 1 and Ymax is 7. A point outside of the rectangle
+with the two edges (2/1) and (9/7) cannot be within the polygon.</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// p is your point, p.x is the x coord, p.y is the y coord</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">Xmin</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">Xmax</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">Ymin</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">Ymax</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Definitely not within the polygon!</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>This is the first test to run for any point. As you can see, this test is
+ultra fast but it's also very coarse. To handle points that are within the
+bounding rectangle, we need a more sophisticated algorithm. There are a couple
+of ways how this can be calculated. Which method works also depends on whether
+the polygon can have holes or will always be solid. Here are examples of solid
+ones (one convex, one concave):</p>
+<p><img alt="Polygon without hole" src="images/G76ta.jpg"></p>
+<p>And here's one with a hole:</p>
+<p><img alt="Polygon with hole" src="images/oDCCd.gif"></p>
+<p>The green one has a hole in the middle!</p>
+<p>The easiest algorithm, that can handle all three cases above and is still
+pretty fast is named <strong>ray casting</strong>. The idea of the algorithm is pretty
+simple: Draw a virtual ray from anywhere outside the polygon to your point and
+count how often it hits a side of the polygon. If the number of hits is even,
+it's outside of the polygon, if it's odd, it's inside.</p>
+<p><img alt="Demonstrating how the ray cuts through a polygon" src="images/2EzSM.png"></p>
+<p>The <strong>winding number algorithm</strong> would be an alternative, it is more accurate
+for points being very close to a polygon line but it's also much slower. Ray
+casting may fail for points too close to a polygon side because of limited
+floating point precision and rounding issues, but in reality that is hardly a
+problem, as if a point lies that close to a side, it's often visually not even
+possible for a viewer to recognize if it is already inside or still outside.</p>
+<p>You still have the bounding box of above, remember? Just pick a point outside
+the bounding box and use it as starting point for your ray. E.g. the point
+<code>(Xmin - e/p.y)</code> is outside the polygon for sure.</p>
+<p>But what is <code>e</code>? Well, <code>e</code> (actually epsilon) gives the bounding box some
+<em>padding</em>. As I said, ray tracing fails if we start too close to a polygon
+line. Since the bounding box might equal the polygon (if the polygon is an
+axis aligned rectangle, the bounding box is equal to the polygon itself!), we
+need some padding to make this safe, that's all. How big should you choose
+<code>e</code>? Not too big. It depends on the coordinate system scale you use for
+drawing. If your pixel step width is 1.0, then just choose 1.0 (yet 0.1 would
+have worked as well)</p>
+<p>Now that we have the ray with its start and end coordinates, the problem
+shifts from " <em>is the point within the polygon</em> " to " <em>how often does the ray
+intersects a polygon side</em> ". Therefore we can't just work with the polygon
+points as before, now we need the actual sides. A side is always defined by
+two points.</p>
+<div class="code"><pre class="code literal-block">side 1: (X1/Y1)-(X2/Y2)
+side 2: (X2/Y2)-(X3/Y3)
+side 3: (X3/Y3)-(X4/Y4)
+:
+</pre></div>
+
+<p>You need to test the ray against all sides. Consider the ray to be a vector
+and every side to be a vector. The ray has to hit each side exactly once or
+never at all. It can't hit the same side twice. Two lines in 2D space will
+always intersect exactly once, unless they are parallel, in which case they
+never intersect. However since vectors have a limited length, two vectors
+might not be parallel and still never intersect because they are too short to
+ever meet each other.</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// Test the ray against all sides</span>
+<span class="nb">int</span><span class="w"> </span><span class="n">intersections</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">side</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">side</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">numberOfSides</span><span class="p">;</span><span class="w"> </span><span class="n">side</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Test if current side intersects with ray.</span>
+<span class="w">    </span><span class="c1">// If yes, intersections++;</span>
+<span class="p">}</span>
+<span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">intersections</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Inside of polygon</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Outside of polygon</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>So far so well, but how do you test if two vectors intersect? Here's some C
+code (not tested), that should do the trick:</p>
+<div class="code"><pre class="code literal-block"><span class="p">#</span><span class="nn">define</span><span class="w"> </span><span class="nt">NO</span><span class="w"> </span><span class="nt">0</span>
+<span class="p">#</span><span class="nn">define</span><span class="w"> </span><span class="nt">YES</span><span class="w"> </span><span class="nt">1</span>
+<span class="p">#</span><span class="nn">define</span><span class="w"> </span><span class="nt">COLLINEAR</span><span class="w"> </span><span class="nt">2</span>
+
+<span class="nt">int</span><span class="w"> </span><span class="nt">areIntersecting</span><span class="o">(</span>
+<span class="w">    </span><span class="nt">float</span><span class="w"> </span><span class="nt">v1x1</span><span class="o">,</span><span class="w"> </span><span class="nt">float</span><span class="w"> </span><span class="nt">v1y1</span><span class="o">,</span><span class="w"> </span><span class="nt">float</span><span class="w"> </span><span class="nt">v1x2</span><span class="o">,</span><span class="w"> </span><span class="nt">float</span><span class="w"> </span><span class="nt">v1y2</span><span class="o">,</span>
+<span class="w">    </span><span class="nt">float</span><span class="w"> </span><span class="nt">v2x1</span><span class="o">,</span><span class="w"> </span><span class="nt">float</span><span class="w"> </span><span class="nt">v2y1</span><span class="o">,</span><span class="w"> </span><span class="nt">float</span><span class="w"> </span><span class="nt">v2x2</span><span class="o">,</span><span class="w"> </span><span class="nt">float</span><span class="w"> </span><span class="nt">v2y2</span>
+<span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">float</span><span class="w"> </span><span class="err">d1,</span><span class="w"> </span><span class="err">d2</span><span class="p">;</span>
+<span class="w">    </span><span class="err">float</span><span class="w"> </span><span class="err">a1,</span><span class="w"> </span><span class="err">a2,</span><span class="w"> </span><span class="err">b1,</span><span class="w"> </span><span class="err">b2,</span><span class="w"> </span><span class="err">c1,</span><span class="w"> </span><span class="err">c2</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">Convert</span><span class="w"> </span><span class="err">vector</span><span class="w"> </span><span class="err">1</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">line</span><span class="w"> </span><span class="err">(line</span><span class="w"> </span><span class="err">1)</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">infinite</span><span class="w"> </span><span class="err">length.</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">We</span><span class="w"> </span><span class="err">want</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">line</span><span class="w"> </span><span class="err">in</span><span class="w"> </span><span class="err">linear</span><span class="w"> </span><span class="err">equation</span><span class="w"> </span><span class="err">standard</span><span class="w"> </span><span class="n">form</span><span class="p">:</span><span class="w"> </span><span class="n">A</span><span class="o">*</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">B</span><span class="o">*</span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">See</span><span class="o">:</span><span class="w"> </span><span class="n">http</span><span class="o">://</span><span class="n">en</span><span class="o">.</span><span class="n">wikipedia</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">wiki</span><span class="o">/</span><span class="n">Linear_equation</span>
+<span class="w">    </span><span class="n">a1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">v1y2</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">v1y1</span><span class="p">;</span>
+<span class="w">    </span><span class="err">b1</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">v1x1</span><span class="w"> </span><span class="err">-</span><span class="w"> </span><span class="err">v1x2</span><span class="p">;</span>
+<span class="w">    </span><span class="err">c1</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">(v1x2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v1y1)</span><span class="w"> </span><span class="err">-</span><span class="w"> </span><span class="err">(v1x1</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v1y2)</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">Every</span><span class="w"> </span><span class="err">point</span><span class="w"> </span><span class="err">(x,y),</span><span class="w"> </span><span class="err">that</span><span class="w"> </span><span class="err">solves</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">equation</span><span class="w"> </span><span class="err">above,</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">on</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">line,</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">every</span><span class="w"> </span><span class="err">point</span><span class="w"> </span><span class="err">that</span><span class="w"> </span><span class="err">does</span><span class="w"> </span><span class="err">not</span><span class="w"> </span><span class="err">solve</span><span class="w"> </span><span class="err">it,</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">not.</span><span class="w"> </span><span class="err">The</span><span class="w"> </span><span class="err">equation</span><span class="w"> </span><span class="err">will</span><span class="w"> </span><span class="err">have</span><span class="w"> </span><span class="err">a</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">positive</span><span class="w"> </span><span class="err">result</span><span class="w"> </span><span class="err">if</span><span class="w"> </span><span class="err">it</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">on</span><span class="w"> </span><span class="err">one</span><span class="w"> </span><span class="err">side</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">line</span><span class="w"> </span><span class="err">and</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">negative</span><span class="w"> </span><span class="err">one</span><span class="w"> </span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">if</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">on</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">other</span><span class="w"> </span><span class="err">side</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">it.</span><span class="w"> </span><span class="err">We</span><span class="w"> </span><span class="err">insert</span><span class="w"> </span><span class="err">(x1,y1)</span><span class="w"> </span><span class="err">and</span><span class="w"> </span><span class="err">(x2,y2)</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">vector</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">2</span><span class="w"> </span><span class="err">into</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">equation</span><span class="w"> </span><span class="err">above.</span>
+<span class="w">    </span><span class="err">d1</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">(a1</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v2x1)</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">(b1</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v2y1)</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">c1</span><span class="p">;</span>
+<span class="w">    </span><span class="err">d2</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">(a1</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v2x2)</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">(b1</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v2y2)</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">c1</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">If</span><span class="w"> </span><span class="err">d1</span><span class="w"> </span><span class="err">and</span><span class="w"> </span><span class="err">d2</span><span class="w"> </span><span class="err">both</span><span class="w"> </span><span class="err">have</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">same</span><span class="w"> </span><span class="err">sign,</span><span class="w"> </span><span class="err">they</span><span class="w"> </span><span class="err">are</span><span class="w"> </span><span class="err">both</span><span class="w"> </span><span class="err">on</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">same</span><span class="w"> </span><span class="err">side</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">our</span><span class="w"> </span><span class="err">line</span><span class="w"> </span><span class="err">1</span><span class="w"> </span><span class="err">and</span><span class="w"> </span><span class="err">in</span><span class="w"> </span><span class="err">that</span><span class="w"> </span><span class="err">case</span><span class="w"> </span><span class="err">no</span><span class="w"> </span><span class="err">intersection</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">possible.</span><span class="w"> </span><span class="err">Careful,</span><span class="w"> </span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">0</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">special</span><span class="w"> </span><span class="err">case,</span><span class="w"> </span><span class="err">that's</span><span class="w"> </span><span class="err">why</span><span class="w"> </span><span class="err">we</span><span class="w"> </span><span class="err">don't</span><span class="w"> </span><span class="err">test</span><span class="w"> </span><span class="err">"&gt;="</span><span class="w"> </span><span class="err">and</span><span class="w"> </span><span class="err">"&lt;=",</span><span class="w"> </span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">but</span><span class="w"> </span><span class="err">"&lt;"</span><span class="w"> </span><span class="err">and</span><span class="w"> </span><span class="err">"&gt;".</span>
+<span class="w">    </span><span class="err">if</span><span class="w"> </span><span class="err">(d1</span><span class="w"> </span><span class="err">&gt;</span><span class="w"> </span><span class="err">0</span><span class="w"> </span><span class="err">&amp;&amp;</span><span class="w"> </span><span class="err">d2</span><span class="w"> </span><span class="err">&gt;</span><span class="w"> </span><span class="err">0)</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">NO</span><span class="p">;</span>
+<span class="w">    </span><span class="err">if</span><span class="w"> </span><span class="err">(d1</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">0</span><span class="w"> </span><span class="err">&amp;&amp;</span><span class="w"> </span><span class="err">d2</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">0)</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">NO</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">The</span><span class="w"> </span><span class="err">fact</span><span class="w"> </span><span class="err">that</span><span class="w"> </span><span class="err">vector</span><span class="w"> </span><span class="err">2</span><span class="w"> </span><span class="err">intersected</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">infinite</span><span class="w"> </span><span class="err">line</span><span class="w"> </span><span class="err">1</span><span class="w"> </span><span class="err">above</span><span class="w"> </span><span class="err">doesn't</span><span class="w"> </span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">mean</span><span class="w"> </span><span class="err">it</span><span class="w"> </span><span class="err">also</span><span class="w"> </span><span class="err">intersects</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">vector</span><span class="w"> </span><span class="err">1.</span><span class="w"> </span><span class="err">Vector</span><span class="w"> </span><span class="err">1</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">only</span><span class="w"> </span><span class="err">a</span><span class="w"> </span><span class="err">subset</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">that</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">infinite</span><span class="w"> </span><span class="err">line</span><span class="w"> </span><span class="err">1,</span><span class="w"> </span><span class="err">so</span><span class="w"> </span><span class="err">it</span><span class="w"> </span><span class="err">may</span><span class="w"> </span><span class="err">have</span><span class="w"> </span><span class="err">intersected</span><span class="w"> </span><span class="err">that</span><span class="w"> </span><span class="err">line</span><span class="w"> </span><span class="err">before</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">vector</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">started</span><span class="w"> </span><span class="err">or</span><span class="w"> </span><span class="err">after</span><span class="w"> </span><span class="err">it</span><span class="w"> </span><span class="err">ended.</span><span class="w"> </span><span class="err">To</span><span class="w"> </span><span class="err">know</span><span class="w"> </span><span class="err">for</span><span class="w"> </span><span class="err">sure,</span><span class="w"> </span><span class="err">we</span><span class="w"> </span><span class="err">have</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">repeat</span><span class="w"> </span><span class="err">the</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">same</span><span class="w"> </span><span class="err">test</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">other</span><span class="w"> </span><span class="err">way</span><span class="w"> </span><span class="err">round.</span><span class="w"> </span><span class="err">We</span><span class="w"> </span><span class="err">start</span><span class="w"> </span><span class="err">by</span><span class="w"> </span><span class="err">calculating</span><span class="w"> </span><span class="err">the</span><span class="w"> </span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">infinite</span><span class="w"> </span><span class="err">line</span><span class="w"> </span><span class="err">2</span><span class="w"> </span><span class="err">in</span><span class="w"> </span><span class="err">linear</span><span class="w"> </span><span class="err">equation</span><span class="w"> </span><span class="err">standard</span><span class="w"> </span><span class="err">form.</span>
+<span class="w">    </span><span class="err">a2</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">v2y2</span><span class="w"> </span><span class="err">-</span><span class="w"> </span><span class="err">v2y1</span><span class="p">;</span>
+<span class="w">    </span><span class="err">b2</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">v2x1</span><span class="w"> </span><span class="err">-</span><span class="w"> </span><span class="err">v2x2</span><span class="p">;</span>
+<span class="w">    </span><span class="err">c2</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">(v2x2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v2y1)</span><span class="w"> </span><span class="err">-</span><span class="w"> </span><span class="err">(v2x1</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v2y2)</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">Calculate</span><span class="w"> </span><span class="err">d1</span><span class="w"> </span><span class="err">and</span><span class="w"> </span><span class="err">d2</span><span class="w"> </span><span class="err">again,</span><span class="w"> </span><span class="err">this</span><span class="w"> </span><span class="err">time</span><span class="w"> </span><span class="err">using</span><span class="w"> </span><span class="err">points</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">vector</span><span class="w"> </span><span class="err">1.</span>
+<span class="w">    </span><span class="err">d1</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">(a2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v1x1)</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">(b2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v1y1)</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">c2</span><span class="p">;</span>
+<span class="w">    </span><span class="err">d2</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">(a2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v1x2)</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">(b2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">v1y2)</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="err">c2</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">Again,</span><span class="w"> </span><span class="err">if</span><span class="w"> </span><span class="err">both</span><span class="w"> </span><span class="err">have</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">same</span><span class="w"> </span><span class="err">sign</span><span class="w"> </span><span class="err">(and</span><span class="w"> </span><span class="err">neither</span><span class="w"> </span><span class="err">one</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">0),</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">no</span><span class="w"> </span><span class="err">intersection</span><span class="w"> </span><span class="err">is</span><span class="w"> </span><span class="err">possible.</span>
+<span class="w">    </span><span class="err">if</span><span class="w"> </span><span class="err">(d1</span><span class="w"> </span><span class="err">&gt;</span><span class="w"> </span><span class="err">0</span><span class="w"> </span><span class="err">&amp;&amp;</span><span class="w"> </span><span class="err">d2</span><span class="w"> </span><span class="err">&gt;</span><span class="w"> </span><span class="err">0)</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">NO</span><span class="p">;</span>
+<span class="w">    </span><span class="err">if</span><span class="w"> </span><span class="err">(d1</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">0</span><span class="w"> </span><span class="err">&amp;&amp;</span><span class="w"> </span><span class="err">d2</span><span class="w"> </span><span class="err">&lt;</span><span class="w"> </span><span class="err">0)</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">NO</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">If</span><span class="w"> </span><span class="err">we</span><span class="w"> </span><span class="err">get</span><span class="w"> </span><span class="err">here,</span><span class="w"> </span><span class="err">only</span><span class="w"> </span><span class="err">two</span><span class="w"> </span><span class="err">possibilities</span><span class="w"> </span><span class="err">are</span><span class="w"> </span><span class="err">left.</span><span class="w"> </span><span class="err">Either</span><span class="w"> </span><span class="err">the</span><span class="w"> </span><span class="err">two</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">vectors</span><span class="w"> </span><span class="err">intersect</span><span class="w"> </span><span class="err">in</span><span class="w"> </span><span class="err">exactly</span><span class="w"> </span><span class="err">one</span><span class="w"> </span><span class="err">point</span><span class="w"> </span><span class="err">or</span><span class="w"> </span><span class="err">they</span><span class="w"> </span><span class="err">are</span><span class="w"> </span><span class="err">collinear,</span><span class="w"> </span><span class="err">which</span>
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">means</span><span class="w"> </span><span class="err">they</span><span class="w"> </span><span class="err">intersect</span><span class="w"> </span><span class="err">in</span><span class="w"> </span><span class="err">any</span><span class="w"> </span><span class="err">number</span><span class="w"> </span><span class="err">of</span><span class="w"> </span><span class="err">points</span><span class="w"> </span><span class="err">from</span><span class="w"> </span><span class="err">zero</span><span class="w"> </span><span class="err">to</span><span class="w"> </span><span class="err">infinite.</span>
+<span class="w">    </span><span class="err">if</span><span class="w"> </span><span class="err">((a1</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">b2)</span><span class="w"> </span><span class="err">-</span><span class="w"> </span><span class="err">(a2</span><span class="w"> </span><span class="err">*</span><span class="w"> </span><span class="err">b1)</span><span class="w"> </span><span class="err">==</span><span class="w"> </span><span class="err">0.0f)</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">COLLINEAR</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">//</span><span class="w"> </span><span class="err">If</span><span class="w"> </span><span class="err">they</span><span class="w"> </span><span class="err">are</span><span class="w"> </span><span class="err">not</span><span class="w"> </span><span class="err">collinear,</span><span class="w"> </span><span class="err">they</span><span class="w"> </span><span class="err">must</span><span class="w"> </span><span class="err">intersect</span><span class="w"> </span><span class="err">in</span><span class="w"> </span><span class="err">exactly</span><span class="w"> </span><span class="err">one</span><span class="w"> </span><span class="err">point.</span>
+<span class="w">    </span><span class="err">return</span><span class="w"> </span><span class="err">YES</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The input values are the <em>two endpoints</em> of vector 1 (<code>v1x1/v1y1</code> and
+<code>v1x2/v1y2</code>) and vector 2 (<code>v2x1/v2y1</code> and <code>v2x2/v2y2</code>). So you have 2
+vectors, 4 points, 8 coordinates. <code>YES</code> and <code>NO</code> are clear. <code>YES</code> increases
+intersections, <code>NO</code> does nothing.</p>
+<p>What about COLLINEAR? It means both vectors lie on the same infinite line,
+depending on position and length, they don't intersect at all or they
+intersect in an endless number of points. I'm not absolutely sure how to
+handle this case, I would not count it as intersection either way. Well, this
+case is rather rare in practice anyway because of floating point rounding
+errors; better code would probably not test for <code>== 0.0f</code> but instead for
+something like <code>&lt; epsilon</code>, where epsilon is a rather small number.</p>
+<p>If you need to test a larger number of points, you can certainly speed up the
+whole thing a bit by keeping the linear equation standard forms of the polygon
+sides in memory, so you don't have to recalculate these every time. This will
+save you two floating point multiplications and three floating point
+subtractions on every test in exchange for storing three floating point values
+per polygon side in memory. It's a typical memory vs computation time trade
+off.</p>
+<p>Last but not least: If you may use 3D hardware to solve the problem, there is
+an interesting alternative. Just let the GPU do all the work for you. Create a
+painting surface that is off screen. Fill it completely with the color black.
+Now let OpenGL or Direct3D paint your polygon (or even all of your polygons if
+you just want to test if the point is within any of them, but you don't care
+for which one) and fill the polygon(s) with a different color, e.g. white. To
+check if a point is within the polygon, get the color of this point from the
+drawing surface. This is just a O(1) memory fetch.</p>
+<p>Of course this method is only usable if your drawing surface doesn't have to
+be huge. If it cannot fit into the GPU memory, this method is slower than
+doing it on the CPU. If it would have to be huge and your GPU supports modern
+shaders, you can still use the GPU by implementing the ray casting shown above
+as a GPU shader, which absolutely is possible. For a larger number of polygons
+or a large number of points to test, this will pay off, consider some GPUs
+will be able to test 64 to 256 points in parallel. Note however that
+transferring data from CPU to GPU and back is always expensive, so for just
+testing a couple of points against a couple of simple polygons, where either
+the points or the polygons are dynamic and will change frequently, a GPU
+approach will rarely pay off.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I think the following piece of code is the best solution (taken from here):</p>
+<div class="code"><pre class="code literal-block"><span class="nc">int</span><span class="w"> </span><span class="n">pnpoly</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">nvert</span><span class="p">,</span><span class="w"> </span><span class="nc">float</span><span class="w"> </span><span class="o">*</span><span class="n">vertx</span><span class="p">,</span><span class="w"> </span><span class="nc">float</span><span class="w"> </span><span class="o">*</span><span class="n">verty</span><span class="p">,</span><span class="w"> </span><span class="nc">float</span><span class="w"> </span><span class="n">testx</span><span class="p">,</span><span class="w"> </span><span class="nc">float</span><span class="w"> </span><span class="n">testy</span><span class="p">)</span>
+<span class="err">{</span>
+<span class="w">  </span><span class="nc">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nvert</span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">nvert</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="p">((</span><span class="n">verty</span><span class="o">[</span><span class="n">i</span><span class="o">]&gt;</span><span class="n">testy</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="p">(</span><span class="n">verty</span><span class="o">[</span><span class="n">j</span><span class="o">]&gt;</span><span class="n">testy</span><span class="p">))</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+<span class="w">     </span><span class="p">(</span><span class="n">testx</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">vertx</span><span class="o">[</span><span class="n">j</span><span class="o">]-</span><span class="n">vertx</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">testy</span><span class="o">-</span><span class="n">verty</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">verty</span><span class="o">[</span><span class="n">j</span><span class="o">]-</span><span class="n">verty</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">vertx</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="p">)</span>
+<span class="w">       </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">!</span><span class="n">c</span><span class="p">;</span>
+<span class="w">  </span><span class="err">}</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<h4>Arguments</h4>
+<ul>
+<li>
+<strong>nvert</strong> : Number of vertices in the polygon. Whether to repeat the first vertex at the end has been discussed in the article referred above.</li>
+<li>
+<strong>vertx, verty</strong> : Arrays containing the x- and y-coordinates of the polygon's vertices.</li>
+<li>
+<strong>testx, testy</strong> : X- and y-coordinate of the test point.</li>
+</ul>
+<p>It's both short and efficient and works both for convex and concave polygons.
+As suggested before, you should check the bounding rectangle first and treat
+polygon holes separately.</p>
+<p>The idea behind this is pretty simple. The author describes it as follows:</p>
+<blockquote>
+<p>I run a semi-infinite ray horizontally (increasing x, fixed y) out from the
+test point, and count how many edges it crosses. At each crossing, the ray
+switches between inside and outside. This is called the Jordan curve
+theorem.</p>
+</blockquote>
+<p>The variable c is switching from 0 to 1 and 1 to 0 each time the horizontal
+ray crosses any edge. So basically it's keeping track of whether the number of
+edges crossed are even or odd. 0 means even and 1 means odd.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-make-an-android-device-vibrate-with-different-frequency/" class="u-url">How to make an Android device vibrate? with different frequency?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -264,111 +505,6 @@ render the placeholder text:</p>
 
 <p><strong>Not suggested for production, Apple may reject your submission.</strong></p>
 <p><img alt="" src="images/EPcOv.png"></p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-do-browsers-match-css-selectors-from-right-to-left/" class="u-url">Why do browsers match CSS selectors from right to left?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/why-do-browsers-match-css-selectors-from-right-to-left/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T01:33:41+08:00" itemprop="datePublished" title="2023-02-18 01:33">2023-02-18 01:33</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>CSS Selectors are matched by browser engines from right to left. So they first
-find the children and then check their parents to see if they match the rest
-of the parts of the rule.</p>
-<ol>
-<li>Why is this?</li>
-<li>Is it just because the spec says?</li>
-<li>Does it affect the eventual layout if it was evaluated from left to right?</li>
-</ol>
-<p>To me the simplest way to do it would be use the selectors with the least
-number of elements. So IDs first (as they should only return 1 element). Then
-maybe classes or an element that has the fewest number of nodes — e.g. there
-may only be one span on the page so go directly to that node with any rule
-that references a span.</p>
-<p>Here are some links backing up my claims</p>
-<ol>
-<li>http://code.google.com/speed/page-speed/docs/rendering.html</li>
-<li>https://developer.mozilla.org/en/Writing_Efficient_CSS</li>
-</ol>
-<hr>
-<p>It sounds like that it is done this way to avoid having to look at all the
-children of parent (which could be many) rather than all the parents of a
-child which must be one. Even if the DOM is deep it would only look at one
-node per level rather than multiple in the RTL matching. Is it easier/faster
-to evaluate CSS selectors LTR or RTL?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Keep in mind that when a browser is doing selector matching it has one element
-(the one it's trying to determine style for) and all your rules and their
-selectors and it needs to find which rules match the element. This is
-different from the usual jQuery thing, say, where you only have one selector
-and you need to find all the elements that match that selector.</p>
-<p>If you only had one selector and only one element to compare against that
-selector, then left-to-right makes more sense in some cases. But that's
-decidedly <em>not</em> the browser's situation. The browser is trying to render Gmail
-or whatever and has the one <code>&lt;span&gt;</code> it's trying to style and the 10,000+
-rules Gmail puts in its stylesheet (I'm not making that number up).</p>
-<p>In particular, in the situation the browser is looking at most of the
-selectors it's considering <em>don't</em> match the element in question. So the
-problem becomes one of deciding that a selector doesn't match as fast as
-possible; if that requires a bit of extra work in the cases that do match you
-still win due to all the work you save in the cases that don't match.</p>
-<p>If you start by just matching the rightmost part of the selector against your
-element, then chances are it won't match and you're done. If it does match,
-you have to do more work, but only proportional to your tree depth, which is
-not that big in most cases.</p>
-<p>On the other hand, if you start by matching the leftmost part of the
-selector... what do you match it against? You have to start walking the DOM,
-looking for nodes that might match it. Just discovering that there's nothing
-matching that leftmost part might take a while.</p>
-<p>So browsers match from the right; it gives an obvious starting point and lets
-you get rid of most of the candidate selectors very quickly. You can see some
-data at
-http://groups.google.com/group/mozilla.dev.tech.layout/browse_thread/thread/b185e455a0b3562a/7db34de545c17665
-(though the notation is confusing), but the upshot is that for Gmail in
-particular two years ago, for 70% of the (rule, element) pairs you could
-decide that the rule does not match after just examining the tag/class/id
-parts of the rightmost selector for the rule. The corresponding number for
-Mozilla's pageload performance test suite was 72%. So it's really worth trying
-to get rid of those 2/3 of all rules as fast as you can and then only worry
-about matching the remaining 1/3.</p>
-<p>Note also that there are other optimizations browsers already do to avoid even
-trying to match rules that definitely won't match. For example, if the
-rightmost selector has an id and that id doesn't match the element's id, then
-there will be no attempt to match that selector against that element at all in
-Gecko: the set of "selectors with IDs" that are attempted comes from a
-hashtable lookup on the element's ID. So this is 70% of the rules which have a
-pretty good chance of matching that <em>still</em> don't match after considering just
-the tag/class/id of the rightmost selector.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Right to left parsing, also called as <strong>bottom-up parsing</strong> is actually
-efficient for the browser.</p>
-<p>Consider the following:</p>
-<div class="code"><pre class="code literal-block"><span class="p">#</span><span class="nn">menu</span><span class="w"> </span><span class="nt">ul</span><span class="w"> </span><span class="nt">li</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#00f</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</pre></div>
-
-<p>The browser first checks for <strong><code>a</code></strong> , then <strong><code>li</code></strong> , then <strong><code>ul</code></strong> , and
-then <strong><code>#menu</code></strong>.</p>
-<p>This is because as the browser is scanning the page it just needs to look at
-the current element/node and all the previous nodes/elements that it has
-scanned.</p>
-<p>The thing to note is that the <strong>browser starts processing moment it gets a
-complete tag/node</strong> and needn't have to wait for the whole page except when it
-finds a script, in which case it temporarily pauses and completes execution of
-the script and then goes forward.</p>
-<p>If it does the other way round it will be inefficient because the browser
-found the element it was scanning on the first check, but was then forced to
-continue looking through the document for all the additional selectors. For
-this the browser needs to have the entire html and may need to scan the whole
-page before it starts css painting.</p>
-<p>This is contrary to how most libs parse dom. There the dom is constructed and
-it doesn't need to scan the entire page just find the first element and then
-go on matching others inside it .</p>
     </div>
     </article>
 </div>

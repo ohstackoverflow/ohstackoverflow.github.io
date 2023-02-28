@@ -108,7 +108,96 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/terminating-a-script-in-powershell/" class="u-url">Terminating a script in PowerShell</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-add-a-progress-bar-to-a-shell-script/" class="u-url">How to add a progress bar to a shell script?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-add-a-progress-bar-to-a-shell-script/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T07:16:10+08:00" itemprop="datePublished" title="2023-02-18 07:16">2023-02-18 07:16</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>When scripting in bash or any other shell in *NIX, while running a command
+that will take more than a few seconds, a progress bar is needed.</p>
+<p>For example, copying a big file, opening a big tar file.</p>
+<p>What ways do you recommend to add progress bars to shell scripts?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>You can implement this by overwriting a line. Use <code>\r</code> to go back to the
+beginning of the line without writing <code>\n</code> to the terminal.</p>
+<p>Write <code>\n</code> when you're done to advance the line.</p>
+<p>Use <code>echo -ne</code> to:</p>
+<ol>
+<li>not print <code>\n</code> and</li>
+<li>to recognize escape sequences like <code>\r</code>.</li>
+</ol>
+<p>Here's a demo:</p>
+<div class="code"><pre class="code literal-block">echo -ne '#####                     (33%)\r'
+sleep 1
+echo -ne '#############             (66%)\r'
+sleep 1
+echo -ne '#######################   (100%)\r'
+echo -ne '\n'
+</pre></div>
+
+<p>In a comment below, puk mentions this "fails" if you start with a long line
+and then want to write a short line: In this case, you'll need to overwrite
+the length of the long line (e.g., with spaces).</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>You may also be interested in how to do a spinner:</p>
+<h3>Can I do a spinner in Bash?</h3>
+<blockquote>
+<p>Sure!</p>
+<div class="code"><pre class="code literal-block">i=1
+sp="/-\|"
+echo<span class="w"> </span>-n<span class="w"> </span>'<span class="w"> </span>'
+while<span class="w"> </span>true
+do
+<span class="w">    </span>printf<span class="w"> </span>"\b<span class="cp">${</span><span class="n">sp</span><span class="p">:</span><span class="n">i</span><span class="o">++%</span><span class="err">$</span><span class="p">{</span><span class="c1">#sp</span><span class="cp">}</span>:1}"
+done
+</pre></div>
+
+<p>Each time the loop iterates, it displays the next character in the sp
+string, wrapping around as it reaches the end. (i is the position of the
+current character to display and ${#sp} is the length of the sp string).</p>
+<p>The \b string is replaced by a 'backspace' character. Alternatively, you
+could play with \r to go back to the beginning of the line.</p>
+<p>If you want it to slow down, put a sleep command inside the loop (after the
+printf).</p>
+<p>A POSIX equivalent would be:</p>
+<div class="code"><pre class="code literal-block">sp='/-\|'
+printf<span class="w"> </span>'<span class="w"> </span>'
+while<span class="w"> </span>true;<span class="w"> </span>do
+<span class="w">    </span>printf<span class="w"> </span>'\b%.1s'<span class="w"> </span>"<span class="nv">$sp</span>"
+<span class="w">    </span>sp=<span class="cp">${</span><span class="n">sp</span><span class="c1">#?</span><span class="cp">}${</span><span class="n">sp</span><span class="o">%</span><span class="err">???</span><span class="cp">}</span>
+done
+</pre></div>
+
+<p>If you already have a loop which does a lot of work, you can call the
+following function at the beginning of each iteration to update the spinner:</p>
+<div class="code"><pre class="code literal-block"><span class="n">sp</span><span class="o">=</span><span class="s">"/-\|"</span>
+<span class="n">sc</span><span class="o">=</span><span class="mi">0</span>
+<span class="n">spin</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="n">printf</span><span class="w"> </span><span class="s">"</span><span class="se">\b</span><span class="s">${sp:sc++:1}"</span>
+<span class="w">   </span><span class="p">((</span><span class="n">sc</span><span class="o">==</span><span class="n">$</span><span class="p">{</span><span class="err">#</span><span class="n">sp</span><span class="p">}))</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">sc</span><span class="o">=</span><span class="mi">0</span>
+<span class="p">}</span>
+<span class="n">endspin</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="n">printf</span><span class="w"> </span><span class="s">"</span><span class="se">\r</span><span class="s">%s</span><span class="se">\n</span><span class="s">"</span><span class="w"> </span><span class="s">"$@"</span>
+<span class="p">}</span>
+
+<span class="n">until</span><span class="w"> </span><span class="n">work_done</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">   </span><span class="n">spin</span>
+<span class="w">   </span><span class="n">some_work</span><span class="w"> </span><span class="p">...</span>
+<span class="n">done</span>
+<span class="n">endspin</span>
+</pre></div>
+
+</blockquote>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/terminating-a-script-in-powershell/" class="u-url">Terminating a script in PowerShell</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -202,42 +291,6 @@ name, <code>df</code> is unharmed by this process. If you want to permanently re
 from <code>df</code>, do <code>df.drop('b', inplace=True)</code>.</p>
 <p><code>df.drop()</code> also accepts a list of labels, e.g. <code>df.drop(['a', 'b'], axis=1)</code>
 will drop column <code>a</code> and <code>b</code>.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-all-errors-from-asp-net-mvc-modelstate/" class="u-url">How to get all Errors from ASP.Net MVC modelState?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-get-all-errors-from-asp-net-mvc-modelstate/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T07:14:07+08:00" itemprop="datePublished" title="2023-02-18 07:14">2023-02-18 07:14</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I want to get all the error messages out of the modelState without knowing the
-key values. Looping through to grab all the error messages that the ModelState
-contains.</p>
-<p>How can I do this?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<div class="code"><pre class="code literal-block">foreach (ModelState modelState in ViewData.ModelState.Values) {
-    foreach (ModelError error in modelState.Errors) {
-        DoSomethingWith(error);
-    }
-}
-</pre></div>
-
-<p>See also How do I get the collection of Model State Errors in ASP.NET MVC?.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<div class="code"><pre class="code literal-block">foreach (ModelState modelState in ViewData.ModelState.Values) {
-    foreach (ModelError error in modelState.Errors) {
-        DoSomethingWith(error);
-    }
-}
-</pre></div>
-
-<p>See also How do I get the collection of Model State Errors in ASP.NET MVC?.</p>
     </div>
     </article>
 </div>

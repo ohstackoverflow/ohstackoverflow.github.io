@@ -108,7 +108,118 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-you-find-the-row-count-for-all-your-tables-in-postgres/" class="u-url">How do you find the row count for all your tables in Postgres</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/if-my-interface-must-return-task-what-is-the-best-way-to-have-a-no-operation-implementation/" class="u-url">If my interface must return Task what is the best way to have a no-operation implementation?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/if-my-interface-must-return-task-what-is-the-best-way-to-have-a-no-operation-implementation/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:15:44+08:00" itemprop="datePublished" title="2023-02-18 05:15">2023-02-18 05:15</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>In the code below, due to the interface, the class <code>LazyBar</code> must return a
+task from its method (and for argument's sake can't be changed). If <code>LazyBar</code>s
+implementation is unusual in that it happens to run quickly and synchronously
+- what is the best way to return a No-Operation task from the method?</p>
+<p>I have gone with <code>Task.Delay(0)</code> below, however I would like to know if this
+has any performance side-effects if the function is called a <em>lot</em> (for
+argument's sake, say hundreds of times a second):</p>
+<ul>
+<li>Does this syntactic sugar un-wind to something big?</li>
+<li>Does it start clogging up my application's thread pool?</li>
+<li>Is the compiler cleaver enough to deal with <code>Delay(0)</code> differently?</li>
+<li>Would <code>return Task.Run(() =&gt; { });</code> be any different?</li>
+</ul>
+<p>Is there a better way?</p>
+<div class="code"><pre class="code literal-block">using<span class="w"> </span>System.Threading.Tasks;
+
+namespace<span class="w"> </span>MyAsyncTest
+{
+<span class="w">    </span>internal<span class="w"> </span>interface<span class="w"> </span>IFooFace
+<span class="w">    </span>{
+<span class="w">        </span>Task<span class="w"> </span>WillBeLongRunningAsyncInTheMajorityOfImplementations();
+<span class="w">    </span>}
+
+<span class="w">    </span>///<span class="w"> </span><span class="nt">&lt;summary&gt;</span>
+<span class="w">    </span>///<span class="w"> </span>An<span class="w"> </span>implementation,<span class="w"> </span>that<span class="w"> </span>unlike<span class="w"> </span>most<span class="w"> </span>cases,<span class="w"> </span>will<span class="w"> </span>not<span class="w"> </span>have<span class="w"> </span>a<span class="w"> </span>long-running
+<span class="w">    </span>///<span class="w"> </span>operation<span class="w"> </span>in<span class="w"> </span>'WillBeLongRunningAsyncInTheMajorityOfImplementations'
+<span class="w">    </span>///<span class="w"> </span><span class="nt">&lt;/summary&gt;</span>
+<span class="w">    </span>internal<span class="w"> </span>class<span class="w"> </span>LazyBar<span class="w"> </span>:<span class="w"> </span>IFooFace
+<span class="w">    </span>{
+<span class="w">        </span>#region<span class="w"> </span>IFooFace<span class="w"> </span>Members
+
+<span class="w">        </span>public<span class="w"> </span>Task<span class="w"> </span>WillBeLongRunningAsyncInTheMajorityOfImplementations()
+<span class="w">        </span>{
+<span class="w">            </span>//<span class="w"> </span>First,<span class="w"> </span>do<span class="w"> </span>something<span class="w"> </span>really<span class="w"> </span>quick
+<span class="w">            </span>var<span class="w"> </span>x<span class="w"> </span>=<span class="w"> </span>1;
+
+<span class="w">            </span>//<span class="w"> </span>Can't<span class="w"> </span>return<span class="w"> </span>'null'<span class="w"> </span>here!<span class="w"> </span>Does<span class="w"> </span>'Task.Delay(0)'<span class="w"> </span>have<span class="w"> </span>any<span class="w"> </span>performance<span class="w"> </span>considerations?
+<span class="w">            </span>//<span class="w"> </span>Is<span class="w"> </span>it<span class="w"> </span>a<span class="w"> </span>real<span class="w"> </span>no-op,<span class="w"> </span>or<span class="w"> </span>if<span class="w"> </span>I<span class="w"> </span>call<span class="w"> </span>this<span class="w"> </span>a<span class="w"> </span>lot,<span class="w"> </span>will<span class="w"> </span>it<span class="w"> </span>adversely<span class="w"> </span>affect<span class="w"> </span>the
+<span class="w">            </span>//<span class="w"> </span>underlying<span class="w"> </span>thread-pool?<span class="w"> </span>Better<span class="w"> </span>way?
+<span class="w">            </span>return<span class="w"> </span>Task.Delay(0);
+
+<span class="w">            </span>//<span class="w"> </span>Any<span class="w"> </span>different?
+<span class="w">            </span>//<span class="w"> </span>return<span class="w"> </span>Task.Run(()<span class="w"> </span>=&gt;<span class="w"> </span>{<span class="w"> </span>});
+
+<span class="w">            </span>//<span class="w"> </span>If<span class="w"> </span>my<span class="w"> </span>task<span class="w"> </span>returned<span class="w"> </span>something,<span class="w"> </span>I<span class="w"> </span>would<span class="w"> </span>do:
+<span class="w">            </span>//<span class="w"> </span>return<span class="w"> </span>Task.FromResult<span class="nt">&lt;int&gt;</span>(12345);
+<span class="w">        </span>}
+
+<span class="w">        </span>#endregion
+<span class="w">    </span>}
+
+<span class="w">    </span>internal<span class="w"> </span>class<span class="w"> </span>Program
+<span class="w">    </span>{
+<span class="w">        </span>private<span class="w"> </span>static<span class="w"> </span>void<span class="w"> </span>Main(string[]<span class="w"> </span>args)
+<span class="w">        </span>{
+<span class="w">            </span>Test();
+<span class="w">        </span>}
+
+<span class="w">        </span>private<span class="w"> </span>static<span class="w"> </span>async<span class="w"> </span>void<span class="w"> </span>Test()
+<span class="w">        </span>{
+<span class="w">            </span>IFooFace<span class="w"> </span>foo<span class="w"> </span>=<span class="w"> </span>FactoryCreate();
+<span class="w">            </span>await<span class="w"> </span>foo.WillBeLongRunningAsyncInTheMajorityOfImplementations();
+<span class="w">            </span>return;
+<span class="w">        </span>}
+
+<span class="w">        </span>private<span class="w"> </span>static<span class="w"> </span>IFooFace<span class="w"> </span>FactoryCreate()
+<span class="w">        </span>{
+<span class="w">            </span>return<span class="w"> </span>new<span class="w"> </span>LazyBar();
+<span class="w">        </span>}
+<span class="w">    </span>}
+}
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Today, I would recommend using Task.CompletedTask to accomplish this.</p>
+<hr>
+<p>Pre .net 4.6:</p>
+<p>Using <code>Task.FromResult(0)</code> or <code>Task.FromResult&lt;object&gt;(null)</code> will incur less
+overhead than creating a <code>Task</code> with a no-op expression. When creating a
+<code>Task</code> with a result pre-determined, there is no scheduling overhead involved.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>To add to Reed Copsey's answer about using <code>Task.FromResult</code>, you can improve
+performance even more if you cache the already completed task since all
+instances of completed tasks are the same:</p>
+<div class="code"><pre class="code literal-block">public static class TaskExtensions
+{
+    public static readonly Task CompletedTask = Task.FromResult(false);
+}
+</pre></div>
+
+<p>With <code>TaskExtensions.CompletedTask</code> you can use the same instance throughout
+the entire app domain.</p>
+<hr>
+<p>The latest version of the .Net Framework (v4.6) adds just that with the
+<code>Task.CompletedTask</code> static property</p>
+<div class="code"><pre class="code literal-block">Task completedTask = Task.CompletedTask;
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-you-find-the-row-count-for-all-your-tables-in-postgres/" class="u-url">How do you find the row count for all your tables in Postgres</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -253,87 +364,6 @@ answer in comments. However, I find that sometimes great answers that are left
 as comments can go unnoticed; especially when there are a lot of comments to
 an answer you may find yourself digging through piles of them looking for a
 gem. Hopefully this helps someone out!</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/jquery-setting-the-selected-value-of-a-select-control-via-its-text-description/" class="u-url">jQuery - setting the selected value of a select control via its text description</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/jquery-setting-the-selected-value-of-a-select-control-via-its-text-description/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:14:25+08:00" itemprop="datePublished" title="2023-02-18 05:14">2023-02-18 05:14</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I have a select control, and in a javascript variable I have a text string.</p>
-<p>Using jQuery I want to set the selected element of the select control to be
-the item with the text description I have (as opposed to the value, which I
-don't have).</p>
-<p>I know setting it by value is pretty trivial. e.g.</p>
-<div class="code"><pre class="code literal-block">$("#my-select").val(myVal);
-</pre></div>
-
-<p>But I'm a bit stumped on doing it via the text description. I guess there must
-be a way of getting the value out from the text description, but my brain is
-too Friday afternoon-ed to be able to work it out.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h3>Select by description for jQuery v1.6+</h3>
-<div class="code"><pre class="code literal-block">var<span class="w"> </span>text1<span class="w"> </span>=<span class="w"> </span>'Two';
-$("select<span class="w"> </span>option").filter(function()<span class="w"> </span>{
-<span class="w">  </span>//may<span class="w"> </span>want<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span>$.trim<span class="w"> </span>in<span class="w"> </span>here
-<span class="w">  </span>return<span class="w"> </span>$(this).text()<span class="w"> </span>==<span class="w"> </span>text1;
-}).prop('selected',<span class="w"> </span>true);
-
-
-<span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
-
-<span class="nt">&lt;select&gt;</span>
-<span class="w">  </span><span class="nt">&lt;option</span><span class="w"> </span><span class="na">value=</span><span class="s">"0"</span><span class="nt">&gt;</span>One<span class="nt">&lt;/option&gt;</span>
-<span class="w">  </span><span class="nt">&lt;option</span><span class="w"> </span><span class="na">value=</span><span class="s">"1"</span><span class="nt">&gt;</span>Two<span class="nt">&lt;/option&gt;</span>
-<span class="nt">&lt;/select&gt;</span>
-</pre></div>
-
-<h3>jQuery versions below 1.6 and greater than or equal to 1.4</h3>
-<div class="code"><pre class="code literal-block">var<span class="w"> </span>text1<span class="w"> </span>=<span class="w"> </span>'Two';
-$("select<span class="w"> </span>option").filter(function()<span class="w"> </span>{
-<span class="w">  </span>//may<span class="w"> </span>want<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span>$.trim<span class="w"> </span>in<span class="w"> </span>here
-<span class="w">  </span>return<span class="w"> </span>$(this).text()<span class="w"> </span>==<span class="w"> </span>text1;
-}).attr('selected',<span class="w"> </span>true);
-
-
-<span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://cdnjs.cloudflare.com/ajax/libs/jquery/1.4.0/jquery.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
-
-<span class="nt">&lt;select&gt;</span>
-<span class="w">  </span><span class="nt">&lt;option</span><span class="w"> </span><span class="na">value=</span><span class="s">"0"</span><span class="nt">&gt;</span>One<span class="nt">&lt;/option&gt;</span>
-<span class="w">  </span><span class="nt">&lt;option</span><span class="w"> </span><span class="na">value=</span><span class="s">"1"</span><span class="nt">&gt;</span>Two<span class="nt">&lt;/option&gt;</span>
-<span class="nt">&lt;/select&gt;</span>
-</pre></div>
-
-<p>Note that while this approach will work in versions that are above 1.6 but
-less than 1.9, it has been deprecated since 1.6. It <em>will not work</em> in jQuery
-1.9+.</p>
-<hr>
-<h3>Previous versions</h3>
-<p><code>val()</code> should handle both cases.</p>
-<div class="code"><pre class="code literal-block">$('select').val('1');<span class="w"> </span>//<span class="w"> </span>selects<span class="w"> </span>"Two"
-$('select').val('Two');<span class="w"> </span>//<span class="w"> </span>also<span class="w"> </span>selects<span class="w"> </span>"Two"
-
-
-<span class="nt">&lt;script</span><span class="w"> </span><span class="na">src=</span><span class="s">"https://cdnjs.cloudflare.com/ajax/libs/jquery/1.2.3/jquery.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
-
-<span class="nt">&lt;select&gt;</span>
-<span class="w">  </span><span class="nt">&lt;option</span><span class="w"> </span><span class="na">value=</span><span class="s">"0"</span><span class="nt">&gt;</span>One<span class="nt">&lt;/option&gt;</span>
-<span class="w">  </span><span class="nt">&lt;option</span><span class="w"> </span><span class="na">value=</span><span class="s">"1"</span><span class="nt">&gt;</span>Two<span class="nt">&lt;/option&gt;</span>
-<span class="nt">&lt;/select&gt;</span>
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>I haven't tested this, but this might work for you.</p>
-<div class="code"><pre class="code literal-block">$("select#my-select option")
-   .each(function() { this.selected = (this.text == myVal); });
-</pre></div>
     </div>
     </article>
 </div>

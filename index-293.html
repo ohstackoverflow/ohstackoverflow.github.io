@@ -108,7 +108,122 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/getting-key-with-maximum-value-in-dictionary/" class="u-url">Getting key with maximum value in dictionary?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-escape-single-quotes-within-single-quoted-strings/" class="u-url">How to escape single quotes within single quoted strings</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-escape-single-quotes-within-single-quoted-strings/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T03:13:00+08:00" itemprop="datePublished" title="2023-02-17 03:13">2023-02-17 03:13</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Let's say, you have a Bash <code>alias</code> like:</p>
+<div class="code"><pre class="code literal-block">alias rxvt='urxvt'
+</pre></div>
+
+<p>which works fine.</p>
+<p>However:</p>
+<div class="code"><pre class="code literal-block">alias rxvt='urxvt -fg '#111111' -bg '#111111''
+</pre></div>
+
+<p>won't work, and neither will:</p>
+<div class="code"><pre class="code literal-block">alias rxvt='urxvt -fg \'#111111\' -bg \'#111111\''
+</pre></div>
+
+<p>So how do you end up matching up opening and closing quotes inside a string
+once you have escaped quotes?</p>
+<div class="code"><pre class="code literal-block">alias rxvt='urxvt -fg'\''#111111'\'' -bg '\''#111111'\''
+</pre></div>
+
+<p>seems ungainly although it would represent the same string if you're allowed
+to concatenate them like that.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>If you really want to use single quotes in the outermost layer, remember that
+you can glue both kinds of quotation. Example:</p>
+<div class="code"><pre class="code literal-block"> alias rxvt='urxvt -fg '"'"'#111111'"'"' -bg '"'"'#111111'"'"
+ #                     ^^^^^       ^^^^^     ^^^^^       ^^^^
+ #                     12345       12345     12345       1234
+</pre></div>
+
+<p>Explanation of how <code>'"'"'</code> is interpreted as just <code>'</code>:</p>
+<ol>
+<li>
+<code>'</code> End first quotation which uses single quotes.</li>
+<li>
+<code>"</code> Start second quotation, using double-quotes.</li>
+<li>
+<code>'</code> Quoted character.</li>
+<li>
+<code>"</code> End second quotation, using double-quotes.</li>
+<li>
+<code>'</code> Start third quotation, using single quotes.</li>
+</ol>
+<p>If you do not place any whitespaces between (1) and (2), or between (4) and
+(5), the shell will interpret that string as a one long word.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I always just replace each embedded single quote with the sequence: <code>'\''</code>
+(that is: quote backslash quote quote) which closes the string, appends an
+escaped single quote and reopens the string.</p>
+<hr>
+<p>I often whip up a "quotify" function in my Perl scripts to do this for me. The
+steps would be:</p>
+<div class="code"><pre class="code literal-block">s/'/'\\''/g    # Handle each embedded quote
+$_ = qq['$_']; # Surround result with single quotes.
+</pre></div>
+
+<p>This pretty much takes care of all cases.</p>
+<p>Life gets more fun when you introduce <code>eval</code> into your shell-scripts. You
+essentially have to re-quotify everything again!</p>
+<p>For example, create a Perl script called quotify containing the above
+statements:</p>
+<div class="code"><table class="codetable">
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-to-escape-single-quotes-within-single-quoted-strings/#-1"><code data-line-number="1"></code></a></td>
+<td class="code"><code><span class="ch">#!/usr/bin/perl -pl</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-to-escape-single-quotes-within-single-quoted-strings/#-2"><code data-line-number="2"></code></a></td>
+<td class="code"><code><span class="sr">s/'/'\\''/g</span><span class="p">;</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/how-to-escape-single-quotes-within-single-quoted-strings/#-3"><code data-line-number="3"></code></a></td>
+<td class="code"><code><span class="nv">$_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sx">qq['$_']</span><span class="p">;</span>
+</code></td>
+</tr>
+</table></div>
+<p>then use it to generate a correctly-quoted string:</p>
+<div class="code"><pre class="code literal-block">$<span class="w"> </span>quotify
+urxvt<span class="w"> </span>-fg<span class="w"> </span><span class="s1">'#111111'</span><span class="w"> </span>-bg<span class="w"> </span><span class="s1">'#111111'</span>
+</pre></div>
+
+<p>result:</p>
+<div class="code"><pre class="code literal-block">'urxvt -fg '\''#111111'\'' -bg '\''#111111'\'''
+</pre></div>
+
+<p>which can then be copy/pasted into the alias command:</p>
+<div class="code"><pre class="code literal-block">alias rxvt='urxvt -fg '\''#111111'\'' -bg '\''#111111'\'''
+</pre></div>
+
+<p>(If you need to insert the command into an eval, run the quotify again:</p>
+<div class="code"><pre class="code literal-block"> $ quotify
+ alias rxvt='urxvt -fg '\''#111111'\'' -bg '\''#111111'\'''
+</pre></div>
+
+<p>result:</p>
+<div class="code"><pre class="code literal-block">'alias rxvt='\''urxvt -fg '\''\'\'''\''#111111'\''\'\'''\'' -bg '\''\'\'''\''#111111'\''\'\'''\'''\'''
+</pre></div>
+
+<p>which can be copy/pasted into an eval:</p>
+<div class="code"><pre class="code literal-block">eval 'alias rxvt='\''urxvt -fg '\''\'\'''\''#111111'\''\'\'''\'' -bg '\''\'\'''\''#111111'\''\'\'''\'''\'''
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/getting-key-with-maximum-value-in-dictionary/" class="u-url">Getting key with maximum value in dictionary?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -213,36 +328,6 @@ HTML5/JavaScript renderer for PDF documents without any third-party plugins.</p>
 HTML5/JavaScript renderer for PDF documents without any third-party plugins.</p>
 <p>Online demo: https://mozilla.github.io/pdf.js/web/viewer.html</p>
 <p>GitHub: https://github.com/mozilla/pdf.js</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-between-join-and-inner-join/" class="u-url">Difference between JOIN and INNER JOIN</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/difference-between-join-and-inner-join/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T03:11:41+08:00" itemprop="datePublished" title="2023-02-17 03:11">2023-02-17 03:11</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Both these joins will give me the same results:</p>
-<div class="code"><pre class="code literal-block">SELECT * FROM table JOIN otherTable ON table.ID = otherTable.FK
-</pre></div>
-
-<p>vs</p>
-<div class="code"><pre class="code literal-block">SELECT * FROM table INNER JOIN otherTable ON table.ID = otherTable.FK
-</pre></div>
-
-<p>Is there any difference between the statements in performance or otherwise?</p>
-<p>Does it differ between different <strong>SQL</strong> implementations?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>They are functionally equivalent, but <code>INNER JOIN</code> can be a bit clearer to
-read, especially if the query has other join types (i.e. <code>LEFT</code> or <code>RIGHT</code> or
-<code>CROSS</code>) included in it.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>No, there is no difference, pure <strong>syntactic sugar</strong>.</p>
     </div>
     </article>
 </div>

@@ -108,7 +108,115 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-a-file-s-extension-in-php/" class="u-url">How to get a file's extension in PHP?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-fix-referenceerror-primordials-is-not-defined-in-node-js/" class="u-url">How to fix "ReferenceError: primordials is not defined" in Node.js</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-fix-referenceerror-primordials-is-not-defined-in-node-js/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T11:43:58+08:00" itemprop="datePublished" title="2023-02-17 11:43">2023-02-17 11:43</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have installed Node.js modules by 'npm install', and then I tried to do
+<code>gulp sass-watch</code> in a command prompt. After that, I got the below response.</p>
+<div class="code"><pre class="code literal-block"><span class="p">[</span><span class="mi">18</span><span class="p">:</span><span class="mi">18</span><span class="p">:</span><span class="mi">32</span><span class="p">]</span><span class="w"> </span><span class="n">Requiring</span><span class="w"> </span><span class="n">external</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="n">babel</span><span class="o">-</span><span class="n">register</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">js</span><span class="p">:</span><span class="mi">27</span>
+<span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Math</span><span class="p">,</span><span class="w"> </span><span class="nb nb-Type">Object</span><span class="p">,</span><span class="w"> </span><span class="n">Reflect</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">primordials</span><span class="p">;</span>
+<span class="w">                                  </span><span class="o">^</span>
+
+<span class="n">ReferenceError</span><span class="p">:</span><span class="w"> </span><span class="n">primordials</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">defined</span>
+</pre></div>
+
+<p>I have tried this before <code>gulp sass-watch</code>:</p>
+<div class="code"><pre class="code literal-block">npm -g install gulp-cli
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I hit the same error. I suspect you're using Node.js 12 and Gulp.js 3. That
+combination does not work: <em>Gulp.js 3 is broken on Node.js 12 #2324</em></p>
+<p>A previous workaround from Jan. does not work either: <em>After update to Node.js
+11.0.0 running Gulp.js exits with 'ReferenceError: internalBinding is not
+defined' #2246</em></p>
+<p>Solution: Either upgrade to Gulp.js 4 or downgrade to an earlier version of
+Node.js.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>We encountered the same issue when updating a legacy project depending on
+<code>gulp@3.9.1</code> to Node.js 12+.</p>
+<p>These fixes enable you to use Node.js 12+ with <code>gulp@3.9.1</code> by overriding
+<code>graceful-fs</code> to version <code>^4.2.10</code>.</p>
+<h3>If you are using pnpm</h3>
+<p><code>pnpm</code> supports overriding some dependencies versions. To do it, you should
+add a <code>pnpm</code> section in your package.json file:</p>
+<div class="code"><pre class="code literal-block">{
+  "pnpm": {
+    "overrides": {
+      "graceful-fs": "^4.2.10"
+    }
+  }
+}
+</pre></div>
+
+<h3>If you are using yarn v1</h3>
+<p>Yarn v1 supports resolving a package to a defined version. You need to add a
+<code>resolutions</code> section to your <code>package.json</code>:</p>
+<div class="code"><pre class="code literal-block">{
+  "resolutions": {
+    "graceful-fs": "^4.2.10"
+  }
+}
+</pre></div>
+
+<p>Thanks @jazd for this way to solve the issue.</p>
+<h3>If you are using npm</h3>
+<p>Run this command to know which version of Node.js you are using:</p>
+<div class="code"><pre class="code literal-block">node -v
+</pre></div>
+
+<p>It will return a version number <code>&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;</code> such as <code>18.11.0</code>.</p>
+<p>If your version is v16.14.0 or above, then you can override the version of
+<code>graceful-fs</code> by adding an <code>overrides</code> section in your package.json file:</p>
+<div class="code"><pre class="code literal-block">{
+  "overrides": {
+    "graceful-fs": "^4.2.10"
+  }
+}
+</pre></div>
+
+<p>Otherwise, you need to use <code>npm-force-resolutions</code> as a preinstall script to
+be able to override the version of <code>graceful-fs</code> by changing your package.json
+file like this:</p>
+<div class="code"><pre class="code literal-block">{
+  "scripts": {
+    "preinstall": "npx npm-force-resolutions"
+  },
+  "resolutions": {
+    "graceful-fs": "^4.2.10"
+  }
+}
+</pre></div>
+
+<p><code>npm-force-resolutions</code> will alter the <code>package-lock.json</code> file to set
+<code>graceful-fs</code>to the wanted version before the <code>install</code> is done.</p>
+<p>If you are using a custom <code>.npmrc</code> file in your project and it contains either
+a proxy or custom registry, you might need to change <code>npx npm-force-
+resolutions</code> to <code>npx --userconfig .npmrc npm-force-resolutions</code> because some
+versions of <code>npx</code> don't use the current folder <code>.npmrc</code> file by default.</p>
+<h3>Origin of the problem</h3>
+<p>This issue stems from the fact that <code>gulp@3.9.1</code> depends on <code>graceful-
+fs@^3.0.0</code> which monkeypatches Node.js <code>fs</code> module.</p>
+<p>This used to work with Node.js until version 11.15 (which is a version from a
+development branch and shouldn't be used in production).</p>
+<p><code>graceful-fs@^4.0.0</code> does not monkeypatch Node.js <code>fs</code> module anymore, which
+makes it compatible with Node.js &gt; 11.15 (tested and working with versions 12,
+14 and 16).</p>
+<p>Note that this is not a perennial solution but it helps when you don't have
+the time to update to <code>gulp@^4.0.0</code>.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-a-file-s-extension-in-php/" class="u-url">How to get a file's extension in PHP?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -224,93 +332,6 @@ array. So for example, <code>obj.arr</code> would become...</p>
 <p><strong>Keep the last occurrence</strong> by replacing <code>findIndex</code> with <code>findLastIndex</code>.</p>
 <div class="code"><pre class="code literal-block">arr.filter((v,i,a)=&gt;a.findLastIndex(v2=&gt;(v2.place === v.place))===i)
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-avoid-reverse-engineering-of-an-apk-file/" class="u-url">How to avoid reverse engineering of an APK file</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-avoid-reverse-engineering-of-an-apk-file/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T11:42:23+08:00" itemprop="datePublished" title="2023-02-17 11:42">2023-02-17 11:42</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am developing a <strong>payment processing app</strong> for Android, and I want to
-prevent a hacker from accessing any resources, assets or source code from the
-APK file.</p>
-<p>If someone changes the .apk extension to .zip then they can unzip it and
-easily access all the app's resources and assets, and using dex2jar and a Java
-decompiler, they can also access the source code. It's very easy to reverse
-engineer an Android APK file - for more details see Stack Overflow question
-<em>Reverse engineering from an APK file to a project</em>.</p>
-<p>I have used the Proguard tool provided with the Android SDK. When I reverse
-engineer an APK file generated using a signed keystore and Proguard, I get
-obfuscated code.</p>
-<p>However, the names of Android components remain unchanged and some code, like
-key-values used in the app, remains unchanged. As per Proguard documentation
-the tool can't obfuscate components mentioned in the Manifest file.</p>
-<p>Now my questions are:</p>
-<ol>
-<li>How can I <strong>completely prevent</strong> reverse engineering of an Android APK? Is this possible?</li>
-<li>How can I protect all the app's resources, assets and source code so that hackers can't hack the APK file in any way?</li>
-<li>
-<strong>Is there a way to make hacking more tough or even impossible?</strong> What more can I do to protect the source code in my APK file?</li>
-</ol>
-<p><br><br></p>
-<h2>Answer</h2>
-<blockquote>
-<p>1. How can I completely avoid reverse engineering of an Android APK? Is
-this possible?</p>
-</blockquote>
-<p>AFAIK, there is not any trick for complete avoidance of reverse engineering.</p>
-<p>And also very well said by @inazaruk: <em>Whatever you do to your code, a
-potential attacker is able to change it in any way she or he finds it
-feasible</em>. You basically can't protect your application from being modified.
-And any protection you put in there can be disabled/removed.</p>
-<blockquote>
-<p>2. How can I protect all the app's resources, assets and source code so
-that hackers can't hack the APK file in any way?</p>
-</blockquote>
-<p>You can do different tricks to make hacking harder though. For example, use
-obfuscation (if it's Java code). This usually slows down reverse engineering
-significantly.</p>
-<blockquote>
-<p>3. Is there a way to make hacking more tough or even impossible? What more
-can I do to protect the source code in my APK file?</p>
-</blockquote>
-<p>As everyone says, and as you probably know, there's no 100% security. But the
-place to start for Android, that Google has built in, is ProGuard. If you have
-the option of including <strong>shared libraries</strong> , you can include the needed code
-in C++ to verify file sizes, integration, etc. If you need to add an external
-native library to your APK's library folder on every build, then you can use
-it by the below suggestion.</p>
-<p>Put the library in the native library path which defaults to "libs" in your
-project folder. If you built the native code for the <strong>'armeabi'</strong> target then
-put it under <strong>libs/armeabi</strong>. If it was built with <strong>armeabi-v7a</strong> then put
-it under <strong>libs/armeabi-v7a.</strong></p>
-<div class="code"><pre class="code literal-block">&lt;project&gt;/libs/armeabi/libstuff.so
-</pre></div>
-
-<p><br></p>
-<h3>Suggest</h3>
-<p>AFAIK, you cannot protect the files in the /res directory anymore than they
-are protected right now.</p>
-<p>However, there are steps you can take to protect your source code, or at least
-what it does if not everything.</p>
-<ol>
-<li>Use tools like ProGuard. These will obfuscate your code, and make it harder to read when decompiled, if not impossible.</li>
-<li>Move the most critical parts of the service out of the app, and into a webservice, hidden behind a server side language like PHP. For example, if you have an algorithm that's taken you a million dollars to write. You obviously don't want people stealing it out of your app. Move the algorithm and have it process the data on a remote server, and use the app to simply provide it with the data. Or use the NDK to write them natively into .so files, which are much less likely to be decompiled than apks. I don't think a decompiler for .so files even exists as of now (and even if it did, it wouldn't be as good as the Java decompilers). Additionally, as @nikolay mentioned in the comments, you should use SSL when interacting between the server and device.</li>
-<li>When storing values on the device, don't store them in a raw format. For example, if you have a game, and you're storing the amount of in game currency the user has in SharedPreferences. Let's assume it's <code>10000</code> coins. Instead of saving <code>10000</code> directly, save it using an algorithm like <code>((currency*2)+1)/13</code>. So instead of <code>10000</code>, you save <code>1538.53846154</code> into the SharedPreferences. However, the above example isn't perfect, and you'll have to work to come up with an equation that won't lose currency to rounding errors etc.</li>
-<li>You can do a similar thing for server side tasks. Now for an example, let's actually take your payment processing app. Let's say the user has to make a payment of <code>$200</code>. Instead of sending a raw <code>$200</code> value to the server, send a series of smaller, predefined, values that add up to <code>$200</code>. For example, have a file or table on your server that equates words with values. So let's say that <code>Charlie</code> corresponds to <code>$47</code>, and <code>John</code> to <code>$3</code>. So instead of sending <code>$200</code>, you can send <code>Charlie</code> four times and <code>John</code> four times. On the server, interpret what they mean and add it up. This prevents a hacker from sending arbitrary values to your server, as they do not know what word corresponds to what value. As an added measure of security, you could have an equation similar to point 3 for this as well, and change the keywords every <code>n</code> number of days.</li>
-<li>Finally, you can insert random useless source code into your app, so that the hacker is looking for a needle in a haystack. Insert random classes containing snippets from the internet, or just functions for calculating random things like the Fibonacci sequence. Make sure these classes compile, but aren't used by the actual functionality of the app. Add enough of these false classes, and the hacker would have a tough time finding your real code.</li>
-</ol>
-<p>All in all, there's no way to protect your app 100%. You can make it harder,
-but not impossible. Your web server could be compromised, the hacker could
-figure out your keywords by monitoring multiple transaction amounts and the
-keywords you send for it, the hacker could painstakingly go through the source
-and figure out which code is a dummy.</p>
-<p>You can only fight back, but never win.</p>
     </div>
     </article>
 </div>

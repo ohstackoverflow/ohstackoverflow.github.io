@@ -108,7 +108,72 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/function-vs-stored-procedure-in-sql-server/" class="u-url">Function vs. Stored Procedure in SQL Server</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/proper-use-of-yield-return/" class="u-url">Proper use of 'yield return'</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/proper-use-of-yield-return/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T08:20:22+08:00" itemprop="datePublished" title="2023-02-17 08:20">2023-02-17 08:20</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>The yield keyword is one of those keywords in C# that continues to mystify me,
+and I've never been confident that I'm using it correctly.</p>
+<p>Of the following two pieces of code, which is the preferred and why?</p>
+<p><strong>Version 1:</strong> Using yield return</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">IEnumerable</span><span class="o">&lt;</span><span class="n">Product</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetAllProducts</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">using</span><span class="w"> </span><span class="p">(</span><span class="n">AdventureWorksEntities</span><span class="w"> </span><span class="n">db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">AdventureWorksEntities</span><span class="p">())</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">product</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">db</span><span class="o">.</span><span class="n">Product</span>
+<span class="w">                       </span><span class="n">select</span><span class="w"> </span><span class="n">product</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Product</span><span class="w"> </span><span class="n">product</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">products</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="nb">yield</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">product</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>Version 2:</strong> Return the list</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">IEnumerable</span><span class="o">&lt;</span><span class="n">Product</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetAllProducts</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">using</span><span class="w"> </span><span class="p">(</span><span class="n">AdventureWorksEntities</span><span class="w"> </span><span class="n">db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">AdventureWorksEntities</span><span class="p">())</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">product</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">db</span><span class="o">.</span><span class="n">Product</span>
+<span class="w">                       </span><span class="n">select</span><span class="w"> </span><span class="n">product</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">products</span><span class="o">.</span><span class="n">ToList</span><span class="o">&lt;</span><span class="n">Product</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I tend to use yield-return when I calculate the next item in the list (or even
+the next group of items).</p>
+<p>Using your Version 2, you must have the complete list before returning. By
+using yield-return, you really only need to have the next item before
+returning.</p>
+<p>Among other things, this helps spread the computational cost of complex
+calculations over a larger time-frame. For example, if the list is hooked up
+to a GUI and the user never goes to the last page, you never calculate the
+final items in the list.</p>
+<p>Another case where yield-return is preferable is if the IEnumerable represents
+an infinite set. Consider the list of Prime Numbers, or an infinite list of
+random numbers. You can never return the full IEnumerable at once, so you use
+yield-return to return the list incrementally.</p>
+<p>In your particular example, you have the full list of products, so I'd use
+Version 2.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Populating a temporary list is like downloading the whole video, whereas using
+<code>yield</code> is like streaming that video.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/function-vs-stored-procedure-in-sql-server/" class="u-url">Function vs. Stored Procedure in SQL Server</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -383,93 +448,6 @@ through the entire list again so the n's multiply leaving us with n squared.</p>
 <p>This is barely scratching the surface but when you get to analyzing more
 complex algorithms complex math involving proofs comes into play. Hope this
 familiarizes you with the basics at least though.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/javascript-call-apply-vs-bind/" class="u-url">Javascript call() &amp; apply() vs bind()?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/javascript-call-apply-vs-bind/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T08:18:11+08:00" itemprop="datePublished" title="2023-02-17 08:18">2023-02-17 08:18</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I already know that <code>apply</code> and <code>call</code> are similar functions which set <code>this</code>
-(context of a function).</p>
-<p>The difference is with the way we send the arguments (manual vs array)</p>
-<p><strong>Question:</strong></p>
-<p>But when should I use the <code>bind()</code> method ?</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="n">x</span><span class="p">:</span><span class="w"> </span><span class="mi">81</span><span class="p">,</span>
-<span class="w">  </span><span class="n">getX</span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">x</span><span class="p">;</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">};</span>
-
-<span class="n">alert</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">getX</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="n">obj</span><span class="p">)());</span>
-<span class="n">alert</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">getX</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">obj</span><span class="p">));</span>
-<span class="n">alert</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">getX</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">obj</span><span class="p">));</span>
-</pre></div>
-
-<p>jsbin</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I created this comparison between function objects, function calls,
-<code>call/apply</code> and <code>bind</code> a while ago:</p>
-<p><img alt="enter image description here" src="images/WHlX0.jpg"></p>
-<p><code>.bind</code> allows you to set the <code>this</code> value <em>now</em> while allowing you to execute
-the function <em>in the future</em> , because it returns a new function object.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>They all attach <strong><em>this</em></strong> into function (or object) and the difference is in
-the function invocation (see below).</p>
-<p><strong>call</strong> attaches <strong><em>this</em></strong> into function and executes the function
-immediately:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">person</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w">  </span>
-<span class="w">  </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s2">"James Smith"</span><span class="p">,</span>
-<span class="w">  </span><span class="n">hello</span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">thing</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" says hello "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">thing</span><span class="p">);</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-
-<span class="n">person</span><span class="o">.</span><span class="n">hello</span><span class="p">(</span><span class="s2">"world"</span><span class="p">);</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">output</span><span class="p">:</span><span class="w"> </span><span class="s2">"James Smith says hello world"</span>
-<span class="n">person</span><span class="o">.</span><span class="n">hello</span><span class="o">.</span><span class="n">call</span><span class="p">({</span><span class="w"> </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s2">"Jim Smith"</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="s2">"world"</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">output</span><span class="p">:</span><span class="w"> </span><span class="s2">"Jim Smith says hello world"</span>
-</pre></div>
-
-<p><strong>bind</strong> attaches <strong><em>this</em></strong> into function and it needs to be invoked
-separately like this:</p>
-<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">person</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w">  </span>
-<span class="w">  </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s2">"James Smith"</span><span class="p">,</span>
-<span class="w">  </span><span class="n">hello</span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">thing</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" says hello "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">thing</span><span class="p">);</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-
-<span class="n">person</span><span class="o">.</span><span class="n">hello</span><span class="p">(</span><span class="s2">"world"</span><span class="p">);</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">output</span><span class="p">:</span><span class="w"> </span><span class="s2">"James Smith says hello world"</span>
-<span class="k">var</span><span class="w"> </span><span class="n">helloFunc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">person</span><span class="o">.</span><span class="n">hello</span><span class="o">.</span><span class="n">bind</span><span class="p">({</span><span class="w"> </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s2">"Jim Smith"</span><span class="w"> </span><span class="p">});</span>
-<span class="n">helloFunc</span><span class="p">(</span><span class="s2">"world"</span><span class="p">);</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">output</span><span class="p">:</span><span class="w"> </span><span class="n">Jim</span><span class="w"> </span><span class="n">Smith</span><span class="w"> </span><span class="n">says</span><span class="w"> </span><span class="n">hello</span><span class="w"> </span><span class="n">world</span><span class="s2">"</span>
-</pre></div>
-
-<p>or like this:</p>
-<div class="code"><pre class="code literal-block"><span class="o">...</span><span class="w">    </span>
-<span class="k">var</span><span class="w"> </span><span class="n">helloFunc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">person</span><span class="o">.</span><span class="n">hello</span><span class="o">.</span><span class="n">bind</span><span class="p">({</span><span class="w"> </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s2">"Jim Smith"</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="s2">"world"</span><span class="p">);</span>
-<span class="n">helloFunc</span><span class="p">();</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">output</span><span class="p">:</span><span class="w"> </span><span class="n">Jim</span><span class="w"> </span><span class="n">Smith</span><span class="w"> </span><span class="n">says</span><span class="w"> </span><span class="n">hello</span><span class="w"> </span><span class="n">world</span><span class="s2">"</span>
-</pre></div>
-
-<p><strong>apply</strong> is similar to <strong>call</strong> except that it takes an array-like object
-instead of listing the arguments out one at a time:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">personContainer</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">var</span><span class="w"> </span><span class="n">person</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w">  </span>
-<span class="w">     </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s2">"James Smith"</span><span class="p">,</span>
-<span class="w">     </span><span class="n">hello</span><span class="p">:</span><span class="w"> </span><span class="n">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">       </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">" says hello "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">arguments</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
-<span class="w">     </span><span class="p">}</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="w">  </span><span class="n">person</span><span class="o">.</span><span class="n">hello</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">person</span><span class="p">,</span><span class="w"> </span><span class="n">arguments</span><span class="p">);</span>
-<span class="p">}</span>
-<span class="n">personContainer</span><span class="p">(</span><span class="s2">"world"</span><span class="p">,</span><span class="w"> </span><span class="s2">"mars"</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">output</span><span class="p">:</span><span class="w"> </span><span class="s2">"James Smith says hello mars"</span><span class="p">,</span><span class="w"> </span><span class="n">note</span><span class="p">:</span><span class="w"> </span><span class="n">arguments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"world"</span><span class="w"> </span><span class="p">,</span><span class="w"> </span><span class="n">arguments</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"mars"</span>
-</pre></div>
     </div>
     </article>
 </div>

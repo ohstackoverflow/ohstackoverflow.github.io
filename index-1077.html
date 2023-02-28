@@ -108,7 +108,87 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-view-http-headers-in-google-chrome/" class="u-url">How can I view HTTP headers in Google Chrome?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-it-worth-using-python-s-re-compile/" class="u-url">Is it worth using Python's re.compile?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/is-it-worth-using-python-s-re-compile/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T00:40:04+08:00" itemprop="datePublished" title="2023-02-18 00:40">2023-02-18 00:40</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Is there any benefit in using compile for regular expressions in Python?</p>
+<div class="code"><pre class="code literal-block">h = re.compile('hello')
+h.match('hello world')
+</pre></div>
+
+<p>vs</p>
+<div class="code"><pre class="code literal-block">re.match('hello', 'hello world')
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I've had a lot of experience running a compiled regex 1000s of times versus
+compiling on-the-fly, and have not noticed any perceivable difference.
+Obviously, this is anecdotal, and certainly not a great argument <em>against</em>
+compiling, but I've found the difference to be negligible.</p>
+<p>EDIT: After a quick glance at the actual Python 2.5 library code, I see that
+Python internally compiles AND CACHES regexes whenever you use them anyway
+(including calls to <code>re.match()</code>), so you're really only changing WHEN the
+regex gets compiled, and shouldn't be saving much time at all - only the time
+it takes to check the cache (a key lookup on an internal <code>dict</code> type).</p>
+<p>From module re.py (comments are mine):</p>
+<div class="code"><pre class="code literal-block"><span class="n">def</span><span class="w"> </span><span class="k">match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span><span class="w"> </span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="err">:</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">_compile</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="p">).</span><span class="k">match</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+
+<span class="n">def</span><span class="w"> </span><span class="n">_compile</span><span class="p">(</span><span class="o">*</span><span class="k">key</span><span class="p">)</span><span class="err">:</span>
+
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">Does</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="k">check</span><span class="w"> </span><span class="k">at</span><span class="w"> </span><span class="k">top</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="k">function</span>
+<span class="w">    </span><span class="n">cachekey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">type</span><span class="p">(</span><span class="k">key</span><span class="o">[</span><span class="n">0</span><span class="o">]</span><span class="p">),)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">key</span>
+<span class="w">    </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_cache</span><span class="p">.</span><span class="k">get</span><span class="p">(</span><span class="n">cachekey</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="k">None</span><span class="err">:</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">p</span>
+
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="p">...</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">Does</span><span class="w"> </span><span class="n">actual</span><span class="w"> </span><span class="n">compilation</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="n">miss</span>
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="p">...</span>
+
+<span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="n">Caches</span><span class="w"> </span><span class="n">compiled</span><span class="w"> </span><span class="n">regex</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nf">len</span><span class="p">(</span><span class="n">_cache</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nl">_MAXCACHE</span><span class="p">:</span>
+<span class="w">        </span><span class="n">_cache</span><span class="p">.</span><span class="n">clear</span><span class="p">()</span>
+<span class="w">    </span><span class="n">_cache</span><span class="o">[</span><span class="n">cachekey</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">p</span>
+</pre></div>
+
+<p>I still often pre-compile regular expressions, but only to bind them to a
+nice, reusable name, not for any expected performance gain.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>For me, the biggest benefit to <code>re.compile</code> is being able to separate
+definition of the regex from its use.</p>
+<p>Even a simple expression such as <code>0|[1-9][0-9]*</code> (integer in base 10 without
+leading zeros) can be complex enough that you'd rather not have to retype it,
+check if you made any typos, and later have to recheck if there are typos when
+you start debugging. Plus, it's nicer to use a variable name such as num or
+num_b10 than <code>0|[1-9][0-9]*</code>.</p>
+<p>It's certainly possible to store strings and pass them to re.match; however,
+that's <em>less</em> readable:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"..."</span>
+#<span class="w"> </span><span class="k">then</span>,<span class="w"> </span><span class="nv">much</span><span class="w"> </span><span class="nv">later</span>:
+<span class="nv">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">re</span>.<span class="nv">match</span><span class="ss">(</span><span class="nv">num</span>,<span class="w"> </span><span class="nv">input</span><span class="ss">)</span>
+</pre></div>
+
+<p>Versus compiling:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">re</span>.<span class="nv">compile</span><span class="ss">(</span><span class="s2">"..."</span><span class="ss">)</span>
+#<span class="w"> </span><span class="k">then</span>,<span class="w"> </span><span class="nv">much</span><span class="w"> </span><span class="nv">later</span>:
+<span class="nv">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">num</span>.<span class="nv">match</span><span class="ss">(</span><span class="nv">input</span><span class="ss">)</span>
+</pre></div>
+
+<p>Though it is fairly close, the last line of the second feels more natural and
+simpler when used repeatedly.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-view-http-headers-in-google-chrome/" class="u-url">How can I view HTTP headers in Google Chrome?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -177,77 +257,6 @@ commonly used values. The first one seems to be what you 're after.</p>
 <span class="nt">white-space</span><span class="o">:</span><span class="w"> </span><span class="nt">pre-wrap</span><span class="o">;</span><span class="w"> </span><span class="c">/* Chrome */</span>
 <span class="nt">word-wrap</span><span class="o">:</span><span class="w"> </span><span class="nt">break-word</span><span class="o">;</span><span class="w"> </span><span class="c">/* IE */</span>
 </pre></div>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-tell-if-i-m-running-in-64-bit-jvm-or-32-bit-jvm-from-within-a-program/" class="u-url">How can I tell if I'm running in 64-bit JVM or 32-bit JVM (from within a program)?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-can-i-tell-if-i-m-running-in-64-bit-jvm-or-32-bit-jvm-from-within-a-program/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T00:38:23+08:00" itemprop="datePublished" title="2023-02-18 00:38">2023-02-18 00:38</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>How can I tell if the JVM in which my application runs is 32 bit or 64-bit?
-Specifically, what functions or properties I can used to detect this within
-the program?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You retrieve the system property that marks the bitness of this JVM with:</p>
-<div class="code"><pre class="code literal-block">System.getProperty("sun.arch.data.model");
-</pre></div>
-
-<p>Possible results are:</p>
-<ul>
-<li>
-<code>"32"</code> – 32-bit JVM</li>
-<li>
-<code>"64"</code> – 64-bit JVM</li>
-<li>
-<code>"unknown"</code> – Unknown JVM</li>
-</ul>
-<p>As described in the HotSpot FAQ:</p>
-<blockquote>
-<p><strong>When writing Java code, how do I distinguish between 32 and 64-bit
-operation?</strong></p>
-<p>There's no public API that allows you to distinguish between 32 and 64-bit
-operation. Think of 64-bit as just another platform in the write once, run
-anywhere tradition. However, if you'd like to write code which is platform
-specific (shame on you), the system property sun.arch.data.model has the
-value "32", "64", or "unknown".</p>
-</blockquote>
-<p>An example where this could be necessary is if your Java code depends on
-native libraries, and you need to determine whether to load the 32- or 64-bit
-version of the libraries on startup.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You retrieve the system property that marks the bitness of this JVM with:</p>
-<div class="code"><pre class="code literal-block">System.getProperty("sun.arch.data.model");
-</pre></div>
-
-<p>Possible results are:</p>
-<ul>
-<li>
-<code>"32"</code> – 32-bit JVM</li>
-<li>
-<code>"64"</code> – 64-bit JVM</li>
-<li>
-<code>"unknown"</code> – Unknown JVM</li>
-</ul>
-<p>As described in the HotSpot FAQ:</p>
-<blockquote>
-<p><strong>When writing Java code, how do I distinguish between 32 and 64-bit
-operation?</strong></p>
-<p>There's no public API that allows you to distinguish between 32 and 64-bit
-operation. Think of 64-bit as just another platform in the write once, run
-anywhere tradition. However, if you'd like to write code which is platform
-specific (shame on you), the system property sun.arch.data.model has the
-value "32", "64", or "unknown".</p>
-</blockquote>
-<p>An example where this could be necessary is if your Java code depends on
-native libraries, and you need to determine whether to load the 32- or 64-bit
-version of the libraries on startup.</p>
     </div>
     </article>
 </div>

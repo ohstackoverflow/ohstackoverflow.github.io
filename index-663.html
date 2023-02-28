@@ -108,7 +108,76 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/using-node-js-how-do-i-read-a-json-file-into-server-memory/" class="u-url">Using Node.JS, how do I read a JSON file into (server) memory?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-git-cherry-pick-only-changes-to-certain-files/" class="u-url">How to git-cherry-pick only changes to certain files?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-git-cherry-pick-only-changes-to-certain-files/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-17T12:41:00+08:00" itemprop="datePublished" title="2023-02-17 12:41">2023-02-17 12:41</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>If I want to merge into a Git branch the changes made only to some of the
+files changed in a particular commit which includes changes to multiple files,
+how can this be achieved?</p>
+<p>Suppose the Git commit called <code>stuff</code> has changes to files <code>A</code>, <code>B</code>, <code>C</code>, and
+<code>D</code> but I want to merge only <code>stuff</code>'s changes to files <code>A</code> and <code>B</code>. It sounds
+like a job for <code>git cherry-pick</code> but <code>cherry-pick</code> only knows how to merge
+entire commits, not a subset of the files.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I'd do it with <code>cherry-pick -n</code> (<code>--no-commit</code>) which lets you inspect (and
+modify) the result before committing:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="nv">cherry</span><span class="o">-</span><span class="nv">pick</span><span class="w"> </span><span class="o">-</span><span class="nv">n</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">commit</span><span class="o">&gt;</span>
+
+#<span class="w"> </span><span class="nv">unstage</span><span class="w"> </span><span class="nv">modifications</span><span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="nv">don</span><span class="err">'t want to keep, and remove the</span>
+<span class="err"># modifications from the work tree as well.</span>
+<span class="err"># this does work recursively!</span>
+<span class="err">git checkout HEAD &lt;path&gt;</span>
+
+<span class="err"># commit; the message will have been stored for you by cherry-pick</span>
+<span class="err">git commit</span>
+</pre></div>
+
+<p>If the vast majority of modifications are things you don't want, instead of
+checking out individual paths (the middle step), you could reset everything
+back, then add in what you want:</p>
+<div class="code"><pre class="code literal-block">#<span class="w"> </span><span class="nv">unstage</span><span class="w"> </span><span class="nv">everything</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">reset</span><span class="w"> </span><span class="nv">HEAD</span>
+
+#<span class="w"> </span><span class="nv">stage</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">modifications</span><span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nv">want</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">add</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">path</span><span class="o">&gt;</span>
+
+#<span class="w"> </span><span class="nv">make</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">work</span><span class="w"> </span><span class="nv">tree</span><span class="w"> </span><span class="nv">match</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">index</span>
+#<span class="w"> </span><span class="ss">(</span><span class="k">do</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">from</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">top</span><span class="w"> </span><span class="nv">level</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">repo</span><span class="ss">)</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">checkout</span><span class="w"> </span>.
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>The other methods didn't work for me since the commit had a lot of changes and
+conflicts to a lot of other files. What I came up with was simply</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="nv">SHA</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="nv">file1</span>.<span class="nv">txt</span><span class="w"> </span><span class="nv">file2</span>.<span class="nv">txt</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nv">git</span><span class="w"> </span><span class="nv">apply</span><span class="w"> </span><span class="o">-</span>
+</pre></div>
+
+<p>It doesn't actually <code>add</code> the files or do a commit for you so you may need to
+follow it up with</p>
+<div class="code"><pre class="code literal-block">git add file1.txt file2.txt
+git commit -c SHA
+</pre></div>
+
+<p>Or if you want to skip the add you can use the <code>--cached</code> argument to <code>git
+apply</code></p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="nv">SHA</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="nv">file1</span>.<span class="nv">txt</span><span class="w"> </span><span class="nv">file2</span>.<span class="nv">txt</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nv">git</span><span class="w"> </span><span class="nv">apply</span><span class="w"> </span><span class="o">--</span><span class="nv">cached</span><span class="w"> </span><span class="o">-</span>
+</pre></div>
+
+<p>You can also do the same thing for entire directories</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="nv">SHA</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="nv">dir1</span><span class="w"> </span><span class="nv">dir2</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nv">git</span><span class="w"> </span><span class="nv">apply</span><span class="w"> </span><span class="o">-</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/using-node-js-how-do-i-read-a-json-file-into-server-memory/" class="u-url">Using Node.JS, how do I read a JSON file into (server) memory?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -190,92 +259,6 @@ complete.</p>
 <h3>Suggest</h3>
 <p>If you installed as a <em>rpm</em> or <em>deb</em> , then <code>service jenkins restart</code> will
 work also.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-push-amended-commit-to-the-remote-git-repository/" class="u-url">How do I push amended commit to the remote Git repository?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-do-i-push-amended-commit-to-the-remote-git-repository/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-17T12:39:38+08:00" itemprop="datePublished" title="2023-02-17 12:39">2023-02-17 12:39</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>When I've worked a bit with my source code, I did my usual thing commit and
-then I pushed to a remote repository. But then I noticed I forgot to organize
-my imports in the source code. So I do the amend command to replace the
-previous commit:</p>
-<div class="code"><pre class="code literal-block">&gt; git commit --amend
-</pre></div>
-
-<p>Unfortunately the commit can't be pushed back to the repository. It is
-rejected like this:</p>
-<div class="code"><pre class="code literal-block"><span class="o">&gt;</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="n">push</span><span class="w"> </span><span class="n">origin</span>
-<span class="k">To</span><span class="w"> </span><span class="o">//</span><span class="n">my</span><span class="p">.</span><span class="n">remote</span><span class="p">.</span><span class="n">repo</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="nf">stuff</span><span class="p">.</span><span class="n">git</span><span class="o">/</span>
-<span class="w"> </span><span class="err">!</span><span class="w"> </span><span class="o">[</span><span class="n">rejected</span><span class="o">]</span><span class="w">        </span><span class="n">master</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">master</span><span class="w"> </span><span class="p">(</span><span class="n">non</span><span class="o">-</span><span class="n">fast</span><span class="w"> </span><span class="n">forward</span><span class="p">)</span>
-<span class="nl">error</span><span class="p">:</span><span class="w"> </span><span class="n">failed</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">push</span><span class="w"> </span><span class="ow">some</span><span class="w"> </span><span class="n">refs</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="s1">'//my.remote.repo.com/stuff.git/'</span>
-</pre></div>
-
-<p>What should I do? (I can access the remote repository.)</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I actually once pushed with <code>--force</code> and <code>.git</code> repository and got scolded by
-Linus <strong>BIG TIME</strong>. In general this will create a lot of problems for other
-people. A simple answer is "Don't do it".</p>
-<p>I see others gave the recipe for doing so anyway, so I won't repeat them here.
-But here is a tip to recover from the situation <em>after</em> you have pushed out
-the amended commit with --force (or +master).</p>
-<ol>
-<li>Use <code>git reflog</code> to find the old commit that you amended (call it <code>old</code>, and we'll call the new commit you created by amending <code>new</code>).</li>
-<li>Create a merge between <code>old</code> and <code>new</code>, recording the tree of <code>new</code>, like <code>git checkout new &amp;&amp; git merge -s ours old</code>.</li>
-<li>Merge that to your master with <code>git merge master</code>
-</li>
-<li>Update your master with the result with <code>git push . HEAD:master</code>
-</li>
-<li>Push the result out.</li>
-</ol>
-<p>Then people who were unfortunate enough to have based their work on the commit
-you obliterated by amending and forcing a push will see the resulting merge
-will see that you favor <code>new</code> over <code>old</code>. Their later merges will not see the
-conflicts between <code>old</code> and <code>new</code> that resulted from your amending, so they do
-not have to suffer.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You are seeing a Git safety feature. Git refuses to update the remote branch
-with your branch, because your branch's head commit is not a direct descendent
-of the current head commit of the branch that you are pushing to.</p>
-<p>If this were not the case, then two people pushing to the same repository at
-about the same time would not know that there was a new commit coming in at
-the same time and whoever pushed last would lose the work of the previous
-pusher without either of them realising this.</p>
-<p>If you know that you are the only person pushing and you want to push an
-amended commit or push a commit that winds back the branch, you can 'force'
-Git to update the remote branch by using the <code>-f</code> switch.</p>
-<div class="code"><pre class="code literal-block">git push -f origin master
-</pre></div>
-
-<p>Even this may not work as Git allows remote repositories to refuse non-
-fastforward pushes at the far end by using the configuration variable
-<code>receive.denynonfastforwards</code>. If this is the case the rejection reason will
-look like this (note the 'remote rejected' part):</p>
-<div class="code"><pre class="code literal-block"><span class="w"> </span><span class="o">!</span><span class="w"> </span><span class="p">[</span><span class="n">remote</span><span class="w"> </span><span class="n">rejected</span><span class="p">]</span><span class="w"> </span><span class="n">master</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">master</span><span class="w"> </span><span class="p">(</span><span class="n">non</span><span class="o">-</span><span class="n">fast</span><span class="w"> </span><span class="n">forward</span><span class="p">)</span>
-</pre></div>
-
-<p>To get around this, you either need to change the remote repository's
-configuration or as a dirty hack you can delete and recreate the branch thus:</p>
-<div class="code"><pre class="code literal-block">git push origin :master
-git push origin master
-</pre></div>
-
-<p>In general the last parameter to <code>git push</code> uses the format
-<code>&lt;local_ref&gt;:&lt;remote_ref&gt;</code>, where <code>local_ref</code> is the name of the branch on the
-local repository and <code>remote_ref</code> is the name of the branch on the remote
-repository. This command pair uses two shorthands. <code>:master</code> has a null
-local_ref which means push a null branch to the remote side <code>master</code>, i.e.
-delete the remote branch. A branch name with no <code>:</code> means push the local
-branch with the given name to the remote branch with the same name. <code>master</code>
-in this situation is short for <code>master:master</code>.</p>
     </div>
     </article>
 </div>
