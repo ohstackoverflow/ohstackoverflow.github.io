@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Understanding passport serialize deserialize | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/understanding-passport-serialize-deserialize/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../what-s-the-correct-way-to-communicate-between-controllers-in-angularjs/" title="What's the correct way to communicate between controllers in AngularJS?" type="text/html">
+<link rel="next" href="../how-do-i-see-the-commit-differences-between-branches-in-git/" title="How do I see the commit differences between branches in git?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Understanding passport serialize deserialize">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/understanding-passport-serialize-deserialize/">
+<meta property="og:description" content="How would you explain the workflow of Passport's serialize and deserialize
+methods to a layman.
+
+
+Where does user.id go after passport.serializeUser has been called?  
+
+
+We are calling passport.deseri">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T08:18:09+08:00">
+<meta property="article:tag" content="authentication">
+<meta property="article:tag" content="express">
+<meta property="article:tag" content="node.js">
+<meta property="article:tag" content="passport.js">
+<meta property="article:tag" content="serialization">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Understanding passport serialize deserialize</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T08:18:09+08:00" itemprop="datePublished" title="2023-03-03 08:18">2023-03-03 08:18</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>How would you explain the workflow of Passport's serialize and deserialize
+methods to a layman.</p>
+<ol>
+<li>
+<p>Where does <code>user.id</code> go after <code>passport.serializeUser</code> has been called?  </p>
+</li>
+<li>
+<p>We are calling <code>passport.deserializeUser</code> right after it where does it fit in the workflow?</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// used to serialize the user for the session</span>
+</pre></div>
+
+<p>passport.serializeUser(function(user, done) {
+    done(null, user.id); 
+   // where is this user.id going? Are we supposed to access this anywhere?
+});</p>
+<p>// used to deserialize the user
+passport.deserializeUser(function(id, done) {
+    User.findById(id, function(err, user) {
+        done(err, user);
+    });
+});</p>
+</li>
+</ol>
+<p>I'm still trying to wrap my head around it. I have a complete working app and
+am not running into errors of any kind.</p>
+<p>I just wanted to understand what exactly is happening here?</p>
+<p>Any help is appreciated.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<blockquote>
+<ol>
+<li>Where does <code>user.id</code> go after <code>passport.serializeUser</code> has been called?
+</li>
+</ol>
+</blockquote>
+<p>The user id (you provide as the second argument of the <code>done</code> function) is
+saved in the session and is later used to retrieve the whole object via the
+<code>deserializeUser</code> function.</p>
+<p><code>serializeUser</code> determines which data of the user object should be stored in
+the session. The result of the serializeUser method is attached to the session
+as <code>req.session.passport.user = {}</code>. Here for instance, it would be (as we
+provide the user id as the key) <code>req.session.passport.user = {id: 'xyz'}</code></p>
+<blockquote>
+<ol>
+<li>We are calling <code>passport.deserializeUser</code> right after it where does it
+fit in the workflow?
+</li>
+</ol>
+</blockquote>
+<p>The first argument of <code>deserializeUser</code> corresponds to the key of the user
+object that was given to the <code>done</code> function (see 1.). So your whole object is
+retrieved with help of that key. That key here is the user id (key can be any
+key of the user object i.e. name,email etc). In <code>deserializeUser</code> that key is
+matched with the in memory array / database or any data resource.</p>
+<p>The fetched object is attached to the request object as <code>req.user</code></p>
+<p><strong>Visual Flow</strong></p>
+<div class="code"><pre class="code literal-block"><span class="nt">passport</span><span class="p">.</span><span class="nc">serializeUser</span><span class="o">(</span><span class="nt">function</span><span class="o">(</span><span class="nt">user</span><span class="o">,</span><span class="w"> </span><span class="nt">done</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">done(null,</span><span class="w"> </span><span class="err">user.id)</span><span class="p">;</span>
+<span class="p">}</span><span class="o">);</span><span class="w">              </span><span class="err">│</span>
+<span class="w">                 </span><span class="err">│</span><span class="w"> </span>
+<span class="w">                 </span><span class="err">│</span>
+<span class="w">                 </span><span class="err">└─────────────────┬──→</span><span class="w"> </span><span class="nt">saved</span><span class="w"> </span><span class="nt">to</span><span class="w"> </span><span class="nt">session</span>
+<span class="w">                                   </span><span class="err">│</span><span class="w">    </span><span class="nt">req</span><span class="p">.</span><span class="nc">session</span><span class="p">.</span><span class="nc">passport</span><span class="p">.</span><span class="nc">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="s1">'..'</span><span class="p">}</span>
+<span class="w">                                   </span><span class="err">│</span>
+<span class="w">                                   </span><span class="err">↓</span><span class="w">           </span>
+<span class="nt">passport</span><span class="p">.</span><span class="nc">deserializeUser</span><span class="o">(</span><span class="nt">function</span><span class="o">(</span><span class="nt">id</span><span class="o">,</span><span class="w"> </span><span class="nt">done</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                   </span><span class="err">┌───────────────┘</span>
+<span class="w">                   </span><span class="err">│</span>
+<span class="w">                   </span><span class="err">↓</span><span class="w"> </span>
+<span class="w">    </span><span class="err">User.findById(id,</span><span class="w"> </span><span class="err">function(err,</span><span class="w"> </span><span class="err">user)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">done(err,</span><span class="w"> </span><span class="err">user)</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="o">);</span><span class="w">            </span><span class="err">└──────────────→</span><span class="w"> </span><span class="nt">user</span><span class="w"> </span><span class="nt">object</span><span class="w"> </span><span class="nt">attaches</span><span class="w"> </span><span class="nt">to</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">request</span><span class="w"> </span><span class="nt">as</span><span class="w"> </span><span class="nt">req</span><span class="p">.</span><span class="nc">user</span><span class="w">   </span>
+<span class="err">}</span><span class="o">);</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>For anyone using Koa and koa-passport:</p>
+<p>Know that the key for the user set in the serializeUser method (often a unique
+id for that user) will be stored in:</p>
+<p><code>this.session.passport.user</code></p>
+<p>When you set in <code>done(null, user)</code> in deserializeUser where 'user' is some
+user object from your database:</p>
+<p><code>this.req.user</code> OR <code>this.passport.user</code></p>
+<p>for some reason <code>this.user</code> Koa context never gets set when you call
+done(null, user) in your deserializeUser method.</p>
+<p>So you can write your own middleware after the call to
+app.use(passport.session()) to put it in this.user like so:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">app</span>.<span class="nv">use</span><span class="ss">(</span><span class="nv">function</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nv">setUserInContext</span><span class="w"> </span><span class="ss">(</span><span class="k">next</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">  </span><span class="nv">this</span>.<span class="nv">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">this</span>.<span class="nv">req</span>.<span class="nv">user</span>
+<span class="w">  </span><span class="nv">yield</span><span class="w"> </span><span class="k">next</span>
+}<span class="ss">)</span>
+</pre></div>
+
+<p>If you're unclear on how serializeUser and deserializeUser work, just hit me
+up on twitter. @yvanscher</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/authentication/" rel="tag">authentication</a></li>
+            <li><a class="tag p-category" href="../../categories/express/" rel="tag">express</a></li>
+            <li><a class="tag p-category" href="../../categories/nodejs/" rel="tag">node.js</a></li>
+            <li><a class="tag p-category" href="../../categories/passportjs/" rel="tag">passport.js</a></li>
+            <li><a class="tag p-category" href="../../categories/serialization/" rel="tag">serialization</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../what-s-the-correct-way-to-communicate-between-controllers-in-angularjs/" rel="prev" title="What's the correct way to communicate between controllers in AngularJS?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-do-i-see-the-commit-differences-between-branches-in-git/" rel="next" title="How do I see the commit differences between branches in git?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

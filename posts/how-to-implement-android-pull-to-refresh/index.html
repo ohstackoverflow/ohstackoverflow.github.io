@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to implement Android Pull-to-Refresh | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-to-implement-android-pull-to-refresh/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-select-the-nth-row-in-a-sql-database-table/" title="How to select the nth row in a SQL database table?" type="text/html">
+<link rel="next" href="../can-git-hook-scripts-be-managed-along-with-the-repository/" title="Can Git hook scripts be managed along with the repository?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How to implement Android Pull-to-Refresh">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-to-implement-android-pull-to-refresh/">
+<meta property="og:description" content="In Android applications such as Twitter (official app), when you encounter a
+ListView, you can pull it down (and it will bounce back when released) to
+refresh the content.
+I wonder what is the best wa">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T07:40:39+08:00">
+<meta property="article:tag" content="android">
+<meta property="article:tag" content="android-listview">
+<meta property="article:tag" content="listview">
+<meta property="article:tag" content="pull-to-refresh">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How to implement Android Pull-to-Refresh</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T07:40:39+08:00" itemprop="datePublished" title="2023-03-03 07:40">2023-03-03 07:40</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>In Android applications such as Twitter (official app), when you encounter a
+ListView, you can pull it down (and it will bounce back when released) to
+refresh the content.</p>
+<p>I wonder what is the best way, in your opinion, to implement that?</p>
+<p>Some possibilities I could think of:</p>
+<ol>
+<li>An item on top of the ListView - however I don't think scrolling back to item position 1 (0-based) with animation on the ListView is an easy task.</li>
+<li>Another view outside the ListView - but I need to take care of moving the ListView position down when it is pulled, and I'm not sure if we can detect if the drag-touches to the ListView still really scroll the items on the ListView.</li>
+</ol>
+<p>Any recommendations?</p>
+<p>P.S. I wonder when the official Twitter app source code is released. It has
+been mentioned that it will be released, but 6 months has passed and we
+haven't heard about it since then.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Finally, Google released an official version of the pull-to-refresh library!</p>
+<p>It is called <code>SwipeRefreshLayout</code>, inside the support library, and the
+documentation is <strong>here</strong> :</p>
+<ol>
+<li>
+<p>Add <code>SwipeRefreshLayout</code> as a parent of view which will be treated as a pull to refresh the layout. (I took <code>ListView</code> as an example, it can be any <code>View</code> like <code>LinearLayout</code>, <code>ScrollView</code> etc.)</p>
+<div class="code"><pre class="code literal-block"> &lt;androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+</pre></div>
+
+<p>xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/pullToRefresh"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"&gt;
+     <listview android:id="@+id/listView" android:layout_width="match_parent" android:layout_height="match_parent"></listview></p>
+</li>
+<li>
+<p>Add a listener to your class</p>
+<div class="code"><pre class="code literal-block"><span class="w"> </span><span class="n">protected</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onCreate</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="n">SwipeRefreshLayout</span><span class="w"> </span><span class="n">pullToRefresh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="p">.</span><span class="n">id</span><span class="p">.</span><span class="n">pullToRefresh</span><span class="p">);</span>
+<span class="w"> </span><span class="n">pullToRefresh</span><span class="p">.</span><span class="n">setOnRefreshListener</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">SwipeRefreshLayout</span><span class="p">.</span><span class="n">OnRefreshListener</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">     </span><span class="nv">@Override</span>
+<span class="w">     </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onRefresh</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">         </span><span class="n">refreshData</span><span class="p">();</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">code</span>
+<span class="w">         </span><span class="n">pullToRefresh</span><span class="p">.</span><span class="n">setRefreshing</span><span class="p">(</span><span class="k">false</span><span class="p">);</span>
+<span class="w">     </span><span class="err">}</span>
+<span class="w"> </span><span class="err">}</span><span class="p">);</span>
+</pre></div>
+
+<p>}</p>
+</li>
+</ol>
+<p>You can also call <code>pullToRefresh.setRefreshing(true/false);</code> as per your
+requirement.</p>
+<p><strong>UPDATE</strong></p>
+<p>Android support libraries have been deprecated and have been replaced by
+AndroidX. The link to the new library can be found <strong>here</strong>.</p>
+<p>Also, you need to add the following dependency to your project:</p>
+<div class="code"><pre class="code literal-block">implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+</pre></div>
+
+<p><strong>OR</strong></p>
+<p>You can go to Refactor&gt;&gt;Migrate to AndroidX and Android Studio will handle the
+dependencies for you.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I've made an attempt to implement a pull to refresh component, it's <em>far from
+complete</em> but demonstrates a possible implementation,
+https://github.com/johannilsson/android-pulltorefresh.</p>
+<p>Main logic is implemented in <code>PullToRefreshListView</code> that extends <code>ListView</code>.
+<del>Internally it controls the scrolling of a header view using<code>smoothScrollBy</code>
+(API Level 8).</del> The widget is now updated with support for 1.5 and later,
+please read the README for 1.5 support though.</p>
+<p>In your layouts you simply add it like this.</p>
+<div class="code"><pre class="code literal-block">&lt;com.markupartist.android.widget.PullToRefreshListView
+    android:id="@+id/android:list"
+    android:layout_height="fill_parent"
+    android:layout_width="fill_parent"
+    /&gt;
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/android/" rel="tag">android</a></li>
+            <li><a class="tag p-category" href="../../categories/android-listview/" rel="tag">android-listview</a></li>
+            <li><a class="tag p-category" href="../../categories/listview/" rel="tag">listview</a></li>
+            <li><a class="tag p-category" href="../../categories/pull-to-refresh/" rel="tag">pull-to-refresh</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-select-the-nth-row-in-a-sql-database-table/" rel="prev" title="How to select the nth row in a SQL database table?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../can-git-hook-scripts-be-managed-along-with-the-repository/" rel="next" title="Can Git hook scripts be managed along with the repository?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

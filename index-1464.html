@@ -108,190 +108,275 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-we-generate-multiple-random-number-in-ethereum/" class="u-url">How can we generate multiple random number in ethereum?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/parsererror-source-file-requires-different-compiler-version-current-compiler-is-0-8-7-commit-e28d00a7-emscripten-clang/" class="u-url">ParserError: Source file requires different compiler version (current compiler is 0.8.7+commit.e28d00a7.Emscripten.clang)</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/how-can-we-generate-multiple-random-number-in-ethereum/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:43:57+08:00" itemprop="datePublished" title="2023-02-28 04:43">2023-02-28 04:43</time></a>
+            <a href="posts/parsererror-source-file-requires-different-compiler-version-current-compiler-is-0-8-7-commit-e28d00a7-emscripten-clang/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:46:52+08:00" itemprop="datePublished" title="2023-02-28 04:46">2023-02-28 04:46</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I want my smart contract to return 7 or 8 <strong>UNIQUE</strong> random numbers ranging
-from 1 to 100 upon calling the contract. What can be the best approach to
-obtain such result?</p>
+    <p>I was eventually trying to run this code in remix IDE, where I was running
+this using 0.6.6 version of Solidity and ran into this error. I've tried using
+some other versions like 0.8 and 0.6 as well.</p>
+<div class="code"><pre class="code literal-block"><span class="o">//</span> <span class="n">SPDX</span><span class="o">-</span><span class="n">License</span><span class="o">-</span><span class="n">Identifier</span><span class="p">:</span> <span class="n">MIT</span>
+
+<span class="n">pragma</span> <span class="n">solidity</span> <span class="o">=</span><span class="mf">0.8.7</span><span class="p">;</span>
+
+<span class="kn">import</span> <span class="s2">"@chainlink/contracts/src/v0.6/vendor/SafeMathChainlink.sol"</span><span class="p">;</span>
+
+<span class="n">contract</span> <span class="n">myContract</span><span class="p">{</span>
+    <span class="n">using</span> <span class="n">SafeMathChainlink</span> <span class="k">for</span> <span class="n">uint256</span><span class="p">;</span>
+    <span class="n">mapping</span><span class="p">(</span><span class="n">address</span> <span class="o">=&gt;</span> <span class="n">uint256</span><span class="p">)</span> <span class="n">public</span> <span class="n">payTo</span><span class="p">;</span>
+
+    <span class="n">function</span> <span class="n">Payment</span><span class="p">()</span> <span class="n">public</span> <span class="n">payable</span> <span class="p">{</span>
+        <span class="n">uint256</span> <span class="n">minimumUSD</span> <span class="o">=</span> <span class="mi">50</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">18</span><span class="p">;</span>
+        <span class="n">require</span><span class="p">(</span><span class="n">getConversionRate</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">minimumUSD</span><span class="p">,</span> <span class="s2">"Doesn't satisfy the minimum condition"</span><span class="p">);</span>
+        <span class="n">payTo</span><span class="p">[</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">]</span> <span class="o">+=</span> <span class="n">msg</span><span class="o">.</span><span class="n">value</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Probably if you are trying to build roulettes, lotteries, and card games using
-the Ethereum blockchain, as the Ethereum blockchain is deterministic, it
-imposes certain difficulties for those who have chosen to write their own
-pseudo-random number generator (PRNG).</p>
-<h2><strong>Some Vulnerable Methods Currently Used</strong></h2>
-<p>If you are using the block variables like block.coinbase, block.difficulty,
-block.timestamp etc.. as the source of entropy, all these block variables can
-be manipulated by miners, so they cannot be used as a source of entropy
-because of the miners’ incentive. As the block variables are obviously shared
-within the same block, you can easily use internal messages to yield the same
-outcome.</p>
-<p>Other methods are like using blockhash of current or some past block or
-blockhash of a past block combined with a private seed.
-block.blockhash(block.number) function is used in these cases. However, at the
-moment of transaction execution in the EVM, the blockhash of the block that is
-being created is not yet known for obvious reasons and the EVM will always
-yield zero. If we are trying it with the blockhash of a previous block, an
-attacker can make an exploit contract with the same code in order to call the
-target contract via an internal message. The “random” numbers for the two
-contracts will be the same.</p>
-<p>Even if we combine the blockhash with a private seed, being transparent in
-nature, the blockchain must not be used to store secrets in plaintext. It is
-trivial to extract the value of the private variable pointer from the contract
-storage and supply it as an argument to an exploit.</p>
-<h2><strong>Some Areas Worth Exploring</strong></h2>
-<ul>
-<li>External oracles</li>
-<li>Signidice</li>
-<li>Commit–reveal approach</li>
-</ul>
-<p>With External oracles like Oraclize, smart contracts can request data from web
-APIs such as currency exchange rates, weather forecasts, and stock prices
-(like random.org). The key drawback of this approach is that it is
-centralized. Will Oraclize daemon tamper with the results? Can we trust
-random.org?</p>
-<p>Instead of Oraclize, we can also use BTCRelay which is a bridge between
-Ethereum and Bitcoin blockchains. Using BTCRelay, smart contracts in the
-Ethereum blockchain can request future Bitcoin blockhashes and use them as a
-source of entropy.</p>
-<p>Signidice is an algorithm based on cryptographic signatures that can be used
-for random number generation in smart contracts involving only two parties:
-the player and the house. The algorithm works as follows:</p>
-<ul>
-<li>The player makes a bet by calling a smart contract.</li>
-<li>The house sees the bet, signs it with its private key, and sends the signature to the smart contract.</li>
-<li>The smart contract verifies the signature using the known public key.</li>
-<li>This signature is then used to generate a random number.</li>
-</ul>
-<p>Commit–reveal approach consists of two phases:</p>
-<ul>
-<li>A “commit” stage, when the parties submit their cryptographically protected secrets to the smart contract.</li>
-<li>A “reveal” stage, when the parties announce cleartext seeds, the smart contract verifies that they are correct, and the seeds are used to generate a random number.</li>
-</ul>
-<p>A better implementation of the commit–reveal approach is Randao. Commit–reveal
-can be combined with future blockhashes to make it more secure.</p>
-<p>This pretty much covers all the methods for random number generation using
-Ethereum.</p>
+<p>Your code requires Solidity 0.8.7, but the imported SafeMathChainlink.sol
+requires Solidity 0.6.*.</p>
+<p>An easy solution is to change your code to require v0.6 as well and compile
+with this version.</p>
+<div class="code"><pre class="code literal-block">pragma solidity ^0.6.0;
+</pre></div>
+
+<p>Or you can remove the <code>import</code> and <code>using ... for</code> of the SafeMath library, as
+it's not needed on 0.8 anymore. All validations performed in the library are
+now performed on the language level since version 0.8.0.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>Like Raghav said, random numbers on the blockchain are hard. The public nature
-of the network makes it very hard to generate a number that cannot be pre-
-calculated.</p>
-<p>With that said, one of the best solutions is to use an oracle that gets the
-random number from an external (read: non-blockchain based) source. Take a
-look at this guide. The Ethtroll Dapp is a good example of this, so take a
-look at the code here. They use Oraclize to get a random number from
-Random.org.</p>
-<p>An issue with using an oracle is the centralization factor. If you set up your
-Dapp in the way I have described above, you are at the mercy of a rouge
-employee at two different centralized services—Oraclize and Random.org. Though
-it would be unlikely for someone to manipulate either of these sources, people
-will perform irrational acts for potential economic gain.</p>
+<p>Now we can use this line of code to include a range of version of solidity to
+use. I faced the similar issue and got fixed by doing this:</p>
+<div class="code"><pre class="code literal-block">pragma solidity &gt;=0.4.22 &lt;0.9.0;
+</pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/code-not-compiling-in-nodejs-throws-out-an-unexpected-error-web3-js/" class="u-url">Code not compiling in nodejs,throws out an unexpected error(Web3.js)</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/could-we-consider-non-plugins-web-based-crypto-wallets-as-safe/" class="u-url">Could we consider non-plugins web-based crypto wallets as safe?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/code-not-compiling-in-nodejs-throws-out-an-unexpected-error-web3-js/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:43:36+08:00" itemprop="datePublished" title="2023-02-28 04:43">2023-02-28 04:43</time></a>
+            <a href="posts/could-we-consider-non-plugins-web-based-crypto-wallets-as-safe/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:46:31+08:00" itemprop="datePublished" title="2023-02-28 04:46">2023-02-28 04:46</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I tried following this repo:-</p>
-<p>But I am getting the following error on compiling the code with :-</p>
-<div class="code"><pre class="code literal-block">code = fs.readFileSync('Voting.sol').toString()
-solc = require('solc')
-compiledCode = solc.compile(code)
-</pre></div>
-
-<p>It throws out this error:-</p>
-<div class="code"><pre class="code literal-block">'{"errors":[{"component":"general","formattedMessage":"* Line 1, Column 1\\n  Syntax error: value, object or array expected.\\n* Line 1, Column 2\\n  Extra non-whitespace after JSON value.\\n","message":"* Line 1, Column 1\\n  Syntax error: value, object or array expected.\\n* Line 1, Column 2\\n  Extra non-whitespace after JSON value.\\n","severity":"error","type":"JSONError"}]}'
-</pre></div>
-
+    <p>I know a bunch of crypto wallets which works in IFRAMEs and similar
+technologies right inside a web browser without needing to install any
+plugins:</p>
+<ul>
+<li>https://authereum.org</li>
+<li>https://www.portis.io</li>
+<li>https://tor.us</li>
+<li>https://fortmatic.com</li>
+</ul>
+<p>But are they protected from a phishing Dapp attack? In case Dapp wants to
+trick you and hide the actual amount of ETH send or any other way, modify
+wallet UI inside a web browser?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>I found out the answer it was because of the npm version conflicts. Make sure
-that you have the right version of solc.Refer this repo</p>
+<p><strong>Storage isolation</strong></p>
+<p>Extensions:</p>
+<p>Browser extension-based wallets such as MetaMask use isolated local storage
+that only the extension can access, with no way for a website to access. The
+extension can push data to the website, or the website can request data by
+doing message passing requests. Private keys are stored in the sandboxed local
+storage and requests are made from the website to the extension to sign
+messages. The extension returns the signed message to the website.</p>
+<p>Web-based:</p>
+<p>Browser-based crypto wallets such as Authereum, Portis, Torus, and Fortmatic,
+use sandboxed local storage as well via an iframe. Unlike cookies, local
+storage is strictly restricted by domain, meaning that if a website sets a
+value in local storage, then only that website can read the value; so
+alice.com cannot read bob.com's local storage. To sandbox local storage
+sensitive values, they are set under a controlled subdomain, for example
+x.wallet.com, since no other website will be able to read the local storage.
+This subdomain contains no UI is meant for iframed communication only. The
+web3 provider's of those wallets load a hidden iframe on the website, which is
+used to communicate to the subdomain containing the sandboxed storage; so for
+example Alice on dapp.com using Authereum, the Authereum sdk connects to
+x.authereum.org using an iframe and send postMessage requests to the iframe
+from the website to sign messages. This restricts the website from reading
+sensitive data such as private keys and only allow the website to send sign
+requests similarly to how wallet extensions work.</p>
+<p>Not all web-based wallets have sandboxed local storage so you should avoid
+using those since any website can read the stored sensitive data but the
+wallets mentioned here are safe in that regard.</p>
+<p><strong>Protection against phishing attacks</strong></p>
+<p>Phishing attacks occur when a user is tricked into thinking they are using a
+known website but instead are using a malicious website that resembles the
+legitimate website. Authereum, Portis, and Torus are username and password
+based login solutions so they open up the login auth window in a new popup or
+redirect. This allows the user to verify the domain of the website for
+legitimacy. Google auth does this pattern as well. Besides opening a new
+window on login for the user to verify, some web-based wallet providers also
+open a new window when signing messages and transactions to verify the
+request.</p>
+<p>Click jacking occurs when a website is loaded via an iframe on the website and
+the website overlays a different UI on top of the iframed website with
+pointer-events set to none and then tricks the user into entering information
+or clicking a button on the overlayed UI but they are actually clicking a
+button on the iframed website. This is dangerous because the action on the
+iframed website can be something like sending funds to the attackers wallet.</p>
+<p>To prevent the wallet site to be loaded in an iframe at all, all the wallet
+site has to do is set the HTTP header <code>X-Frame-Options: DENY</code>, which is what
+Authereum and Portis are doing so they are safe from these attacks.</p>
+<p><strong>Trusting content scripts</strong></p>
+<p>It's easy to verify browser extension source code by using source viewer
+plugins, but to avoid an extension from auto-updating with malicious code, a
+user can install the extension manually to lock it down to a version by
+getting the source code from github if it's open source or from downloading
+the source scripts.</p>
+<p>Since with web-based wallets the wallet site owner controls the content
+scripts then you have to trust that the content scripts managing the sensitive
+key data won't be malicious since the wallet site owner or an attacker that
+got access to the wallet site can at any point update the website source code
+with bad code.</p>
+<p>To trust content scripts, the wallet site can be hosted on IPFS since the web
+address is the content hash meaning you can trust that it won't change.
+Authereum is one wallet that already offers this by visiting authereum.eth or
+by resolving the <code>contenthash</code> property of their ENS name.</p>
+<p><strong>Convenience</strong></p>
+<p>Web-based wallets are portable because you can use the same wallet on any OS,
+browser, desktop or mobile, while with browser extension you are stuck with
+the environment you are using the extension from. Extensions are highly
+inconvenient but offer more storage isolation guarantees. With contract-based
+accounts however, more security features can be offered on the wallet side.</p>
+<p><strong>Contract-based accounts</strong></p>
+<p>MetaMask, Portis, Torus, and Fortmatic are all externally-owned account based
+(EOA) which means that funds are stored and manged by a single key. If an
+attacker gains access to the signing key, then they also have access to the
+funds stored at that key.</p>
+<p>Contract-based accounts (CBA), such as Authereum, provide more security
+guarantees because each account contract can have multiple keys to manage it
+and each key may also have limited authority over what actions it can do.</p>
+<p>Advantages of contract-based accounts:</p>
+<ul>
+<li>Funds are not stored on a single key</li>
+<li>You can cycle through management keys</li>
+<li>Account recovery, in case your management keys are stolen or lost</li>
+<li>Transfer and withdraw limits </li>
+<li>Access controls for keys, meaning you can restrict what methods a key can invoke</li>
+</ul>
 <p><br></p>
 <h3>Suggest</h3>
-<p>The version of solc and your contract should be the same.</p>
-<p>For example, if your contract uses <code>pragma solidity ^0.4.18;</code> then you should
-install the same version of solc Using <code>npm install solc@0.4.18</code>.</p>
+<p><em>Disclaimer: I am a cofounder of Authereum, one of the wallets listed in the
+question.</em></p>
+<p>To answer your original question, yes many web-based crypto wallets are safe.
+As you mentioned, some wallets use iframes in order to protect the user from a
+malicious application. With this architecture, a user's private keys are never
+exposed to a dapp in plain text.</p>
+<hr>
+<p>It is true that a malicious dapp can try to get a user to sign malicious data.
+There are additional measures that can be put in place by the web-based crypto
+wallets.</p>
+<p>As @tom-teman mentioned, a user can verify legitimacy of a login by verifying
+the URL of a new window.</p>
+<p>There are additional protections that Authereum has in place to help keep
+users safe. Some of these are possible due to the contract-based architecture
+of a user's wallet. The following is a non-exhaustive list of Authereum
+security features:</p>
+<ol>
+<li>Never expose private keys to a dapp.</li>
+<li>Do not broadcast transactions with a value that is greater than a user's daily allowed limit. If a dapp attempts to spend more than what a user has specified, the transaction will fail.</li>
+<li>Set dapp specific limits for users (i.e. daily transaction value limit, limited # of transactions on a single dapp, etc.).</li>
+<li>Blacklist applications that have been reported or are acting maliciously.</li>
+<li>Optionally require 2-factor authentication per transaction. </li>
+</ol>
+<p><em>Note: Authereum is fully non-custodial and censorship resistant. While the
+above features are a part of the Authereum system, they are not required and
+can be bypassed by Authereum users if they feel they are being censored.</em></p>
+<p>You can check out some of the difference between these web-based crypto
+wallets here.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/i-can-not-deploy-the-program-to-dev-net-with-anchor/" class="u-url">I can not deploy the program to dev net with anchor</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/difference-of-geth-or-ganache/" class="u-url">Difference of Geth or Ganache</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/i-can-not-deploy-the-program-to-dev-net-with-anchor/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:43:15+08:00" itemprop="datePublished" title="2023-02-28 04:43">2023-02-28 04:43</time></a>
+            <a href="posts/difference-of-geth-or-ganache/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:46:11+08:00" itemprop="datePublished" title="2023-02-28 04:46">2023-02-28 04:46</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I get this error where I run <code>anchor deploy</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">Deploying</span><span class="w"> </span><span class="nv">workspace</span>:<span class="w"> </span><span class="nv">http</span>:<span class="o">//</span><span class="mi">127</span>.<span class="mi">0</span>.<span class="mi">0</span>.<span class="mi">1</span>:<span class="mi">8899</span>
-<span class="nv">Upgrade</span><span class="w"> </span><span class="nv">authority</span>:<span class="w"> </span><span class="o">/</span><span class="nv">home</span><span class="o">/&lt;</span><span class="nv">user</span><span class="o">&gt;/</span>.<span class="nv">config</span><span class="o">/</span><span class="nv">solana</span><span class="o">/</span><span class="nv">id</span>.<span class="nv">json</span>
-<span class="nv">Deploying</span><span class="w"> </span><span class="nv">program</span><span class="w"> </span><span class="s2">"faucet"</span>...
-<span class="nv">Program</span><span class="w"> </span><span class="nv">path</span>:<span class="w"> </span><span class="o">/</span><span class="nv">home</span><span class="o">/&lt;</span><span class="nv">user</span><span class="o">&gt;/</span><span class="nv">Workspace</span><span class="o">/&lt;</span><span class="nv">project_path</span><span class="o">&gt;/</span><span class="nv">target</span><span class="o">/</span><span class="nv">deploy</span><span class="o">/</span><span class="nv">xxx</span>.<span class="nv">so</span>...
-<span class="nv">Error</span>:<span class="w"> </span><span class="nv">RPC</span><span class="w"> </span><span class="nv">request</span><span class="w"> </span><span class="nv">error</span>:<span class="w"> </span><span class="nv">cluster</span><span class="w"> </span><span class="nv">version</span><span class="w"> </span><span class="nv">query</span><span class="w"> </span><span class="nv">failed</span>:<span class="w"> </span><span class="nv">error</span><span class="w"> </span><span class="nv">sending</span><span class="w"> </span><span class="nv">request</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">url</span><span class="w"> </span><span class="ss">(</span><span class="nv">http</span>:<span class="o">//</span><span class="mi">127</span>.<span class="mi">0</span>.<span class="mi">0</span>.<span class="mi">1</span>:<span class="mi">8899</span><span class="o">/</span><span class="ss">)</span>:<span class="w"> </span><span class="nv">error</span><span class="w"> </span><span class="nv">trying</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="k">connect</span>:<span class="w"> </span><span class="nv">tcp</span><span class="w"> </span><span class="k">connect</span><span class="w"> </span><span class="nv">error</span>:<span class="w"> </span><span class="nv">Connection</span><span class="w"> </span><span class="nv">refused</span><span class="w"> </span><span class="ss">(</span><span class="nv">os</span><span class="w"> </span><span class="nv">error</span><span class="w"> </span><span class="mi">111</span><span class="ss">)</span>
-<span class="nv">There</span><span class="w"> </span><span class="nv">was</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">problem</span><span class="w"> </span><span class="nv">deploying</span>:<span class="w"> </span><span class="nv">Output</span><span class="w"> </span>{<span class="w"> </span><span class="nv">status</span>:<span class="w"> </span><span class="nv">ExitStatus</span><span class="ss">(</span><span class="nv">ExitStatus</span><span class="ss">(</span><span class="mi">256</span><span class="ss">))</span>,<span class="w"> </span><span class="nv">stdout</span>:<span class="w"> </span><span class="s2">""</span>,<span class="w"> </span><span class="nv">stderr</span>:<span class="w"> </span><span class="s2">""</span><span class="w"> </span>}.
+    <p>Hi I am new to blockchain topic and I am trying to make an Ethereum smart
+contract. First step I installed truffle and when I try to migrate it throws
+an error because I have no ethereum client. For solving this problem truffle
+develop, ganache, geth are recommended but I couldnt decide to which one is
+more suitable and I dont understand the difference of ganache and geth.
+Basically are they serving same thing or not? Here is error:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Could</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="k">connect</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">your</span><span class="w"> </span><span class="nv">Ethereum</span><span class="w"> </span><span class="nv">client</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">following</span><span class="w"> </span><span class="nv">parameters</span>:
+<span class="o">-</span><span class="w"> </span><span class="nv">host</span><span class="w">       </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">127</span>.<span class="mi">0</span>.<span class="mi">0</span>.<span class="mi">1</span>
+<span class="o">-</span><span class="w"> </span><span class="nv">port</span><span class="w">       </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">7545</span>
+<span class="o">-</span><span class="w"> </span><span class="nv">network_id</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="o">*</span>
+<span class="nv">Please</span><span class="w"> </span><span class="nv">check</span><span class="w"> </span><span class="nv">that</span><span class="w"> </span><span class="nv">your</span><span class="w"> </span><span class="nv">Ethereum</span><span class="w"> </span><span class="nv">client</span>:
+<span class="o">-</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">running</span>
+<span class="o">-</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">accepting</span><span class="w"> </span><span class="nv">RPC</span><span class="w"> </span><span class="nv">connections</span><span class="w"> </span><span class="ss">(</span><span class="nv">i</span>.<span class="nv">e</span>.,<span class="w"> </span><span class="s2">"--rpc"</span><span class="w"> </span><span class="nv">option</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">used</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">geth</span><span class="ss">)</span>
+<span class="o">-</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">accessible</span><span class="w"> </span><span class="nv">over</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">network</span>
+<span class="o">-</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">properly</span><span class="w"> </span><span class="nv">configured</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">your</span><span class="w"> </span><span class="nv">Truffle</span><span class="w"> </span><span class="nv">configuration</span><span class="w"> </span><span class="nv">file</span><span class="w"> </span><span class="ss">(</span><span class="nv">truffle</span><span class="o">-</span><span class="nv">config</span>.<span class="nv">js</span><span class="ss">)</span>
 </pre></div>
 
-<p>Before deploying, I have already run the following to change the cluster
-config in local:</p>
-<div class="code"><pre class="code literal-block">solana config set --url https://api.devnet.solana.com
-</pre></div>
-
-<p>How can I solve the problem?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Your error clearly states that while you are trying to deploy to your local
-network, it is not up and running. So, what you have to do is simply open a
-new terminal window and run:</p>
-<div class="code"><pre class="code literal-block">solana-keygen new
-</pre></div>
-
-<p>save the seed phrase and other relevant details somewhere secure and then, run</p>
-<div class="code"><pre class="code literal-block">solana-test-validator
-</pre></div>
-
-<p>Now in a separate terminal window where you had earlier tried to deploy, type</p>
-<div class="code"><pre class="code literal-block">anchor deploy
-</pre></div>
-
-<p>again and it should be successfully deployed.</p>
-<p>Else, if you were trying to deploy on any other network, for example, devnet.
-Then you would want to airdrop some SOL into the account generated after
-running <code>solana-keygen new</code> using the command:</p>
-<div class="code"><pre class="code literal-block">solana airdrop 1 &lt;RECIPIENT_ACCOUNT_ADDRESS&gt; --url https://api.devnet.solana.com
-</pre></div>
-
-<p>Then use additional flags in your deploy command as follows:</p>
-<div class="code"><pre class="code literal-block">anchor deploy --provider.cluster devnet
-</pre></div>
-
+<h2>Truffle</h2>
+<p>As you already did, you migrated a contract. So Truffle can be used for
+contract compilation and migration. It aims for easy and fast migration.</p>
+<h2>Geth</h2>
+<p>Is an Ethereum-client, which means that you can run your own private
+blockchain with it. You can adjust your needs by defining for example the
+amount of threads you offer for mining. Geth itself is a command line tool,
+which can run a full Ethereum node implemented in Go. It provides the <em>command
+lines</em> , a <em>Json-rpc server</em> and an <em>interactive console</em> , where you can run
+your own scripts written in javascript.</p>
+<h2>Ganache</h2>
+<p>If you want a GUI, where you can track all deployments and transactions on
+your blockchain, you can choose Ganache. It allows you to create your own
+private blockchain mainly for testing purposes. It is used for deployment-
+testing for example, because there are no real miners on a "ganache-
+blockchain", so you can test if your contracts work.</p>
+<p>I would suggest you to use <strong>Geth</strong> and <strong>Truffle</strong> if you want to set up your
+own blockchain on your local node and then deploy some contracts on it. There
+are plenty of manuals online on how to set up your own local node. For
+example:</p>
+<ul>
+<li>Create your own local node with geth</li>
+<li>Setting up Ethereum development environment</li>
+</ul>
+<p>After you created your node, you can deploy some contracts with truffle to it.
+I hope I could help you.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>Your error suggests that you are actually trying to deploy to local but your
-local is down. When deploying to clusters other than local, you need to add</p>
-<div class="code"><pre class="code literal-block">anchor deploy --provider.cluster devnet
-</pre></div>
-
-<p>you can get more help from</p>
-<div class="code"><pre class="code literal-block">anchor --help
-</pre></div>
+<p><strong>TLDR</strong> : start with Ganache and learn Geth along the way.</p>
+<p><strong>Truffle</strong> is a compiler and out of question.</p>
+<p>But between <strong>Geth</strong> and <strong>Ganache</strong> :</p>
+<p><strong>Why Ganache ?</strong> Because it is easy !</p>
+<p>Geth is a real deal , for a small local chain you have to run it's service
+first then create genesis block then you need to bring some miner to mine the
+transaction to the blockchain and generate some eath! then you can migrate
+smart contract to it but Ganache will do all of that for you!</p>
+<p><strong>Why use Geth?</strong> from here :</p>
+<blockquote>
+<p>1- Geth is the official client software provided by the Ethereum foundation.</p>
+<p>2- Comes with a JavaScript console (run it with <code>geth console</code>).</p>
+<p>3- Has an interoperable JavaScript client (web3js).</p>
+<p>4- Built-in access to the Rinkeby test net (or build your own private
+Ethereum network).</p>
+<p>5- It is generally considered to be the reference implementation for other
+Ethereum nodes.</p>
+</blockquote>
+<p>From my experience at this time/date, Ganache cloud be buggy and will give you
+some errors irrelevant to your code , but if you need to migrate your code to
+a test nest like Rinkeby Testnet, eventually you need to learn Geth.</p>
     </div>
     </article>
 </div>
@@ -308,7 +393,7 @@ local is down. When deploying to clusters other than local, you need to add</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

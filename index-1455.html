@@ -108,228 +108,272 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-find-out-if-an-ethereum-address-is-a-contract/" class="u-url">How to find out if an Ethereum address is a contract?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/handling-user-profiles-in-ethereum-dapps/" class="u-url">Handling user profiles in Ethereum DApps</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/how-to-find-out-if-an-ethereum-address-is-a-contract/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:33:35+08:00" itemprop="datePublished" title="2023-02-28 04:33">2023-02-28 04:33</time></a>
+            <a href="posts/handling-user-profiles-in-ethereum-dapps/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:36:47+08:00" itemprop="datePublished" title="2023-02-28 04:36">2023-02-28 04:36</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>An address in Solidity can be an account or a contract (or other things, such
-as a transaction). When I have a variable x, holding an address, how can I
-test if it is a contract or not?</p>
-<p>(Yes, I've read the chapter on types in the doc)</p>
+    <p>I'm in the process of creating an Ethereum DApp. The DApp consists of users
+who have associated data like email, name, and a profile picture. I would like
+to store the contents of the user within IPFS as a JSON object and reference
+this on chain using the IPFS hash. How could I go about associating this data
+with a particular user? In the sense, that subsequent interactions with the
+DApp connect the user with the data stored in IPFS. Is this done using the
+users account hash with a password of some sort?</p>
+<p>For example, <strong>user A</strong> is interested in using the DApp and so, provides his
+or her email, name, and profile picture. Then any subsequent interaction with
+the DApp, like a comment or post would link this user to the respective user
+data in IPFS.</p>
+<p>Any suggestions or adjustments to this way of modeling users would be greatly
+appreciated. Thanks!</p>
+<p>(P.S. I come from the traditional web/mobile app world so I'm just getting
+accustomed to modeling things using smart contracts. So I apologize in advance
+if this is a simple or ill-structured question.)</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Edit: Solidity has changed since this answer was first written, @manuel-aráoz
-has the correct answer.</p>
-<p>There is no way in solidity to check if an address is a contract. One of the
-goals of Ethereum is for humans and smart contracts to both be treated
-equally. This leads into a future where smart contracts interact seamlessly
-with humans and other contracts. It might change in the future , but for now
-an arbitrary address is ambiguous.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<h3>The top-voted answer with the <code>isContract</code> function that uses EXTCODESIZE</h3>
-<p>was discovered to be hackable.</p>
-<p>The function will return false if it is invoked from a contract's constructor
-(because the contract has not been deployed yet).</p>
-<p>The code should be used very carefully, if at all, to avoid security hacks
-such as:</p>
-<p>https://www.reddit.com/r/ethereum/comments/916xni/how_to_pwn_fomo3d_a_beginners_guide
-(archive)</p>
-<p>To repeat:</p>
-<p><strong>Do not use the EXTCODESIZE check to prevent smart contracts from calling a
-function. This is not foolproof, it can be subverted by a constructor call,
-due to the fact that while the constructor is running, EXTCODESIZE for that
-address returns 0.</strong></p>
-<p><strong>See sample code for a contract that tricks EXTCODESIZE to return 0.</strong></p>
-<hr>
-<h4>Checking if a caller is a contract</h4>
-<p>If you want to make sure that an EOA is calling your contract, a simple way is
-<code>require(msg.sender == tx.origin)</code>. However, preventing a contract is an anti-
-pattern with security and interoperability considerations.</p>
-<p><code>require(msg.sender == tx.origin)</code> will need revisiting when account
-abstraction is implemented.</p>
-<h4>Checking if a callee is a contract</h4>
-<p>As @Luke points out in a comment, there is <strong>no</strong> general on-chain way to find
-out about a callee. If you want to "call" an address, there's no general way
-to find out if that address is a contract, EOA, or an address that a new
-contract can be deployed on, or if it's a CREATE2 address.</p>
-<p>One non-general way that works for some callees: you can have a mapping on-
-chain that stores addresses of known EOAs or contracts. (Just remember that
-for an address without any on-chain history, you can't know if it's an EOA or
-an address that a contract can be deployed on.)</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/warning-spdx-license-identifier-not-provided-in-source-file/" class="u-url">Warning: SPDX license identifier not provided in source file</a></h1>
+<p>One of the beauties of using a platform like Ethereum is that you can build a
+<strong>ZERO click login</strong>. If we establish that the user's <code>web3.eth.accounts[0]</code>
+is proof that the user controls the private key of that account's address,
+then you will always know that the user is valid.</p>
+<p><strong>If you want to use IPFS like a database, my suggested approach would be
+this:</strong></p>
+<p>Note that with most decentralised systems a lot of the action happens on the
+client side.</p>
+<p><em>User Signup</em></p>
+<ul>
+<li>Users have Ethereum accounts.</li>
+<li>On sign up user data is collected into a JSON object</li>
+<li>A file is created, write JSON object to file.</li>
+<li>Pass file to IPFS</li>
+<li>Get file hash (which is basically its IPFS location)</li>
+<li>Store the IPFS hash in an Ethereum contract that associates the user's Ethereum account with the IPFS file hash.</li>
+</ul>
+<p><em>User Validation</em></p>
+<ul>
+<li>User visits the website</li>
+<li>web3js gets the active Ethereum account</li>
+<li>Read from the user contract to find the associated IPFS hash</li>
+<li>Get file from IPFS</li>
+<li>Read the JSON object</li>
+<li>Extract the data from the JSON</li>
+<li>Display data to user</li>
+</ul>
+</div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/when-should-i-build-a-substrate-runtime-module-versus-a-substrate-smart-contract/" class="u-url">When should I build a Substrate Runtime Module versus a Substrate Smart Contract?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/warning-spdx-license-identifier-not-provided-in-source-file/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:33:11+08:00" itemprop="datePublished" title="2023-02-28 04:33">2023-02-28 04:33</time></a>
+            <a href="posts/when-should-i-build-a-substrate-runtime-module-versus-a-substrate-smart-contract/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:36:30+08:00" itemprop="datePublished" title="2023-02-28 04:36">2023-02-28 04:36</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I created a new solidity contract. The contract is up and running but giving
-me this warning.</p>
-<div class="code"><pre class="code literal-block"><span class="n">Warning</span><span class="o">:</span><span class="w"> </span><span class="n">SPDX</span><span class="w"> </span><span class="n">license</span><span class="w"> </span><span class="n">identifier</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">provided</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="n">file</span><span class="o">.</span><span class="w"> </span><span class="n">Before</span><span class="w"> </span><span class="n">publishing</span><span class="o">,</span><span class="w"> </span><span class="n">consider</span><span class="w"> </span><span class="n">adding</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">comment</span><span class="w"> </span><span class="n">containing</span><span class="w"> </span><span class="s2">"SPDX-License-Identifier: &lt;SPDX-License&gt;"</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="k">each</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="n">file</span><span class="o">.</span><span class="w"> </span><span class="n">Use</span><span class="w"> </span><span class="s2">"SPDX-License-Identifier: UNLICENSED"</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">non</span><span class="o">-</span><span class="n">open</span><span class="o">-</span><span class="n">source</span><span class="w"> </span><span class="n">code</span><span class="o">.</span><span class="w"> </span><span class="n">Please</span><span class="w"> </span><span class="n">see</span><span class="w"> </span><span class="n">https</span><span class="o">://</span><span class="n">spdx</span><span class="o">.</span><span class="na">org</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">more</span><span class="w"> </span><span class="n">information</span><span class="o">.</span>
+    <p>What are the differences between developing a Substrate Runtime Module and a
+Substrate Smart Contract (for example with the ink! language)?</p>
+<p>What are some examples of applications which are best written in one form or
+the other?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Substrate Runtime Modules and Substrate Smart Contracts are two different
+approaches to building "decentralized applications" using the Substrate
+framework.</p>
+<hr>
+<h2>Smart Contracts</h2>
+<p>A traditional smart contract platform allows users to publish additional logic
+on top of some core blockchain logic. Since smart contract logic can be
+published by anyone, including malicious actors and inexperienced developers,
+there are a number of intentional safe guards built around the smart contract
+platform. Some examples are:</p>
+<ul>
+<li>Fees: Ensuring that contract developers are charged for the computation and storage they force on the computers running their contract, and not allowed to abuse the block creators.</li>
+<li>Sandbox: A contract is not able to modify core blockchain storage or the storage of other contracts directly. It's power is limited to only modifying it's own state, and the ability to make outside calls to other contracts or runtime functions.</li>
+<li>State Rent: A contract takes up space on the blockchain, and thus should be charged for simply existing. This ensures that people don't take advantage of "free, unlimited storage".</li>
+<li>Revert: A contract can be prone to have situations which lead to logical errors. The expectations of a contract developer are low, so extra overhead is added to support reverting transactions when they fail so no state is updated when things go wrong.</li>
+</ul>
+<p>These different overheads makes running contracts slower and more costly, but
+again, the "target audience" for contract development is different than
+runtime developers.</p>
+<p>Contracts can allow your community to extend and develop on top of your
+runtime logic without needing to go through all the craziness of proposals,
+runtime upgrades, etc... It may even be used as a testing grounds for future
+runtime changes, but done in a way that isolates your network from any of the
+growing pains or errors which may occur.</p>
+<p><strong>In summary</strong> , Substrate Smart Contracts:</p>
+<ul>
+<li>Are inherently safer to the network.</li>
+<li>Have built in economic incentives against abuse.</li>
+<li>Have computational overhead to support graceful failures in logic.</li>
+<li>Have a lower bar to entry for development.</li>
+<li>Enable fast pace community interaction through a playground to write new logic.</li>
+</ul>
+<hr>
+<h2>Runtime Modules</h2>
+<p>Runtime modules on the other hand afford none of these protections or safe
+guards that Smart Contracts give you. As a runtime developer, the bar to entry
+on the code you produce jumps way up.</p>
+<p>You have full control of the underlying logic that each node on your network
+will run. You have full access to each and every storage item across all of
+your modules, which you can modify and control. You can even brick your chain
+with incorrect logic or poor error handling.</p>
+<p>Substrate Runtime Module development has the intention of producing lean,
+performant, and fast nodes. It affords none of the protections or overhead of
+transaction reverting, and does not implicitly introduce any fee system to the
+computation which nodes on your chain run. This means while you are developing
+runtime functions, it is up to <em>you</em> to correctly asses and apply fees to the
+different parts of your runtime logic such that it will not be abused by bad
+actors and hurt your network.</p>
+<p><strong>In summary</strong> , Substrate Runtime Modules:</p>
+<ul>
+<li>Provide low level access to your entire blockchain.</li>
+<li>Have removed the overhead of built-in safety for performance.</li>
+<li>Have a high bar to entry for developers. <ul>
+<li>Not necessarily to write working code, but to avoid writing broken code.</li>
+</ul>
+</li>
+<li>Has no inherent economic incentives to repel bad actors.</li>
+</ul>
+<hr>
+<h2>The Right Tool For You</h2>
+<p>Substrate Runtime Modules and Substrate Smart Contracts are tools made
+available to you to solve problems.</p>
+<p>There is likely some amount of overlap in the kinds of problems each one can
+solve, but there is also a clear set of problems suited for only one of the
+two. Two give just one example in each category:</p>
+<ul>
+<li>Runtime Module: Building a privacy layer on top of transactions in your blockchain.</li>
+<li>Shared: Building a DApp like Cryptokitties which may need to build up a community of users (leaning toward Smart Contract), or may need to scale to millions of transactions a day (leaning toward Runtime Module).</li>
+<li>Smart Contract: Introducing 2nd layer tokens and custom assets to your network.</li>
+</ul>
+<p>In addition to everything written above, you also need to take into account
+the costs to set up a DApp using a certain tool. Deploying a contract is a
+relatively simple and easy process since you take advantage of the existing
+network. The only costs to you are those fees which you pay to deploy and
+maintain your contract.</p>
+<p>Setting up your own blockchain on the other hand has the cost of building a
+community who find value in your service or establishing a private network
+with the overhead of cloud computing system and general network maintenance.</p>
+<p>I think that now is really the first time it has been so easy and approachable
+to build runtime logic. In the past, everyone built their "decentralized
+application idea" using the tool available to them, Smart Contracts, even when
+that wasn't the best tool for the job.</p>
+<p>With the introduction of Substrate, there is a new tool available for building
+your decentralized applications; but again, it would be wrong to think that
+all of your ideas should be a Substrate Runtime Module.</p>
+<p>Instead, for the first time as a community, we have two tools, and we need to
+figure out together which one is best to use for each scenario. I don't think
+all the answers to this exist today, but we can learn and make some educated
+guesses along the way.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-approve-and-allowance-methods-are-really-doing-in-erc20-standard/" class="u-url">what approve and allowance methods are really doing in ERC20 Standard?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/what-approve-and-allowance-methods-are-really-doing-in-erc20-standard/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:36:09+08:00" itemprop="datePublished" title="2023-02-28 04:36">2023-02-28 04:36</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>The problem is what <code>allowance</code> and <code>approve</code> are really doing?</p>
+<p>And what is <code>_spender</code> and what is it doing?</p>
+<p>Is there anybody who can explain it to me?</p>
+<div class="code"><pre class="code literal-block"><span class="n">contract</span><span class="w"> </span><span class="n">Token</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">uint256</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">totalSupply</span><span class="p">;</span>
+<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">balanceOf</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">_owner</span><span class="p">)</span><span class="w"> </span><span class="n">constant</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">(</span><span class="n">uint256</span><span class="w"> </span><span class="n">balance</span><span class="p">);</span>
+<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">transfer</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">_to</span><span class="p">,</span><span class="w"> </span><span class="n">uint256</span><span class="w"> </span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">(</span><span class="nb nb-Type">bool</span><span class="w"> </span><span class="n">success</span><span class="p">);</span>
+<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">transferFrom</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">_from</span><span class="p">,</span><span class="w"> </span><span class="n">address</span><span class="w"> </span><span class="n">_to</span><span class="p">,</span><span class="w"> </span><span class="n">uint256</span><span class="w"> </span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">(</span><span class="nb nb-Type">bool</span><span class="w"> </span><span class="n">success</span><span class="p">);</span>
+<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">approve</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">_spender</span><span class="p">,</span><span class="w"> </span><span class="n">uint256</span><span class="w"> </span><span class="n">_value</span><span class="p">)</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">(</span><span class="nb nb-Type">bool</span><span class="w"> </span><span class="n">success</span><span class="p">);</span>
+<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">allowance</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">_owner</span><span class="p">,</span><span class="w"> </span><span class="n">address</span><span class="w"> </span><span class="n">_spender</span><span class="p">)</span><span class="w"> </span><span class="n">constant</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">(</span><span class="n">uint256</span><span class="w"> </span><span class="n">remaining</span><span class="p">);</span>
+<span class="w">    </span><span class="n">event</span><span class="w"> </span><span class="n">Transfer</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">indexed</span><span class="w"> </span><span class="n">_from</span><span class="p">,</span><span class="w"> </span><span class="n">address</span><span class="w"> </span><span class="n">indexed</span><span class="w"> </span><span class="n">_to</span><span class="p">,</span><span class="w"> </span><span class="n">uint256</span><span class="w"> </span><span class="n">_value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">event</span><span class="w"> </span><span class="n">Approval</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">indexed</span><span class="w"> </span><span class="n">_owner</span><span class="p">,</span><span class="w"> </span><span class="n">address</span><span class="w"> </span><span class="n">indexed</span><span class="w"> </span><span class="n">_spender</span><span class="p">,</span><span class="w"> </span><span class="n">uint256</span><span class="w"> </span><span class="n">_value</span><span class="p">);</span>
+<span class="p">}</span>
 </pre></div>
 
-<p>There are no errors while compilation.</p>
-<p>The Compiler version I am using in https://remix.ethereum.org/ is
-<strong>v0.7.5+commit.eb77ed08</strong> Language: Solidity EVM VERSION: compiler default</p>
-<p>Whenever I press compile it gives me the warning but there is no problem while
-deploying.</p>
-<p>My code snippet:</p>
-<div class="code"><pre class="code literal-block">pragma solidity ^0.7.5;
-contract TestContract {
-// Some logic
+<p><br><br></p>
+<h2>Answer</h2>
+<blockquote>
+<p>what allowance and approve are doing really?</p>
+</blockquote>
+<p>Let's assume we have user <strong>A</strong> and user <strong>B</strong>. <strong>A</strong> has 1000 tokens and want
+to give permission to <strong>B</strong> to spend 100 of them.</p>
+<ul>
+<li>
+<strong>A</strong> will call <code>approve(address(B), 100, {"from": address(A)})</code>
+</li>
+<li>
+<strong>B</strong> will check how many tokens <strong>A</strong> gave him permission to use by calling: <code>allowance(address(A), address(B))</code>
+</li>
+<li>
+<strong>B</strong> will send to his account these tokens by calling: <code>transferFrom(address(A), address(B), 100, {"from": address(B)})</code>
+</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<ul>
+<li>
+<p><code>Allowance</code> means that we can grant approval to another contract or address to be able to transfer our ERC20 tokens. And this requirement is common in distributed applications, such as escrows, games, auctions, etc. Hence, we need a way to approve other addresses to spend our tokens. Let's say you have <code>tether</code> contract and you want a DEX(Decentralized Exchange) or any other entity transfer coins from the <code>tether</code> contract. So you keep track of which entity how much can transfer from tether contract in a mapping.</p>
+<div class="code"><pre class="code literal-block"><span class="w"> </span><span class="c1">// my address is allowing your address for this much token</span>
+</pre></div>
+
+<p>mapping(address=&gt;mapping(address=&gt;uint)) public allowance;</p>
+</li>
+<li>
+<p>In the ERC20 standard, we have a global variable <code>allowed</code> in which we keep the mapping from an "owner's address" to an "approved spender’s" address and then to the amount of tokens. Calling <code>approve()</code> function can add an approval to its desired <code>_spender</code> and <code>_value</code>. The amount of token is not checked here and it will be checked in transfer().</p>
+</li>
+<li>
+<p>Once the approval is granted, the "approved spender" can use <code>transferFrom()</code> to transfer tokens. <code>_from</code> is the owner address and <code>_to</code> is the receiver’s address and <code>_value</code> is the required number of tokens to be sent. First, we check if the owner actually possesses the required number of tokens.</p>
+</li>
+</ul>
+<p>Let's say you want to deposit some ether to a DEFI platform. Interacting with
+a DEFI platform is actually interacting with the smart contract of that
+platform. Before you deposit money, you first <code>approve</code> the transaction. You
+are telling that this contract address can take some money from my account.
+Then you call the <code>deposit</code> function of DEFI smart contract and deposit the
+money. This how transfer occurs in order:</p>
+<p>1- Inside Defi, defi contract has <code>deposit</code> to get coin from <code>tether</code></p>
+<div class="code"><pre class="code literal-block"><span class="nv">function</span><span class="w"> </span><span class="nv">depositTokens</span><span class="ss">(</span><span class="nv">uint</span><span class="w"> </span><span class="nv">_amount</span><span class="ss">)</span><span class="w"> </span><span class="nv">public</span>{
+<span class="w">  </span><span class="nv">require</span><span class="ss">(</span><span class="nv">_amount</span><span class="o">&gt;</span><span class="mi">0</span>,<span class="s1">'amount cannot be zero'</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="nv">transfer</span><span class="w"> </span><span class="nv">tether</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">contract</span><span class="w"> </span><span class="nv">address</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">staking</span>
+<span class="w">  </span><span class="nv">tether</span>.<span class="nv">transferFrom</span><span class="ss">(</span><span class="nv">msg</span>.<span class="nv">sender</span>,<span class="nv">address</span><span class="ss">(</span><span class="nv">this</span><span class="ss">)</span>,<span class="w"> </span><span class="nv">_amount</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nv">update</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">state</span><span class="w"> </span><span class="nv">inside</span><span class="w"> </span><span class="nv">Defi</span>,<span class="w"> </span><span class="nv">like</span><span class="w"> </span><span class="nv">staked</span><span class="w"> </span><span class="nv">tokens</span>,<span class="w"> </span><span class="nv">amount</span><span class="w"> </span><span class="nv">etc</span>
 }
 </pre></div>
 
-<p><br><br></p>
-<h2>Answer</h2>
-<p>From Solidity ^0.6.8 SPDX license is introduced. So you need to use SPDX-
-License-Identifier in the code.</p>
-<p>Have a look at this:
-https://forum.openzeppelin.com/t/solidity-0-6-8-introduces-spdx-license-
-identifiers/2859</p>
-<p>For example in your code you need to use license identifier like</p>
-<div class="code"><pre class="code literal-block"><span class="c1">// SPDX-License-Identifier: MIT</span>
-<span class="n">pragma</span><span class="w"> </span><span class="n">solidity</span><span class="w"> </span>^<span class="mf">0.7</span><span class="p">.</span><span class="mi">5</span><span class="p">;</span>
-<span class="n">contract</span><span class="w"> </span><span class="n">TestContract</span><span class="w"> </span><span class="p">{</span>
-<span class="c1">// Some logic</span>
-<span class="p">}</span>
+<p>2- Inside <code>tether</code> we have <code>transferFrom</code></p>
+<div class="code"><pre class="code literal-block"><span class="n">mapping</span><span class="p">(</span><span class="n">address</span><span class="o">=&gt;</span><span class="n">mapping</span><span class="p">(</span><span class="n">address</span><span class="o">=&gt;</span><span class="n">uint</span><span class="p">))</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">allowance</span><span class="p">;</span>
+
+<span class="k">function</span><span class="w"> </span><span class="n">transferFrom</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">_from</span><span class="p">,</span><span class="w"> </span><span class="n">address</span><span class="w"> </span><span class="n">_to</span><span class="p">,</span><span class="w"> </span><span class="n">uint256</span><span class="w"> </span><span class="n">_value</span><span class="p">)</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">bool</span><span class="w"> </span><span class="n">success</span><span class="p">)</span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">check</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">allowance</span>
+<span class="w">        </span><span class="n">require</span><span class="p">(</span><span class="n">_value</span><span class="w"> </span><span class="o">&lt;=</span><span class="n">allowance</span><span class="o">[</span><span class="n">_from</span><span class="o">][</span><span class="n">msg.sender</span><span class="o">]</span><span class="p">);</span>
+<span class="w">        </span><span class="n">balanceOf</span><span class="o">[</span><span class="n">_to</span><span class="o">]+=</span><span class="n">_value</span><span class="p">;</span>
+<span class="w">        </span><span class="n">balanceOf</span><span class="o">[</span><span class="n">_from</span><span class="o">]-=</span><span class="n">_value</span><span class="p">;</span>
+<span class="w">        </span><span class="n">allowance</span><span class="o">[</span><span class="n">_from</span><span class="o">][</span><span class="n">msg.sender</span><span class="o">]-=</span><span class="n">_value</span><span class="p">;</span>
+<span class="w">        </span><span class="n">emit</span><span class="w"> </span><span class="n">Transfer</span><span class="p">(</span><span class="n">_from</span><span class="p">,</span><span class="n">_to</span><span class="p">,</span><span class="n">_value</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
 </pre></div>
 
-<p>You need to use license according to your project. Some other licenses are:</p>
-<div class="code"><pre class="code literal-block"><span class="c1">// SPDX-License-Identifier: GPL-3.0-or-later</span>
+<p>The first requirement is checking the allowance.
+<code>mapping(address=&gt;mapping(address=&gt;uint)) public allowance</code>. So actually
+before calling this, <code>tether</code> contract has to update its <code>allowance</code> mapping
+so this <code>transferFrom</code> will run smoothly</p>
+<p>3- Update the allowance with <code>approve</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="k">function</span><span class="w"> </span><span class="n">approve</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">_spender</span><span class="p">,</span><span class="w"> </span><span class="n">uint</span><span class="w"> </span><span class="n">_value</span><span class="p">)</span><span class="k">public</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">bool</span><span class="w"> </span><span class="n">success</span><span class="p">)</span><span class="err">{</span>
+<span class="w">        </span><span class="n">allowance</span><span class="o">[</span><span class="n">msg.sender</span><span class="o">][</span><span class="n">_spender</span><span class="o">]=</span><span class="n">_value</span><span class="p">;</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="n">event</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="k">trigger</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">successful</span><span class="w"> </span><span class="k">call</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">made</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">approve</span><span class="w"> </span><span class="k">function</span><span class="p">.</span>
+<span class="w">        </span><span class="n">emit</span><span class="w"> </span><span class="n">Approval</span><span class="p">(</span><span class="n">msg</span><span class="p">.</span><span class="n">sender</span><span class="p">,</span><span class="n">_spender</span><span class="p">,</span><span class="n">_value</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
 </pre></div>
-
-<p>You can find list of licenses here: https://spdx.org/licenses/</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>"// SPDX-License-Identifier: MIT " add this at the top . This is an issue of
-Solidity extension , Uninstall it .Then install and then close the editor and
-reload it .</p>
-<p>Ex :</p>
-<p>//SPDX-License-Identifier: MIT</p>
-<p>pragma solidity ^0.8.14;</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/data-location-must-be-memory-for-return-parameter-in-function-but-none-was-given/" class="u-url">Data location must be "memory" for return parameter in function, but none was given</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/data-location-must-be-memory-for-return-parameter-in-function-but-none-was-given/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:32:50+08:00" itemprop="datePublished" title="2023-02-28 04:32">2023-02-28 04:32</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I tried solidity example like as above in remix, solidity version &gt; 0.5.0 But
-I am getting this error now. What is the way to solve this error?</p>
-<div class="code"><pre class="code literal-block"><span class="n">contract</span><span class="w"> </span><span class="n">MyContract</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
-
-<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">view</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">(</span><span class="n">string</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">set</span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">_value</span><span class="p">)</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_value</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="n">constructor</span><span class="p">()</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"myValue"</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p><br><br></p>
-<h2>Answer</h2>
-<p>You should add memory keyword for string parameter, which was introduced in
-solidity version 0.5.0</p>
-<p>As per the documentation:</p>
-<blockquote>
-<p>Explicit data location for all variables of struct, array or mapping types
-is now mandatory. This is also applied to function parameters and return
-variables. For example, change uint[] x = m_x to uint[] storage x = m_x, and
-function f(uint[][] x) to function f(uint[][] memory x) where memory is the
-data location and might be replaced by storage or calldata accordingly. Note
-that external functions require parameters with a data location of calldata.</p>
-</blockquote>
-<p>Corrected code</p>
-<div class="code"><pre class="code literal-block"><span class="n">contract</span><span class="w"> </span><span class="n">MyContract</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
-
-<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">view</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">memory</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">set</span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="n">_value</span><span class="p">)</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_value</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="n">constructor</span><span class="p">()</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"myValue"</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>Refer to official documentation on breaking changes made in version 0.5.0</p>
-<p><br></p>
-<h3>Suggest</h3>
-<blockquote>
-<p>Values of reference type can be modified through multiple different names.
-Contrast this with value types where you get an independent copy whenever a
-variable of value type is used. Because of that, reference types have to be
-handled more carefully than value types. Currently, reference types comprise
-structs, arrays and mappings. If you use a reference type, you always have
-to explicitly provide the data area where the type is stored: memory (whose
-lifetime is limited to an external function call), storage (the location
-where the state variables are stored, where the lifetime is limited to the
-lifetime of a contract) or calldata (special data location that contains the
-function arguments).</p>
-</blockquote>
-<p><code>Warning</code></p>
-<blockquote>
-<p>Prior to version 0.5.0 the data location could be omitted, and would default
-to different locations depending on the kind of variable, function type,
-etc., but all complex types must now give an explicit data location.</p>
-</blockquote>
-<p>https://docs.soliditylang.org/en/latest/types.html#reference-types</p>
-<p>so you have to put <code>memory</code> or <code>calldata</code> after String as follows:</p>
-<div class="code"><pre class="code literal-block"><span class="n">contract</span><span class="w"> </span><span class="n">MyContract</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
-
-<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">view</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">memory</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">set</span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="n">_value</span><span class="p">)</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_value</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="n">constructor</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"myValue"</span><span class="p">;</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>another thing to notice that you dont have to put public in the constructor
-any more:</p>
-<blockquote>
-<p>Warning: Prior to version 0.7.0, you had to specify the visibility of
-constructors as either internal or public.</p>
-</blockquote>
-<p>https://docs.soliditylang.org/en/latest/contracts.html?highlight=constructor#constructors</p>
     </div>
     </article>
 </div>
@@ -346,7 +390,7 @@ constructors as either internal or public.</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

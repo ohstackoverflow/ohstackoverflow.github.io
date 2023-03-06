@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postgres and Indexes on Foreign Keys and Primary Keys | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/postgres-and-indexes-on-foreign-keys-and-primary-keys/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../reverse-of-json-stringify/" title="Reverse of JSON.stringify?" type="text/html">
+<link rel="next" href="../what-are-the-reasons-why-map-get-object-key-is-not-fully-generic/" title="What are the reasons why Map.get(Object key) is not (fully) generic" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Postgres and Indexes on Foreign Keys and Primary Keys">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/postgres-and-indexes-on-foreign-keys-and-primary-keys/">
+<meta property="og:description" content="Does Postgres automatically put indexes on Foreign Keys and Primary Keys? How
+can I tell? Is there a command that will return all indexes on a table?
+
+Answer
+PostgreSQL automatically creates indexes o">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T12:07:06+08:00">
+<meta property="article:tag" content="foreign-keys">
+<meta property="article:tag" content="postgresql">
+<meta property="article:tag" content="sql">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Postgres and Indexes on Foreign Keys and Primary Keys</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T12:07:06+08:00" itemprop="datePublished" title="2023-03-03 12:07">2023-03-03 12:07</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Does Postgres automatically put indexes on Foreign Keys and Primary Keys? How
+can I tell? Is there a command that will return all indexes on a table?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>PostgreSQL automatically creates indexes on primary keys and unique
+constraints, but not on the referencing side of foreign key relationships.</p>
+<p>When Pg creates an implicit index it will emit a <code>NOTICE</code>-level message that
+you can see in <code>psql</code> and/or the system logs, so you can see when it happens.
+Automatically created indexes are visible in <code>\d</code> output for a table, too.</p>
+<p>The documentation on unique indexes says:</p>
+<blockquote>
+<p>PostgreSQL automatically creates an index for each unique constraint and
+primary key constraint to enforce uniqueness. Thus, it is not necessary to
+create an index explicitly for primary key columns.</p>
+</blockquote>
+<p>and the documentation on constraints says:</p>
+<blockquote>
+<p>Since a DELETE of a row from the referenced table or an UPDATE of a
+referenced column will require a scan of the referencing table for rows
+matching the old value, it is often a good idea to index the referencing
+columns. Because this is not always needed, and there are many choices
+available on how to index, declaration of a foreign key constraint does not
+automatically create an index on the referencing columns.</p>
+</blockquote>
+<p>Therefore you have to create indexes on foreign-keys yourself if you want
+them.</p>
+<p>Note that if you use primary-foreign-keys, like 2 FK's as a PK in a M-to-N
+table, you will have an index on the PK and probably don't need to create any
+extra indexes.</p>
+<p>While it's usually a good idea to create an index on (or including) your
+referencing-side foreign key columns, it isn't required. Each index you add
+slows DML operations down slightly, so you pay a performance cost on every
+<code>INSERT</code>, <code>UPDATE</code> or <code>DELETE</code>. If the index is rarely used it may not be
+worth having.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>This query will <strong>list missing indexes on foreign keys</strong> , original source.</p>
+<p><em>Edit</em> : Note that it will not check small tables (less then 9 MB) and some
+other cases. See final <code>WHERE</code> statement.</p>
+<div class="code"><pre class="code literal-block"><span class="o">--</span><span class="w"> </span><span class="n">check</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">FKs</span><span class="w"> </span><span class="n">where</span><span class="w"> </span><span class="n">there</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">matching</span><span class="w"> </span><span class="n">index</span>
+<span class="o">--</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">referencing</span><span class="w"> </span><span class="n">side</span>
+<span class="o">--</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">bad</span><span class="w"> </span><span class="n">index</span>
+
+<span class="n">WITH</span><span class="w"> </span><span class="n">fk_actions</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">VALUES</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="s1">'a'</span><span class="p">,</span><span class="w"> </span><span class="s1">'error'</span><span class="w"> </span><span class="p">),</span>
+<span class="w">        </span><span class="p">(</span><span class="w"> </span><span class="s1">'r'</span><span class="p">,</span><span class="w"> </span><span class="s1">'restrict'</span><span class="w"> </span><span class="p">),</span>
+<span class="w">        </span><span class="p">(</span><span class="w"> </span><span class="s1">'c'</span><span class="p">,</span><span class="w"> </span><span class="s1">'cascade'</span><span class="w"> </span><span class="p">),</span>
+<span class="w">        </span><span class="p">(</span><span class="w"> </span><span class="s1">'n'</span><span class="p">,</span><span class="w"> </span><span class="s1">'set null'</span><span class="w"> </span><span class="p">),</span>
+<span class="w">        </span><span class="p">(</span><span class="w"> </span><span class="s1">'d'</span><span class="p">,</span><span class="w"> </span><span class="s1">'set default'</span><span class="w"> </span><span class="p">)</span>
+<span class="p">),</span>
+<span class="n">fk_list</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="n">pg_constraint</span><span class="o">.</span><span class="n">oid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">fkoid</span><span class="p">,</span><span class="w"> </span><span class="n">conrelid</span><span class="p">,</span><span class="w"> </span><span class="n">confrelid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">parentid</span><span class="p">,</span>
+<span class="w">        </span><span class="n">conname</span><span class="p">,</span><span class="w"> </span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">nspname</span><span class="p">,</span>
+<span class="w">        </span><span class="n">fk_actions_update</span><span class="o">.</span><span class="n">action</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">update_action</span><span class="p">,</span>
+<span class="w">        </span><span class="n">fk_actions_delete</span><span class="o">.</span><span class="n">action</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">delete_action</span><span class="p">,</span>
+<span class="w">        </span><span class="n">conkey</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">key_cols</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">pg_constraint</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="n">ON</span><span class="w"> </span><span class="n">conrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pg_class</span><span class="o">.</span><span class="n">oid</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="n">ON</span><span class="w"> </span><span class="n">pg_class</span><span class="o">.</span><span class="n">relnamespace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pg_namespace</span><span class="o">.</span><span class="n">oid</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">fk_actions</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="n">fk_actions_update</span><span class="w"> </span><span class="n">ON</span><span class="w"> </span><span class="n">confupdtype</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fk_actions_update</span><span class="o">.</span><span class="n">code</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">fk_actions</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="n">fk_actions_delete</span><span class="w"> </span><span class="n">ON</span><span class="w"> </span><span class="n">confdeltype</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fk_actions_delete</span><span class="o">.</span><span class="n">code</span>
+<span class="w">    </span><span class="n">WHERE</span><span class="w"> </span><span class="n">contype</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'f'</span>
+<span class="p">),</span>
+<span class="n">fk_attributes</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="n">fkoid</span><span class="p">,</span><span class="w"> </span><span class="n">conrelid</span><span class="p">,</span><span class="w"> </span><span class="n">attname</span><span class="p">,</span><span class="w"> </span><span class="n">attnum</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">fk_list</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">pg_attribute</span>
+<span class="w">            </span><span class="n">ON</span><span class="w"> </span><span class="n">conrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">attrelid</span>
+<span class="w">            </span><span class="n">AND</span><span class="w"> </span><span class="n">attnum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ANY</span><span class="p">(</span><span class="w"> </span><span class="n">key_cols</span><span class="w"> </span><span class="p">)</span>
+<span class="w">    </span><span class="n">ORDER</span><span class="w"> </span><span class="n">BY</span><span class="w"> </span><span class="n">fkoid</span><span class="p">,</span><span class="w"> </span><span class="n">attnum</span>
+<span class="p">),</span>
+<span class="n">fk_cols_list</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="n">fkoid</span><span class="p">,</span><span class="w"> </span><span class="n">array_agg</span><span class="p">(</span><span class="n">attname</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">cols_list</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">fk_attributes</span>
+<span class="w">    </span><span class="n">GROUP</span><span class="w"> </span><span class="n">BY</span><span class="w"> </span><span class="n">fkoid</span>
+<span class="p">),</span>
+<span class="n">index_list</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="n">indexrelid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">indexid</span><span class="p">,</span>
+<span class="w">        </span><span class="n">pg_class</span><span class="o">.</span><span class="n">relname</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">indexname</span><span class="p">,</span>
+<span class="w">        </span><span class="n">indrelid</span><span class="p">,</span>
+<span class="w">        </span><span class="n">indkey</span><span class="p">,</span>
+<span class="w">        </span><span class="n">indpred</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">has_predicate</span><span class="p">,</span>
+<span class="w">        </span><span class="n">pg_get_indexdef</span><span class="p">(</span><span class="n">indexrelid</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">indexdef</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">pg_index</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="n">ON</span><span class="w"> </span><span class="n">indexrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pg_class</span><span class="o">.</span><span class="n">oid</span>
+<span class="w">    </span><span class="n">WHERE</span><span class="w"> </span><span class="n">indisvalid</span>
+<span class="p">),</span>
+<span class="n">fk_index_match</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="n">fk_list</span><span class="o">.*</span><span class="p">,</span>
+<span class="w">        </span><span class="n">indexid</span><span class="p">,</span>
+<span class="w">        </span><span class="n">indexname</span><span class="p">,</span>
+<span class="w">        </span><span class="n">indkey</span><span class="p">::</span><span class="nb nb-Type">int</span><span class="p">[]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">indexatts</span><span class="p">,</span>
+<span class="w">        </span><span class="n">has_predicate</span><span class="p">,</span>
+<span class="w">        </span><span class="n">indexdef</span><span class="p">,</span>
+<span class="w">        </span><span class="n">array_length</span><span class="p">(</span><span class="n">key_cols</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">fk_colcount</span><span class="p">,</span>
+<span class="w">        </span><span class="n">array_length</span><span class="p">(</span><span class="n">indkey</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">index_colcount</span><span class="p">,</span>
+<span class="w">        </span><span class="nb">round</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="n">conrelid</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1024</span><span class="o">^</span><span class="mi">2</span><span class="p">)::</span><span class="n">numeric</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">table_mb</span><span class="p">,</span>
+<span class="w">        </span><span class="n">cols_list</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">fk_list</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">fk_cols_list</span><span class="w"> </span><span class="n">USING</span><span class="w"> </span><span class="p">(</span><span class="n">fkoid</span><span class="p">)</span>
+<span class="w">        </span><span class="n">LEFT</span><span class="w"> </span><span class="n">OUTER</span><span class="w"> </span><span class="n">JOIN</span><span class="w"> </span><span class="n">index_list</span>
+<span class="w">            </span><span class="n">ON</span><span class="w"> </span><span class="n">conrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">indrelid</span>
+<span class="w">            </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="n">indkey</span><span class="p">::</span><span class="n">int2</span><span class="p">[])[</span><span class="mi">0</span><span class="p">:(</span><span class="n">array_length</span><span class="p">(</span><span class="n">key_cols</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">)]</span><span class="w"> </span><span class="err">@</span><span class="o">&gt;</span><span class="w"> </span><span class="n">key_cols</span>
+
+<span class="p">),</span>
+<span class="n">fk_perfect_match</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="n">fkoid</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">fk_index_match</span>
+<span class="w">    </span><span class="n">WHERE</span><span class="w"> </span><span class="p">(</span><span class="n">index_colcount</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">fk_colcount</span>
+<span class="w">        </span><span class="n">AND</span><span class="w"> </span><span class="n">NOT</span><span class="w"> </span><span class="n">has_predicate</span>
+<span class="w">        </span><span class="n">AND</span><span class="w"> </span><span class="n">indexdef</span><span class="w"> </span><span class="n">LIKE</span><span class="w"> </span><span class="s1">'%USING btree%'</span>
+<span class="p">),</span>
+<span class="n">fk_index_check</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="s1">'no index'</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">issue</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">issue_sort</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">fk_index_match</span>
+<span class="w">    </span><span class="n">WHERE</span><span class="w"> </span><span class="n">indexid</span><span class="w"> </span><span class="n">IS</span><span class="w"> </span><span class="n">NULL</span>
+<span class="w">    </span><span class="n">UNION</span><span class="w"> </span><span class="n">ALL</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="s1">'questionable index'</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">issue</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">fk_index_match</span>
+<span class="w">    </span><span class="n">WHERE</span><span class="w"> </span><span class="n">indexid</span><span class="w"> </span><span class="n">IS</span><span class="w"> </span><span class="n">NOT</span><span class="w"> </span><span class="n">NULL</span>
+<span class="w">        </span><span class="n">AND</span><span class="w"> </span><span class="n">fkoid</span><span class="w"> </span><span class="n">NOT</span><span class="w"> </span><span class="n">IN</span><span class="w"> </span><span class="p">(</span>
+<span class="w">            </span><span class="n">SELECT</span><span class="w"> </span><span class="n">fkoid</span>
+<span class="w">            </span><span class="n">FROM</span><span class="w"> </span><span class="n">fk_perfect_match</span><span class="p">)</span>
+<span class="p">),</span>
+<span class="n">parent_table_stats</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="n">fkoid</span><span class="p">,</span><span class="w"> </span><span class="n">tabstats</span><span class="o">.</span><span class="n">relname</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">parent_name</span><span class="p">,</span>
+<span class="w">        </span><span class="p">(</span><span class="n">n_tup_ins</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n_tup_upd</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n_tup_del</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n_tup_hot_upd</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">parent_writes</span><span class="p">,</span>
+<span class="w">        </span><span class="nb">round</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="n">parentid</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1024</span><span class="o">^</span><span class="mi">2</span><span class="p">)::</span><span class="n">numeric</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">parent_mb</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">pg_stat_user_tables</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="n">tabstats</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">fk_list</span>
+<span class="w">            </span><span class="n">ON</span><span class="w"> </span><span class="n">relid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parentid</span>
+<span class="p">),</span>
+<span class="n">fk_table_stats</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">SELECT</span><span class="w"> </span><span class="n">fkoid</span><span class="p">,</span>
+<span class="w">        </span><span class="p">(</span><span class="n">n_tup_ins</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n_tup_upd</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n_tup_del</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n_tup_hot_upd</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">writes</span><span class="p">,</span>
+<span class="w">        </span><span class="n">seq_scan</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">table_scans</span>
+<span class="w">    </span><span class="n">FROM</span><span class="w"> </span><span class="n">pg_stat_user_tables</span><span class="w"> </span><span class="n">AS</span><span class="w"> </span><span class="n">tabstats</span>
+<span class="w">        </span><span class="n">JOIN</span><span class="w"> </span><span class="n">fk_list</span>
+<span class="w">            </span><span class="n">ON</span><span class="w"> </span><span class="n">relid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">conrelid</span>
+<span class="p">)</span>
+<span class="n">SELECT</span><span class="w"> </span><span class="n">nspname</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">schema_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">relname</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">table_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">conname</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">fk_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">issue</span><span class="p">,</span>
+<span class="w">    </span><span class="n">table_mb</span><span class="p">,</span>
+<span class="w">    </span><span class="n">writes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">table_scans</span><span class="p">,</span>
+<span class="w">    </span><span class="n">parent_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">parent_mb</span><span class="p">,</span>
+<span class="w">    </span><span class="n">parent_writes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">cols_list</span><span class="p">,</span>
+<span class="w">    </span><span class="n">indexdef</span>
+<span class="n">FROM</span><span class="w"> </span><span class="n">fk_index_check</span>
+<span class="w">    </span><span class="n">JOIN</span><span class="w"> </span><span class="n">parent_table_stats</span><span class="w"> </span><span class="n">USING</span><span class="w"> </span><span class="p">(</span><span class="n">fkoid</span><span class="p">)</span>
+<span class="w">    </span><span class="n">JOIN</span><span class="w"> </span><span class="n">fk_table_stats</span><span class="w"> </span><span class="n">USING</span><span class="w"> </span><span class="p">(</span><span class="n">fkoid</span><span class="p">)</span>
+<span class="n">WHERE</span><span class="w"> </span><span class="n">table_mb</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">9</span>
+<span class="w">    </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">writes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1000</span>
+<span class="w">        </span><span class="n">OR</span><span class="w"> </span><span class="n">parent_writes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1000</span>
+<span class="w">        </span><span class="n">OR</span><span class="w"> </span><span class="n">parent_mb</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="p">)</span>
+<span class="n">ORDER</span><span class="w"> </span><span class="n">BY</span><span class="w"> </span><span class="n">issue_sort</span><span class="p">,</span><span class="w"> </span><span class="n">table_mb</span><span class="w"> </span><span class="n">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">table_name</span><span class="p">,</span><span class="w"> </span><span class="n">fk_name</span><span class="p">;</span>
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/foreign-keys/" rel="tag">foreign-keys</a></li>
+            <li><a class="tag p-category" href="../../categories/postgresql/" rel="tag">postgresql</a></li>
+            <li><a class="tag p-category" href="../../categories/sql/" rel="tag">sql</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../reverse-of-json-stringify/" rel="prev" title="Reverse of JSON.stringify?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-are-the-reasons-why-map-get-object-key-is-not-fully-generic/" rel="next" title="What are the reasons why Map.get(Object key) is not (fully) generic">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

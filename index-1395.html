@@ -108,213 +108,1042 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/clustering-tree-structured-data/" class="u-url">Clustering tree structured data</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/" class="u-url">Fastest way to store a numpy array in redis</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/clustering-tree-structured-data/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:04:14+08:00" itemprop="datePublished" title="2023-02-28 03:04">2023-02-28 03:04</time></a>
+            <a href="posts/fastest-way-to-store-a-numpy-array-in-redis/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:07:24+08:00" itemprop="datePublished" title="2023-02-28 03:07">2023-02-28 03:07</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>Suppose we are given data in a semi-structured format as a tree. As an
-example, the tree can be formed as a valid XML document or as a valid JSON
-document. You could imagine it being a lisp-like S-expression or an
-(G)Algebraic Data Type in Haskell or Ocaml.</p>
-<p>We are given a large number of "documents" in the tree structure. Our goal is
-to cluster documents which are similar. By clustering, we mean a way to divide
-the documents into <em>j</em> groups, such that elements in each looks like each
-other.</p>
-<p>I am sure there are papers out there which describes approaches but since I am
-not very known in the area of AI/Clustering/MachineLearning, I want to ask
-somebody who are what to look for and where to dig.</p>
-<p>My current approach is something like this:</p>
-<ul>
-<li>I want to convert each document into an N-dimensional vector set up for a K-means clustering.</li>
-<li>To do this, I recursively walk the document tree and for each level I calculate a vector. If I am at a tree vertex, I recur on all subvertices and then sum their vectors. Also, whenever I recur, a power factor is applied so it does matter less and less the further down the tree I go. The documents final vector is the root of the tree.</li>
-<li>Depending on the data at a tree leaf, I apply a function which takes the data into a vector.</li>
-</ul>
-<p>But surely, there are better approaches. One weakness of my approach is that
-it will only similarity-cluster trees which has a top structure much like each
-other. If the similarity is present, but occurs farther down the tree, then my
-approach probably won't work very well.</p>
-<p>I imagine there are solutions in full-text-search as well, but I do want to
-take advantage of the semi-structure present in the data.</p>
-<h3>Distance function</h3>
-<p>As suggested, one need to define a distance function between documents.
-Without this function, we can't apply a clustering algorithm.</p>
-<p>In fact, it may be that the question is about that very distance function and
-examples thereof. I want documents where elements near the root are the same
-to cluster close to each other. The farther down the tree we go, the less it
-matters.</p>
-<h3>The take-one-step-back viewpoint:</h3>
-<p>I want to cluster stack traces from programs. These are well-formed tree
-structures, where the function close to the root are the inner function which
-fails. I need a decent distance function between stack traces that probably
-occur because the same event happened in code.</p>
+    <p>I'm using redis on an AI project.</p>
+<p>The idea is to have multiple environment simulators running policies on a lot
+of cpu cores. The simulators write experience (a list of state/action/reward
+tuples) to a redis server (replay buffer). Then a training process reads the
+experience as a dataset to generate a new policy. New policy is deployed to
+the simulators, data from previous run is deleted, and the process continues.</p>
+<p>The bulk of the experience is captured in the "state". Which is normally
+represented as a large numpy array of dimension say, 80 x 80. The simulators
+generate these as fast as the cpu will allow.</p>
+<p>To this end, does anyone have good ideas or experience of the
+best/fastest/simplest way to write a lot of numpy arrays to redis. This is all
+on the same machine, but later, could be on a set of cloud servers. Code
+samples welcome!</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Given the nature of your problem (stack trace), I would reduce it to a string
-matching problem. Representing a stack trace as a tree is a bit of overhead:
-for each element in the stack trace, you have exactly one parent.</p>
-<p>If string matching would indeed be more appropriate for your problem, you can
-run through your data, map each node onto a hash and create for each
-'document' its n-grams.</p>
-<p>Example:</p>
-<p>Mapping:</p>
+<p>I don't know if it is fastest, but you could try something like this...</p>
+<p>Storing a Numpy array to Redis goes like this - see function <code>toRedis()</code>:</p>
 <ul>
-<li>Exception A -&gt; 0</li>
-<li>Exception B -&gt; 1</li>
-<li>Exception C -&gt; 2</li>
-<li>Exception D -&gt; 3</li>
+<li>get shape of Numpy array and encode</li>
+<li>append the Numpy array as bytes to the shape</li>
+<li>store the encoded array under supplied key</li>
 </ul>
-<p>Doc A: 0-1-2 Doc B: 1-2-3</p>
-<p>2-grams for doc A: X0, 01, 12, 2X</p>
-<p>2-grams for doc B: X1, 12, 23, 3X</p>
-<p>Using the n-grams, you will be able to cluster similar sequences of events
-regardless of the root node (in this examplem event 12)</p>
-<p>However, if you are still convinced that you need trees, instead of strings,
-you must consider the following: finding similarities for trees is a lot more
-complex. You will want to find similar subtrees, with subtrees that are
-similar over a greater depth resulting in a better similarity score. For this
-purpose, you will need to discover closed subtrees (subtrees that are the base
-subtrees for trees that extend it). What you don't want is a data collection
-containing subtrees that are very rare, or that are present in each document
-you are processing (which you will get if you do not look for frequent
-patterns).</p>
-<p>Here are some pointers:</p>
+<p>Retrieving a Numpy array goes like this - see function <code>fromRedis()</code>:</p>
 <ul>
-<li>http://portal.acm.org/citation.cfm?id=1227182</li>
-<li>http://www.springerlink.com/content/yu0bajqnn4cvh9w9/</li>
+<li>retrieve from Redis the encoded string corresponding to supplied key</li>
+<li>extract the shape of the Numpy array from the string</li>
+<li>extract data and repopulate Numpy array, reshape to original shape</li>
 </ul>
-<p>Once you have your frequent subtrees, you can use them in the same way as you
-would use the n-grams for clustering.</p>
+<hr>
+<div class="code"><table class="codetable">
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-1"><code data-line-number=" 1"></code></a></td>
+<td class="code"><code><span class="ch">#!/usr/bin/env python3</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-2"><code data-line-number=" 2"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-3"><code data-line-number=" 3"></code></a></td>
+<td class="code"><code><span class="kn">import</span> <span class="nn">struct</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-4"><code data-line-number=" 4"></code></a></td>
+<td class="code"><code><span class="kn">import</span> <span class="nn">redis</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-5"><code data-line-number=" 5"></code></a></td>
+<td class="code"><code><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-6"><code data-line-number=" 6"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-7"><code data-line-number=" 7"></code></a></td>
+<td class="code"><code><span class="k">def</span> <span class="nf">toRedis</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="n">n</span><span class="p">):</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-8"><code data-line-number=" 8"></code></a></td>
+<td class="code"><code><span class="w">   </span><span class="sd">"""Store given Numpy array 'a' in Redis under key 'n'"""</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-9"><code data-line-number=" 9"></code></a></td>
+<td class="code"><code>   <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">shape</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-10"><code data-line-number="10"></code></a></td>
+<td class="code"><code>   <span class="n">shape</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">'&gt;II'</span><span class="p">,</span><span class="n">h</span><span class="p">,</span><span class="n">w</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-11"><code data-line-number="11"></code></a></td>
+<td class="code"><code>   <span class="n">encoded</span> <span class="o">=</span> <span class="n">shape</span> <span class="o">+</span> <span class="n">a</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-12"><code data-line-number="12"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-13"><code data-line-number="13"></code></a></td>
+<td class="code"><code>   <span class="c1"># Store encoded data in Redis</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-14"><code data-line-number="14"></code></a></td>
+<td class="code"><code>   <span class="n">r</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="n">encoded</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-15"><code data-line-number="15"></code></a></td>
+<td class="code"><code>   <span class="k">return</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-16"><code data-line-number="16"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-17"><code data-line-number="17"></code></a></td>
+<td class="code"><code><span class="k">def</span> <span class="nf">fromRedis</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">n</span><span class="p">):</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-18"><code data-line-number="18"></code></a></td>
+<td class="code"><code><span class="w">   </span><span class="sd">"""Retrieve Numpy array from Redis key 'n'"""</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-19"><code data-line-number="19"></code></a></td>
+<td class="code"><code>   <span class="n">encoded</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-20"><code data-line-number="20"></code></a></td>
+<td class="code"><code>   <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">'&gt;II'</span><span class="p">,</span><span class="n">encoded</span><span class="p">[:</span><span class="mi">8</span><span class="p">])</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-21"><code data-line-number="21"></code></a></td>
+<td class="code"><code>   <span class="c1"># Add slicing here, or else the array would differ from the original</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-22"><code data-line-number="22"></code></a></td>
+<td class="code"><code>   <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">frombuffer</span><span class="p">(</span><span class="n">encoded</span><span class="p">[</span><span class="mi">8</span><span class="p">:])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">h</span><span class="p">,</span><span class="n">w</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-23"><code data-line-number="23"></code></a></td>
+<td class="code"><code>   <span class="k">return</span> <span class="n">a</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-24"><code data-line-number="24"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-25"><code data-line-number="25"></code></a></td>
+<td class="code"><code><span class="c1"># Create 80x80 numpy array to store</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-26"><code data-line-number="26"></code></a></td>
+<td class="code"><code><span class="n">a0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">6400</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">80</span><span class="p">,</span><span class="mi">80</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-27"><code data-line-number="27"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-28"><code data-line-number="28"></code></a></td>
+<td class="code"><code><span class="c1"># Redis connection</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-29"><code data-line-number="29"></code></a></td>
+<td class="code"><code><span class="n">r</span> <span class="o">=</span> <span class="n">redis</span><span class="o">.</span><span class="n">Redis</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s1">'localhost'</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">6379</span><span class="p">,</span> <span class="n">db</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-30"><code data-line-number="30"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-31"><code data-line-number="31"></code></a></td>
+<td class="code"><code><span class="c1"># Store array a0 in Redis under name 'a0array'</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-32"><code data-line-number="32"></code></a></td>
+<td class="code"><code><span class="n">toRedis</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">a0</span><span class="p">,</span><span class="s1">'a0array'</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-33"><code data-line-number="33"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-34"><code data-line-number="34"></code></a></td>
+<td class="code"><code><span class="c1"># Retrieve from Redis</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-35"><code data-line-number="35"></code></a></td>
+<td class="code"><code><span class="n">a1</span> <span class="o">=</span> <span class="n">fromRedis</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="s1">'a0array'</span><span class="p">)</span>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-36"><code data-line-number="36"></code></a></td>
+<td class="code"><code>
+</code></td>
+</tr>
+<tr>
+<td class="linenos linenodiv"><a href="posts/fastest-way-to-store-a-numpy-array-in-redis/#-37"><code data-line-number="37"></code></a></td>
+<td class="code"><code><span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">a0</span><span class="p">,</span><span class="n">a1</span><span class="p">)</span>
+</code></td>
+</tr>
+</table></div>
+<p>You could add more flexibility by encoding the <code>dtype</code> of the Numpy array
+along with the shape. I didn't do that because it may be the case that you
+already know all your arrays are of one specific type and then the code would
+just be bigger and harder to read for no reason.</p>
+<p><strong>Rough benchmark on modern iMac</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="mf">80</span><span class="n">x80</span><span class="w"> </span><span class="n">Numpy</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">np</span><span class="mf">.</span><span class="n">uint16</span><span class="w">   </span><span class="o">=&gt;</span><span class="w"> </span><span class="mf">58</span><span class="w"> </span><span class="n">microseconds</span><span class="w"> </span><span class="kr">to</span><span class="w"> </span><span class="n">write</span>
+<span class="mf">200</span><span class="n">x200</span><span class="w"> </span><span class="n">Numpy</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">np</span><span class="mf">.</span><span class="n">uint16</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="mf">88</span><span class="w"> </span><span class="n">microseconds</span><span class="w"> </span><span class="kr">to</span><span class="w"> </span><span class="n">write</span>
+</pre></div>
+
+<hr>
+<p><strong>Keywords</strong> : Python, Numpy, Redis, array, serialise, serialize, key, incr,
+unique</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>Here you may find a paper that seems closely related to your problem.</p>
-<p>From the abstract:</p>
-<p><code>This thesis presents Ixor, a system which collects, stores, and analyzes
-stack traces in distributed Java systems. When combined with third-party
-clustering software and adaptive cluster filtering, unusual executions can be
-identified.</code></p>
+<p>You could also consider using msgpack-numpy, which provides "encoding and
+decoding routines that enable the serialization and deserialization of
+numerical and array data types provided by numpy using the highly efficient
+msgpack format." -- see https://msgpack.org/.</p>
+<p>Quick proof-of-concept:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">msgpack</span>
+<span class="kn">import</span> <span class="nn">msgpack_numpy</span> <span class="k">as</span> <span class="nn">m</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="n">m</span><span class="o">.</span><span class="n">patch</span><span class="p">()</span>               <span class="c1"># Important line to monkey-patch for numpy support!</span>
+
+<span class="kn">from</span> <span class="nn">redis</span> <span class="kn">import</span> <span class="n">Redis</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">Redis</span><span class="p">(</span><span class="s1">'127.0.0.1'</span><span class="p">)</span>
+
+<span class="c1"># Create an array, then use msgpack to serialize it </span>
+<span class="n">d_orig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">])</span>
+<span class="n">d_orig_packed</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">packb</span><span class="p">(</span><span class="n">d_orig</span><span class="p">)</span>
+
+<span class="c1"># Set the data in redis</span>
+<span class="n">r</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">'d'</span><span class="p">,</span> <span class="n">d_orig_packed</span><span class="p">)</span>
+
+<span class="c1"># Retrieve and unpack the data</span>
+<span class="n">d_out</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">unpackb</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'d'</span><span class="p">))</span>
+
+<span class="c1"># Check they match</span>
+<span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="kp">alltrue</span><span class="p">(</span><span class="n">d_orig</span> <span class="o">==</span> <span class="n">d_out</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">d_orig</span><span class="o">.</span><span class="kp">dtype</span> <span class="o">==</span> <span class="n">d_out</span><span class="o">.</span><span class="kp">dtype</span>
+</pre></div>
+
+<p>On my machine, msgpack runs much quicker than using struct:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">In</span>:<span class="w"> </span><span class="o">%</span><span class="nv">timeit</span><span class="w"> </span><span class="nv">struct</span>.<span class="nv">pack</span><span class="ss">(</span><span class="s1">'4096L'</span>,<span class="w"> </span><span class="o">*</span><span class="nv">np</span>.<span class="nv">arange</span><span class="ss">(</span><span class="mi">0</span>,<span class="w"> </span><span class="mi">4096</span><span class="ss">))</span>
+<span class="mi">1000</span><span class="w"> </span><span class="nv">loops</span>,<span class="w"> </span><span class="nv">best</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="mi">3</span>:<span class="w"> </span><span class="mi">443</span><span class="w"> </span>µ<span class="nv">s</span><span class="w"> </span><span class="nv">per</span><span class="w"> </span><span class="k">loop</span>
+
+<span class="nv">In</span>:<span class="w"> </span><span class="o">%</span><span class="nv">timeit</span><span class="w"> </span><span class="nv">m</span>.<span class="nv">packb</span><span class="ss">(</span><span class="nv">np</span>.<span class="nv">arange</span><span class="ss">(</span><span class="mi">0</span>,<span class="w"> </span><span class="mi">4096</span><span class="ss">))</span>
+<span class="nv">The</span><span class="w"> </span><span class="nv">slowest</span><span class="w"> </span><span class="nv">run</span><span class="w"> </span><span class="nv">took</span><span class="w"> </span><span class="mi">7</span>.<span class="mi">74</span><span class="w"> </span><span class="nv">times</span><span class="w"> </span><span class="nv">longer</span><span class="w"> </span><span class="nv">than</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">fastest</span>.<span class="w"> </span><span class="nv">This</span><span class="w"> </span><span class="nv">could</span><span class="w"> </span><span class="nv">mean</span><span class="w"> </span><span class="nv">that</span><span class="w"> </span><span class="nv">an</span><span class="w"> </span><span class="nv">intermediate</span><span class="w"> </span><span class="nb">result</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">being</span><span class="w"> </span><span class="nv">cached</span>.
+<span class="mi">10000</span><span class="w"> </span><span class="nv">loops</span>,<span class="w"> </span><span class="nv">best</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="mi">3</span>:<span class="w"> </span><span class="mi">32</span>.<span class="mi">6</span><span class="w"> </span>µ<span class="nv">s</span><span class="w"> </span><span class="nv">per</span><span class="w"> </span><span class="k">loop</span>
+</pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/a-genetic-algorithm-for-tic-tac-toe/" class="u-url">A Genetic Algorithm for Tic-Tac-Toe</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-would-be-a-good-ai-strategy-to-play-gomoku/" class="u-url">What would be a good AI strategy to play Gomoku?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/a-genetic-algorithm-for-tic-tac-toe/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:03:54+08:00" itemprop="datePublished" title="2023-02-28 03:03">2023-02-28 03:03</time></a>
+            <a href="posts/what-would-be-a-good-ai-strategy-to-play-gomoku/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:07:00+08:00" itemprop="datePublished" title="2023-02-28 03:07">2023-02-28 03:07</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>So I was assigned the problem of writing a 5x5x5 tic-tac-toe player using a
-genetic algorithm. My approach was to start off with 3x3, get that working,
-and then extend to 5x5, and then to 5x5x5.</p>
-<p>The way it works is this:</p>
+    <p>I'm writing a game that's a variant of Gomoku. Basically a tic tac toe on a
+huge board.</p>
+<p>Wondering if anyone knows a good AI strategy for the game. My current
+implementation is very stupid and takes a long time (O(n^3), approx 1-2 second
+to make a move):</p>
+<div class="code"><pre class="code literal-block"><span class="p">-(</span><span class="kt">void</span><span class="p">)</span> <span class="nf">moveAI</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">//check if the enemy is trying to make a line horizontally, vertically, or diagonally</span>
+<span class="w">    </span><span class="c1">//O(n^3 * 3)</span>
+<span class="w">    </span><span class="p">[</span><span class="nb">self</span><span class="w"> </span><span class="n">checkEnemies</span><span class="p">];</span>
+
+<span class="w">    </span><span class="c1">//check if we can make a line horizontally, vertically, or diagonally</span>
+<span class="w">    </span><span class="c1">//O(n^3 * 3)</span>
+<span class="w">    </span><span class="p">[</span><span class="nb">self</span><span class="w"> </span><span class="n">checkIfWeCanMakeALine</span><span class="p">];</span>
+
+<span class="w">    </span><span class="c1">//otherwise just put the piece randomly</span>
+<span class="w">    </span><span class="p">[</span><span class="nb">self</span><span class="w"> </span><span class="n">put</span><span class="w"> </span><span class="n">randomly</span><span class="p">];</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>For gomoku, winning strategy has been already found. See this paper: L. Victor
+Allis, H. J. van den Herik, M. P. H. Huntjens, 1993. Go-Moku and Threat-Space
+Search. It helped me a lot when I was writting my own program. This way you'll
+be able to write program which is very good in attacking the opponent and
+finding winning combinations.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>The traditional and rather effective strategy for writing AI for such games is
+the typical tree search strategy. That is, each board state forms a node in a
+graph, and a directed edge is placed between each node and states that can be
+resulted by a single move. In this way a tree is built with the root board
+being an empty node. Then, traverse the tree in some clever way to find what
+looks like a 'good' state. A 'good' state is usually measured by an evaluation
+function that uses some clever heuristics. Obviously you don't want to visit
+all the nodes in the tree -- that would be a lot of work! You just want
+something clever.</p>
+<p>You can add in a pre-computed early game and end-game to speed up those
+scenarios and then rely on a well-optimized tree-traversal heuristic for the
+mid game.</p>
+<p>The actual name of such tree traversal algorithms is the "Minimax" algorithm.
+Look for it on Wikipedia and you'll see a lot of rather decent material.
+There's some ways of boosting the efficiency of the algorithm, the most
+notable of which alpha-beta pruning, so be sure you take a look at that. You
+may want to take a look at connect-four heuristics and decide how you can
+apply them to your game. For example, a likely good heuristic for evaluation
+of board states would be to count the number of continuable 2-runs, 3-runs,
+and 4-runs and weight them into the score. (e.g. each 2-run would be worth 1
+point, each 3 run would be worth 10 points, and each 4-run would be worth 1000
+points)</p>
+<p>Another optimization strategy is to develop a heuristic that prioritizes where
+the minimax algorithm should search more -- usually by estimating some sort of
+certainty of the board evaluation function.</p>
+<p>With this strategy you should be able to get not-so-stupid AI in the same
+amount of time. However, really, really good AI takes a lot of effort to
+build, even in these sorts of "simple" games, and it still may take upwards of
+10 seconds or more to get smart moves out of the way. On the other hand,
+there's some clever programming tricks such as pre-computing traversals
+through the tree while the human opponent is busy thinking. Hey, humans get to
+think while the computer does. Fair is fair!</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/create-an-a-search-with-php/" class="u-url">Create an A* search with PHP</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/create-an-a-search-with-php/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:06:40+08:00" itemprop="datePublished" title="2023-02-28 03:06">2023-02-28 03:06</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>i have a map stored as a multidimensional array (<code>$map[row][col]</code>) and i'd
+wish to create a path from point A to point B.</p>
+<p>since i can have some obstacles with turns, corners etc etc, i'd wish to use
+the A* search to calculate the fastest path.<br>
+so the general function is<br><code>f(x) = g(x) + h(x)</code></p>
+<p>and i have all of these values. <code>g(x)</code> is cost of the move (and it's saved on
+the map); <code>h(x)</code> is the linear distance between A and B.</p>
+<p>so i have everything i need, but i have a question: how can i organize
+everything?<br>
+i have no need to test for alternative paths, since a square on the map can be
+passable or not, so when i reach the target it <em>should</em> be the shortest one.</p>
+<p>how can i organize everything?<br>
+i tried with multidimensional array, but i get lost.. :(</p>
+<p><strong>EDIT</strong><br>
+i worked out some code, it's pretty a wall of text :)</p>
+<div class="code"><pre class="code literal-block"><span class="c1">//$start = array(28, 19), $end = array(14, 19)</span>
+<span class="c1">//$this-&gt;map-&gt;map is a multidimensional array, everything has a cost of 1, except for </span>
+<span class="c1">//blocking squares that cost 99</span>
+<span class="c1">//$this-&gt;map-&gt;map == $this-&gt;radar</span>
+<span class="c1">//blocking square at 23-17, 22-18, 22-19, 22-20, 23-21, 19-17, 20-18,20-19,20-20,19-21</span>
+<span class="c1">//they are like 2 specular mustache :P</span>
+<span class="k">function</span><span class="w"> </span><span class="nf">createPath</span><span class="p">(</span>$start, $end<span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="no">$</span><span class="n">found</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">false</span><span class="p">;</span>
+<span class="w">    </span><span class="no">$</span><span class="n">temp</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">cost</span><span class="p">(</span><span class="no">$</span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="no">$</span><span class="k">end</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">foreach</span><span class="p">(</span><span class="no">$</span><span class="n">temp</span><span class="w"> </span><span class="n">as</span><span class="w"> </span><span class="no">$</span><span class="n">t</span><span class="p">){</span>
+<span class="w">        </span><span class="k">if</span><span class="p">(</span><span class="no">$</span><span class="n">t</span><span class="p">[</span><span class="s">'cost'</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="no">$</span><span class="k">end</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="no">$</span><span class="k">end</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span><span class="w"> </span><span class="no">$</span><span class="n">found</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">true</span><span class="p">;</span>
+<span class="w">        </span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">costStack</span><span class="p">[</span><span class="no">$</span><span class="n">t</span><span class="p">[</span><span class="s">'cost'</span><span class="p">]][]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">array</span><span class="p">(</span><span class="s">'grid'</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="no">$</span><span class="n">t</span><span class="p">[</span><span class="s">'grid'</span><span class="p">],</span><span class="w"> </span><span class="s">'dir'</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="no">$</span><span class="n">t</span><span class="p">[</span><span class="s">'dir'</span><span class="p">]);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">ksort</span><span class="p">(</span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">costStack</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">if</span><span class="p">(</span>!<span class="no">$</span><span class="n">found</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">foreach</span><span class="p">(</span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">costStack</span><span class="w"> </span><span class="n">as</span><span class="w"> </span><span class="no">$</span><span class="n">k</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="no">$</span><span class="n">stack</span><span class="p">){</span>
+<span class="w">            </span><span class="n">foreach</span><span class="p">(</span><span class="no">$</span><span class="n">stack</span><span class="w"> </span><span class="n">as</span><span class="w"> </span><span class="no">$</span><span class="n">kn</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="no">$</span><span class="n">node</span><span class="p">){</span>
+<span class="w">                </span><span class="no">$</span><span class="n">curNode</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="no">$</span><span class="n">node</span><span class="p">[</span><span class="s">'grid'</span><span class="p">];</span>
+<span class="w">                </span><span class="n">unset</span><span class="p">(</span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">costStack</span><span class="p">[</span><span class="no">$</span><span class="n">k</span><span class="p">][</span><span class="no">$</span><span class="n">kn</span><span class="p">]);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+
+<span class="w">            </span><span class="k">if</span><span class="p">(</span>!<span class="n">count</span><span class="p">(</span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">costStack</span><span class="p">[</span><span class="no">$</span><span class="n">k</span><span class="p">]))</span><span class="w"> </span><span class="n">unset</span><span class="p">(</span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">costStack</span><span class="p">[</span><span class="no">$</span><span class="n">k</span><span class="p">]);</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">createPath</span><span class="p">(</span><span class="no">$</span><span class="n">curNode</span><span class="p">,</span><span class="w"> </span><span class="no">$</span><span class="k">end</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">function</span><span class="w"> </span><span class="nf">cost</span><span class="p">(</span>$current, $target<span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="no">$</span><span class="k">return</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">array</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">//$AIM  = array('n' =&gt; array(-1,  0),'e' =&gt; array( 0,  1),'s' =&gt; array( 1,  0),'w' =&gt; array( 0, -1));</span>
+<span class="w">    </span><span class="n">foreach</span><span class="p">(</span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">AIM</span><span class="w"> </span><span class="n">as</span><span class="w"> </span><span class="no">$</span><span class="n">direction</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="no">$</span><span class="n">offset</span><span class="p">){</span>
+<span class="w">        </span><span class="no">$</span><span class="n">position</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="no">$</span><span class="n">current</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="no">$</span><span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">        </span><span class="no">$</span><span class="n">position</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="no">$</span><span class="n">current</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="no">$</span><span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+
+<span class="w">        </span><span class="c1">//radar is a copy of the map</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">radar</span><span class="p">[</span><span class="no">$</span><span class="n">position</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="no">$</span><span class="n">position</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">'V'</span><span class="p">)</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span>
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">radar</span><span class="p">[</span><span class="no">$</span><span class="n">position</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="no">$</span><span class="n">position</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="w"> </span><span class="p">=</span><span class="w">  </span><span class="s">'V'</span><span class="p">;</span>
+
+<span class="w">        </span><span class="no">$</span><span class="n">h</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="w"> </span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">distance</span><span class="p">(</span><span class="no">$</span><span class="n">position</span><span class="p">,</span><span class="w"> </span><span class="no">$</span><span class="n">target</span><span class="p">);</span>
+<span class="w">        </span><span class="no">$</span><span class="n">g</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="no">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="no">$</span><span class="n">position</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="no">$</span><span class="n">position</span><span class="p">[</span><span class="mi">1</span><span class="p">]];</span>
+
+<span class="w">        </span><span class="no">$</span><span class="k">return</span><span class="p">[]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">array</span><span class="p">(</span><span class="s">'grid'</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="no">$</span><span class="n">position</span><span class="p">,</span>
+<span class="w">                          </span><span class="s">'dir'</span><span class="w">  </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="no">$</span><span class="n">direction</span><span class="p">,</span>
+<span class="w">                          </span><span class="s">'cost'</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="no">$</span><span class="n">h</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="no">$</span><span class="n">g</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="no">$</span><span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>i hope you can understand everything, i tried to be clear as much as possible.<br>
+finally i can get to my destination, expanding only cheaper nodes, but now i
+have a problem.<br>
+how can i turn it into directions? i have to store a stack of orders (ie <em>n</em> ,
+<em>n</em> , <em>e</em> etc etc), how can i identify a path inside these values?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>My structure was:</p>
 <ul>
-<li>
-<p>Simulate a whole bunch of games, and during each turn of each game, lookup in a corresponding table (X table or O table implemented as a c++ stdlib maps) for a response. If the board was not there, add the board to the table. Otherwise, make a random response. </p>
-</li>
-<li>
-<p>After I have complete tables, I initialize a bunch of players (each with a copy of the board table, initialized with random responses), and let them play against each other.</p>
-</li>
-<li>
-<p>Using their wins/losses to evaluate fitness, I keep a certain % of the best, and they move on. Rinse and repeat for X generations, and an optimal player should emerge.</p>
+<li>Have a <em>Grid</em> -class for holding all possible nodes (propably your array goes here)</li>
+<li>Have a <em>Node</em> -class representing the nodes. Nodes will also calculated costs and store predecessor/g-values set by AStar</li>
+<li>Have a <em>AStar</em> class, which will only get two nodes (e.g. startNode, endNode)</li>
+<li>Have a <em>PriorityQueue</em> as your open-list</li>
+<li>when a <em>Node</em> is asked (by AStar) about it's neighbors, delegated that call to <em>Grid</em>
 </li>
 </ul>
-<p>For 3x3, discounting boards that were reflections/rotations of other boards,
-and boards where the move is either 'take the win' or 'block the win', the
-total number of boards I would encounter were either 53 or 38, depending on
-whether you go first or second. Fantastic! An optimal player was generated in
-under an hour. Very cool!</p>
-<p>Using the same strategy for 5x5, I knew the size of the table would increase,
-but did not realize it would increase so drastically. Even discounting
-rotations/reflections and mandatory moves, my table is ~3.6 million entries,
-with no end in sight.</p>
-<p>Okay, so that's clearly not going to work, I need a new plan. What if I don't
-enumerate all the boards, but just <em>some</em> boards. Well, it seems like this
-won't work either, because if each player has just a fraction of possible
-boards they might see, then they are going to be making a lot of random moves,
-clearly steering in the opposite direction of optimality.</p>
-<p>What is a realistic way of going about this? Am I going to be stuck using
-board features? The goal is to hard-code as little game functionality as
-possible.</p>
-<p>I've been doing research, but everything I read leads to min/max with A-B
-pruning as the only viable option. I can certainly do it that way, but the GA
-is really cool, my current method is just exceeding reality a bit here.</p>
-<p><em>EDIT</em> Problem has been pretty much solved:</p>
-<p>Using a similarity function that combines hamming distance of open spaces, the
-possible win conditions, and a few other measures has brought the table down
-to a very manageable 2500 possibilities, which a <code>std::map</code> handles in a
-fraction of a second.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>My knowledge of GA is pretty limited, but in modeling board configurations,
-aren't you asking the wrong question? Your task isn't to enumerate all the
-possible winning configurations -- what you're trying to do is to find a
-sequence of moves that leads to a winning configuration. Maybe the population
-you should be looking at isn't a set of boards, but a set of move sequences.</p>
-<p><strong>Edit:</strong> I wasn't thinking so much of starting from a particular board as
-starting from an empty board. It's obvious on a 3x3 board that move sequences
-starting with (1,1) work out best for X. The important thing isn't that the
-final board has an X in the middle, it's that the X was placed in the middle
-<em>first</em>. If there's one or more best first moves for X, maybe there's also a
-best second, third, or fourth move for X, too? After several rounds of fitness
-testing and recombining, will we find that X's second move is usually the
-same, or is one of a small set of values? And what about the third move?</p>
-<p>This isn't minimax because you're not looking for the best moves one at a time
-based on the previous state of the board, you're looking for all the best
-moves at the same time, hoping to converge on a winning strategy.</p>
-<p>I know this doesn't solve your problem, but if the idea is to evolve a winning
-strategy then it seems natural that you'd want to look at sequences of moves
-rather than board states.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>This seems to be a very old conversation but attracted my attention. Thinking
-it might serve the public discussion, here is my input.</p>
-<p>I think the aim in your assigned task needs to be defined more clearly:</p>
-<ol>
-<li>
-<p>Are you trying to find a set of winning boards? I don’t think so, because this is very straigtforward for a 3x3 board which can even be solved by hand, and it can be extrapolated to larger boards. GA could be utilized for larger boards, but it would only be a GA exercise. </p>
-</li>
-<li>
-<p>Are you trying to utilize GA to train TicTacToe to AI players? I think this should be the case. In that case, your GA strings/chromosomes should not represent winning boards, but rather, they should represent ordered move sequences of players, for winning games. This is really a bit trickier to model though, as expected, and it would be a real AI training programming exercise.</p>
-</li>
-</ol>
-<p>I hope this perspective helps.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-the-board-game-go-np-complete/" class="u-url">Is the board game "Go" NP complete?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/is-the-board-game-go-np-complete/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:03:29+08:00" itemprop="datePublished" title="2023-02-28 03:03">2023-02-28 03:03</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>There are plenty of Chess AI's around, and evidently some are good enough to
-beat some of the world's greatest players.</p>
-<p>I've heard that many attempts have been made to write successful AI's for the
-board game Go, but so far nothing has been conceived beyond average amateur
-level.</p>
-<p>Could it be that the task of mathematically calculating the optimal move at
-any given time in Go is an NP-complete problem?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Chess and Go are both EXPTIME complete. IIRC, Go has more possible moves, so I
-think it a higher multiple of that complexity class than chess. Wikipedia has
-a good article on the complexity of Go.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Even if Go is merely in <code>P</code> it could still be something horrendous like
-<code>O(n^m)</code> where <code>n</code> is the number of spaces and <code>m</code> is some (large) fixed
-number. Even being in <code>P</code> doesn't make something reasonable to compute.</p>
+<p>I'll try to collect some code samples from a prior project, could take a while
+though.</p>
+<hr>
+<h3>Update</h3>
+<p>( <em>found my old project ;)</em> )</p>
+<p>It's probably not exactly what you're looking for, but maybe it's a start.</p>
+<p>So using the files below, and mazes defined like:</p>
+<blockquote>
+<div class="code"><pre class="code literal-block"><span class="mf">00000000000000000000000</span>
+<span class="mf">00000000000000000000000</span>
+<span class="mf">0000000000</span><span class="n">W000000000000</span>
+<span class="mf">0000000000</span><span class="n">W000000000000</span>
+<span class="mf">0000000000</span><span class="n">W000000000000</span>
+<span class="mf">0000000000</span><span class="n">W00000WWWWWWW</span>
+<span class="mf">0000000000</span><span class="n">W000000000000</span>
+<span class="n">S000000000W00000000000E</span>
+</pre></div>
+
+</blockquote>
+<p>( <em>test/maze.txt</em> )</p>
+<p>You'll get something like this:</p>
+<blockquote>
+<div class="code"><pre class="code literal-block"><span class="mf">00000000000000000000000</span>
+<span class="mf">0000000000</span><span class="n">X000000000000</span>
+<span class="mf">000000000</span><span class="n">XWXX0000000000</span>
+<span class="mf">00000000</span><span class="n">X0W00X000000000</span>
+<span class="mf">000000</span><span class="n">XX00W000X00000000</span>
+<span class="mf">00000</span><span class="n">X0000W0000XWWWWWWW</span>
+<span class="mf">0000</span><span class="n">X00000W00000XXX0000</span>
+<span class="n">SXXX000000W00000000XXXE</span>
+</pre></div>
+
+</blockquote>
+<hr>
+<h3>index.php</h3>
+<div class="code"><pre class="code literal-block"><span class="n">error_reporting</span><span class="p">(</span><span class="n">E_ALL</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="n">E_STRICT</span><span class="p">);</span>
+<span class="n">ini_set</span><span class="p">(</span><span class="s1">'display_errors'</span><span class="p">,</span><span class="w"> </span><span class="s1">'on'</span><span class="p">);</span>
+
+<span class="n">header</span><span class="p">(</span><span class="s1">'Content-Type: text/plain; charset="utf-8"'</span><span class="p">);</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">simple</span><span class="w"> </span><span class="n">autoloader</span>
+<span class="n">function</span><span class="w"> </span><span class="n">__autoload</span><span class="p">(</span><span class="o">$</span><span class="n">className</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="o">$</span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/lib/'</span><span class="w"> </span><span class="o">.</span><span class="w"> </span><span class="n">str_replace</span><span class="p">(</span><span class="s1">'_'</span><span class="p">,</span><span class="w"> </span><span class="s1">'/'</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">className</span><span class="p">)</span><span class="w"> </span><span class="o">.</span><span class="w"> </span><span class="s1">'.php'</span><span class="p">;</span>
+<span class="w">  </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">explode</span><span class="p">(</span><span class="n">PATH_SEPARATOR</span><span class="p">,</span><span class="w"> </span><span class="n">get_include_path</span><span class="p">())</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">$</span><span class="n">prefix</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">file_exists</span><span class="p">(</span><span class="o">$</span><span class="n">prefix</span><span class="w"> </span><span class="o">.</span><span class="w"> </span><span class="o">$</span><span class="n">path</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">require_once</span><span class="w"> </span><span class="o">$</span><span class="n">prefix</span><span class="w"> </span><span class="o">.</span><span class="w"> </span><span class="o">$</span><span class="n">path</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">init</span><span class="w"> </span><span class="n">maze</span>
+<span class="o">$</span><span class="n">maze</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Maze_Reader</span><span class="p">(</span><span class="s1">'test/maze.txt'</span><span class="p">);</span>
+
+<span class="o">$</span><span class="n">startNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span><span class="o">-&gt;</span><span class="n">getByValue</span><span class="p">(</span><span class="s1">'S'</span><span class="p">,</span><span class="w"> </span><span class="bp">true</span><span class="p">);</span>
+<span class="o">$</span><span class="n">endNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span><span class="o">-&gt;</span><span class="n">getByValue</span><span class="p">(</span><span class="s1">'E'</span><span class="p">,</span><span class="w"> </span><span class="bp">true</span><span class="p">);</span>
+
+<span class="o">$</span><span class="n">astar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">AStar</span><span class="p">;</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">astar</span><span class="o">-&gt;</span><span class="n">getPath</span><span class="p">(</span><span class="o">$</span><span class="n">startNode</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">endNode</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">do</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">in_array</span><span class="p">(</span><span class="o">$</span><span class="n">endNode</span><span class="o">-&gt;</span><span class="n">value</span><span class="p">(),</span><span class="w"> </span><span class="n">array</span><span class="p">(</span><span class="s1">'S'</span><span class="p">,</span><span class="w"> </span><span class="s1">'E'</span><span class="p">)))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">endNode</span><span class="o">-&gt;</span><span class="n">value</span><span class="p">(</span><span class="s1">'X'</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">endNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">endNode</span><span class="o">-&gt;</span><span class="n">predecessor</span><span class="p">());</span>
+<span class="p">}</span>
+
+<span class="n">echo</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span><span class="p">;</span>
+</pre></div>
+
+<hr>
+<h3>/lib/AStar.php</h3>
+<div class="code"><pre class="code literal-block"><span class="o">/**</span>
+<span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="n">simple</span><span class="w"> </span><span class="n">AStar</span><span class="w"> </span><span class="n">implementation</span>
+<span class="w"> </span><span class="o">*/</span>
+<span class="k">class</span><span class="w"> </span><span class="n">AStar</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">openList</span><span class="p">;</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">closedList</span><span class="p">;</span>
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Constructs</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">astar</span><span class="w"> </span><span class="n">object</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">__construct</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">openList</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">PriorityQueue</span><span class="p">;</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">closedList</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">SplObjectStorage</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">getPath</span><span class="p">(</span><span class="o">$</span><span class="n">startNode</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">endNode</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">openList</span><span class="o">-&gt;</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">startNode</span><span class="p">);</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">!$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">openList</span><span class="o">-&gt;</span><span class="n">isEmpty</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">currentNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">openList</span><span class="o">-&gt;</span><span class="n">extract</span><span class="p">();</span>
+
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">currentNode</span><span class="o">-&gt;</span><span class="n">equals</span><span class="p">(</span><span class="o">$</span><span class="n">endNode</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">currentNode</span><span class="p">;</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">expandNode</span><span class="p">(</span><span class="o">$</span><span class="n">currentNode</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">endNode</span><span class="p">);</span>
+<span class="w">      </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">closedList</span><span class="p">[</span><span class="o">$</span><span class="n">currentNode</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="bp">false</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">expandNode</span><span class="p">(</span><span class="o">$</span><span class="n">currentNode</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">endNode</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">currentNode</span><span class="o">-&gt;</span><span class="n">successors</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">$</span><span class="n">successor</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">closedList</span><span class="p">[</span><span class="o">$</span><span class="n">successor</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">continue</span><span class="p">;</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="o">$</span><span class="n">tentative_g</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">currentNode</span><span class="o">-&gt;</span><span class="n">g</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">$</span><span class="n">currentNode</span><span class="o">-&gt;</span><span class="n">distance</span><span class="p">(</span><span class="o">$</span><span class="n">successor</span><span class="p">);</span>
+
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">openList</span><span class="o">-&gt;</span><span class="n">indexOf</span><span class="p">(</span><span class="o">$</span><span class="n">successor</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">$</span><span class="n">tentative_g</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="o">$</span><span class="n">successor</span><span class="o">-&gt;</span><span class="n">g</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">continue</span><span class="p">;</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="o">$</span><span class="n">successor</span><span class="o">-&gt;</span><span class="n">predecessor</span><span class="p">(</span><span class="o">$</span><span class="n">currentNode</span><span class="p">);</span>
+<span class="w">      </span><span class="o">$</span><span class="n">successor</span><span class="o">-&gt;</span><span class="n">g</span><span class="p">(</span><span class="o">$</span><span class="n">tentative_g</span><span class="p">);</span>
+
+<span class="w">      </span><span class="o">$</span><span class="n">f</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">tentative_g</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">$</span><span class="n">successor</span><span class="o">-&gt;</span><span class="n">distance</span><span class="p">(</span><span class="o">$</span><span class="n">endNode</span><span class="p">);</span>
+
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">openList</span><span class="o">-&gt;</span><span class="n">indexOf</span><span class="p">(</span><span class="o">$</span><span class="n">successor</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">openList</span><span class="o">-&gt;</span><span class="n">changeKey</span><span class="p">(</span><span class="o">$</span><span class="n">successor</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">f</span><span class="p">);</span>
+<span class="w">        </span><span class="k">continue</span><span class="p">;</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">      </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">openList</span><span class="o">-&gt;</span><span class="n">insert</span><span class="p">(</span><span class="o">$</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">successor</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<hr>
+<h3>/lib/PriorityQueue.php</h3>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">PriorityQueue</span>
+<span class="err">{</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="err">$</span><span class="n">keys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">array</span><span class="p">();</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="err">$</span><span class="k">values</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">array</span><span class="p">();</span>
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Helper function to swap two &lt;key&gt;/&lt;value&gt; pairs</span>
+<span class="cm">   * </span>
+<span class="cm">   * @param Integer a</span>
+<span class="cm">   * @param Integer b</span>
+<span class="cm">   * @return Integer b</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">swap</span><span class="p">(</span><span class="err">$</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">swap</span><span class="w"> </span><span class="n">keys</span>
+<span class="w">    </span><span class="err">$</span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$a</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$a</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$b</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$b</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">c</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">swap</span><span class="w"> </span><span class="k">values</span>
+<span class="w">    </span><span class="err">$</span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="o">[</span><span class="n">$a</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="o">[</span><span class="n">$a</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="o">[</span><span class="n">$b</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="o">[</span><span class="n">$b</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">c</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="err">$</span><span class="n">b</span><span class="p">;</span>
+<span class="w">  </span><span class="err">}</span>
+
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Heapify up</span>
+<span class="cm">   * </span>
+<span class="cm">   * @param Integer pos</span>
+<span class="cm">   * @return void</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">upHeap</span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="err">$</span><span class="n">parent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">compare</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$pos</span><span class="o">]</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$parent</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">      </span><span class="err">}</span>
+
+<span class="w">      </span><span class="err">$</span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">swap</span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="n">parent</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">  </span><span class="err">}</span>
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Heapify down</span>
+<span class="cm">   * </span>
+<span class="cm">   * @param Integer pos</span>
+<span class="cm">   * @return void</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">downHeap</span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="err">$</span><span class="nf">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="p">);</span>
+<span class="w">    </span><span class="err">$</span><span class="nf">max</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="nf">len</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="err">$</span><span class="nf">max</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="err">$</span><span class="n">child</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="err">$</span><span class="n">pos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="n">child</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="err">$</span><span class="nf">len</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">compare</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$child</span><span class="o">]</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$child + 1</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="err">$</span><span class="n">child</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">      </span><span class="err">}</span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">compare</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$pos</span><span class="o">]</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$child</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">      </span><span class="err">}</span>
+<span class="w">      </span><span class="err">$</span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">swap</span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="n">child</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">  </span><span class="err">}</span>
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Insert an &lt;key&gt;/&lt;value&gt; pair into the queue</span>
+<span class="cm">   * </span>
+<span class="cm">   * @param Object key</span>
+<span class="cm">   * @param Object value</span>
+<span class="cm">   * @return this</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="k">public</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="k">insert</span><span class="p">(</span><span class="err">$</span><span class="k">key</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="k">value</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="err">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="k">key</span><span class="p">;</span>
+<span class="w">    </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="err">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="k">value</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">upHeap</span><span class="p">(</span><span class="n">sizeof</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="p">;</span>
+<span class="w">  </span><span class="err">}</span>
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Extract the top &lt;value&gt;</span>
+<span class="cm">   * </span>
+<span class="cm">   * @return Object</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="k">public</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="k">extract</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="err">$</span><span class="n">resultValue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="o">[</span><span class="n">0</span><span class="o">]</span><span class="p">;</span>
+<span class="w">    </span><span class="err">$</span><span class="n">lastValue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array_pop</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="p">);</span>
+<span class="w">    </span><span class="err">$</span><span class="n">lastKey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array_pop</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">sizeof</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="o">[</span><span class="n">0</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">lastValue</span><span class="p">;</span>
+<span class="w">      </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">0</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">lastKey</span><span class="p">;</span>
+<span class="w">      </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">downHeap</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="err">$</span><span class="n">resultValue</span><span class="p">;</span>
+<span class="w">  </span><span class="err">}</span>
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Changes the &lt;key&gt; of a &lt;value&gt;</span>
+<span class="cm">   * </span>
+<span class="cm">   * @param Object key</span>
+<span class="cm">   * @param Object value</span>
+<span class="cm">   * @return this</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="k">public</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">changeKey</span><span class="p">(</span><span class="err">$</span><span class="k">key</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="k">value</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="err">$</span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">indexOf</span><span class="p">(</span><span class="err">$</span><span class="k">value</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="k">false</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="o">[</span><span class="n">$pos</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="k">key</span><span class="p">;</span>
+<span class="w">      </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">upHeap</span><span class="p">(</span><span class="err">$</span><span class="n">pos</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="p">;</span>
+<span class="w">  </span><span class="err">}</span>
+
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Returns the index of &lt;value&gt; or false if &lt;value&gt; is not in the queue</span>
+<span class="cm">   * </span>
+<span class="cm">   * @return false|Int</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="k">public</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">indexOf</span><span class="p">(</span><span class="err">$</span><span class="k">value</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">array_search</span><span class="p">(</span><span class="err">$</span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="k">values</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<span class="w">  </span><span class="err">}</span>
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Used to campare two &lt;key&gt;s.</span>
+<span class="cm">   * </span>
+<span class="cm">   * @param Object a</span>
+<span class="cm">   * @param Object b</span>
+<span class="cm">   * @return Number</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">compare</span><span class="p">(</span><span class="err">$</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="err">$</span><span class="n">a</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="err">$</span><span class="n">b</span><span class="p">;</span>
+<span class="w">  </span><span class="err">}</span>
+
+
+<span class="w">  </span><span class="cm">/**</span>
+<span class="cm">   * Returns true if the queue is empty</span>
+<span class="cm">   * </span>
+<span class="cm">   * @return Boolean</span>
+<span class="cm">   */</span>
+<span class="w">  </span><span class="k">public</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="n">isEmpty</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="err">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">keys</span><span class="p">)</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">  </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<hr>
+<h3>/lib/Maze/Reader.php</h3>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">Maze_Reader</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">IteratorAggregate</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">initial</span><span class="w"> </span><span class="n">maze</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">var</span><span class="w"> </span><span class="n">string</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">rawMaze</span><span class="p">;</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="n">tow</span><span class="w"> </span><span class="n">dimensional</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="n">holding</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">parsed</span><span class="w"> </span><span class="n">maze</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">var</span><span class="w"> </span><span class="n">array</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">();</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="n">flat</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="n">holding</span><span class="w"> </span><span class="n">all</span><span class="w"> </span><span class="n">maze</span><span class="w"> </span><span class="n">nodes</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">var</span><span class="w"> </span><span class="n">array</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">nodes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">();</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="n">map</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">easier</span><span class="w"> </span><span class="n">access</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">var</span><span class="w"> </span><span class="n">array</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">valueMap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">();</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Constructs</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">maze</span><span class="w"> </span><span class="n">reader</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">$</span><span class="n">file</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">maze</span><span class="w"> </span><span class="n">file</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">__construct</span><span class="p">(</span><span class="o">$</span><span class="n">file</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">rawMaze</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file_get_contents</span><span class="p">(</span><span class="o">$</span><span class="n">file</span><span class="p">);</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">parseMaze</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">rawMaze</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Parses</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="n">maze</span><span class="w"> </span><span class="n">into</span><span class="w"> </span><span class="n">usable</span><span class="w"> </span><span class="n">Maze_Nodes</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">parseMaze</span><span class="p">(</span><span class="o">$</span><span class="n">maze</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">explode</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">$</span><span class="n">row</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">str_split</span><span class="p">(</span><span class="n">trim</span><span class="p">(</span><span class="o">$</span><span class="n">row</span><span class="p">))</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">$</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">$</span><span class="n">cellValue</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">x</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">x</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">valueMap</span><span class="p">[</span><span class="o">$</span><span class="n">cellValue</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">valueMap</span><span class="p">[</span><span class="o">$</span><span class="n">cellValue</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">nodes</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Maze_Node</span><span class="p">(</span><span class="o">$</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">cellValue</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="p">);;</span>
+<span class="w">        </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">x</span><span class="p">][</span><span class="o">$</span><span class="n">y</span><span class="p">]</span><span class="w"> </span><span class="o">=&amp;</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">nodes</span><span class="p">[</span><span class="n">sizeof</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">nodes</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span>
+<span class="w">        </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">valueMap</span><span class="p">[</span><span class="o">$</span><span class="n">cellValue</span><span class="p">][]</span><span class="w"> </span><span class="o">=&amp;</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">nodes</span><span class="p">[</span><span class="n">sizeof</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">nodes</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Returns</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">neighobrs</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="o">$</span><span class="n">node</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">array</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">getNeighbors</span><span class="p">(</span><span class="n">Maze_Node</span><span class="w"> </span><span class="o">$</span><span class="n">node</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">();</span>
+
+<span class="w">    </span><span class="o">$</span><span class="n">top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="o">$</span><span class="n">right</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="o">$</span><span class="n">bottom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="o">$</span><span class="n">left</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="n">left</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">],</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">][</span><span class="o">$</span><span class="n">top</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">][</span><span class="o">$</span><span class="n">top</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="n">center</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()],</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()][</span><span class="o">$</span><span class="n">top</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()][</span><span class="o">$</span><span class="n">top</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="n">right</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">],</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">][</span><span class="o">$</span><span class="n">top</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">][</span><span class="o">$</span><span class="n">top</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">right</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">],</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">][</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">()]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">][</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">()];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">bottom</span><span class="w"> </span><span class="n">right</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">],</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">][</span><span class="o">$</span><span class="n">bottom</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">right</span><span class="p">][</span><span class="o">$</span><span class="n">bottom</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">bottom</span><span class="w"> </span><span class="n">center</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()],</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()][</span><span class="o">$</span><span class="n">bottom</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()][</span><span class="o">$</span><span class="n">bottom</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">bottom</span><span class="w"> </span><span class="n">left</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">],</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">][</span><span class="o">$</span><span class="n">bottom</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">][</span><span class="o">$</span><span class="n">bottom</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">left</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">],</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">][</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">()]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="p">[</span><span class="o">$</span><span class="n">left</span><span class="p">][</span><span class="o">$</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">()];</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">result</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">IteratorAggregate</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">getIterator</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ArrayIterator</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">nodes</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Returns</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">node</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">value</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">mixed</span><span class="w"> </span><span class="o">$</span><span class="n">value</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">boolean</span><span class="w"> </span><span class="o">$</span><span class="n">returnOne</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">mixed</span><span class="w"> </span><span class="o">$</span><span class="n">fallback</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">mixed</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">getByValue</span><span class="p">(</span><span class="o">$</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">returnOne</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">false</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">fallback</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">isset</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">valueMap</span><span class="p">[</span><span class="o">$</span><span class="n">value</span><span class="p">])</span><span class="w"> </span><span class="err">?</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">valueMap</span><span class="p">[</span><span class="o">$</span><span class="n">value</span><span class="p">]</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="o">$</span><span class="n">fallback</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">returnOne</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">is_array</span><span class="p">(</span><span class="o">$</span><span class="n">result</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array_shift</span><span class="p">(</span><span class="o">$</span><span class="n">result</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">result</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Simple</span><span class="w"> </span><span class="n">output</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">__toString</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">map</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">$</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">$</span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">col</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">$</span><span class="n">node</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">$</span><span class="n">result</span><span class="p">[</span><span class="o">$</span><span class="n">y</span><span class="p">][</span><span class="o">$</span><span class="n">x</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">string</span><span class="p">)</span><span class="o">$</span><span class="n">node</span><span class="p">;</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">implode</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span><span class="w"> </span><span class="n">array_map</span><span class="p">(</span><span class="s1">'implode'</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">result</span><span class="p">));</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<hr>
+<h3>/lib/Maze/Node.php</h3>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">Maze_Node</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">x</span><span class="p">;</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="p">;</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">value</span><span class="p">;</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span><span class="p">;</span>
+
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">g</span><span class="p">;</span>
+<span class="w">  </span><span class="n">protected</span><span class="w"> </span><span class="o">$</span><span class="n">predecessor</span><span class="p">;</span>
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">Integer</span><span class="w"> </span><span class="o">$</span><span class="n">x</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">Integer</span><span class="w"> </span><span class="o">$</span><span class="n">y</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">mixed</span><span class="w"> </span><span class="o">$</span><span class="n">value</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">Maze_Reader</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">__construct</span><span class="p">(</span><span class="o">$</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">x</span><span class="p">;</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="p">;</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">value</span><span class="p">;</span>
+<span class="w">    </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">maze</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">maze</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Getter</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">x</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">Integer</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">x</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Getter</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">y</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">Integer</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">y</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Setter</span><span class="o">/</span><span class="n">Getter</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">g</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">mixed</span><span class="w"> </span><span class="o">$</span><span class="n">g</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">mixed</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="o">$</span><span class="n">g</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">g</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">g</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">g</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">g</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Setter</span><span class="o">/</span><span class="n">Getter</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">value</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">mixed</span><span class="w"> </span><span class="o">$</span><span class="n">value</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">mixed</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">value</span><span class="p">(</span><span class="o">$</span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">value</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">value</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Setter</span><span class="o">/</span><span class="n">Getter</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">predecessor</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">Maze_Node</span><span class="w"> </span><span class="o">$</span><span class="n">predecessor</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">Maze_Node</span><span class="o">|</span><span class="nb nb-Type">null</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">predecessor</span><span class="p">(</span><span class="n">Maze_Node</span><span class="w"> </span><span class="o">$</span><span class="n">predecessor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">predecessor</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">predecessor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="n">predecessor</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">predecessor</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">simple</span><span class="w"> </span><span class="n">distance</span><span class="w"> </span><span class="n">getter</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">Maze_Node</span><span class="w"> </span><span class="o">$</span><span class="n">that</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">Float</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">distance</span><span class="p">(</span><span class="n">Maze_Node</span><span class="w"> </span><span class="o">$</span><span class="n">that</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">$</span><span class="n">that</span><span class="o">-&gt;</span><span class="n">value</span><span class="p">()</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">'W'</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">PHP_INT_MAX</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">sqrt</span><span class="p">(</span><span class="nb">pow</span><span class="p">(</span><span class="o">$</span><span class="n">that</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">pow</span><span class="p">(</span><span class="o">$</span><span class="n">that</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">));</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Test</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">equality</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="n">param</span><span class="w"> </span><span class="n">Maze_Node</span><span class="w"> </span><span class="o">$</span><span class="n">that</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">boolean</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">equals</span><span class="p">(</span><span class="n">Maze_Node</span><span class="w"> </span><span class="o">$</span><span class="n">that</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">$</span><span class="n">that</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">Returns</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">successors</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">node</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">array</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">successors</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">maze</span><span class="o">-&gt;</span><span class="n">getNeighbors</span><span class="p">(</span><span class="o">$</span><span class="n">this</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+
+
+<span class="w">  </span><span class="o">/**</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="n">For</span><span class="w"> </span><span class="n">debugging</span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span>
+<span class="w">   </span><span class="o">*</span><span class="w"> </span><span class="err">@</span><span class="k">return</span><span class="w"> </span><span class="n">string</span>
+<span class="w">   </span><span class="o">*/</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">__toString</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">string</span><span class="p">)</span><span class="o">$</span><span class="n">this</span><span class="o">-&gt;</span><span class="n">value</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
     </div>
     </article>
 </div>
@@ -331,7 +1160,7 @@ number. Even being in <code>P</code> doesn't make something reasonable to comput
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

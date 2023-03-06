@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Property initialization using "by lazy" vs. "lateinit" | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/property-initialization-using-by-lazy-vs-lateinit/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-allocate-aligned-memory-only-using-the-standard-library/" title="How to allocate aligned memory only using the standard library?" type="text/html">
+<link rel="next" href="../gcc-makefile-error-no-rule-to-make-target/" title='gcc makefile error: "No rule to make target ..."' type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content='Property initialization using "by lazy" vs. "lateinit"'>
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/property-initialization-using-by-lazy-vs-lateinit/">
+<meta property="og:description" content="In Kotlin, if you don't want to initialize a class property inside the
+constructor or in the top of the class body, you have basically these two
+options (from the language reference):
+
+Lazy Initializa">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T10:07:48+08:00">
+<meta property="article:tag" content="kotlin">
+<meta property="article:tag" content="properties">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Property initialization using "by lazy" vs. "lateinit"</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T10:07:48+08:00" itemprop="datePublished" title="2023-03-03 10:07">2023-03-03 10:07</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>In Kotlin, if you don't want to initialize a class property inside the
+constructor or in the top of the class body, you have basically these two
+options (from the language reference):</p>
+<ol>
+<li>Lazy Initialization</li>
+</ol>
+<blockquote>
+<p><code>lazy()</code> is a function that takes a lambda and returns an instance of
+<code>Lazy&lt;T&gt;</code> which can serve as a delegate for implementing a lazy property:
+the first call to <code>get()</code> executes the lambda passed to <code>lazy()</code> and
+remembers the result, subsequent calls to <code>get()</code> simply return the
+remembered result.</p>
+<p><strong>Example</strong></p>
+<div class="code"><pre class="code literal-block">public<span class="w"> </span>class<span class="w"> </span>Hello<span class="w"> </span>{
+
+<span class="w">   </span>val<span class="w"> </span>myLazyString:<span class="w"> </span>String<span class="w"> </span>by<span class="w"> </span>lazy<span class="w"> </span>{<span class="w"> </span>"Hello"<span class="w"> </span>}
+
+}
+</pre></div>
+
+</blockquote>
+<p>So, the first call and the subsequential calls, wherever it is, to
+<code>myLazyString</code> will return <code>Hello</code></p>
+<ol>
+<li>Late Initialization</li>
+</ol>
+<blockquote>
+<p>Normally, properties declared as having a non-null type must be initialized
+in the constructor. However, fairly often this is not convenient. For
+example, properties can be initialized through dependency injection, or in
+the setup method of a unit test. In this case, you cannot supply a non-null
+initializer in the constructor, but you still want to avoid null checks when
+referencing the property inside the body of a class.</p>
+<p>To handle this case, you can mark the property with the lateinit modifier:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">MyTest</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">   </span><span class="n">lateinit</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">subject</span><span class="p">:</span><span class="w"> </span><span class="n">TestSubject</span>
+
+<span class="w">   </span><span class="err">@</span><span class="n">SetUp</span><span class="w"> </span><span class="n">fun</span><span class="w"> </span><span class="n">setup</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">subject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TestSubject</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">   </span><span class="err">@</span><span class="n">Test</span><span class="w"> </span><span class="n">fun</span><span class="w"> </span><span class="n">test</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">subject</span><span class="o">.</span><span class="n">method</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The modifier can only be used on var properties declared inside the body of
+a class (not in the primary constructor), and only when the property does
+not have a custom getter or setter. The type of the property must be non-
+null, and it must not be a primitive type.</p>
+</blockquote>
+<p>So, how to choose correctly between these two options, since both of them can
+solve the same problem?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Here are the significant differences between <code>lateinit var</code> and <code>by lazy { ...
+}</code> delegated property:</p>
+<ul>
+<li>
+<p><code>lazy { ... }</code> delegate can only be used for <code>val</code> properties, whereas <code>lateinit</code> can only be applied to <code>var</code>s, because it can't be compiled to a <code>final</code> field, thus no immutability can be guaranteed;</p>
+</li>
+<li>
+<p><code>lateinit var</code> has a backing field which stores the value, and <code>by lazy { ... }</code> creates a delegate object in which the value is stored once calculated, stores the reference to the delegate instance in the class object and generates the getter for the property that works with the delegate instance. So if you need the backing field present in the class, use <code>lateinit</code>;</p>
+</li>
+<li>
+<p>In addition to <code>val</code>s, <code>lateinit</code> cannot be used for nullable properties or Java primitive types (this is because of <code>null</code> used for uninitialized value);</p>
+</li>
+<li>
+<p><code>lateinit var</code> can be initialized from anywhere the object is seen from, e.g. from inside a framework code, and multiple initialization scenarios are possible for different objects of a single class. <code>by lazy { ... }</code>, in turn, defines the only initializer for the property, which can be altered only by overriding the property in a subclass. If you want your property to be initialized from outside in a way probably unknown beforehand, use <code>lateinit</code>.</p>
+</li>
+<li>
+<p>Initialization <code>by lazy { ... }</code> is thread-safe by default and guarantees that the initializer is invoked at most once (but this can be altered by using another <code>lazy</code> overload). In the case of <code>lateinit var</code>, it's up to the user's code to initialize the property correctly in multi-threaded environments.</p>
+</li>
+<li>
+<p>A <code>Lazy</code> instance can be saved, passed around and even used for multiple properties. On contrary, <code>lateinit var</code>s do not store any additional runtime state (only <code>null</code> in the field for uninitialized value).</p>
+</li>
+<li>
+<p>If you hold a reference to an instance of <code>Lazy</code>, <code>isInitialized()</code> allows you to check whether it has already been initialized (and you can obtain such instance with reflection from a delegated property). To check whether a lateinit property has been initialized, you can use <code>property::isInitialized</code> since Kotlin 1.2.</p>
+</li>
+<li>
+<p>A lambda passed to <code>by lazy { ... }</code> may capture references from the context where it is used into its closure.. It will then store the references and release them only once the property has been initialized. This may lead to object hierarchies, such as Android activities, not being released for too long (or ever, if the property remains accessible and is never accessed), so you should be careful about what you use inside the initializer lambda.</p>
+</li>
+</ul>
+<p>Also, there's another way not mentioned in the question:
+<code>Delegates.notNull()</code>, which is suitable for deferred initialization of non-
+null properties, including those of Java primitive types.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>lateinit vs lazy</strong></p>
+<ol>
+<li><strong>lateinit</strong></li>
+</ol>
+<p>i) Use it with mutable variable[var]</p>
+<div class="code"><pre class="code literal-block"><span class="w">     </span>lateinit<span class="w"> </span>var<span class="w"> </span>name:<span class="w"> </span>String<span class="w">       </span>//Allowed
+<span class="w"> </span>lateinit<span class="w"> </span>val<span class="w"> </span>name:<span class="w"> </span>String<span class="w">       </span>//Not<span class="w"> </span>Allowed
+</pre></div>
+
+<p>ii) Allowed with only non-nullable data types</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="n">lateinit</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb nb-Type">String</span><span class="w">       </span><span class="o">//</span><span class="n">Allowed</span>
+<span class="w">    </span><span class="n">lateinit</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb nb-Type">String</span><span class="err">?</span><span class="w">      </span><span class="o">//</span><span class="n">Not</span><span class="w"> </span><span class="n">Allowed</span>
+</pre></div>
+
+<p>iii) It is a promise to compiler that the value will be initialized in future.</p>
+<p><strong>NOTE</strong> : If you try to access <strong>lateinit</strong> variable without initializing it
+then it throws UnInitializedPropertyAccessException.</p>
+<ol>
+<li><strong>lazy</strong></li>
+</ol>
+<p>i) Lazy initialization was designed to prevent unnecessary initialization of
+objects.</p>
+<p>ii) Your property will not be initialized unless you use it.</p>
+<p>iii) It is initialized only once. Next time when you use it, you get the value
+from cache memory.</p>
+<p>iv) It is thread safe(It is initialized in the thread where it is used for the
+first time. Other threads use the same value stored in the cache).</p>
+<p>v) The property can only be <strong>val</strong>.</p>
+<p>vi) The property can be of any type (including primitives and nullables, which
+are not allowed with <code>lateinit</code>).</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/kotlin/" rel="tag">kotlin</a></li>
+            <li><a class="tag p-category" href="../../categories/properties/" rel="tag">properties</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-allocate-aligned-memory-only-using-the-standard-library/" rel="prev" title="How to allocate aligned memory only using the standard library?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../gcc-makefile-error-no-rule-to-make-target/" rel="next" title='gcc makefile error: "No rule to make target ..."'>Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

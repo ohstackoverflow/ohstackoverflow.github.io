@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ViewPager and fragments — what's the right way to store fragment's state? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/viewpager-and-fragments-what-s-the-right-way-to-store-fragment-s-state/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../what-is-the-role-of-the-package-lock-json/" title="What is the role of the package-lock.json?" type="text/html">
+<link rel="next" href="../updating-to-latest-version-of-cocoapods/" title="Updating to latest version of CocoaPods?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="ViewPager and fragments — what's the right way to store fragment's sta">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/viewpager-and-fragments-what-s-the-right-way-to-store-fragment-s-state/">
+<meta property="og:description" content="Fragments seem to be very nice for separation of UI logic into some modules.
+But along with ViewPager its lifecycle is still misty to me. So Guru
+thoughts are badly needed!
+Edit
+See dumb solution belo">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T04:36:00+08:00">
+<meta property="article:tag" content="android">
+<meta property="article:tag" content="android-fragments">
+<meta property="article:tag" content="android-viewpager">
+<meta property="article:tag" content="design-patterns">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">ViewPager and fragments — what's the right way to store fragment's state?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T04:36:00+08:00" itemprop="datePublished" title="2023-03-03 04:36">2023-03-03 04:36</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Fragments seem to be very nice for separation of UI logic into some modules.
+But along with <code>ViewPager</code> its lifecycle is still misty to me. So Guru
+thoughts are badly needed!</p>
+<h4>Edit</h4>
+<p>See dumb solution below ;-)</p>
+<h3>Scope</h3>
+<p>Main activity has a <code>ViewPager</code> with fragments. Those fragments could
+implement a little bit different logic for other (submain) activities, so the
+fragments' data is filled via a callback interface inside the activity. And
+everything works fine on first launch, but!...</p>
+<h3>Problem</h3>
+<p>When the activity gets recreated (e.g. on orientation change) so do the
+<code>ViewPager</code>'s fragments. The code (you'll find below) says that every time the
+activity is created I try to create a new <code>ViewPager</code> fragments adapter the
+same as fragments (maybe this is the problem) but FragmentManager already has
+all these fragments stored somewhere (where?) and starts the recreation
+mechanism for those. So the recreation mechanism calls the "old" fragment's
+onAttach, onCreateView, etc. with my callback interface call for initiating
+data via the Activity's implemented method. But this method points to the
+newly created fragment which is created via the Activity's onCreate method.</p>
+<h3>Issue</h3>
+<p>Maybe I'm using wrong patterns but even Android 3 Pro book doesn't have much
+about it. So, <strong>please</strong> , give me one-two punch and point out how to do it
+the right way. Many thanks!</p>
+<h3>Code</h3>
+<p><em>Main Activity</em></p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">DashboardActivity</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">BasePagerActivity</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">OnMessageListActionListener</span><span class="w"> </span><span class="p">{</span>
+
+<span class="n">private</span><span class="w"> </span><span class="n">MessagesFragment</span><span class="w"> </span><span class="n">mMessagesFragment</span><span class="p">;</span>
+
+<span class="err">@</span><span class="n">Override</span>
+<span class="n">protected</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onCreate</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Logger</span><span class="o">.</span><span class="n">d</span><span class="p">(</span><span class="s2">"Dash onCreate"</span><span class="p">);</span>
+<span class="w">    </span><span class="n">super</span><span class="o">.</span><span class="n">onCreate</span><span class="p">(</span><span class="n">savedInstanceState</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">setContentView</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">viewpager_container</span><span class="p">);</span>
+<span class="w">    </span><span class="n">new</span><span class="w"> </span><span class="n">DefaultToolbar</span><span class="p">(</span><span class="n">this</span><span class="p">);</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">create</span><span class="w"> </span><span class="n">fragments</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">use</span>
+<span class="w">    </span><span class="n">mMessagesFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">MessagesFragment</span><span class="p">();</span>
+<span class="w">    </span><span class="n">mStreamsFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">StreamsFragment</span><span class="p">();</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="n">titles</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">fragments</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">view</span><span class="w"> </span><span class="n">pager</span>
+<span class="w">    </span><span class="n">Map</span><span class="o">&lt;</span><span class="nb nb-Type">String</span><span class="p">,</span><span class="w"> </span><span class="n">Fragment</span><span class="o">&gt;</span><span class="w"> </span><span class="n">screens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">LinkedHashMap</span><span class="o">&lt;</span><span class="nb nb-Type">String</span><span class="p">,</span><span class="w"> </span><span class="n">Fragment</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">    </span><span class="n">screens</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">getApplicationContext</span><span class="p">()</span><span class="o">.</span><span class="n">getString</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">string</span><span class="o">.</span><span class="n">dashboard_title_dumb</span><span class="p">),</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">DumbFragment</span><span class="p">());</span>
+<span class="w">    </span><span class="n">screens</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">getApplicationContext</span><span class="p">()</span><span class="o">.</span><span class="n">getString</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">string</span><span class="o">.</span><span class="n">dashboard_title_messages</span><span class="p">),</span><span class="w"> </span><span class="n">mMessagesFragment</span><span class="p">);</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">instantiate</span><span class="w"> </span><span class="n">view</span><span class="w"> </span><span class="n">pager</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">adapter</span>
+<span class="w">    </span><span class="n">mPager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ViewPager</span><span class="p">)</span><span class="w"> </span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">viewpager_pager</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mPagerAdapter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">BasePagerAdapter</span><span class="p">(</span><span class="n">screens</span><span class="p">,</span><span class="w"> </span><span class="n">getSupportFragmentManager</span><span class="p">());</span>
+<span class="w">    </span><span class="n">mPager</span><span class="o">.</span><span class="n">setAdapter</span><span class="p">(</span><span class="n">mPagerAdapter</span><span class="p">);</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="n">title</span><span class="w"> </span><span class="n">indicator</span>
+<span class="w">    </span><span class="n">TitlePageIndicator</span><span class="w"> </span><span class="n">indicator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">TitlePageIndicator</span><span class="p">)</span><span class="w"> </span><span class="n">findViewById</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">viewpager_titles</span><span class="p">);</span>
+<span class="w">    </span><span class="n">indicator</span><span class="o">.</span><span class="n">setViewPager</span><span class="p">(</span><span class="n">mPager</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+
+<span class="p">}</span>
+
+<span class="o">/*</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">fragments</span><span class="w"> </span><span class="n">callback</span><span class="w"> </span><span class="n">interface</span><span class="w"> </span><span class="n">implementations</span><span class="w"> </span><span class="o">*/</span>
+
+<span class="err">@</span><span class="n">Override</span>
+<span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onMessageInitialisation</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">Logger</span><span class="o">.</span><span class="n">d</span><span class="p">(</span><span class="s2">"Dash onMessageInitialisation"</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mMessagesFragment</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span>
+<span class="w">        </span><span class="n">mMessagesFragment</span><span class="o">.</span><span class="n">loadLastMessages</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="err">@</span><span class="n">Override</span>
+<span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onMessageSelected</span><span class="p">(</span><span class="n">Message</span><span class="w"> </span><span class="n">selectedMessage</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="n">Intent</span><span class="w"> </span><span class="n">intent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Intent</span><span class="p">(</span><span class="n">this</span><span class="p">,</span><span class="w"> </span><span class="n">StreamActivity</span><span class="o">.</span><span class="k">class</span><span class="p">);</span>
+<span class="w">    </span><span class="n">intent</span><span class="o">.</span><span class="n">putExtra</span><span class="p">(</span><span class="n">Message</span><span class="o">.</span><span class="k">class</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="w"> </span><span class="n">selectedMessage</span><span class="p">);</span>
+<span class="w">    </span><span class="n">startActivity</span><span class="p">(</span><span class="n">intent</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><em>BasePagerActivity aka helper</em></p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">BasePagerActivity</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">FragmentActivity</span><span class="w"> </span><span class="p">{</span>
+
+<span class="n">BasePagerAdapter</span><span class="w"> </span><span class="n">mPagerAdapter</span><span class="p">;</span>
+<span class="n">ViewPager</span><span class="w"> </span><span class="n">mPager</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><em>Adapter</em></p>
+<div class="code"><pre class="code literal-block"><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">BasePagerAdapter</span><span class="w"> </span><span class="n">extends</span><span class="w"> </span><span class="n">FragmentPagerAdapter</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">TitleProvider</span><span class="w"> </span><span class="err">{</span>
+
+<span class="n">private</span><span class="w"> </span><span class="k">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="p">,</span><span class="w"> </span><span class="n">Fragment</span><span class="o">&gt;</span><span class="w"> </span><span class="n">mScreens</span><span class="p">;</span>
+
+<span class="k">public</span><span class="w"> </span><span class="n">BasePagerAdapter</span><span class="p">(</span><span class="k">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="p">,</span><span class="w"> </span><span class="n">Fragment</span><span class="o">&gt;</span><span class="w"> </span><span class="n">screenMap</span><span class="p">,</span><span class="w"> </span><span class="n">FragmentManager</span><span class="w"> </span><span class="n">fm</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="n">super</span><span class="p">(</span><span class="n">fm</span><span class="p">);</span>
+<span class="w">    </span><span class="n">this</span><span class="p">.</span><span class="n">mScreens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">screenMap</span><span class="p">;</span>
+<span class="err">}</span>
+
+<span class="nv">@Override</span>
+<span class="k">public</span><span class="w"> </span><span class="n">Fragment</span><span class="w"> </span><span class="n">getItem</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="k">position</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">mScreens</span><span class="p">.</span><span class="k">values</span><span class="p">().</span><span class="n">toArray</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">Fragment</span><span class="o">[</span><span class="n">mScreens.size()</span><span class="o">]</span><span class="p">)</span><span class="o">[</span><span class="n">position</span><span class="o">]</span><span class="p">;</span>
+<span class="err">}</span>
+
+<span class="nv">@Override</span>
+<span class="k">public</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">getCount</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">mScreens</span><span class="p">.</span><span class="k">size</span><span class="p">();</span>
+<span class="err">}</span>
+
+<span class="nv">@Override</span>
+<span class="k">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">getTitle</span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="k">position</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">mScreens</span><span class="p">.</span><span class="n">keySet</span><span class="p">().</span><span class="n">toArray</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">String</span><span class="o">[</span><span class="n">mScreens.size()</span><span class="o">]</span><span class="p">)</span><span class="o">[</span><span class="n">position</span><span class="o">]</span><span class="p">;</span>
+<span class="err">}</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">hack</span><span class="p">.</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">don</span><span class="err">'</span><span class="n">t</span><span class="w"> </span><span class="n">want</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="k">destroy</span><span class="w"> </span><span class="n">our</span><span class="w"> </span><span class="n">fragments</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">initiate</span><span class="w"> </span><span class="n">them</span><span class="w"> </span><span class="k">after</span>
+<span class="nv">@Override</span>
+<span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">destroyItem</span><span class="p">(</span><span class="k">View</span><span class="w"> </span><span class="n">container</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="k">position</span><span class="p">,</span><span class="w"> </span><span class="k">Object</span><span class="w"> </span><span class="k">object</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">TODO</span><span class="w"> </span><span class="n">Auto</span><span class="o">-</span><span class="n">generated</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="n">stub</span>
+<span class="err">}</span>
+
+<span class="err">}</span>
+</pre></div>
+
+<p><em>Fragment</em></p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">MessagesFragment</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">ListFragment</span><span class="w"> </span><span class="p">{</span>
+
+<span class="n">private</span><span class="w"> </span><span class="n">boolean</span><span class="w"> </span><span class="n">mIsLastMessages</span><span class="p">;</span>
+
+<span class="n">private</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span><span class="w"> </span><span class="n">mMessagesList</span><span class="p">;</span>
+<span class="n">private</span><span class="w"> </span><span class="n">MessageArrayAdapter</span><span class="w"> </span><span class="n">mAdapter</span><span class="p">;</span>
+
+<span class="n">private</span><span class="w"> </span><span class="n">LoadMessagesTask</span><span class="w"> </span><span class="n">mLoadMessagesTask</span><span class="p">;</span>
+<span class="n">private</span><span class="w"> </span><span class="n">OnMessageListActionListener</span><span class="w"> </span><span class="n">mListener</span><span class="p">;</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">define</span><span class="w"> </span><span class="n">callback</span><span class="w"> </span><span class="n">interface</span>
+<span class="n">public</span><span class="w"> </span><span class="n">interface</span><span class="w"> </span><span class="n">OnMessageListActionListener</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onMessageInitialisation</span><span class="p">();</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onMessageSelected</span><span class="p">(</span><span class="n">Message</span><span class="w"> </span><span class="n">selectedMessage</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="err">@</span><span class="n">Override</span>
+<span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onAttach</span><span class="p">(</span><span class="n">Activity</span><span class="w"> </span><span class="n">activity</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">super</span><span class="o">.</span><span class="n">onAttach</span><span class="p">(</span><span class="n">activity</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">setting</span><span class="w"> </span><span class="n">callback</span>
+<span class="w">    </span><span class="n">mListener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">OnMessageListActionListener</span><span class="p">)</span><span class="w"> </span><span class="n">activity</span><span class="p">;</span>
+<span class="w">    </span><span class="n">mIsLastMessages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">activity</span><span class="w"> </span><span class="n">instanceof</span><span class="w"> </span><span class="n">DashboardActivity</span><span class="p">;</span>
+
+<span class="p">}</span>
+
+<span class="err">@</span><span class="n">Override</span>
+<span class="n">public</span><span class="w"> </span><span class="n">View</span><span class="w"> </span><span class="n">onCreateView</span><span class="p">(</span><span class="n">LayoutInflater</span><span class="w"> </span><span class="n">inflater</span><span class="p">,</span><span class="w"> </span><span class="n">ViewGroup</span><span class="w"> </span><span class="n">container</span><span class="p">,</span><span class="w"> </span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">inflater</span><span class="o">.</span><span class="n">inflate</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">fragment_listview</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mProgressView</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inflater</span><span class="o">.</span><span class="n">inflate</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">listrow_progress</span><span class="p">,</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mEmptyView</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inflater</span><span class="o">.</span><span class="n">inflate</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">fragment_nodata</span><span class="p">,</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">super</span><span class="o">.</span><span class="n">onCreateView</span><span class="p">(</span><span class="n">inflater</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p">,</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="err">@</span><span class="n">Override</span>
+<span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onActivityCreated</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">super</span><span class="o">.</span><span class="n">onActivityCreated</span><span class="p">(</span><span class="n">savedInstanceState</span><span class="p">);</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">instantiate</span><span class="w"> </span><span class="n">loading</span><span class="w"> </span><span class="n">task</span>
+<span class="w">    </span><span class="n">mLoadMessagesTask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">LoadMessagesTask</span><span class="p">();</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">instantiate</span><span class="w"> </span><span class="n">list</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">messages</span>
+<span class="w">    </span><span class="n">mMessagesList</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ArrayList</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">    </span><span class="n">mAdapter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">MessageArrayAdapter</span><span class="p">(</span><span class="n">getActivity</span><span class="p">(),</span><span class="w"> </span><span class="n">mMessagesList</span><span class="p">);</span>
+<span class="w">    </span><span class="n">setListAdapter</span><span class="p">(</span><span class="n">mAdapter</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="err">@</span><span class="n">Override</span>
+<span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onResume</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">mListener</span><span class="o">.</span><span class="n">onMessageInitialisation</span><span class="p">();</span>
+<span class="w">    </span><span class="n">super</span><span class="o">.</span><span class="n">onResume</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">onListItemClick</span><span class="p">(</span><span class="n">ListView</span><span class="w"> </span><span class="n">l</span><span class="p">,</span><span class="w"> </span><span class="n">View</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">position</span><span class="p">,</span><span class="w"> </span><span class="n">long</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Message</span><span class="w"> </span><span class="n">selectedMessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Message</span><span class="p">)</span><span class="w"> </span><span class="n">getListAdapter</span><span class="p">()</span><span class="o">.</span><span class="n">getItem</span><span class="p">(</span><span class="n">position</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mListener</span><span class="o">.</span><span class="n">onMessageSelected</span><span class="p">(</span><span class="n">selectedMessage</span><span class="p">);</span>
+<span class="w">    </span><span class="n">super</span><span class="o">.</span><span class="n">onListItemClick</span><span class="p">(</span><span class="n">l</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">position</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="o">/*</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">methods</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="nb">load</span><span class="w"> </span><span class="n">messages</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">host</span><span class="w"> </span><span class="n">acitivity</span><span class="p">,</span><span class="w"> </span><span class="n">etc</span><span class="o">...</span><span class="w"> </span><span class="o">*/</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3>Solution</h3>
+<p>The dumb solution is to save the fragments inside onSaveInstanceState (of host
+Activity) with putFragment and get them inside onCreate via getFragment. But I
+still have a strange feeling that things shouldn't work like that... See code
+below:</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="nv">@Override</span>
+<span class="n">protected</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">outState</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="n">super</span><span class="p">.</span><span class="n">onSaveInstanceState</span><span class="p">(</span><span class="n">outState</span><span class="p">);</span>
+<span class="w">    </span><span class="n">getSupportFragmentManager</span><span class="p">()</span>
+<span class="w">            </span><span class="p">.</span><span class="n">putFragment</span><span class="p">(</span><span class="n">outState</span><span class="p">,</span><span class="w"> </span><span class="n">MessagesFragment</span><span class="p">.</span><span class="k">class</span><span class="p">.</span><span class="n">getName</span><span class="p">(),</span><span class="w"> </span><span class="n">mMessagesFragment</span><span class="p">);</span>
+<span class="err">}</span>
+
+<span class="n">protected</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">onCreate</span><span class="p">(</span><span class="n">Bundle</span><span class="w"> </span><span class="n">savedInstanceState</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">Logger</span><span class="p">.</span><span class="n">d</span><span class="p">(</span><span class="ss">"Dash onCreate"</span><span class="p">);</span>
+<span class="w">    </span><span class="n">super</span><span class="p">.</span><span class="n">onCreate</span><span class="p">(</span><span class="n">savedInstanceState</span><span class="p">);</span>
+
+<span class="w">    </span><span class="p">...</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="k">create</span><span class="w"> </span><span class="n">fragments</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="k">use</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">savedInstanceState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">mMessagesFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">MessagesFragment</span><span class="p">)</span><span class="w"> </span><span class="n">getSupportFragmentManager</span><span class="p">().</span><span class="n">getFragment</span><span class="p">(</span>
+<span class="w">                </span><span class="n">savedInstanceState</span><span class="p">,</span><span class="w"> </span><span class="n">MessagesFragment</span><span class="p">.</span><span class="k">class</span><span class="p">.</span><span class="n">getName</span><span class="p">());</span>
+<span class="w">                </span><span class="n">StreamsFragment</span><span class="p">.</span><span class="k">class</span><span class="p">.</span><span class="n">getName</span><span class="p">());</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mMessagesFragment</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+<span class="w">        </span><span class="n">mMessagesFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">MessagesFragment</span><span class="p">();</span>
+<span class="w">    </span><span class="p">...</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>When the <code>FragmentPagerAdapter</code> adds a fragment to the FragmentManager, it
+uses a special tag based on the particular position that the fragment will be
+placed. <code>FragmentPagerAdapter.getItem(int position)</code> is only called when a
+fragment for that position does not exist. After rotating, Android will notice
+that it already created/saved a fragment for this particular position and so
+it simply tries to reconnect with it with
+<code>FragmentManager.findFragmentByTag()</code>, instead of creating a new one. All of
+this comes free when using the <code>FragmentPagerAdapter</code> and is why it is usual
+to have your fragment initialisation code inside the <code>getItem(int)</code> method.</p>
+<p>Even if we were not using a <code>FragmentPagerAdapter</code>, it is not a good idea to
+create a new fragment every single time in <code>Activity.onCreate(Bundle)</code>. As you
+have noticed, when a fragment is added to the FragmentManager, it will be
+recreated for you after rotating and there is no need to add it again. Doing
+so is a common cause of errors when working with fragments.</p>
+<p>A usual approach when working with fragments is this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">protected</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">onCreate</span><span class="ss">(</span><span class="nv">Bundle</span><span class="w"> </span><span class="nv">savedInstanceState</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">super</span>.<span class="nv">onCreate</span><span class="ss">(</span><span class="nv">savedInstanceState</span><span class="ss">)</span><span class="c1">;</span>
+
+<span class="w">    </span>...
+
+<span class="w">    </span><span class="nv">CustomFragment</span><span class="w"> </span><span class="nv">fragment</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">savedInstanceState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">        </span><span class="nv">fragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">(</span><span class="nv">CustomFragment</span><span class="ss">)</span><span class="w"> </span><span class="nv">getSupportFragmentManager</span><span class="ss">()</span>.<span class="nv">findFragmentByTag</span><span class="ss">(</span><span class="s2">"customtag"</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span>}<span class="w"> </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">        </span><span class="nv">fragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">CustomFragment</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">        </span><span class="nv">getSupportFragmentManager</span><span class="ss">()</span>.<span class="nv">beginTransaction</span><span class="ss">()</span>.<span class="nv">add</span><span class="ss">(</span><span class="nv">R</span>.<span class="nv">id</span>.<span class="nv">container</span>,<span class="w"> </span><span class="nv">fragment</span>,<span class="w"> </span><span class="s2">"customtag"</span><span class="ss">)</span>.<span class="nv">commit</span><span class="ss">()</span><span class="c1">; </span>
+<span class="w">    </span>}
+
+<span class="w">    </span>...
+
+}
+</pre></div>
+
+<p>When using a <code>FragmentPagerAdapter</code>, we relinquish fragment management to the
+adapter, and do not have to perform the above steps. By default, it will only
+preload one Fragment in front and behind the current position (although it
+does not destroy them unless you are using <code>FragmentStatePagerAdapter</code>). This
+is controlled by ViewPager.setOffscreenPageLimit(int). Because of this,
+directly calling methods on the fragments outside of the adapter is not
+guaranteed to be valid, because they may not even be alive.</p>
+<p>To cut a long story short, your solution to use <code>putFragment</code> to be able to
+get a reference afterwards is not so crazy, and not so unlike the normal way
+to use fragments anyway (above). It is difficult to obtain a reference
+otherwise because the fragment is added by the adapter, and not you
+personally. Just make sure that the <code>offscreenPageLimit</code> is high enough to
+load your desired fragments at all times, since you rely on it being present.
+This bypasses lazy loading capabilities of the ViewPager, but seems to be what
+you desire for your application.</p>
+<p>Another approach is to override <code>FragmentPageAdapter.instantiateItem(View,
+int)</code> and save a reference to the fragment returned from the super call before
+returning it (it has the logic to find the fragment, if already present).</p>
+<p>For a fuller picture, have a look at some of the source of
+FragmentPagerAdapter (short) and ViewPager (long).</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I want to offer a solution that expands on <code>antonyt</code>'s <strong>wonderful answer</strong>
+and mention of overriding <code>FragmentPageAdapter.instantiateItem(View, int)</code> to
+save references to created <code>Fragments</code> so you can do work on them later. This
+should also work with <code>FragmentStatePagerAdapter</code>; see notes for details.</p>
+<hr>
+<p>Here's a simple example of how to get a reference to the <code>Fragments</code> returned
+by <code>FragmentPagerAdapter</code> that doesn't rely on the internal <code>tags</code> set on the
+<code>Fragments</code>. The key is to override <strong><code>instantiateItem()</code></strong> and save
+references in there <em>instead</em> of in <code>getItem()</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">SomeActivity</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">Activity</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">FragmentA</span><span class="w"> </span><span class="n">m1stFragment</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">FragmentB</span><span class="w"> </span><span class="n">m2ndFragment</span><span class="p">;</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">other</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">Activity</span><span class="o">...</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">CustomPagerAdapter</span><span class="w"> </span><span class="k">extends</span><span class="w"> </span><span class="n">FragmentPagerAdapter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">other</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">your</span><span class="w"> </span><span class="n">custom</span><span class="w"> </span><span class="n">FragmentPagerAdapter</span><span class="o">...</span>
+
+<span class="w">        </span><span class="n">public</span><span class="w"> </span><span class="n">CustomPagerAdapter</span><span class="p">(</span><span class="n">FragmentManager</span><span class="w"> </span><span class="n">fm</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">super</span><span class="p">(</span><span class="n">fm</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">        </span><span class="n">public</span><span class="w"> </span><span class="n">Fragment</span><span class="w"> </span><span class="n">getItem</span><span class="p">(</span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">position</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Do</span><span class="w"> </span><span class="n">NOT</span><span class="w"> </span><span class="n">try</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">save</span><span class="w"> </span><span class="n">references</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">Fragments</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">getItem</span><span class="p">(),</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">because</span><span class="w"> </span><span class="n">getItem</span><span class="p">()</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">always</span><span class="w"> </span><span class="n">called</span><span class="o">.</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">Fragment</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">was</span><span class="w"> </span><span class="n">already</span><span class="w"> </span><span class="n">created</span><span class="w"> </span><span class="n">then</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">retrieved</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">FragmentManger</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">here</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">e</span><span class="o">.</span><span class="w"> </span><span class="n">getItem</span><span class="p">()</span><span class="w"> </span><span class="n">won</span><span class="s1">'t be called again).</span>
+<span class="w">            </span><span class="n">switch</span><span class="w"> </span><span class="p">(</span><span class="n">position</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">case</span><span class="w"> </span><span class="mi">0</span><span class="p">:</span>
+<span class="w">                    </span><span class="k">return</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">FragmentA</span><span class="p">();</span>
+<span class="w">                </span><span class="n">case</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span>
+<span class="w">                    </span><span class="k">return</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">FragmentB</span><span class="p">();</span>
+<span class="w">                </span><span class="n">default</span><span class="p">:</span>
+<span class="w">                    </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="n">should</span><span class="w"> </span><span class="n">never</span><span class="w"> </span><span class="n">happen</span><span class="o">.</span><span class="w"> </span><span class="n">Always</span><span class="w"> </span><span class="n">account</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="n">position</span><span class="w"> </span><span class="n">above</span>
+<span class="w">                    </span><span class="k">return</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Here</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">finally</span><span class="w"> </span><span class="n">safely</span><span class="w"> </span><span class="n">save</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">created</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Fragment</span><span class="p">,</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">matter</span><span class="w"> </span><span class="n">where</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">came</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="p">(</span><span class="n">either</span><span class="w"> </span><span class="n">getItem</span><span class="p">()</span><span class="w"> </span><span class="ow">or</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">FragmentManger</span><span class="p">)</span><span class="o">.</span><span class="w"> </span><span class="n">Simply</span><span class="w"> </span><span class="n">save</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">returned</span><span class="w"> </span><span class="n">Fragment</span><span class="w"> </span><span class="n">from</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">super</span><span class="o">.</span><span class="n">instantiateItem</span><span class="p">()</span><span class="w"> </span><span class="n">into</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">appropriate</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="n">depending</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">ViewPager</span><span class="w"> </span><span class="n">position</span><span class="o">.</span>
+<span class="w">        </span><span class="err">@</span><span class="n">Override</span>
+<span class="w">        </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">Object</span><span class="w"> </span><span class="n">instantiateItem</span><span class="p">(</span><span class="n">ViewGroup</span><span class="w"> </span><span class="n">container</span><span class="p">,</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">position</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">Fragment</span><span class="w"> </span><span class="n">createdFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Fragment</span><span class="p">)</span><span class="w"> </span><span class="n">super</span><span class="o">.</span><span class="n">instantiateItem</span><span class="p">(</span><span class="n">container</span><span class="p">,</span><span class="w"> </span><span class="n">position</span><span class="p">);</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">save</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">appropriate</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="n">depending</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">position</span>
+<span class="w">            </span><span class="n">switch</span><span class="w"> </span><span class="p">(</span><span class="n">position</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">case</span><span class="w"> </span><span class="mi">0</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">m1stFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">FragmentA</span><span class="p">)</span><span class="w"> </span><span class="n">createdFragment</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="n">case</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">m2ndFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">FragmentB</span><span class="p">)</span><span class="w"> </span><span class="n">createdFragment</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">createdFragment</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">someMethod</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">do</span><span class="w"> </span><span class="n">work</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">referenced</span><span class="w"> </span><span class="n">Fragments</span><span class="p">,</span><span class="w"> </span><span class="n">but</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">check</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">they</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">even</span><span class="w"> </span><span class="n">exist</span><span class="w"> </span><span class="n">yet</span><span class="p">,</span><span class="w"> </span><span class="n">otherwise</span><span class="w"> </span><span class="n">you</span><span class="s1">'ll get an NPE.</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m1stFragment</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">m1stFragment</span><span class="o">.</span><span class="n">doWork</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m2ndFragment</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">m2ndFragment</span><span class="o">.</span><span class="n">doSomeWorkToo</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>or</strong> if you prefer to work with <code>tags</code> instead of class member
+variables/references to the <code>Fragments</code> you can also grab the <code>tags</code> set by
+<code>FragmentPagerAdapter</code> in the same manner: NOTE: this doesn't apply to
+<code>FragmentStatePagerAdapter</code> since it doesn't set <code>tags</code> when creating its
+<code>Fragments</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Override</span>
+<span class="k">public</span><span class="w"> </span><span class="k">Object</span><span class="w"> </span><span class="n">instantiateItem</span><span class="p">(</span><span class="n">ViewGroup</span><span class="w"> </span><span class="n">container</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="k">position</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">Fragment</span><span class="w"> </span><span class="n">createdFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Fragment</span><span class="p">)</span><span class="w"> </span><span class="n">super</span><span class="p">.</span><span class="n">instantiateItem</span><span class="p">(</span><span class="n">container</span><span class="p">,</span><span class="w"> </span><span class="k">position</span><span class="p">);</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="k">get</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">tags</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">FragmentPagerAdapter</span>
+<span class="w">    </span><span class="n">switch</span><span class="w"> </span><span class="p">(</span><span class="k">position</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="mi">0</span><span class="err">:</span>
+<span class="w">            </span><span class="n">String</span><span class="w"> </span><span class="n">firstTag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">createdFragment</span><span class="p">.</span><span class="n">getTag</span><span class="p">();</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="mi">1</span><span class="err">:</span>
+<span class="w">            </span><span class="n">String</span><span class="w"> </span><span class="n">secondTag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">createdFragment</span><span class="p">.</span><span class="n">getTag</span><span class="p">();</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="k">save</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">tags</span><span class="w"> </span><span class="n">somewhere</span><span class="w"> </span><span class="n">so</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="n">them</span><span class="w"> </span><span class="n">later</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">createdFragment</span><span class="p">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>Note that this method does NOT rely on mimicking the internal <code>tag</code> set by
+<code>FragmentPagerAdapter</code> and instead uses proper APIs for retrieving them. This
+way even if the <code>tag</code> changes in future versions of the <code>SupportLibrary</code>
+you'll still be safe.</p>
+<hr>
+<p><strong>Don't forget</strong> that depending on the design of your <code>Activity</code>, the
+<code>Fragments</code> you're trying to work on may or may not exist yet, so you have to
+account for that by doing <code>null</code> checks before using your references.</p>
+<p><strong>Also, if instead</strong> you're working with <code>FragmentStatePagerAdapter</code>, then you
+don't want to keep hard references to your <code>Fragments</code> because you might have
+many of them and hard references would unnecessarily keep them in memory.
+Instead save the <code>Fragment</code> references in <code>WeakReference</code> variables instead of
+standard ones. Like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">WeakReference</span><span class="o">&lt;</span><span class="nv">Fragment</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">m1stFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">WeakReference</span><span class="o">&lt;</span><span class="nv">Fragment</span><span class="o">&gt;</span><span class="ss">(</span><span class="nv">createdFragment</span><span class="ss">)</span><span class="c1">;</span>
+<span class="o">//</span><span class="w"> </span>...<span class="nv">and</span><span class="w"> </span><span class="nv">access</span><span class="w"> </span><span class="nv">them</span><span class="w"> </span><span class="nv">like</span><span class="w"> </span><span class="nv">so</span>
+<span class="nv">Fragment</span><span class="w"> </span><span class="nv">firstFragment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">m1stFragment</span>.<span class="nv">get</span><span class="ss">()</span><span class="c1">;</span>
+<span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">firstFragment</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="nv">reference</span><span class="w"> </span><span class="nv">hasn</span><span class="err">'t been cleared yet; do work...</span>
+<span class="err">}</span>
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/android/" rel="tag">android</a></li>
+            <li><a class="tag p-category" href="../../categories/android-fragments/" rel="tag">android-fragments</a></li>
+            <li><a class="tag p-category" href="../../categories/android-viewpager/" rel="tag">android-viewpager</a></li>
+            <li><a class="tag p-category" href="../../categories/design-patterns/" rel="tag">design-patterns</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../what-is-the-role-of-the-package-lock-json/" rel="prev" title="What is the role of the package-lock.json?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../updating-to-latest-version-of-cocoapods/" rel="next" title="Updating to latest version of CocoaPods?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

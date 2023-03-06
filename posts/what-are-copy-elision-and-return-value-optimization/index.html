@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What are copy elision and return value optimization? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/what-are-copy-elision-and-return-value-optimization/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../the-difference-between-sys-stdout-write-and-print/" title="The difference between sys.stdout.write and print?" type="text/html">
+<link rel="next" href="../getting-error-no-such-module-using-xcode-but-the-framework-is-there/" title='Getting error "No such module" using Xcode, but the framework is there' type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="What are copy elision and return value optimization?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/what-are-copy-elision-and-return-value-optimization/">
+<meta property="og:description" content="What is copy elision? What is (named) return value optimization? What do they
+imply?
+In what situations can they occur? What are limitations?
+
+If you were referenced to this question, you're probably ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T05:49:43+08:00">
+<meta property="article:tag" content="c++">
+<meta property="article:tag" content="c++-faq">
+<meta property="article:tag" content="copy-elision">
+<meta property="article:tag" content="optimization">
+<meta property="article:tag" content="return-value-optimization">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">What are copy elision and return value optimization?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T05:49:43+08:00" itemprop="datePublished" title="2023-03-03 05:49">2023-03-03 05:49</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>What is copy elision? What is (named) return value optimization? What do they
+imply?</p>
+<p>In what situations can they occur? What are limitations?</p>
+<ul>
+<li>If you were referenced to this question, you're probably looking for <strong>the introduction</strong>.</li>
+<li>For a technical overview, see <strong>the standard reference</strong>.</li>
+<li>See <strong>common cases</strong> here.</li>
+</ul>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>Introduction</h3>
+<p>For a technical overview - skip to this answer.</p>
+<p>For common cases where copy elision occurs - skip to this answer.</p>
+<p>Copy elision is an optimization implemented by most compilers to prevent extra
+(potentially expensive) copies in certain situations. It makes returning by
+value or pass-by-value feasible in practice (restrictions apply).</p>
+<p>It's the only form of optimization that elides (ha!) the as-if rule - <strong>copy
+elision can be applied even if copying/moving the object has side-effects</strong>.</p>
+<p>The following example taken from Wikipedia:</p>
+<div class="code"><pre class="code literal-block"><span class="n">struct</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">C</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">  </span><span class="n">C</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">C</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"A copy was made.</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="n">C</span><span class="w"> </span><span class="n">f</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">C</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="nb nb-Type">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Hello World!</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span>
+<span class="w">  </span><span class="n">C</span><span class="w"> </span><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Depending on the compiler &amp; settings, the following outputs <strong>are all valid</strong>
+:</p>
+<blockquote>
+<p>Hello World!<br>
+ A copy was made.<br>
+ A copy was made.<br></p>
+</blockquote>
+<hr>
+<blockquote>
+<p>Hello World!<br>
+ A copy was made.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p>Hello World!</p>
+</blockquote>
+<p>This also means fewer objects can be created, so you also can't rely on a
+specific number of destructors being called. You shouldn't have critical logic
+inside copy/move-constructors or destructors, as you can't rely on them being
+called.</p>
+<p>If a call to a copy or move constructor is elided, that constructor must still
+exist and must be accessible. This ensures that copy elision does not allow
+copying objects which are not normally copyable, e.g. because they have a
+private or deleted copy/move constructor.</p>
+<p><strong>C++17</strong> : As of C++17, Copy Elision is guaranteed when an object is returned
+directly:</p>
+<div class="code"><pre class="code literal-block"><span class="n">struct</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">C</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">  </span><span class="n">C</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">C</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"A copy was made.</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="n">C</span><span class="w"> </span><span class="n">f</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">C</span><span class="p">();</span><span class="w"> </span><span class="o">//</span><span class="n">Definitely</span><span class="w"> </span><span class="n">performs</span><span class="w"> </span><span class="n">copy</span><span class="w"> </span><span class="n">elision</span>
+<span class="p">}</span>
+<span class="n">C</span><span class="w"> </span><span class="n">g</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">C</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="n">Maybe</span><span class="w"> </span><span class="n">performs</span><span class="w"> </span><span class="n">copy</span><span class="w"> </span><span class="n">elision</span>
+<span class="p">}</span>
+
+<span class="nb nb-Type">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">std</span><span class="p">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s2">"Hello World!</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span>
+<span class="w">  </span><span class="n">C</span><span class="w"> </span><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="p">();</span><span class="w"> </span><span class="o">//</span><span class="n">Copy</span><span class="w"> </span><span class="n">constructor</span><span class="w"> </span><span class="n">isn</span><span class="s1">'t called</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<h3>Common forms of copy elision</h3>
+<p>For a technical overview - skip to this answer.</p>
+<p>For a less technical view &amp; introduction - skip to this answer.</p>
+<p>(Named) Return value optimization is a common form of copy elision. It refers
+to the situation where an object returned by value from a method has its copy
+elided. The example set forth in the standard illustrates <strong>named return value
+optimization</strong> , since the object is named.</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">Thing</span><span class="w"> </span><span class="p">{</span>
+<span class="n">public</span><span class="p">:</span>
+<span class="w">  </span><span class="n">Thing</span><span class="p">();</span>
+<span class="w">  </span><span class="o">~</span><span class="n">Thing</span><span class="p">();</span>
+<span class="w">  </span><span class="n">Thing</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Thing</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="p">};</span>
+<span class="n">Thing</span><span class="w"> </span><span class="n">f</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">Thing</span><span class="w"> </span><span class="n">t</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">t</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="n">Thing</span><span class="w"> </span><span class="n">t2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="p">();</span>
+</pre></div>
+
+<p>Regular <strong>return value optimization</strong> occurs when a temporary is returned:</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">Thing</span><span class="w"> </span><span class="p">{</span>
+<span class="n">public</span><span class="p">:</span>
+<span class="w">  </span><span class="n">Thing</span><span class="p">();</span>
+<span class="w">  </span><span class="o">~</span><span class="n">Thing</span><span class="p">();</span>
+<span class="w">  </span><span class="n">Thing</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Thing</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="p">};</span>
+<span class="n">Thing</span><span class="w"> </span><span class="n">f</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Thing</span><span class="p">();</span>
+<span class="p">}</span>
+<span class="n">Thing</span><span class="w"> </span><span class="n">t2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="p">();</span>
+</pre></div>
+
+<p>Other common places where copy elision takes place is when an object is
+<strong>constructed from a temporary</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span><span class="w"> </span><span class="n">Thing</span><span class="w"> </span><span class="p">{</span>
+<span class="n">public</span><span class="p">:</span>
+<span class="w">  </span><span class="n">Thing</span><span class="p">();</span>
+<span class="w">  </span><span class="o">~</span><span class="n">Thing</span><span class="p">();</span>
+<span class="w">  </span><span class="n">Thing</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Thing</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="p">};</span>
+<span class="nb nb-Type">void</span><span class="w"> </span><span class="n">foo</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">t</span><span class="p">);</span>
+
+<span class="n">Thing</span><span class="w"> </span><span class="n">t2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Thing</span><span class="p">();</span>
+<span class="n">Thing</span><span class="w"> </span><span class="n">t3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Thing</span><span class="p">(</span><span class="n">Thing</span><span class="p">());</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">two</span><span class="w"> </span><span class="n">rounds</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">elision</span>
+<span class="n">foo</span><span class="p">(</span><span class="n">Thing</span><span class="p">());</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">parameter</span><span class="w"> </span><span class="n">constructed</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">temporary</span>
+</pre></div>
+
+<p>or when an <strong>exception is thrown and caught by value</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="n">struct</span><span class="w"> </span><span class="n">Thing</span><span class="p">{</span>
+<span class="w">  </span><span class="n">Thing</span><span class="p">();</span>
+<span class="w">  </span><span class="n">Thing</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Thing</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="nb nb-Type">void</span><span class="w"> </span><span class="n">foo</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">Thing</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="w">  </span><span class="n">throw</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nb nb-Type">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">foo</span><span class="p">();</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="n">catch</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">  </span>
+<span class="w">  </span><span class="p">}</span><span class="w">             </span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Common limitations of copy elision are:</p>
+<ul>
+<li>multiple return points</li>
+<li>conditional initialization</li>
+</ul>
+<p>Most commercial-grade compilers support copy elision &amp; (N)RVO (depending on
+optimization settings). C++17 makes many of the above classes of copy elision
+mandatory.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/c%2B%2B/" rel="tag">c++</a></li>
+            <li><a class="tag p-category" href="../../categories/c%2B%2B-faq/" rel="tag">c++-faq</a></li>
+            <li><a class="tag p-category" href="../../categories/copy-elision/" rel="tag">copy-elision</a></li>
+            <li><a class="tag p-category" href="../../categories/optimization/" rel="tag">optimization</a></li>
+            <li><a class="tag p-category" href="../../categories/return-value-optimization/" rel="tag">return-value-optimization</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../the-difference-between-sys-stdout-write-and-print/" rel="prev" title="The difference between sys.stdout.write and print?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../getting-error-no-such-module-using-xcode-but-the-framework-is-there/" rel="next" title='Getting error "No such module" using Xcode, but the framework is there'>Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

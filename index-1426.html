@@ -108,140 +108,224 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-does-the-beam-size-represent-in-the-beam-search-algorithm/" class="u-url">What does the beam size represent in the beam search algorithm?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-does-monte-carlo-tree-search-reset-tree/" class="u-url">Why does Monte Carlo Tree Search reset Tree</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/what-does-the-beam-size-represent-in-the-beam-search-algorithm/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:37:20+08:00" itemprop="datePublished" title="2023-02-28 03:37">2023-02-28 03:37</time></a>
+            <a href="posts/why-does-monte-carlo-tree-search-reset-tree/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:40:19+08:00" itemprop="datePublished" title="2023-02-28 03:40">2023-02-28 03:40</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I have a question about the <em>beam search algorithm</em>.</p>
-<p>Let's say that <code>n = 2</code> (the number of nodes we are going to expand from every
-node). So, at the beginning, we only have the root, with 2 nodes that we
-expand from it. Now, from those two nodes, we expand two more. So, at the
-moment, we have 4 leafs. We will continue like this till we find the answer.</p>
-<p><em>Is this how beam search works? Does it expand only<code>n = 2</code> of every node, or
-it keeps 2 leaf nodes at all the times?</em></p>
-<p>I used to think that <code>n = 2</code> means that we should have 2 active nodes at most
-from each node, not two for the whole tree.</p>
+    <p>I had a small but potentially stupid question about Monte Carlo Tree Search. I
+understand most of it but have been looking at some implementations and
+noticed that after the MCTS is run for a given state and a best move returned,
+the tree is thrown away. So for the next move, we have to run MCTS from
+scratch on this new state to get the next best position.</p>
+<p>I was just wondering why we don't retain some of the information from the old
+tree. It seems like there is valuable information about the states in the old
+tree, especially given that the best move is one where the MCTS has explored
+most. Is there any particular reason we can't use this old information in some
+useful way?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>In the "standard" <em>beam search</em> algorithm, at every step, the total number of
-the nodes you currently "know about" is limited - and NOT the number of nodes
-you will follow from each node.</p>
-<p>Concretely, if <code>n = 2</code>, it means that the "beam" will be of size at most 2, at
-all times. So, initially, you start from one node, then you discover all nodes
-that are reachable from it, but discard all of them but two, and finish step 1
-with 2 nodes. At step 2, you have two nodes, and you will expand both, and
-discard all nodes again, except exactly 2 nodes (total, not from each!). In
-the next steps, similarly, you will keep 2 nodes after each step.</p>
-<p>Choosing which node to keep is usually done by some heuristic function that
-evaluates which node is closest to the target.</p>
-<p>Note that the <em>beam search algorithm</em> is not complete (i.e., it may not find a
-solution if one exists) nor optimal (i.e. it may not find the best solution).
-The best way to see this is witnessing that when <code>n = 1</code>, it basically reduces
-to best-first-search.</p>
+<p>Some implementations do indeed retain the information.</p>
+<p>For example, the AlphaGo Zero paper says:</p>
+<blockquote>
+<p>The search tree is reused at subsequent time-steps: the child node
+corresponding to the played action becomes the new root node; the subtree
+below this child is retained along with all its statistics, while the
+remainder of the tree is discarded</p>
+</blockquote>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/assembling-a-function-as-needed-and-computing-it-fast/" class="u-url">Assembling a function as needed and computing it fast</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/assembling-a-function-as-needed-and-computing-it-fast/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:40:02+08:00" itemprop="datePublished" title="2023-02-28 03:40">2023-02-28 03:40</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>There are interpreted languages out there, such as Lisp, Tcl, Perl, etc., that
+make it easy to define a lambda/proc/sub within your code during runtime and
+to evaluate it within the same session.</p>
+<p>There are compiled languages out there, such as C++, that would execute much
+faster than the interpreted ones, yet defining a function within a compiled
+program during runtime and executing it is not easy, if at all possible.</p>
+<p>The problem here is to do the following:</p>
+<ol>
+<li>
+<p>Define a function during runtime: for example, based on the initial input data derive an analytic model of the data.</p>
+</li>
+<li>
+<p>Execute the above function fast in a loop: for example, apply the derived analytic model for analysing incoming data.</p>
+</li>
+</ol>
+<p>One solution that I saw was not very pretty:</p>
+<ol>
+<li>
+<p>A procedure representing the analytic model was derived in embedded Tcl based on the initial input data. </p>
+</li>
+<li>
+<p>A lookup table was created by evaluating the procedure in Tcl on an array of sample points that, optimistically speaking, would cover the applicability range.</p>
+</li>
+<li>
+<p>The lookup table was passed from the Tcl interpreter back to the binary (which was developed in C++).</p>
+</li>
+<li>
+<p>Then the incoming data was analysed by interpolating between "close enough" values in the lookup table.</p>
+</li>
+</ol>
+<p>The above solution works, but has quite a few problems, both conceptual and
+computational. Thus the question: is it possible to define a function purely
+within C++ and make it available for execution within the same runtime
+session?</p>
+<p>Conceptually speaking, is it possible to do something like create a function
+as a string, compile it in-memory, and somehow link it back into the binary
+that's being executed?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>If you want something working right out of the box have a look at ExprTK. If
+you want to write an expression parser yourself check out Boost Spirit.</p>
+<p>An alternative would be to create C++ code on the fly, compile it as a shared
+library (plugin) and load it at runtime. This would probably be the fastest
+solution.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/neural-network-architecture-design/" class="u-url">Neural Network Architecture Design</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/neural-network-architecture-design/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:39:41+08:00" itemprop="datePublished" title="2023-02-28 03:39">2023-02-28 03:39</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm playing around with Neural Networks trying to understand the best
+practices for designing their architecture based on the kind of problem you
+need to solve.</p>
+<p>I generated a very simple data set composed of a single convex region as you
+can see below:</p>
+<p><img alt="enter image description here" src="images/4omgO.png"></p>
+<p>Everything works fine when I use an architecture with L = 1, or L = 2 hidden
+layers (plus the output layer), but as soon as I add a third hidden layer (L =
+3) my performance drops down to slightly better than chance.</p>
+<p>I know that the more complexity you add to a network (number of weights and
+parameters to learn) the more you tend to go towards over-fitting your data,
+but I believe this is not the nature of my problem for two reasons:</p>
+<ul>
+<li>my performance on the Training set is also around 60% (whereas over-fitting typically means you have a very low training error and high test error),</li>
+<li>and I have a very large amount of data examples (don't look at the figure that's only a toy figure I uplaoded).</li>
+</ul>
+<blockquote>
+<p>Can anybody help me understand why adding an extra hidden layer gives me
+this drop in performances on such a simple task?</p>
+</blockquote>
+<p>Here is an image of my performance as a function of the number of layers used:</p>
+<p><img alt="enter image description here" src="images/1K3b5.png"></p>
+<p><strong>ADDED PART DUE TO COMMENTS:</strong></p>
+<ul>
+<li>I am using a sigmoid functions assuming values between 0 and 1, <code>L(s) = 1 / 1 + exp(-s)</code>
+</li>
+<li>I am using early stopping (after 40000 iterations of backprop) as a criteria to stop the learning. I know it is not the best way to stop but I thought that it would ok for such a simple classification task, if you believe this is the main reason I'm not converging I I might implement some better criteria. </li>
+</ul>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>At least on the surface of it, this appears to be a case of the so-called
+"vanishing gradient" problem.</p>
+<p><strong>Activation functions</strong></p>
+<p>Your neurons activate according to the logistic sigmoid function, f(x) = 1 /
+(1 + e^-x) :</p>
+<p><img alt="sigmoid function" src="images/Vzk32.png"></p>
+<p>This activation function is used frequently because it has several nice
+properties. One of these nice properties is that the derivative of f(x) is
+expressible computationally using the value of the function itself, as f'(x) =
+f(x)(1 - f(x)). This function has a nonzero value for x near zero, but quickly
+goes to zero as |x| gets large :</p>
+<p><img alt="sigmoid first derivative" src="images/oZiJL.png"></p>
+<p><strong>Gradient descent</strong></p>
+<p>In a feedforward neural network with logistic activations, the error is
+typically propagated backwards through the network using the first derivative
+as a learning signal. The usual update for a weight in your network is
+proportional to the error attributable to that weight times the current weight
+value times the derivative of the logistic function.</p>
+<div class="code"><pre class="code literal-block">delta_w(w) ~= w * f'(err(w)) * err(w)
+</pre></div>
+
+<p>As the product of three potentially very small values, the first derivative in
+such networks can become small very rapidly if the weights in the network fall
+outside the "middle" regime of the logistic function's derivative. In
+addition, this rapidly vanishing derivative becomes exacerbated by adding more
+layers, because the error in a layer gets "split up" and partitioned out to
+each unit in the layer. This, in turn, further reduces the gradient in layers
+below that.</p>
+<p>In networks with more than, say, two hidden layers, this can become a serious
+problem for training the network, since the first-order gradient information
+will lead you to believe that the weights cannot usefully change.</p>
+<p>However, there are some solutions that can help ! The ones I can think of
+involve changing your learning method to use something more sophisticated than
+first-order gradient descent, generally incorporating some second-order
+derivative information.</p>
+<p><strong>Momentum</strong></p>
+<p>The simplest solution to approximate using some second-order information is to
+include a momentum term in your network parameter updates. Instead of updating
+parameters using :</p>
+<div class="code"><pre class="code literal-block">w_new = w_old - learning_rate * delta_w(w_old)
+</pre></div>
+
+<p>incorporate a momentum term :</p>
+<div class="code"><pre class="code literal-block">w_dir_new = mu * w_dir_old - learning_rate * delta_w(w_old)
+w_new = w_old + w_dir_new
+</pre></div>
+
+<p>Intuitively, you want to use information from past derivatives to help
+determine whether you want to follow the new derivative entirely (which you
+can do by setting mu = 0), or to keep going in the direction you were heading
+on the previous update, tempered by the new gradient information (by setting
+mu &gt; 0).</p>
+<p>You can actually get even better than this by using "Nesterov's Accelerated
+Gradient" :</p>
+<div class="code"><pre class="code literal-block">w_dir_new = mu * w_dir_old - learning_rate * delta_w(w_old + mu * w_dir_old)
+w_new = w_old + w_dir_new
+</pre></div>
+
+<p>I think the idea here is that instead of computing the derivative at the "old"
+parameter value <code>w</code>, compute it at what would be the "new" setting for <code>w</code> if
+you went ahead and moved there according to a standard momentum term. Read
+more in a neural-networks context here (PDF).</p>
+<p><strong>Hessian-Free</strong></p>
+<p>The textbook way to incorporate second-order gradient information into your
+neural network training algorithm is to use Newton's Method to compute the
+first <em>and</em> second order derivatives of your objective function with respect
+to the parameters. However, the second order derivative, called the Hessian
+matrix, is often extremely large and prohibitively expensive to compute.</p>
+<p>Instead of computing the entire Hessian, some clever research in the past few
+years has indicated a way to compute just the values of the Hessian in a
+particular search direction. You can then use this process to identify a
+better parameter update than just the first-order gradient.</p>
+<p>You can learn more about this by reading through a research paper (PDF) or
+looking at a sample implementation.</p>
+<p><strong>Others</strong></p>
+<p>There are many other optimization methods that could be useful for this task
+-- conjugate gradient (PDF -- definitely worth a read), Levenberg-Marquardt
+(PDF), L-BFGS -- but from what I've seen in the research literature, momentum
+and Hessian-free methods seem to be the most common ones.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p><img alt="enter image description here" src="images/1A9Ed.png"></p>
-<blockquote>
-<p>In beam search, instead of choosing the best token to generate at each
-timestep, we keep k possible tokens at each step. This fixed-size memory
-footprint k is called the beam width, on the metaphor of a flashlight beam
-that can be parameterized to be wider or narrower.</p>
-<p>Thus at the first step of decoding, we compute a softmax over the entire
-vocabulary, assigning a probability to each word. We then select the k-best
-options from this softmax output. These initial k outputs are the search
-frontier and these k initial words are called hypotheses. A hypothesis is an
-output sequence, a translation-so- far, together with its probability.</p>
-<p>At subsequent steps, each of the k best hypotheses is extended incrementally
-by being passed to distinct decoders, which each generate a softmax over the
-entire vocabulary to extend the hypothesis to every possible next token.
-Each of these k∗V hypotheses is scored by P(yi|x,y&lt;i): the product of the
-probability of current word choice multiplied by the probability of the path
-that led to it. We then prune the k∗V hypotheses down to the k best
-hypotheses, so there are never more than k hypotheses at the frontier of the
-search, and never more than k decoders.</p>
-</blockquote>
-<p>The beam size(or beam width) is the k aforementioned.</p>
-<p>Source: https://web.stanford.edu/~jurafsky/slp3/ed3book.pdf</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-calculating-hessian-works-for-neural-network-learning/" class="u-url">How calculating hessian works for Neural Network learning</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-calculating-hessian-works-for-neural-network-learning/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:37:03+08:00" itemprop="datePublished" title="2023-02-28 03:37">2023-02-28 03:37</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Can anyone explain to me in a easy and less mathematical way what is a
-<code>Hessian</code> and how does it work in practice when optimizing the learning
-process for a neural network ?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>To understand the <em>Hessian</em> you first need to understand <em>Jacobian</em> , and to
-understand a <em>Jacobian</em> you need to understand the <em>derivative</em></p>
-<ul>
-<li>Derivative is the measure of how fast function value changes withe the change of the argument. So if you have the function f(x)=x^2 you can compute its derivative and obtain a knowledge how fast f(x+t) changes with small enough t. This gives you knowledge about basic <em>dynamics</em> of the function</li>
-<li>Gradient shows you in multidimensional functions the direction of the biggest value change (which is based on the directional derivatives) so given a function ie. g(x,y)=-x+y^2 you will know, that it is better to minimize the value of x, while strongly maximize the vlaue of y. This is a base of gradient based methods, like <em>steepest descent</em> technique (used in the traditional backpropagation methods).</li>
-<li>Jacobian is yet another generalization, as your function might have many values, like g(x,y)=(x+1, x <em>y, x-z), thus you now have 2</em> 3 partial derivatives, one gradient per each output value (each of 2 values) thus forming together a matrix of 2*3=6 values.</li>
-</ul>
-<p>Now, derivative shows you the dynamics of the function itself. But you can go
-one step further, if you can use this dynamics to find the optimum of the
-function, maybe you can do even better if you find out the <em>dynamics of this
-dynamics</em> , and so - compute derivatives of second order? This is exactly what
-<em>Hessian</em> is, it is a matrix of second order derivatives of your function. It
-captures the dynamics of the derivatives, so how fast (in what direction) does
-the change change. It may seem a bit complex at the first sight, but if you
-think about it for a while it becomes quite clear. You want to go in the
-direction of the gradient, but you do not know "how far" (what is the correct
-step size). And so you define new, smaller optimization problem, where you are
-asking "ok, I have this gradient, how can I tell where to go?" and solve it
-analogously, using derivatives (and derivatives of the derivatives form the
-Hessian).</p>
-<p>You may also look at this in the geometrical way - gradient based optimization
-approximates your function with the <strong>line</strong>. You simply try to find a line
-which is closest to your function in a current point, and so it defines a
-direction of change. Now, lines are quite primitive, maybe we could use some
-more complex shapes like.... parabolas? Second derivative, hessian methods are
-just trying to fit the parabola ( <strong>quadratic</strong> function, f(x)=ax^2+bx+c) to
-your current position. And based on this approximation - chose the valid step.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-plurality-classification-in-decision-trees/" class="u-url">What is plurality classification in decision trees?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-is-plurality-classification-in-decision-trees/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:36:39+08:00" itemprop="datePublished" title="2023-02-28 03:36">2023-02-28 03:36</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am new to the field of AI and am reading about decision trees. I am
-referring to the AIMA book which is pretty much the standard Intro to AI book
-recommended. In the chapter on decision trees, they discuss in the book a case
-wherein after the first attribute splits and there are no attributes left but
-both positive and negative examples have still not been separated, it means
-that these examples have exactly the same description.... The solution to this
-case that they suggest is " <strong>to return the plurality classification of the
-remaining examples</strong> ". I was wondering what that part in bold means? What
-does it mean to return the 'plurality classification' of a set of examples?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>They would have said the majority class if there were only two classes.
-Plurality is just the generalization of majority to more than 2 classes. It
-just means take the most frequent class in that leaf and return that as your
-prediction. For example, if you are classifying the colors of balls, and there
-are 3 blue balls, 2 red balls, and 2 white balls in a leaf, return blue as
-your prediction.</p>
+<p>Because the number of iterations of training required for convergence
+increases as you add complexity to a neural network, holding the length of
+training constant while adding layers to a neural network will certainly
+result in you eventually observing a drop like this. To figure out whether
+that is the explanation for this particular observation, try increasing the
+number of iterations of training that you're using and see if it improves.
+Using a more intelligent stopping criterion is also a good option, but a
+simple increase in the cut-off will give you answers faster.</p>
     </div>
     </article>
 </div>
@@ -258,7 +342,7 @@ your prediction.</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

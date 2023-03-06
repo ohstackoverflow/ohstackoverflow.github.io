@@ -108,185 +108,308 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/gomoku-array-based-ai-algorithm/" class="u-url">Gomoku array-based AI-algorithm?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/using-minimax-search-for-card-games-with-imperfect-information/" class="u-url">Using minimax search for card games with imperfect information</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/gomoku-array-based-ai-algorithm/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:27:40+08:00" itemprop="datePublished" title="2023-02-28 03:27">2023-02-28 03:27</time></a>
+            <a href="posts/using-minimax-search-for-card-games-with-imperfect-information/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:31:03+08:00" itemprop="datePublished" title="2023-02-28 03:31">2023-02-28 03:31</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>Way way back (think 20+ years) I encountered a Gomoku game source code in a
-magazine that I typed in for my computer and had a lot of fun with.</p>
-<p>The game was difficult to win against, but the core algorithm for the computer
-AI was really simply and didn't account for a lot of code. I wonder if anyone
-knows this algorithm and has some links to some source or theory about it.</p>
-<p>The things I remember was that it basically allocated an array that covered
-the entire board. Then, whenever I, or it, placed a piece, it would add a
-number of weights to all locations on the board that the piece would possibly
-impact.</p>
-<p>For instance (note that the weights are definitely wrong as I don't remember
-those):</p>
-<div class="code"><pre class="code literal-block"><span class="mf">1</span><span class="w">   </span><span class="mf">1</span><span class="w">   </span><span class="mf">1</span>
-<span class="w"> </span><span class="mf">2</span><span class="w">  </span><span class="mf">2</span><span class="w">  </span><span class="mf">2</span>
-<span class="w">  </span><span class="mf">3</span><span class="w"> </span><span class="mf">3</span><span class="w"> </span><span class="mf">3</span>
-<span class="w">   </span><span class="mf">444</span>
-<span class="mf">1234</span><span class="n">X4321</span>
-<span class="w">  </span><span class="mf">3</span><span class="w"> </span><span class="mf">3</span><span class="w"> </span><span class="mf">3</span>
-<span class="w"> </span><span class="mf">2</span><span class="w">  </span><span class="mf">2</span><span class="w">  </span><span class="mf">2</span>
-<span class="mf">1</span><span class="w">   </span><span class="mf">1</span><span class="w">   </span><span class="mf">1</span>
+    <p>I want to use minimax search (with alpha-beta pruning), or rather negamax
+search, to make a computer program play a card game.</p>
+<p>The card game actually consists of 4 players. So in order to be able to use
+minimax etc., I simplify the game to "me" against the "others". After each
+"move", you can objectively read the current state's evaluation from the game
+itself. When all 4 players have placed the card, the highest wins them all -
+and the cards' values count.</p>
+<p>As you don't know how the distribution of cards between the other 3 players is
+exactly, I thought you must simulate all possible distributions ("worlds")
+with the cards that are not yours. You have 12 cards, the other 3 players have
+36 cards in total.</p>
+<p>So my approach is this algorithm, where <code>player</code> is a number between 1 and 3
+symbolizing the three computer players that the program might need to find
+moves for. And <code>-player</code> stands for the opponents, namely all the other three
+players together.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">private</span><span class="w"> </span><span class="nv">Card</span><span class="w"> </span><span class="nv">computerPickCard</span><span class="ss">(</span><span class="nv">GameState</span><span class="w"> </span><span class="nv">state</span>,<span class="w"> </span><span class="nv">ArrayList</span><span class="o">&lt;</span><span class="nv">Card</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">cards</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">int</span><span class="w"> </span><span class="nv">bestScore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">Integer</span>.<span class="nv">MIN_VALUE</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">Card</span><span class="w"> </span><span class="nv">bestMove</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">null</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">int</span><span class="w"> </span><span class="nv">nCards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">cards</span>.<span class="nv">size</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; i &lt; nCards; i++) {</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">state</span>.<span class="nv">moveIsLegal</span><span class="ss">(</span><span class="nv">cards</span>.<span class="nv">get</span><span class="ss">(</span><span class="nv">i</span><span class="ss">)))</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="nv">are</span><span class="w"> </span><span class="nv">allowed</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">place</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">card</span>
+<span class="w">            </span><span class="nv">int</span><span class="w"> </span><span class="nv">score</span><span class="c1">;</span>
+<span class="w">            </span><span class="nv">GameState</span><span class="w"> </span><span class="nv">futureState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">testMove</span><span class="ss">(</span><span class="nv">cards</span>.<span class="nv">get</span><span class="ss">(</span><span class="nv">i</span><span class="ss">))</span><span class="c1">; // a move is the placing of a card (which returns a new game state)</span>
+<span class="w">            </span><span class="nv">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">negamaxSearch</span><span class="ss">(</span><span class="o">-</span><span class="nv">state</span>.<span class="nv">getPlayersTurn</span><span class="ss">()</span>,<span class="w"> </span><span class="nv">futureState</span>,<span class="w"> </span><span class="mi">1</span>,<span class="w"> </span><span class="nv">Integer</span>.<span class="nv">MIN_VALUE</span>,<span class="w"> </span><span class="nv">Integer</span>.<span class="nv">MAX_VALUE</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">score</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">bestScore</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">                </span><span class="nv">bestScore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">score</span><span class="c1">;</span>
+<span class="w">                </span><span class="nv">bestMove</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">cards</span>.<span class="nv">get</span><span class="ss">(</span><span class="nv">i</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">            </span>}
+<span class="w">        </span>}
+<span class="w">    </span>}
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="nv">now</span><span class="w"> </span><span class="nv">bestMove</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">card</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">place</span>
+}
+
+<span class="nv">private</span><span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">negamaxSearch</span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">player</span>,<span class="w"> </span><span class="nv">GameState</span><span class="w"> </span><span class="nv">state</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">depthLeft</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">alpha</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">beta</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">ArrayList</span><span class="o">&lt;</span><span class="nv">Card</span><span class="o">&gt;</span><span class="w"> </span><span class="nv">cards</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">player</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">player</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">3</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">        </span><span class="nv">cards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="nv">player</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span>}
+<span class="w">    </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">player</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">            </span><span class="nv">cards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">0</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">            </span><span class="nv">cards</span>.<span class="nv">addAll</span><span class="ss">(</span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">2</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">            </span><span class="nv">cards</span>.<span class="nv">addAll</span><span class="ss">(</span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">3</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">        </span>}
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">player</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">2</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">            </span><span class="nv">cards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">0</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">            </span><span class="nv">cards</span>.<span class="nv">addAll</span><span class="ss">(</span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">1</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">            </span><span class="nv">cards</span>.<span class="nv">addAll</span><span class="ss">(</span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">3</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">        </span>}
+<span class="w">        </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">            </span><span class="nv">cards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">0</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">            </span><span class="nv">cards</span>.<span class="nv">addAll</span><span class="ss">(</span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">1</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">            </span><span class="nv">cards</span>.<span class="nv">addAll</span><span class="ss">(</span><span class="nv">state</span>.<span class="nv">getCards</span><span class="ss">(</span><span class="mi">2</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">        </span>}
+<span class="w">    </span>}
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">depthLeft</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">isEnd</span><span class="ss">())</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">recursion</span><span class="w"> </span><span class="nv">as</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">game</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">finished</span><span class="w"> </span><span class="nv">or</span><span class="w"> </span><span class="nv">max</span><span class="w"> </span><span class="nv">depth</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">reached</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">player</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">player</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">3</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">getCurrentPoints</span><span class="ss">(</span><span class="nv">player</span><span class="ss">)</span><span class="c1">; // player's points as a positive value (for self)</span>
+<span class="w">        </span>}
+<span class="w">        </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="nv">state</span>.<span class="nv">getCurrentPoints</span><span class="ss">(</span><span class="o">-</span><span class="nv">player</span><span class="ss">)</span><span class="c1">; // player's points as a negative value (for others)</span>
+<span class="w">        </span>}
+<span class="w">    </span>}
+<span class="w">    </span><span class="k">else</span><span class="w"> </span>{
+<span class="w">        </span><span class="nv">int</span><span class="w"> </span><span class="nv">score</span><span class="c1">;</span>
+<span class="w">        </span><span class="nv">int</span><span class="w"> </span><span class="nv">nCards</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">cards</span>.<span class="nv">size</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">player</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="ss">)</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nv">make</span><span class="w"> </span><span class="nv">one</span><span class="w"> </span><span class="nv">move</span><span class="w"> </span><span class="ss">(</span><span class="nv">it</span><span class="s1">'s player'</span><span class="nv">s</span><span class="w"> </span><span class="nv">turn</span><span class="ss">)</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; i &lt; nCards; i++) {</span>
+<span class="w">                </span><span class="nv">GameState</span><span class="w"> </span><span class="nv">futureState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">testMove</span><span class="ss">(</span><span class="nv">cards</span>.<span class="nv">get</span><span class="ss">(</span><span class="nv">i</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">futureState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nv">wenn</span><span class="w"> </span><span class="nv">Zug</span><span class="w"> </span><span class="nv">g</span>ü<span class="nv">ltig</span><span class="w"> </span><span class="nv">ist</span>
+<span class="w">                    </span><span class="nv">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">negamaxSuche</span><span class="ss">(</span><span class="o">-</span><span class="nv">player</span>,<span class="w"> </span><span class="nv">futureState</span>,<span class="w"> </span><span class="nv">depthLeft</span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="o">-</span><span class="nv">beta</span>,<span class="w"> </span><span class="o">-</span><span class="nv">alpha</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">score</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nv">beta</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">                        </span><span class="k">return</span><span class="w"> </span><span class="nv">score</span><span class="c1">;</span>
+<span class="w">                    </span>}
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">score</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">alpha</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">                        </span><span class="nv">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">score</span><span class="c1">; // alpha acts like max</span>
+<span class="w">                    </span>}
+<span class="w">                </span>}
+<span class="w">            </span>}
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nv">alpha</span><span class="c1">;</span>
+<span class="w">        </span>}
+<span class="w">        </span><span class="k">else</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nv">make</span><span class="w"> </span><span class="nv">three</span><span class="w"> </span><span class="nv">moves</span><span class="w"> </span><span class="ss">(</span><span class="nv">it</span><span class="s1">'s the others'</span><span class="w"> </span><span class="nv">turn</span><span class="ss">)</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; i &lt; nCards; i++) {</span>
+<span class="w">                </span><span class="nv">GameState</span><span class="w"> </span><span class="nv">futureState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">state</span>.<span class="nv">testMove</span><span class="ss">(</span><span class="nv">cards</span>.<span class="nv">get</span><span class="ss">(</span><span class="nv">i</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">futureState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">move</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">valid</span>
+<span class="w">                    </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; k &lt; nCards; k++) {</span>
+<span class="w">                        </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">k</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">i</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">                            </span><span class="nv">GameState</span><span class="w"> </span><span class="nv">futureStateLevel2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">futureState</span>.<span class="nv">testMove</span><span class="ss">(</span><span class="nv">cards</span>.<span class="nv">get</span><span class="ss">(</span><span class="nv">k</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">                            </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">futureStateLevel2</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">move</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">valid</span>
+<span class="w">                                </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; m &lt; nCards; m++) {</span>
+<span class="w">                                    </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">m</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">m</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">k</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">                                        </span><span class="nv">GameState</span><span class="w"> </span><span class="nv">futureStateLevel3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">futureStateLevel2</span>.<span class="nv">testMove</span><span class="ss">(</span><span class="nv">cards</span>.<span class="nv">get</span><span class="ss">(</span><span class="nv">m</span><span class="ss">))</span><span class="c1">;</span>
+<span class="w">                                        </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">futureStateLevel3</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nv">null</span><span class="ss">)</span><span class="w"> </span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">move</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">valid</span>
+<span class="w">                                            </span><span class="nv">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">negamaxSuche</span><span class="ss">(</span><span class="o">-</span><span class="nv">player</span>,<span class="w"> </span><span class="nv">futureStateLevel3</span>,<span class="w"> </span><span class="nv">depthLeft</span><span class="o">-</span><span class="mi">1</span>,<span class="w"> </span><span class="o">-</span><span class="nv">beta</span>,<span class="w"> </span><span class="o">-</span><span class="nv">alpha</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">                                            </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">score</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nv">beta</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">                                                </span><span class="k">return</span><span class="w"> </span><span class="nv">score</span><span class="c1">;</span>
+<span class="w">                                            </span>}
+<span class="w">                                            </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">score</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">alpha</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">                                                </span><span class="nv">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">score</span><span class="c1">; // alpha acts like max</span>
+<span class="w">                                            </span>}
+<span class="w">                                        </span>}
+<span class="w">                                    </span>}
+<span class="w">                                </span>}
+<span class="w">                            </span>}
+<span class="w">                        </span>}
+<span class="w">                    </span>}
+<span class="w">                </span>}
+<span class="w">            </span>}
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nv">alpha</span><span class="c1">;</span>
+<span class="w">        </span>}
+<span class="w">    </span>}
+}
 </pre></div>
 
-<p>Then it simply scanned the array for an open location with the lowest or
-highest value.</p>
-<p>Things I'm fuzzy on:</p>
-<ul>
-<li>Perhaps it had two arrays, one for me and one for itself and there was a min/max weighting?</li>
-<li>There might've been more to the algorithm, but at its core it was basically an array and weighted numbers</li>
-</ul>
-<p>Does this ring a bell with anyone at all? Anyone got anything that would help?</p>
+<p>This seems to work fine, but for a depth of 1 (<code>depthLeft=1</code>), the program
+already needs to calculate 50,000 moves (placed cards) on average. This is too
+much, of course!</p>
+<p>So my questions are:</p>
+<ol>
+<li>Is the implementation correct at all? Can you simulate a game like this? Regarding the imperfect information, especially?</li>
+<li>How can you improve the algorithm in speed and work load?</li>
+<li>Can I, for example, reduce the set of possible moves to a random set of 50% to improve speed, while keeping good results?</li>
+<li>I found UCT algorithm to be a good solution (maybe). Do you know this algorithm? Can you help me implementing it?</li>
+</ol>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Reading your description, and thinking a little about it, I think it probably
-works with a single array, exactly the way you described.</p>
-<p>To accomplish the goal of getting five-in-a-row you have to (a) prevent the
-opponent from succeeding and (b) succeed yourself.</p>
-<p>To succeed yourself, you have to place stones near other stones you already
-have on the board, so it makes sense to add a positive score for fields next
-to your stones that could participate in a row. Either the linear example you
-gave, or something quadratic would probably work well.</p>
-<p>To prevent your opponent from succeeding, you have to place stones next to
-<em>his</em> / <em>her</em> stones. It's especially good if you strike two birds with a
-single stone, so opponent's stones should increase the value of the
-surrounding fields the same way yours do -- the more stones he already has
-lined up, the higher the score, and the more likely the algorithm will try to
-cut the opponent off.</p>
-<p>The most important thing here is the weighting of the different fields, and
-whether the opponent's stones are weighted differently than yours.
-Unfortunately I can't help with that, but the values should be reasonably
-simple to figure out through trial and error once the game itself is written.</p>
-<p>However this is a very basic approach, and would be outperformed by a tree
-search algorithm. Searching Google, there's a related paper on Threat search,
-which apparently works well for Gomoku. The paper is behind a pay-wall though
-:/</p>
+<p>Minimax search as you've implemented it is the wrong approach for games where
+there is so much uncertainty. Since you don't know the card distribution among
+the other players, your search will spend an exponential amount of time
+exploring games that could not happen given the actual distribution of the
+cards.</p>
+<p>I think a better approach would be to start with good rules for play when you
+have little or no information about the other players' hands. Things like:</p>
+<ol>
+<li>If you play first in a round, play your lowest card since you have little chance of winning the round.</li>
+<li>If you play last in a round, play your lowest card that will win the round. If you can't win the round, then play your lowest card.</li>
+</ol>
+<p>Have your program initially not bother with search and just play by these
+rules <em>and have it assume that all the other players will use these heuristics
+as well.</em> As the program observes what cards the first and last players of
+each round play it can build up a table of information about the cards each
+player likely holds. E.g. a 9 would have won this round, but player 3 didn't
+play it so he must not have any cards 9 or higher. As information is gathered
+about each player's hand the search space will eventually be constrained to
+the point where a minimax search of possible games could produce useful
+information about the next card to play.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>I haven't read the article, but from the description my guess would be some
-form of the Minimax algorithm</p>
+<p>Minimax search as you've implemented it is the wrong approach for games where
+there is so much uncertainty. Since you don't know the card distribution among
+the other players, your search will spend an exponential amount of time
+exploring games that could not happen given the actual distribution of the
+cards.</p>
+<p>I think a better approach would be to start with good rules for play when you
+have little or no information about the other players' hands. Things like:</p>
+<ol>
+<li>If you play first in a round, play your lowest card since you have little chance of winning the round.</li>
+<li>If you play last in a round, play your lowest card that will win the round. If you can't win the round, then play your lowest card.</li>
+</ol>
+<p>Have your program initially not bother with search and just play by these
+rules <em>and have it assume that all the other players will use these heuristics
+as well.</em> As the program observes what cards the first and last players of
+each round play it can build up a table of information about the cards each
+player likely holds. E.g. a 9 would have won this round, but player 3 didn't
+play it so he must not have any cards 9 or higher. As information is gathered
+about each player's hand the search space will eventually be constrained to
+the point where a minimax search of possible games could produce useful
+information about the next card to play.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/a-i-how-would-i-train-a-neural-network-across-multiple-machines/" class="u-url">A.I.: How would I train a Neural Network across multiple machines?</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-you-derive-the-time-complexity-of-alpha-beta-pruning/" class="u-url">How do you derive the time complexity of alpha-beta pruning?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/a-i-how-would-i-train-a-neural-network-across-multiple-machines/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:27:19+08:00" itemprop="datePublished" title="2023-02-28 03:27">2023-02-28 03:27</time></a>
+            <a href="posts/how-do-you-derive-the-time-complexity-of-alpha-beta-pruning/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:30:46+08:00" itemprop="datePublished" title="2023-02-28 03:30">2023-02-28 03:30</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>So, for larger networks with large data sets, they take a while to train. It
-would be awesome if there was a way to share the computing time across
-multiple machines. However, the issue with that is that when a neural network
-is training, the weights are constantly being altered every iteration, and
-each iteration is more or less based on the last -- which makes the idea of
-distributed computing at the very least a challenge.</p>
-<p>I've thought that for each portion of the network, the server could send maybe
-a 1000 sets of data to train a network on... but... you'd have roughly the
-same computing time as I wouldn't be able to train on different sets of data
-simultaneously (which is what I want to do).</p>
-<p>But even if I could split up the network's training into blocks of different
-data sets to train on, how would I know when I'm done with that set of data?
-especially if the amount of data sent to the client machine isn't enough to
-achieve the desired error?</p>
-<p>I welcome all ideas.</p>
+    <p>I understand the basics of minimax and alpha-beta pruning. In all the
+literature, they talk about the time complexity for the best case is
+O(b^(d/2)) where b = branching factor and d = depth of the tree, and the base
+case is when all the preferred nodes are expanded first.</p>
+<p>In my example of the "best case", I have a binary tree of 4 levels, so out of
+the 16 terminal nodes, I need to expand at most 7 nodes. How does this relate
+to O(b^(d/2))?</p>
+<p>I don't understand how they come to O(b^(d/2)).</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Quoting
-http://en.wikipedia.org/wiki/Backpropagation#Multithreaded_Backpropagation:</p>
+<p>O(b^(d/2)) correspond to the best case time complexity of alpha-beta pruning.
+Explanation:</p>
 <blockquote>
-<p>When multicore computers are used multithreaded techniques can greatly
-decrease the amount of time that backpropagation takes to converge. If
-batching is being used, it is relatively simple to adapt the backpropagation
-algorithm to operate in a multithreaded manner.</p>
-<p>The training data is broken up into equally large batches for each of the
-threads. Each thread executes the forward and backward propagations. The
-weight and threshold deltas are summed for each of the threads. At the end
-of each iteration all threads must pause briefly for the weight and
-threshold deltas to be summed and applied to the neural network.</p>
+<p>With an (average or constant) branching factor of b, and a search depth of d
+plies, the maximum number of leaf node positions evaluated (when the move
+ordering is pessimal) is O(b <em>b</em>...<em>b) = O(b^d) – the same as a simple
+minimax search. If the move ordering for the search is optimal (meaning the
+best moves are always searched first), the number of leaf node positions
+evaluated is about O(b</em>1<em>b</em>1<em>...</em>b) for odd depth and O(b<em>1</em>b<em>1</em>...*1) for
+even depth, or O(b^(d/2)). In the latter case, where the ply of a search is
+even, the effective branching factor is reduced to its square root, or,
+equivalently, the search can go twice as deep with the same amount of
+computation.</p>
+<p>The explanation of b<em>1</em>b<em>1</em>... is that all the first player's moves must be
+studied to find the best one, but for each, only the best second player's
+move is needed to refute all but the first (and best) first player move –
+alpha–beta ensures no other second player moves need be considered.</p>
 </blockquote>
-<p>which is essentially what other answers here describe.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Depending on your ANN model you can exploit some parallelism on multiple
-machines by running the same model with the same training and validation data
-on multiple machines but set different ANN properies; initial values, ANN
-parameters, noise etc, for different runs.</p>
-<p>I used to do this a lot to make sure I'd explored the problem space
-effectively and wasn't stuck in local minima etc. This is a very easy way to
-take advantage of multiple machines without having to recode your algorith.
-Just another approach you might want to consider.</p>
+<p>Put simply, you "skip" every two level:</p>
+<p><img alt="enter image description here" src="images/kuAI1.png"></p>
+<p>O describes the limiting behavior of a function when the argument tends
+towards a particular value or infinity, so in your case comparing precisely
+O(b^(d/2)) with small values of b and d doesn't really make sense.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/randomness-in-artificial-intelligence-machine-learning/" class="u-url">Randomness in Artificial Intelligence &amp; Machine Learning</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-do-neural-networks-work-so-well/" class="u-url">Why do neural networks work so well?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/randomness-in-artificial-intelligence-machine-learning/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:26:55+08:00" itemprop="datePublished" title="2023-02-28 03:26">2023-02-28 03:26</time></a>
+            <a href="posts/why-do-neural-networks-work-so-well/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:30:22+08:00" itemprop="datePublished" title="2023-02-28 03:30">2023-02-28 03:30</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>This question came to my mind while working on 2 projects in AI and ML. What
-If I'm building a model (e.g. Classification Neural Network,K-NN, .. etc) and
-this model uses some function that includes randomness. If I don't fix the
-seed, then I'm going to get different accuracy results every time I run the
-algorithm on the same training data. However, If I fix it then some other
-setting might give better results.</p>
-<p>Is averaging a set of accuracies enough to say that the accuracy of this model
-is xx % ?</p>
-<p>I'm not sure If this is the right place to ask such a question/open such a
-discussion.</p>
+    <p>I understand all the computational steps of training a neural network with
+gradient descent using forwardprop and backprop, but I'm trying to wrap my
+head around why they work so much better than logistic regression.</p>
+<p>For now all I can think of is:</p>
+<p>A) the neural network can learn it's own parameters</p>
+<p>B) there are many more weights than simple logistic regression thus allowing
+for more complex hypotheses</p>
+<p>Can someone explain why a neural network works so well in general? I am a
+relative beginner.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>There are models which are naturally dependent on randomness (e.g., random
-forests) and models which only use randomness as part of exploring the space
-(e.g., initialisation of values for neural networks), but actually have a
-well-defined, deterministic, objective function.</p>
-<p>For the first case, you will want to use multiple seeds and report average
-accuracy, std. deviation, and the minimum you obtained. It is often good if
-you have a way to reproduce this, so just use multiple fixed seeds.</p>
-<p>For the second case, you can always tell, just on the training data, which run
-is best (although it might actually not be the one which gives you the best
-test accuracy!). Thus, if you have the time, it is good to do say, 10 runs,
-and then evaluate on the one with the best training error (or validation
-error, just <em>never</em> evaluate on <em>testing</em> for this decision). You can go a
-level up and do multiple multiple runs and get a standard deviation too.
-However, if you find that this is significant, it probably means you weren't
-trying enough initialisations or that you are not using the right model for
-your data.</p>
+<p>Neural Networks can have a large number of free parameters (the weights and
+biases between interconnected units) and this gives them the flexibility to
+fit highly complex data (when trained correctly) that other models are too
+simple to fit. This model complexity brings with it the problems of training
+such a complex network and ensuring the resultant model generalises to the
+examples it’s trained on (typically neural networks require large volumes of
+training data, that other models don't).</p>
+<p>Classically logistic regression has been limited to binary classification
+using a linear classifier (although multi-class classification can easily be
+achieved with one-vs-all, one-vs-one approaches etc. and there are kernalised
+variants of logistic regression that allow for non-linear classification
+tasks). In general therefore, logistic regression is typically applied to more
+simple, linearly-separable classification tasks, where small amounts of
+training data are available.</p>
+<p>Models such as logistic regression and linear regression can be thought of as
+simple multi-layer perceptrons (check out this site for one explanation of
+how).</p>
+<p>To conclude, it’s the model complexity that allows neural nets to solve more
+complex classification tasks, and to have a broader application (particularly
+when applied to raw data such as image pixel intensities etc.), but their
+complexity means that large volumes of training data are required and training
+them can be a difficult task.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>There are models which are naturally dependent on randomness (e.g., random
-forests) and models which only use randomness as part of exploring the space
-(e.g., initialisation of values for neural networks), but actually have a
-well-defined, deterministic, objective function.</p>
-<p>For the first case, you will want to use multiple seeds and report average
-accuracy, std. deviation, and the minimum you obtained. It is often good if
-you have a way to reproduce this, so just use multiple fixed seeds.</p>
-<p>For the second case, you can always tell, just on the training data, which run
-is best (although it might actually not be the one which gives you the best
-test accuracy!). Thus, if you have the time, it is good to do say, 10 runs,
-and then evaluate on the one with the best training error (or validation
-error, just <em>never</em> evaluate on <em>testing</em> for this decision). You can go a
-level up and do multiple multiple runs and get a standard deviation too.
-However, if you find that this is significant, it probably means you weren't
-trying enough initialisations or that you are not using the right model for
-your data.</p>
+<p>Recently Dr. Naftali Tishby's idea of Information Bottleneck to explain the
+effectiveness of deep neural networks is making the rounds in the academic
+circles. His video explaining the idea (link below) can be rather dense so
+I'll try to give the distilled/general form of the core idea to help build
+intuition</p>
+<p>https://www.youtube.com/watch?v=XL07WEc2TRI</p>
+<p>To ground your thinking, vizualize the MNIST task of classifying the digit in
+the image. For this, I am only talking about simple fully-connected neural
+networks (not Convolutional NN as is typically used for MNIST)</p>
+<p>The input to a NN contains information about the output hidden inside of it.
+Some function is needed to transform the input to the output form. Pretty
+obvious. The key difference in thinking needed to build better intuition is to
+think of the input as a signal with "information" in it (I won't go into
+information theory here). Some of this information is relevant for the task at
+hand (predicting the output). Think of the output as also a signal with a
+certain amount of "information". The neural network tries to "successively
+refine" and compress the input signal's information to match the desired
+output signal. Think of each layer as cutting away at the unneccessary parts
+of the input information, and keeping and/or transforming the output
+information along the way through the network. The fully-connected neural
+network will transform the input information into a form in the final hidden
+layer, such that it is linearly separable by the output layer.</p>
+<p>This is a very high-level and fundamental interpretation of the NN, and I hope
+it will help you see it clearer. If there are parts you'd like me to clarify,
+let me know.</p>
+<p>There are other essential pieces in Dr.Tishby's work, such as how minibatch
+noise helps training, and how the weights of a neural network layer can be
+seen as doing a random walk within the constraints of the problem. These parts
+are a little more detailed, and I'd recommend first toying with neural
+networks and taking a course on Information Theory to help build your
+understanding.</p>
     </div>
     </article>
 </div>
@@ -303,7 +426,7 @@ your data.</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

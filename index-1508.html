@@ -108,114 +108,188 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/node-js-or-go-for-hyperledger-fabric-s-chaincode-development/" class="u-url">Node.js or Go for Hyperledger Fabric's chaincode development?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/hash-function-producing-inconsistent-hashes/" class="u-url">hash() function producing inconsistent hashes</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/node-js-or-go-for-hyperledger-fabric-s-chaincode-development/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:26:43+08:00" itemprop="datePublished" title="2023-02-28 05:26">2023-02-28 05:26</time></a>
+            <a href="posts/hash-function-producing-inconsistent-hashes/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:29:41+08:00" itemprop="datePublished" title="2023-02-28 05:29">2023-02-28 05:29</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>Which language among <code>Node.js</code> and <code>Go</code> is better suited for 'chaincode'
-development when it comes to maintainibility, scalability and better support?</p>
+    <p>I have a function that produces a <code>block</code> with some data in it:</p>
+<div class="code"><pre class="code literal-block">def new_block(self, proof, previous_hash=None):
+
+    ...
+
+    block = {
+        'message': 'New Block Forged',
+        'index': len(self.chain) + 1,
+        'transactions': self.current_transactions,
+        'proof': proof,
+        'previous_hash': previous_hash, or self.hash_block(self.chain[-1]),
+        'timestamp': response.tx_time or time(),
+    }
+</pre></div>
+
+<p><code>self.chain</code> is the list of blocks that the block is on. The <code>previous_hash</code>
+(the hash of the previous block), gets passed to the function, and a time
+stamp is created. Don't worry too much about the details of the actual data
+(well something could be wrong there, but it relates more to the <code>hash()</code>
+function than what is going on with the data)</p>
+<p>Next I hash the block, and add it to the block:</p>
+<p><code>block['hash'] = self.hash_block(block)</code></p>
+<p>The <code>hash_block</code> function looks like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@staticmethod</span>
+<span class="n">def</span><span class="w"> </span><span class="n">hash_block</span><span class="p">(</span><span class="n">block</span><span class="p">)</span><span class="err">:</span>
+
+<span class="w">    </span><span class="n">block_string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">json</span><span class="p">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">block</span><span class="p">,</span><span class="w"> </span><span class="n">sort_keys</span><span class="o">=</span><span class="k">True</span><span class="p">)</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">hash</span><span class="p">(</span><span class="n">block_string</span><span class="p">)</span>
+</pre></div>
+
+<p>This function creates a completely different hash than the next block in line
+says it has (the hash of the last block attached to the block in front, on the
+chain, does not match the <code>previous_hash</code> of the block in front. However, they
+are using the same function:</p>
+<p>This line: <code>'previous_hash': previous_hash or self.hash_block(self.chain[-1])</code></p>
+<p>and this line: <code>block['hash'] = self.hash_block(block)</code></p>
+<p>Are the important lines (and the <code>hash_block</code>) function. A block gets created,
+gets hashed and the hash gets attached, then another block gets created and
+hashes the previous block and it doesn't match the hash created for that block
+when the block is created.</p>
+<p>Also, I started out with hashlib.sha256, and when I noticed this problem i
+decided to see if it was the hashing function, so I switched to the <code>stock</code>
+hash, but I am still having the problem - ultimately I want this to work on
+<code>hashlib</code>, but I figure if I can get it to work with <code>hash</code> first...I will
+have solved the problem for <code>hashlib</code></p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>It's a matter of personal preference, but I'd say Golang, because:</p>
-<ul>
-<li>
-<p>Node.js chaincode uses npm install at the time of container building, which is slow and might fail due to network problems, while Golang just compiles the source code without fetching anything.</p>
-</li>
-<li>
-<p>Chaincode features are introduced to Golang chaincode first and then later on to other chaincode implementations. </p>
-</li>
-</ul>
-</div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-a-solana-rust-smart-contract-get-block-height-or-unix-time/" class="u-url">How can a Solana Rust smart contract get block height or Unix time?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-can-a-solana-rust-smart-contract-get-block-height-or-unix-time/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:26:23+08:00" itemprop="datePublished" title="2023-02-28 05:26">2023-02-28 05:26</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I know how to pass the current Unix time from the frontend:</p>
-<p>web3.js:</p>
-<div class="code"><pre class="code literal-block">anchor.web3.SYSVAR_CLOCK_PUBKEY
-</pre></div>
-
-<p>Rust:</p>
-<div class="code"><pre class="code literal-block">let current_time = ctx.accounts.clock.unix_timestamp;
-</pre></div>
-
-<p>I do not want that. I need the smart contract itself to get the current time.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I'm assuming you're using anchor</p>
-<div class="code"><pre class="code literal-block"><span class="nt">let</span><span class="w"> </span><span class="nt">now_ts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">Clock</span><span class="p">::</span><span class="nd">get</span><span class="o">()</span><span class="p">.</span><span class="nc">unwrap</span><span class="o">()</span><span class="p">.</span><span class="nc">unix_timestamp</span><span class="o">;</span>
-</pre></div>
-
-<p>You will need to pass in the system program account</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Take a look at the sysvar data examples at the top of this page:
-https://docs.solana.com/developing/runtime-facilities/sysvars</p>
-<p>You have two ways from the smart contract / on-chain program:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">let</span><span class="w"> </span><span class="nt">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">Clock</span><span class="p">::</span><span class="nd">get</span><span class="o">();</span>
-</pre></div>
-
-<p>or you pass in the account to the instruction from the outside, then
-deserialize the clock from that account:</p>
-<div class="code"><pre class="code literal-block"><span class="n">let</span><span class="w"> </span><span class="n">clock_sysvar_info</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">next_account_info</span><span class="p">(</span><span class="n">account_info_iter</span><span class="p">)</span><span class="err">?</span><span class="p">;</span>
-<span class="n">let</span><span class="w"> </span><span class="n">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Clock</span><span class="p">::</span><span class="n">from_account_info</span><span class="p">(</span><span class="o">&amp;</span><span class="n">clock_sysvar_info</span><span class="p">)</span><span class="err">?</span><span class="p">;</span>
-</pre></div>
+<p><code>hash()</code> is <strong>only suitable for producing mappings, hash tables</strong>. It uses a
+<strong>random seed</strong> to prevent attacks. It is <strong>not</strong> a cryptographic hash and
+should not be counted on to be stable across Python invocations.</p>
+<p>From the <code>hash()</code> function documentation:</p>
+<blockquote>
+<p>Return the hash value of the object (if it has one). Hash values are
+integers. <strong>They are used to quickly compare dictionary keys during a
+dictionary lookup.</strong> Numeric values that compare equal have the same hash
+value (even if they are of different types, as is the case for 1 and 1.0).</p>
+</blockquote>
+<p>and from the <code>__hash__</code> hook method, which <code>hash()</code> calls if present:</p>
+<blockquote>
+<p><strong>Note</strong> : By default, the <code>__hash__()</code> values of <code>str</code>, <code>bytes</code> and
+<code>datetime</code> objects are “salted” with an unpredictable random value. Although
+they remain constant within an individual Python process, they are not
+predictable between repeated invocations of Python.</p>
+</blockquote>
+<p>Stick to the <code>hashlib</code> module options; those are stable across calls.</p>
+<p>Apart from this, <em>within</em> a single Python process, <code>hash()</code> on objects with
+the same <em>value</em> , will also produce the exact same hash. Since your <code>block</code>
+dictionary changes between blocks (as it includes the hash for the preceding
+block in the chain), it will naturally <em>not</em> be the same string and so not the
+same hash value.</p>
+<p>The same applies to the <code>hashlib</code> functions; they produce the same value for
+the same input only. If your hash values differ, then the input differs. And
+your inputs naturally differ because each <code>block</code> dictionary includes a
+reference to the preceding hash.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/metamask-stopping-to-inject-web3-js/" class="u-url">Metamask stopping to inject web3.js</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-it-possible-to-predefine-smart-contracts-in-genesis-json/" class="u-url">Is it possible to predefine smart contracts in genesis.json?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/metamask-stopping-to-inject-web3-js/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:26:03+08:00" itemprop="datePublished" title="2023-02-28 05:26">2023-02-28 05:26</time></a>
+            <a href="posts/is-it-possible-to-predefine-smart-contracts-in-genesis-json/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:29:24+08:00" itemprop="datePublished" title="2023-02-28 05:29">2023-02-28 05:29</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>As we know, metamask will no longer inject web3.js starting Jan 13, 2020. What
-are the approaches we should take to stop the dependency on web3?</p>
-<p>Also how can we test it out with the existing Metamask that is injecting
-web3.js as of now.</p>
+    <p>I encountered exactly the same issue as this
+https://ethereum.stackexchange.com/questions/7707/is-it-possible-to-preload-
+contracts-in-the-genesis-block?rq=1</p>
+<p>Agian, is it possible to predefine a contract by assigning alloc -&gt; code field
+like this,</p>
+<p><img alt="enter image description here" src="images/28qsP.png"></p>
+<p>However, it seems like no matter which method in the contract I call, it
+always returns the Bytecode of the contract itself regardless of the logic and
+content of this method.</p>
+<p><img alt="enter image description here" src="images/Ujbax.png"></p>
+<p>And this might be the reason when I deploy a contract:</p>
+<p><img alt="enter image description here" src="images/ing5G.png"></p>
+<p>When I call test(), obtaining:</p>
+<p><img alt="enter image description here" src="images/Kc06Z.png"> which is not a string.</p>
+<p>When I call test2(), obtaining:</p>
+<p><img alt="enter image description here" src="images/b3qc1.png"> which is a very big number.</p>
+<p>When I call test3(1), obtaining a false, which is not 1 == 1.</p>
+<p>I have taken a look through the related threads, found this,
+https://ethereum.stackexchange.com/questions/30366/how-does-the-genesis-json-
+file-define-the-initial-state-of-the-blockchain</p>
+<p>It looks like the storage setting is necessary but I have totally no idea what
+key/value I should write.</p>
+<p>How could I deal with this case then?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p><code>window.ethereum</code> will still contain Web3 Provider. You can use it setup your
-web3 convenience library of choice such as web3.js or ethers.js. For example:</p>
-<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">Web3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'web3'</span><span class="p">);</span>
-<span class="o">//</span><span class="w"> </span><span class="n">web3</span><span class="w"> </span><span class="n">lib</span><span class="w"> </span><span class="n">instance</span>
-<span class="k">const</span><span class="w"> </span><span class="n">web3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Web3</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">ethereum</span><span class="p">);</span>
-<span class="o">//</span><span class="w"> </span><span class="n">get</span><span class="w"> </span><span class="n">all</span><span class="w"> </span><span class="n">accounts</span>
-<span class="k">const</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">web3</span><span class="o">.</span><span class="n">eth</span><span class="o">.</span><span class="n">getAccounts</span><span class="p">();</span>
-</pre></div>
-
+<blockquote>
+<p>However, it seems like no matter which method in the contract I call, it
+always returns the Bytecode of the contract itself regardless of the logic
+and content of this method.</p>
+</blockquote>
+<p>This sounds to me like you included <code>--bin</code> instead of <code>--bin-runtime</code> from
+<code>solc</code></p>
+<p>How did you generate the <code>code</code> to be included?</p>
+<p>The <code>--bin</code> code is the code that is run <em>on the contract creation
+transaction</em> , which returns the actual code to be included in the contract
+(which is <code>--bin-runtime</code>).</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/creating-a-internal-private-network-using-public-corda-v4-0/" class="u-url">Creating a internal private network using Public Corda v4.0</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/creating-a-internal-private-network-using-public-corda-v4-0/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:29:04+08:00" itemprop="datePublished" title="2023-02-28 05:29">2023-02-28 05:29</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Can i use Official Corda Docker Image to create a private internal corda
+network using the Non enterprise corda v4.0 ?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Whilst the answer about the enterprise network manager is correct if you wish
+to purchase the Corda Enterprise Network Manager.</p>
+<p>The guys over at cordite have built an excellent network-map/doorman which can
+be used in private networks: https://gitlab.com/cordite/network-map-service
+they are also in #cordite on cordaledger slack.</p>
+<p>IF you just want to get up and running quickly, there is a pre-built docker
+image that runs a doorman / networkmap using the development keystore
+available at: https://github.com/roastario/spring-boot-network-map</p>
 <p><br></p>
 <h3>Suggest</h3>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">Web3</span> <span class="kn">from</span> <span class="s2">"web3"</span><span class="p">;</span>
-
-<span class="n">let</span> <span class="n">web3</span><span class="p">;</span>
-<span class="n">const</span> <span class="n">ethEnabled</span> <span class="o">=</span> <span class="k">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">ethereum</span><span class="p">)</span> <span class="p">{</span>      
-      <span class="n">web3</span> <span class="o">=</span> <span class="n">new</span> <span class="n">Web3</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">ethereum</span><span class="p">);</span>
-      <span class="k">await</span> <span class="n">window</span><span class="o">.</span><span class="n">ethereum</span><span class="o">.</span><span class="n">enable</span><span class="p">();</span>
-    <span class="p">}</span>
-
-  <span class="p">}</span>
-<span class="n">ethEnabled</span><span class="p">();</span>
-<span class="n">export</span> <span class="n">default</span> <span class="n">web3</span><span class="p">;</span>
-</pre></div>
+<p>You can indeed! But there are some nuances here. A Corda Network is really an
+instance of the following:</p>
+<ul>
+<li>A network map - an IP-address book for nodes to lookup other nodes</li>
+<li>A permissioning service - issues certificates to allow entities onto the network</li>
+<li>A Notary - signs transactions to prevent double-spends</li>
+</ul>
+<p>We are working on productizing these services so that you can spin up your own
+private Corda Network (potentially in your LAN as you mentioned).</p>
+<p>Right now however, these tools have only been internally deployed in
+infrastructure provisioned by the Corda Foundation (an independent legal
+entity we set up to manage Corda Networks). The networks that are available
+now are UAT (user acceptance testing) and the Corda Network.</p>
+<p>You are free to join these networks and create your own business network.
+Which accomplishes the same thing using permissions at the software level. To
+do so you need to use BNMS - https://github.com/corda/corda-
+solutions/tree/master/bn-apps/memberships-management and join one of the
+existing networks that the Corda Foundation Manages (UAT / TestNet). Another
+helpful link is https://manosbatsis.github.io/corbeans/docs/starter-bnms.html
+which standardizes a web server for getting a node into BNMS.</p>
+<p>I will update this post when Corda Enterprise Network Manager is released
+(within the next few months)! (This is the name of the product that will
+include the notary, permissioning service and network map). Cheers!</p>
     </div>
     </article>
 </div>
@@ -232,7 +306,7 @@ web3 convenience library of choice such as web3.js or ethers.js. For example:</p
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

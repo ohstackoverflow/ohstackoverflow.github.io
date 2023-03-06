@@ -108,7 +108,143 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/google-chrome-redirecting-localhost-to-https/" class="u-url">Google Chrome redirecting localhost to https</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-hide-uinavigationbar-1px-bottom-line/" class="u-url">How to hide UINavigationBar 1px bottom line</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/how-to-hide-uinavigationbar-1px-bottom-line/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T07:02:51+08:00" itemprop="datePublished" title="2023-02-18 07:02">2023-02-18 07:02</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have an app that sometimes needs its navigation bar to blend in with the
+content.</p>
+<p>Does anyone know how to get rid of or to change color of this annoying little
+bar?</p>
+<p>On the image below situation i have - i'm talking about this 1px height line
+below "Root View Controller"</p>
+<p><img alt="enter image description here" src="images/iE0SO.png"></p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h2>For iOS 13:</h2>
+<p>Use the <code>.shadowColor</code> property</p>
+<blockquote>
+<p>If this property is nil or contains the clear color, the bar displays no
+shadow</p>
+</blockquote>
+<p>For instance:</p>
+<div class="code"><pre class="code literal-block">let navigationBar = navigationController?.navigationBar
+let navigationBarAppearance = UINavigationBarAppearance()
+navigationBarAppearance.shadowColor = .clear
+navigationBar?.scrollEdgeAppearance = navigationBarAppearance
+</pre></div>
+
+<h2>For iOS 12 and below:</h2>
+<p>To do this, you should set a custom shadow image. But for the shadow image to
+be shown you also need to set a custom background image, quote from Apple's
+documentation:</p>
+<blockquote>
+<p>For a custom shadow image to be shown, a custom background image must also
+be set with the setBackgroundImage(_:for:) method. If the default background
+image is used, then the default shadow image will be used regardless of the
+value of this property.</p>
+</blockquote>
+<p>So:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">let</span><span class="w"> </span><span class="nv">navigationBar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">navigationController</span><span class="o">!</span>.<span class="nv">navigationBar</span>
+<span class="nv">navigationBar</span>.<span class="nv">setBackgroundImage</span><span class="ss">(</span>#<span class="nv">imageLiteral</span><span class="ss">(</span><span class="nv">resourceName</span>:<span class="w"> </span><span class="s2">"BarBackground"</span><span class="ss">)</span>,
+<span class="w">                                                        </span><span class="k">for</span>:<span class="w"> </span>.<span class="nv">default</span><span class="ss">)</span>
+<span class="nv">navigationBar</span>.<span class="nv">shadowImage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">UIImage</span><span class="ss">()</span>
+</pre></div>
+
+<p><em>Above is the only "official" way to hide it. Unfortunately, it removes bar's
+translucency.</em></p>
+<h3>I don't want background image, just color</h3>
+<p>You have those options:</p>
+<ol>
+<li>
+<p>Solid color, no translucency:</p>
+<div class="code"><pre class="code literal-block"> navigationBar.barTintColor = UIColor.redColor()
+</pre></div>
+
+<p>navigationBar.isTranslucent = false
+ navigationBar.setBackgroundImage(UIImage(), for: .default)
+ navigationBar.shadowImage = UIImage()</p>
+</li>
+<li>
+<p>Create small background image filled with color and use it.</p>
+</li>
+<li>
+<p>Use 'hacky' method described below. It will also keep bar translucent.</p>
+</li>
+</ol>
+<h3>How to keep bar translucent?</h3>
+<p>To keep translucency you need another approach, it looks like a hack but works
+well. The shadow we're trying to remove is a hairline <code>UIImageView</code> somewhere
+under <code>UINavigationBar</code>. We can find it and hide/show it when needed.</p>
+<p>Instructions below assume you need hairline hidden only in one controller of
+your <code>UINavigationController</code> hierarchy.</p>
+<ol>
+<li>
+<p>Declare instance variable:</p>
+<div class="code"><pre class="code literal-block"><span class="n">private</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">shadowImageView</span><span class="p">:</span><span class="w"> </span><span class="n">UIImageView</span><span class="err">?</span>
+</pre></div>
+
+</li>
+<li>
+<p>Add method which finds this shadow (hairline) <code>UIImageView:</code></p>
+<div class="code"><pre class="code literal-block"><span class="n">private</span><span class="w"> </span><span class="k">func</span><span class="w"> </span><span class="n">findShadowImage</span><span class="p">(</span><span class="n">under</span><span class="w"> </span><span class="n">view</span><span class="p">:</span><span class="w"> </span><span class="n">UIView</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">UIImageView</span><span class="err">?</span><span class="w"> </span><span class="p">{</span>
+<span class="k">if</span><span class="w"> </span><span class="n">view</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">UIImageView</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">view</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">height</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">view</span><span class="w"> </span><span class="k">as</span><span class="o">!</span><span class="w"> </span><span class="n">UIImageView</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="k">for</span><span class="w"> </span><span class="n">subview</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">view</span><span class="o">.</span><span class="n">subviews</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">let</span><span class="w"> </span><span class="n">imageView</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">findShadowImage</span><span class="p">(</span><span class="n">under</span><span class="p">:</span><span class="w"> </span><span class="n">subview</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">imageView</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+<span class="k">return</span><span class="w"> </span><span class="n">nil</span>
+</pre></div>
+
+<p>}</p>
+</li>
+<li>
+<p>Add/edit <code>viewWillAppear/viewWillDisappear</code> methods:</p>
+<div class="code"><pre class="code literal-block"><span class="n">override</span><span class="w"> </span><span class="k">func</span><span class="w"> </span><span class="n">viewWillAppear</span><span class="p">(</span><span class="n">_</span><span class="w"> </span><span class="n">animated</span><span class="p">:</span><span class="w"> </span><span class="n">Bool</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="n">super</span><span class="o">.</span><span class="n">viewWillAppear</span><span class="p">(</span><span class="n">animated</span><span class="p">)</span>
+
+<span class="k">if</span><span class="w"> </span><span class="n">shadowImageView</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">shadowImageView</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">findShadowImage</span><span class="p">(</span><span class="n">under</span><span class="p">:</span><span class="w"> </span><span class="n">navigationController</span><span class="o">!.</span><span class="n">navigationBar</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="n">shadowImageView</span><span class="err">?</span><span class="o">.</span><span class="n">isHidden</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">true</span>
+</pre></div>
+
+<p>}</p>
+<p>override func viewWillDisappear(_ animated: Bool) {
+    super.viewWillDisappear(animated)</p>
+<div class="code"><pre class="code literal-block">shadowImageView?.isHidden = false
+</pre></div>
+
+<p>}</p>
+</li>
+</ol>
+<p>The same method should also work for <code>UISearchBar</code> hairline, and (almost)
+anything else you need to hide :)</p>
+<p><strong>Many thanks to @Leo Natan for the original idea!</strong></p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Here is the hack. Since it works on key paths might break in the future. But
+for now it works as expected.</p>
+<p><strong>Swift:</strong></p>
+<div class="code"><pre class="code literal-block">self.navigationController?.navigationBar.setValue(true, forKey: "hidesShadow")
+</pre></div>
+
+<p><strong>Objective C:</strong></p>
+<div class="code"><pre class="code literal-block"><span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">navigationController</span><span class="p">.</span><span class="n">navigationBar</span><span class="w"> </span><span class="n">setValue</span><span class="o">:</span><span class="l">@(</span><span class="nb">YES</span><span class="l">)</span><span class="w"> </span><span class="n">forKeyPath</span><span class="o">:</span><span class="s">@"hidesShadow"</span><span class="p">];</span>
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/google-chrome-redirecting-localhost-to-https/" class="u-url">Google Chrome redirecting localhost to https</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -266,127 +402,6 @@ view.layer.cornerRadius = 10
 view.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMinXMinYCorner] // Top right corner, Top left corner respectively
 </pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/pandas-read-csv-low-memory-and-dtype-options/" class="u-url">Pandas read_csv: low_memory and dtype options</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/pandas-read-csv-low-memory-and-dtype-options/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T07:01:25+08:00" itemprop="datePublished" title="2023-02-18 07:01">2023-02-18 07:01</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <div class="code"><pre class="code literal-block">df = pd.read_csv('somefile.csv')
-</pre></div>
-
-<p>...gives an error:</p>
-<blockquote>
-<p>.../site-packages/pandas/io/parsers.py:1130: DtypeWarning: Columns
-(4,5,7,16) have mixed types. Specify dtype option on import or set
-low_memory=False.</p>
-</blockquote>
-<p>Why is the <code>dtype</code> option related to <code>low_memory</code>, and why might
-<code>low_memory=False</code> help?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<h2>The deprecated low_memory option</h2>
-<p>The <code>low_memory</code> option is not properly deprecated, but it should be, since it
-does not actually do anything differently[source]</p>
-<p>The reason you get this <code>low_memory</code> warning is because guessing dtypes for
-each column is very memory demanding. Pandas tries to determine what dtype to
-set by analyzing the data in each column.</p>
-<h2>Dtype Guessing (very bad)</h2>
-<p>Pandas can only determine what dtype a column should have once the whole file
-is read. This means nothing can really be parsed before the whole file is read
-unless you risk having to change the dtype of that column when you read the
-last value.</p>
-<p>Consider the example of one file which has a column called user_id. It
-contains 10 million rows where the user_id is always numbers. Since pandas
-cannot know it is only numbers, it will probably keep it as the original
-strings until it has read the whole file.</p>
-<h2>Specifying dtypes (should always be done)</h2>
-<p>adding</p>
-<div class="code"><pre class="code literal-block">dtype={'user_id': int}
-</pre></div>
-
-<p>to the <code>pd.read_csv()</code> call will make pandas know when it starts reading the
-file, that this is only integers.</p>
-<p>Also worth noting is that if the last line in the file would have <code>"foobar"</code>
-written in the <code>user_id</code> column, the loading would crash if the above dtype
-was specified.</p>
-<h4>Example of broken data that breaks when dtypes are defined</h4>
-<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">StringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">StringIO</span>
-
-
-<span class="n">csvdata</span> <span class="o">=</span> <span class="s2">"""user_id,username</span>
-<span class="s2">1,Alice</span>
-<span class="s2">3,Bob</span>
-<span class="s2">foobar,Caesar"""</span>
-<span class="n">sio</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">(</span><span class="n">csvdata</span><span class="p">)</span>
-<span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">sio</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="p">{</span><span class="s2">"user_id"</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="s2">"username"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">})</span>
-
-<span class="ne">ValueError</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">literal</span> <span class="k">for</span> <span class="n">long</span><span class="p">()</span> <span class="k">with</span> <span class="n">base</span> <span class="mi">10</span><span class="p">:</span> <span class="s1">'foobar'</span>
-</pre></div>
-
-<p>dtypes are typically a numpy thing, read more about them here:
-http://docs.scipy.org/doc/numpy/reference/generated/numpy.dtype.html</p>
-<h2>What dtypes exists?</h2>
-<p>We have access to numpy dtypes: float, int, bool, timedelta64[ns] and
-datetime64[ns]. Note that the numpy date/time dtypes are <em>not</em> time zone
-aware.</p>
-<p>Pandas extends this set of dtypes with its own:</p>
-<p><code>'datetime64[ns, &lt;tz&gt;]'</code> Which is a time zone aware timestamp.</p>
-<p>'category' which is essentially an enum (strings represented by integer keys
-to save</p>
-<p>'period[]' Not to be confused with a timedelta, these objects are actually
-anchored to specific time periods</p>
-<p>'Sparse', 'Sparse[int]', 'Sparse[float]' is for sparse data or 'Data that has
-a lot of holes in it' Instead of saving the NaN or None in the dataframe it
-omits the objects, saving space.</p>
-<p>'Interval' is a topic of its own but its main use is for indexing. See more
-here</p>
-<p>'Int8', 'Int16', 'Int32', 'Int64', 'UInt8', 'UInt16', 'UInt32', 'UInt64' are
-all pandas specific integers that are nullable, unlike the numpy variant.</p>
-<p>'string' is a specific dtype for working with string data and gives access to
-the <code>.str</code> attribute on the series.</p>
-<p>'boolean' is like the numpy 'bool' but it also supports missing data.</p>
-<p>Read the complete reference here:</p>
-<p>Pandas dtype reference</p>
-<h2>Gotchas, caveats, notes</h2>
-<p>Setting <code>dtype=object</code> will silence the above warning, but will not make it
-more memory efficient, only process efficient if anything.</p>
-<p>Setting <code>dtype=unicode</code> will not do anything, since to numpy, a <code>unicode</code> is
-represented as <code>object</code>.</p>
-<h4>Usage of converters</h4>
-<p>@sparrow correctly points out the usage of converters to avoid pandas blowing
-up when encountering <code>'foobar'</code> in a column specified as <code>int</code>. I would like
-to add that converters are really heavy and inefficient to use in pandas and
-should be used as a last resort. This is because the read_csv process is a
-single process.</p>
-<p>CSV files can be processed line by line and thus can be processed by multiple
-converters in parallel more efficiently by simply cutting the file into
-segments and running multiple processes, something that pandas does not
-support. But this is a different story.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Try:</p>
-<div class="code"><pre class="code literal-block">dashboard_df = pd.read_csv(p_file, sep=',', error_bad_lines=False, index_col=False, dtype='unicode')
-</pre></div>
-
-<p>According to the pandas documentation:</p>
-<blockquote>
-<p>dtype : Type name or dict of column -&gt; type</p>
-</blockquote>
-<p>As for low_memory, it's True by default and isn't yet documented. I don't
-think its relevant though. The error message is generic, so you shouldn't need
-to mess with low_memory anyway. Hope this helps and let me know if you have
-further problems</p>
-    </div>
     </article>
 </div>
 
@@ -402,7 +417,7 @@ further problems</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

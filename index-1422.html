@@ -108,378 +108,251 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/chess-bug-in-alpha-beta/" class="u-url">Chess: Bug in Alpha-Beta</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-determine-subject-object-and-other-words/" class="u-url">How to determine subject, object and other words?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/chess-bug-in-alpha-beta/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:33:11+08:00" itemprop="datePublished" title="2023-02-28 03:33">2023-02-28 03:33</time></a>
+            <a href="posts/how-to-determine-subject-object-and-other-words/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:36:19+08:00" itemprop="datePublished" title="2023-02-28 03:36">2023-02-28 03:36</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I am implementing a chess engine, and I have written a fairly complex alpha-
-beta search routine with quiescence search and transposition tables. However,
-I am observing a strange bug.</p>
-<p>The evaluation function is using piece-square tables, like this one for pawns:</p>
-<div class="code"><pre class="code literal-block">static int ptable_pawn[64] = {  
-   0,  0,  0,  0,  0,  0,  0,  0,
-  30, 35, 35, 40, 40, 35, 35, 30,
-  20, 25, 25, 30, 30, 25, 25, 20,
-  10, 20, 20, 20, 20, 20, 20, 10,
-   3,  0, 14, 15, 15, 14,  0,  3,
-   0,  5,  3, 10, 10,  3,  5,  0,
-   5,  5,  5,  5,  5,  5,  5,  5,
-   0,  0,  0,  0,  0,  0,  0,  0
-};
-</pre></div>
-
-<p>When it is black's turn, the table is reflected across the x-axis.
-Specifically, if you are curious, lookups happen like this, where the columns
-A-H map to 0-7 and the rows are 0-7 from white's side:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">ptable_index_for_white</span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">col</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">row</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">col</span><span class="o">+</span><span class="mi">56</span><span class="o">-</span><span class="ss">(</span><span class="nv">row</span><span class="o">*</span><span class="mi">8</span><span class="ss">)</span><span class="c1">;</span>
-}
-
-<span class="nv">int</span><span class="w"> </span><span class="nv">ptable_index_for_black</span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">col</span>,<span class="w"> </span><span class="nv">int</span><span class="w"> </span><span class="nv">row</span><span class="ss">)</span><span class="w"> </span>{
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">col</span><span class="o">+</span><span class="ss">(</span><span class="nv">row</span><span class="o">*</span><span class="mi">8</span><span class="ss">)</span><span class="c1">;</span>
-}
-</pre></div>
-
-<p>So a pawn on h4 (coordinates 7, 3) is worth 3 points (centipawns) for white,
-and a pawn on f6 (coord 5, 5) is worth 3 centipawns for black.</p>
-<p>The entire evaluation function is currently piece-square tables and material.</p>
-<p>At greater search depths, my engine is choosing some genuinely horrible moves.
-Consider this output, generated from the starting position:</p>
-<div class="code"><pre class="code literal-block">Iterative Deepening Analysis Results (including cached analysis)
-Searching at depth 1... d1 [+0.10]: 1.b1c3 
-    (4 new nodes, 39 new qnodes, 0 qnode aborts, 0ms), 162kN/s
-Searching at depth 2... d2 [+0.00]: 1.e2e4 d7d5 
-    (34 new nodes, 78 new qnodes, 0 qnode aborts, 1ms), 135kN/s
-Searching at depth 3... d3 [+0.30]: 1.d2d4 d7d5 2.c1f4 
-    (179 new nodes, 1310 new qnodes, 0 qnode aborts, 4ms), 337kN/s
-Searching at depth 4... d4 [+0.00]: 1.g1f3 b8c6 2.e2e4 d7d5 
-    (728 new nodes, 2222 new qnodes, 0 qnode aborts, 14ms), 213kN/s
-Searching at depth 5... d5 [+0.20]: 1.b1a3 g8f6 2.d2d4 h8g8 3.c1f4 
-    (3508 new nodes, 27635 new qnodes, 0 qnode aborts, 103ms), 302kN/s
-Searching at depth 6... d6 [-0.08]: 1.d2d4 a7a5 2.c1f4 b7b6 3.f4c1 c8b7 
-    (21033 new nodes, 112915 new qnodes, 0 qnode aborts, 654ms), 205kN/s
-Searching at depth 7... d7 [+0.20]: 1.b1a3 g8f6 2.a1b1 h8g8 3.d2d4 g8h8 4.c1f4 
-    (39763 new nodes, 330837 new qnodes, 0 qnode aborts, 1438ms), 258kN/s
-Searching at depth 8... d8 [-0.05]: 1.e2e4 a7a6 2.e4e5 a6a5 3.h2h4 d7d6 4.e5d6 c7d6 
-    (251338 new nodes, 2054526 new qnodes, 0 qnode aborts, 12098ms), 191kN/s
-</pre></div>
-
-<p>At depth 8, notice that black opens with the moves "... a7a6 ... a6a5," which
-are horrible according to the piece-square table. Additionally, "h2h4" is a
-horrible move for white. Why is my search function choosing such bizarre
-moves? It's notable that this only starts happening at greater depths (the
-moves at depth 3 look fine).</p>
-<p>Moreover, the search often blunders away pieces! Consider the following
-position:</p>
-<p><img alt="Blunder" src="images/liacJ.png"></p>
-<p>The engine recommends a horrific blunder (3... f5h3), somehow missing the
-obvious reply (4. g2h3):</p>
-<div class="code"><pre class="code literal-block">Searching at depth 7... d7 [+0.17]: 3...f5h3 4.e3e4 h3g4 5.f2f3 g8f6 6.e4d5 f6d5 
-    (156240 new nodes, 3473795 new qnodes, 0 qnode aborts, 17715ms), 205kN/s
-</pre></div>
-
-<p>Quiescence search isn't involved, since the blunder happens at ply 1 (!!).</p>
-<p>Here is the code for my search functions. I'm sorry it's so lengthy: I
-simplified as best I could, but I can't know which parts are irrelevant to the
-bug. I assume my algorithm is somehow subtly wrong.</p>
-<p>The implementation is based on this one from Wikipedia, almost exactly.
-(Update: I have significantly simplified the search, and my bug is still
-present.)</p>
-<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">Unified</span><span class="w"> </span><span class="n">alpha</span><span class="o">-</span><span class="n">beta</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">quiescence</span><span class="w"> </span><span class="k">search</span>
-<span class="nc">int</span><span class="w"> </span><span class="n">abq</span><span class="p">(</span><span class="n">board</span><span class="w"> </span><span class="o">*</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">alpha</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">beta</span><span class="p">,</span><span class="w"> </span><span class="nc">int</span><span class="w"> </span><span class="n">ply</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="n">pthread_testcancel</span><span class="p">();</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">To</span><span class="w"> </span><span class="n">allow</span><span class="w"> </span><span class="k">search</span><span class="w"> </span><span class="n">worker</span><span class="w"> </span><span class="n">thread</span><span class="w"> </span><span class="n">termination</span>
-<span class="w">    </span><span class="n">bool</span><span class="w"> </span><span class="n">quiescence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ply</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Generate</span><span class="w"> </span><span class="ow">all</span><span class="w"> </span><span class="n">possible</span><span class="w"> </span><span class="n">moves</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">quiscence</span><span class="w"> </span><span class="k">search</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">normal</span><span class="w"> </span><span class="k">search</span><span class="p">,</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="k">compute</span><span class="w"> </span><span class="n">the</span>
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">evaluation</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">applicable</span><span class="p">.</span>
-<span class="w">    </span><span class="n">move</span><span class="w"> </span><span class="o">*</span><span class="n">moves</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
-<span class="w">    </span><span class="nc">int</span><span class="w"> </span><span class="n">num_available_moves</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">quiescence</span><span class="p">)</span><span class="w"> </span><span class="n">moves</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">board_moves</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">num_available_moves</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Generate</span><span class="w"> </span><span class="k">only</span><span class="w"> </span><span class="n">captures</span>
-<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="n">moves</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">board_moves</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">num_available_moves</span><span class="p">,</span><span class="w"> </span><span class="k">false</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Generate</span><span class="w"> </span><span class="ow">all</span><span class="w"> </span><span class="n">moves</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">quiescence</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="err">!</span><span class="n">useqsearch</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">relative_evaluation</span><span class="p">(</span><span class="n">b</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">If</span><span class="w"> </span><span class="n">qsearch</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">turned</span><span class="w"> </span><span class="k">off</span>
-
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Abort</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">quiescence</span><span class="w"> </span><span class="k">search</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">too</span><span class="w"> </span><span class="n">deep</span><span class="w"> </span><span class="p">(</span><span class="n">currently</span><span class="w"> </span><span class="mi">45</span><span class="w"> </span><span class="n">plies</span><span class="p">)</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ply</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="o">-</span><span class="n">quiesce_ply_cutoff</span><span class="p">)</span><span class="w"> </span><span class="err">{</span><span class="w"> </span>
-<span class="w">        </span><span class="n">sstats</span><span class="p">.</span><span class="n">qnode_aborts</span><span class="o">++</span><span class="p">;</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">relative_evaluation</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
-<span class="w">    </span><span class="err">}</span>
-
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Allow</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">quiescence</span><span class="w"> </span><span class="k">search</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">generate</span><span class="w"> </span><span class="n">cutoffs</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">quiescence</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">        </span><span class="nc">int</span><span class="w"> </span><span class="n">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">relative_evaluation</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
-<span class="w">        </span><span class="n">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">max</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span><span class="w"> </span><span class="n">score</span><span class="p">);</span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">alpha</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">beta</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">score</span><span class="p">;</span>
-<span class="w">    </span><span class="err">}</span>
-
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="k">Update</span><span class="w"> </span><span class="k">search</span><span class="w"> </span><span class="n">stats</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">quiescence</span><span class="p">)</span><span class="w"> </span><span class="n">sstats</span><span class="p">.</span><span class="n">qnodes_searched</span><span class="o">++</span><span class="p">;</span>
-<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="n">sstats</span><span class="p">.</span><span class="n">nodes_searched</span><span class="o">++</span><span class="p">;</span>
-
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="k">Search</span><span class="w"> </span><span class="nl">hueristic</span><span class="p">:</span><span class="w"> </span><span class="n">sort</span><span class="w"> </span><span class="n">exchanges</span><span class="w"> </span><span class="k">using</span><span class="w"> </span><span class="n">MVV</span><span class="o">-</span><span class="n">LVA</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">quiescence</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">mvvlva</span><span class="p">)</span><span class="w"> </span><span class="n">nlopt_qsort_r</span><span class="p">(</span><span class="n">moves</span><span class="p">,</span><span class="w"> </span><span class="n">num_available_moves</span><span class="p">,</span><span class="w"> </span><span class="n">sizeof</span><span class="p">(</span><span class="n">move</span><span class="p">),</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">capture_move_comparator</span><span class="p">);</span>
-
-<span class="w">    </span><span class="n">move</span><span class="w"> </span><span class="n">best_move_yet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">no_move</span><span class="p">;</span>
-<span class="w">    </span><span class="nc">int</span><span class="w"> </span><span class="n">best_score_yet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NEG_INFINITY</span><span class="p">;</span>
-<span class="w">    </span><span class="nc">int</span><span class="w"> </span><span class="n">num_moves_actually_examined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">We</span><span class="w"> </span><span class="n">might</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="n">up</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">checkmate</span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nc">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">num_available_moves</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">--</span><span class="p">)</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">Iterate</span><span class="w"> </span><span class="n">backwards</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="k">match</span><span class="w"> </span><span class="n">MVV</span><span class="o">-</span><span class="n">LVA</span><span class="w"> </span><span class="n">sort</span><span class="w"> </span><span class="k">order</span>
-<span class="w">        </span><span class="n">apply</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">moves</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">);</span>
-<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">never</span><span class="w"> </span><span class="n">move</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="k">check</span>
-<span class="w">        </span><span class="n">coord</span><span class="w"> </span><span class="n">king_loc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">black_to_move</span><span class="w"> </span><span class="vm">?</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">white_king</span><span class="w"> </span><span class="err">:</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">black_king</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">side</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">just</span><span class="w"> </span><span class="n">moved</span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">in_check</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">king_loc</span><span class="p">.</span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="n">king_loc</span><span class="p">.</span><span class="k">row</span><span class="p">,</span><span class="w"> </span><span class="err">!</span><span class="p">(</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">black_to_move</span><span class="p">)))</span><span class="w"> </span><span class="err">{</span>
-<span class="w">            </span><span class="n">unapply</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">moves</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">);</span>
-<span class="w">            </span><span class="k">continue</span><span class="p">;</span>
-<span class="w">        </span><span class="err">}</span>
-<span class="w">        </span><span class="nc">int</span><span class="w"> </span><span class="n">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="n">abq</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="n">beta</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="n">alpha</span><span class="p">,</span><span class="w"> </span><span class="n">ply</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
-<span class="w">        </span><span class="n">num_moves_actually_examined</span><span class="o">++</span><span class="p">;</span>
-<span class="w">        </span><span class="n">unapply</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">moves</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">);</span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">score</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">best_score_yet</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">            </span><span class="n">best_score_yet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">score</span><span class="p">;</span>
-<span class="w">            </span><span class="n">best_move_yet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">moves</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">;</span>
-<span class="w">        </span><span class="err">}</span>
-<span class="w">        </span><span class="n">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">max</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span><span class="w"> </span><span class="n">best_score_yet</span><span class="p">);</span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">alpha</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">beta</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span>
-<span class="w">    </span><span class="err">}</span>
-
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">We</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="k">no</span><span class="w"> </span><span class="n">available</span><span class="w"> </span><span class="n">moves</span><span class="w"> </span><span class="p">(</span><span class="ow">or</span><span class="w"> </span><span class="n">captures</span><span class="p">)</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">don</span><span class="s1">'t leave us in check</span>
-<span class="s1">    // This means checkmate or stalemate in normal search</span>
-<span class="s1">    // It might mean no captures are available in quiescence search</span>
-<span class="s1">    if (num_moves_actually_examined == 0) {</span>
-<span class="s1">        if (quiescence) return relative_evaluation(b); // TODO: qsearch doesn'</span><span class="n">t</span><span class="w"> </span><span class="n">understand</span><span class="w"> </span><span class="n">stalemate</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">checkmate</span>
-<span class="w">        </span><span class="n">coord</span><span class="w"> </span><span class="n">king_loc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">black_to_move</span><span class="w"> </span><span class="vm">?</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">black_king</span><span class="w"> </span><span class="err">:</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">white_king</span><span class="p">;</span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">in_check</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">king_loc</span><span class="p">.</span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="n">king_loc</span><span class="p">.</span><span class="k">row</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">black_to_move</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">NEG_INFINITY</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">checkmate</span>
-<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">stalemate</span>
-<span class="w">    </span><span class="err">}</span>
-
-<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">record</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">selected</span><span class="w"> </span><span class="n">move</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">transposition</span><span class="w"> </span><span class="nc">table</span>
-<span class="w">    </span><span class="n">evaltype</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">quiescence</span><span class="p">)</span><span class="w"> </span><span class="vm">?</span><span class="w"> </span><span class="n">qexact</span><span class="w"> </span><span class="err">:</span><span class="w"> </span><span class="n">exact</span><span class="p">;</span>
-<span class="w">    </span><span class="n">evaluation</span><span class="w"> </span><span class="n">eval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="p">.</span><span class="n">best</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">best_move_yet</span><span class="p">,</span><span class="w"> </span><span class="p">.</span><span class="n">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">best_score_yet</span><span class="p">,</span><span class="w"> </span><span class="p">.</span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">type</span><span class="p">,</span><span class="w"> </span><span class="p">.</span><span class="k">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ply</span><span class="err">}</span><span class="p">;</span>
-<span class="w">    </span><span class="n">tt_put</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">eval</span><span class="p">);</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">best_score_yet</span><span class="p">;</span>
-<span class="err">}</span>
-
-<span class="cm">/* </span>
-<span class="cm"> * Returns a relative evaluation of the board position from the perspective of the side about to move.</span>
-<span class="cm"> */</span>
-<span class="nc">int</span><span class="w"> </span><span class="n">relative_evaluation</span><span class="p">(</span><span class="n">board</span><span class="w"> </span><span class="o">*</span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="nc">int</span><span class="w"> </span><span class="n">evaluation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">evaluate</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">black_to_move</span><span class="p">)</span><span class="w"> </span><span class="n">evaluation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="n">evaluation</span><span class="p">;</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">evaluation</span><span class="p">;</span>
-<span class="err">}</span>
-</pre></div>
-
-<p>I am invoking the search like this:</p>
-<div class="code"><pre class="code literal-block">int result = abq(b, NEG_INFINITY, POS_INFINITY, ply);
-</pre></div>
-
-<p>Edit: The bug persists even when I have simplified the search routine. The
-engine simply blunders away pieces. You can see this easily by loading it in
-XBoard (or any other UCI-compatible GUI) and playing it against a strong
-engine. At manlio's request, I have uploaded the code:</p>
-<p>Here is the GitHub repository (link removed; problem was in snippet above). It
-will build using "make" on OS X or any *nix system.</p>
+    <p>I'm trying to implement application that can determine meaning of sentence, by
+dividing it to smaller pieces. So I need to know what words are subject,
+object etc. so that my program can know how to handle this sentence.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">score</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nv">best_score_yet</span><span class="ss">)</span><span class="w"> </span>{
-</pre></div>
-
-<p>should be:</p>
-<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">score</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">best_score_yet</span><span class="ss">)</span><span class="w"> </span>{
-</pre></div>
-
-<p>or you're going to consider bad moves. The first <code>best_move_yet</code> will be
-correct (since <code>best_score_yet = NEG_INFINITY</code>) but other moves with <code>score ==
-best_score_yet</code> aren't necessarily better.</p>
-<p>Changing that line:</p>
-<p><strong>Starting position</strong></p>
-<div class="code"><pre class="code literal-block"><span class="n">Iterative</span><span class="w"> </span><span class="n">Deepening</span><span class="w"> </span><span class="n">Analysis</span><span class="w"> </span><span class="n">Results</span><span class="w"> </span><span class="p">(</span><span class="n">including</span><span class="w"> </span><span class="n">cached</span><span class="w"> </span><span class="n">analysis</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">1.</span><span class="o">..</span><span class="w"> </span><span class="n">d1</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">0.10</span><span class="p">]:</span><span class="w"> </span><span class="mf">1.e2</span><span class="n">e4</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">65</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.00</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">2.</span><span class="o">..</span><span class="w"> </span><span class="n">d2</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">0.00</span><span class="p">]:</span><span class="w"> </span><span class="mf">1.e2</span><span class="n">e4</span><span class="w"> </span><span class="n">g8f6</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">21</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">41</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">132</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">26</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.00</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">25</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">3.</span><span class="o">..</span><span class="w"> </span><span class="n">d3</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">0.30</span><span class="p">]:</span><span class="w"> </span><span class="mf">1.</span><span class="n">d2d4</span><span class="w"> </span><span class="n">g8f6</span><span class="w"> </span><span class="mf">2.</span><span class="n">c1f4</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">118</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">247</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">73</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">187</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.00</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">161</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">4.</span><span class="o">..</span><span class="w"> </span><span class="n">d4</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">0.00</span><span class="p">]:</span><span class="w"> </span><span class="mf">1.e2</span><span class="n">e4</span><span class="w"> </span><span class="n">g8f6</span><span class="w"> </span><span class="mf">2.</span><span class="n">f1d3</span><span class="w"> </span><span class="n">b8c6</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">1519</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">3044</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">38</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">119</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">2622</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.01</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">2435</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">5.</span><span class="o">..</span><span class="w"> </span><span class="n">d5</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">0.10</span><span class="p">]:</span><span class="w"> </span><span class="mf">1.</span><span class="n">g2g3</span><span class="w"> </span><span class="n">g8f6</span><span class="w"> </span><span class="mf">2.</span><span class="n">f1g2</span><span class="w"> </span><span class="n">b8c6</span><span class="w"> </span><span class="mf">3.</span><span class="n">g2f3</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">10895</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">35137</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">251</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">184</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">30441</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.11</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">27819</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">6.</span><span class="o">..</span><span class="w"> </span><span class="n">d6</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mf">0.08</span><span class="p">]:</span><span class="w"> </span><span class="mf">1.</span><span class="n">d2d4</span><span class="w"> </span><span class="n">g8f6</span><span class="w"> </span><span class="mf">2.</span><span class="n">c1g5</span><span class="w"> </span><span class="n">b8c6</span><span class="w"> </span><span class="mf">3.</span><span class="n">g5f6</span><span class="w"> </span><span class="n">g7f6</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">88027</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">249718</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">1281</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">264</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">252536</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.91</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">222095</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">27</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">7.</span><span class="o">..</span><span class="w"> </span><span class="n">d7</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">0.15</span><span class="p">]:</span><span class="w"> </span><span class="mf">1.e2</span><span class="n">e4</span><span class="w"> </span><span class="n">g8f6</span><span class="w"> </span><span class="mf">2.</span><span class="n">d2d4</span><span class="w"> </span><span class="n">b8c6</span><span class="w"> </span><span class="mf">3.</span><span class="n">d4d5</span><span class="w"> </span><span class="n">c6b4</span><span class="w"> </span><span class="mf">4.</span><span class="n">g1f3</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">417896</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">1966379</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">8485</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">281</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">1957490</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">7.05</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">1704954</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">817</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-</pre></div>
-
-<p>While in the test position:</p>
-<div class="code"><pre class="code literal-block"><span class="n">Calculating</span><span class="o">...</span>
-<span class="n">Iterative</span><span class="w"> </span><span class="n">Deepening</span><span class="w"> </span><span class="n">Analysis</span><span class="w"> </span><span class="n">Results</span><span class="w"> </span><span class="p">(</span><span class="n">including</span><span class="w"> </span><span class="n">cached</span><span class="w"> </span><span class="n">analysis</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">1.</span><span class="o">..</span><span class="w"> </span><span class="n">d1</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">2.25</span><span class="p">]:</span><span class="w"> </span><span class="mf">3.</span><span class="o">..</span><span class="n">g8h6</span><span class="w"> </span><span class="mf">4.</span><span class="p">(</span><span class="n">q</span><span class="p">)</span><span class="n">c3d5</span><span class="w"> </span><span class="p">(</span><span class="n">q</span><span class="p">)</span><span class="n">d8d5</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">23</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.00</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">2.</span><span class="o">..</span><span class="w"> </span><span class="n">d2</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mf">0.13</span><span class="p">]:</span><span class="w"> </span><span class="mf">3.</span><span class="o">..</span><span class="n">f5e4</span><span class="w"> </span><span class="mf">4.</span><span class="n">c3e4</span><span class="w"> </span><span class="p">(</span><span class="n">q</span><span class="p">)</span><span class="n">d5e4</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">32</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">443</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">144</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">369</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.00</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">366</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">3.</span><span class="o">..</span><span class="w"> </span><span class="n">d3</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">0.25</span><span class="p">]:</span><span class="w"> </span><span class="mf">3.</span><span class="o">..</span><span class="n">g8h6</span><span class="w"> </span><span class="mf">4.</span><span class="n">c3e2</span><span class="w"> </span><span class="n">h6g4</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">230</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">2664</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">24</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">122</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">2526</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.01</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">2157</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">4.</span><span class="o">..</span><span class="w"> </span><span class="n">d4</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mf">0.10</span><span class="p">]:</span><span class="w"> </span><span class="mf">3.</span><span class="o">..</span><span class="n">g8f6</span><span class="w"> </span><span class="mf">4.e3</span><span class="n">e4</span><span class="w"> </span><span class="n">f5e6</span><span class="w"> </span><span class="mf">5.</span><span class="n">f1b5</span><span class="w"> </span>
-<span class="w">    </span><span class="p">(</span><span class="mi">2084</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">13998</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">162</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">    </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">15663</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.06</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">13137</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-<span class="n">Searching</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="mf">5.</span><span class="o">..</span><span class="w"> </span><span class="n">d5</span><span class="w"> </span><span class="p">[</span><span class="o">+</span><span class="mf">0.15</span><span class="p">]:</span><span class="w"> </span><span class="mf">3.</span><span class="o">..</span><span class="n">g8f6</span><span class="w"> </span><span class="mf">4.</span><span class="n">f1e2</span><span class="w"> </span><span class="n">h8g8</span><span class="w"> </span><span class="mf">5.</span><span class="n">g2g4</span><span class="w"> </span><span class="n">f5e4</span><span class="w"> </span><span class="mf">6.</span><span class="p">(</span><span class="n">q</span><span class="p">)</span><span class="n">c3e4</span><span class="w"> </span><span class="p">(</span><span class="n">q</span><span class="p">)</span><span class="n">f6e4</span><span class="w"> </span>
-<span class="w">   </span><span class="p">(</span><span class="mi">38987</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="mi">1004867</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">qnodes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">qnode</span><span class="w"> </span><span class="n">aborts</span><span class="p">,</span><span class="w"> </span><span class="mi">2765</span><span class="n">ms</span><span class="p">,</span><span class="w"> </span><span class="mi">378</span><span class="n">kN</span><span class="o">/</span><span class="n">s</span><span class="p">)</span>
-<span class="w">   </span><span class="p">(</span><span class="n">ttable</span><span class="p">:</span><span class="w"> </span><span class="mi">855045</span><span class="o">/</span><span class="mi">27777778</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">3.08</span><span class="o">%</span><span class="w"> </span><span class="nb">load</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">misses</span><span class="p">,</span><span class="w"> </span><span class="mi">839382</span><span class="w"> </span><span class="n">inserts</span><span class="w"> </span><span class="p">(</span><span class="n">with</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">overwrites</span><span class="p">),</span><span class="w"> </span><span class="mi">302</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="n">failures</span><span class="p">)</span>
-</pre></div>
-
+<p>This is an open research problem. You can get an overview on Wikipedia,
+http://en.wikipedia.org/wiki/Natural_language_processing. Consider phrases
+like "Time flies like an arrow, fruit flies like a banana" - unambiguously
+classifying words is not easy.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>I'd be happy to take a look at the actual repo, but I've experienced this
-exact problem many times implementing similar game playing algorithms. I'll
-tell you what was causing the problems for me and you can check if you're
-making the same mistakes. These are listed in the order in which I would guess
-is most likely to solve your problem.</p>
-<h4>Plys are not moves, moves should increase by 2 each iteration (that's what</h4>
-<p>a ply is)</p>
-<p>This mistake is almost always indicated by making poor choices for almost
-every move for the first player because they can never see the consequence of
-making a bad move. The way you avoid this is by increasing moves by 2 (or more
-generally by the number of players in the game, but you're using minmax so
-it's 2). This ensures each player always looks for consequences up to their
-next turn.</p>
-<h4>The evaluation must always be made from the standpoint of the current</h4>
-<p>player</p>
-<p>This one sounds obvious but I swear I screw this every time I implement an
-evaluation function. When designing an evaluation, we always design it that
-way from the standpoint of the first player to play, when what we should be
-doing is designing it to return the evaluation of the current player. We can
-tell which player's turn it is because we have the full board state, so there
-is no need to pass it in.</p>
-<p>This is especially hard to debug if your evaluate call isn't the first call in
-your minmax function, but you've implemented it that way, so this isn't an
-issue.</p>
-<h4>The evaluation function must be symmetric</h4>
-<p>This is an especially nasty bug when it happens. The idea is that the same
-player would evaluate the same position differently depending on whether they
-were winning or losing.</p>
-<p>Take for example in chess where as the winning player, you want to win the
-fewest number of moves, but if you're going to lose, you want to lose in the
-longest number of moves. A typical solution for this is to say if you're going
-to win, add a bonus for winning in a smaller number of moves, but if you're
-going to lose, add a bonus for longer sequences. This results in adding a
-bonus for the opposite reasons depending on situation, and removes the
-symmetry from the evaluation such that Player A not equal -Player B. When you
-lose this symmetry, you can no longer just pass values back up the game tree,
-you have to re-evaluate them at each step.</p>
-<p>But the trick is that doing adjustments like this <em>is always wrong</em>. With a
-deep static evaluation, it will simply cut off early if it finds a guaranteed
-win. With iterative deepening solutions it will still find the earlier win
-first. A mate in 5 is never a mate in 4 unless the opponent blunders, so
-adjustments like this are never needed.</p>
-<h4>Double check that you are not having collisions with your transposition</h4>
-<p>table</p>
-<p>I cannot see the implementation of your transposition table, but if you are
-dealing with more states than you have allotted to store, then you have to
-ensure that it is the same position before you trust the value. I doubt this
-is a problem since it looks like you're only looking at a few million nodes,
-but it's always good to double check. Additionally, make sure your hash
-function is sufficiently random to avoid regular collisions.</p>
-<h4>
-<code>mtd_f</code> should not consult the transposition table</h4>
-<p><code>mtd_f</code> is a passthrough function that will handle the transposition table
-correctly on the first call to <code>negamax</code>. You are improperly using the value
-from it as it is implemented now, but just removing that code will clean up
-the implementation and handle it correctly. Additionally, you should pass the
-evaluation to the <code>mtd_f</code> function on each iteration, not attempt to load it
-each time.</p>
+<p>You should look at the Natural Language Toolkit, which is for exactly this
+sort of thing.</p>
+<p>See this section of the manual: Categorizing and Tagging Words - here's an
+extract:</p>
+<div class="code"><pre class="code literal-block"><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="nv">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">nltk</span>.<span class="nv">word_tokenize</span><span class="ss">(</span><span class="s2">"And now for something completely different"</span><span class="ss">)</span>
+<span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="nv">nltk</span>.<span class="nv">pos_tag</span><span class="ss">(</span><span class="nv">text</span><span class="ss">)</span>
+[<span class="ss">(</span><span class="s1">'And'</span>,<span class="w"> </span><span class="s1">'CC'</span><span class="ss">)</span>,<span class="w"> </span><span class="ss">(</span><span class="s1">'now'</span>,<span class="w"> </span><span class="s1">'RB'</span><span class="ss">)</span>,<span class="w"> </span><span class="ss">(</span><span class="s1">'for'</span>,<span class="w"> </span><span class="s1">'IN'</span><span class="ss">)</span>,<span class="w"> </span><span class="ss">(</span><span class="s1">'something'</span>,<span class="w"> </span><span class="s1">'NN'</span><span class="ss">)</span>,
+<span class="ss">(</span><span class="s1">'completely'</span>,<span class="w"> </span><span class="s1">'RB'</span><span class="ss">)</span>,<span class="w"> </span><span class="ss">(</span><span class="s1">'different'</span>,<span class="w"> </span><span class="s1">'JJ'</span><span class="ss">)</span>]
+</pre></div>
+
+<p><em>"Here we see that <strong>and</strong> is CC, a coordinating conjunction; <strong>now</strong> and
+<strong>completely</strong> are RB, or adverbs; <strong>for</strong> is IN, a preposition; <strong>something</strong>
+is NN, a noun; and <strong>different</strong> is JJ, an adjective."</em></p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/easy-to-use-perl-modules-for-neural-networks/" class="u-url">Easy to use Perl modules for neural networks</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/tictactoe-ai-making-incorrect-decisions/" class="u-url">TicTacToe AI Making Incorrect Decisions</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/easy-to-use-perl-modules-for-neural-networks/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:32:50+08:00" itemprop="datePublished" title="2023-02-28 03:32">2023-02-28 03:32</time></a>
+            <a href="posts/tictactoe-ai-making-incorrect-decisions/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:35:58+08:00" itemprop="datePublished" title="2023-02-28 03:35">2023-02-28 03:35</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>In a project that I'm working on I have a decision problem and none of my
-attempts have given satisfying results: using domain specifik knowledge,
-trying to generate statistics and creating a statistical model etc etc.</p>
-<p>I have basic knowledge about neural networks, now I want to try if that
-approach might yield some good results. I have a lot of data so all I want is
-basically to set up a simple NN, train it and see what I get.</p>
-<p>Do you know about any decent <strong>Perl</strong> modules that might use for this purpose?
-I've found a few but I'd hate to waste my time trying all of them.</p>
+    <p>A little background: as a way to learn multinode trees in C++, I decided to
+generate all possible TicTacToe boards and store them in a tree such that the
+branch beginning at a node are all boards that can follow from that node, and
+the children of a node are boards that follow in one move. After that, I
+thought it would be fun to write an AI to play TicTacToe using that tree as a
+decision tree.</p>
+<p>TTT is a solvable problem where a perfect player will never lose, so it seemed
+an easy AI to code for my first time trying an AI.</p>
+<p>Now when I first implemented the AI, I went back and added two fields to each
+node upon generation: the # of times X will win &amp; the # of times O will win in
+all children below that node. I figured the best solution was to simply have
+my AI on each move choose and go down the subtree where it wins the most
+times. Then I discovered that while it plays perfect most of the time, I found
+ways where I could beat it. It wasn't a problem with my code, simply a problem
+with the way I had the AI choose it's path.</p>
+<p>Then I decided to have it choose the tree with either the maximum wins for the
+computer or the maximum losses for the human, whichever was more. This made it
+perform BETTER, but still not perfect. I could still beat it.</p>
+<p>So I have two ideas and I'm hoping for input on which is better:</p>
+<p>1) Instead of maximizing the wins or losses, instead I could assign values of
+1 for a win, 0 for a draw, and -1 for a loss. Then choosing the tree with the
+highest value will be the best move because that next node can't be a move
+that results in a loss. It's an easy change in the board generation, but it
+retains the same search space and memory usage. Or...</p>
+<p>2) During board generation, if there is a board such that either X or O will
+win in their next move, only the child that prevents that win will be
+generated. No other child nodes will be considered, and then generation will
+proceed as normal after that. It shrinks the size of the tree, but then I have
+to implement an algorithm to determine if there is a one move win and I think
+that can only be done in linear time (making board generation a lot slower I
+think?)</p>
+<p>Which is better, or is there an even better solution?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>There are several, but I'd start with <code>AI::NeuralNet::Simple</code>. On CPAN, the AI
-namespace has a whole bunch of others, some are wrappers for C libraries,
-others do fancy neural net things, but this is a simple base to start with.
-And it is well documented, which is not the case for some of the others</p>
-<p>Caveats: none of the NN modules is that well maintained or widely tested. This
-one explicitly states that it is alpha code not for production use. For a
-proof-of-concept, it should be fine.</p>
+<p>The (usually) correct way to implement AI based on a decision tree is to use
+the " <strong>Minimax</strong> " algorithm:</p>
+<ol>
+<li>Assign each leaf node a score (+1=player wins, -1=player loses, 0=tie)</li>
+<li>
+<p>Work your way up the tree, applying the following rules to each node:</p>
+<ul>
+<li>For even depths (when the player would make a move), pick the child with the highest score, and copy that score to the node.</li>
+<li>For odd depths (when the computer would make a move), pick the child with the lowest score, and copy that score to the node.</li>
+</ul>
+</li>
+</ol>
+<p>Of course, even and odd might need to be reversed, depending on who you decide
+goes first.</p>
+<p>You can read more at:</p>
+<ul>
+<li>http://ai-depot.com/articles/minimax-explained/</li>
+<li>http://en.wikipedia.org/wiki/Minimax</li>
+</ul>
 <p><br></p>
 <h3>Suggest</h3>
-<p>I'd use AI::FANN , you can find it on CPAN as well.</p>
+<p>Your existing algorithm is good, except you are forgetting one thing. Never
+choose any path where a move by the other player results in you being unable
+to at least tie.</p>
+<p>So basically, discard any branch where the players next move could result in
+an un-tieable situation and then run your existing algorithm. This results in
+the highest chance of winning against a non-perfect opponent, while removing
+the possibility of losing.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-does-decreasing-k-in-k-nearest-neighbours-increase-complexity/" class="u-url">Why does decreasing K in K-nearest-neighbours increase complexity?</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/implementation-of-the-bidirectional-graph-search/" class="u-url">Implementation of the bidirectional graph search</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/why-does-decreasing-k-in-k-nearest-neighbours-increase-complexity/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:32:33+08:00" itemprop="datePublished" title="2023-02-28 03:32">2023-02-28 03:32</time></a>
+            <a href="posts/implementation-of-the-bidirectional-graph-search/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:35:34+08:00" itemprop="datePublished" title="2023-02-28 03:35">2023-02-28 03:35</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>In an extract from my textbook it says that reducing the value of <code>K</code> when
-running this algorithm actually increases the complexity as it has to run more
-“smoothing”.</p>
-<p>Can anyone explain this to me?</p>
-<p>My understanding is that in <code>1NN</code>, you feed it your training set. You test on
-your testing set. Assume your testing set has one point in it. It finds the
-one point closest to it in the training set and returns the value of this.</p>
-<p>Surely this is less complex than finding the 3 closest points in <code>3NN</code>, adding
-their values and dividing by three?</p>
-<p>What have I misunderstood or overlooked?</p>
+    <p>I am trying to implement a bi-directional graph search. As I understand, I
+should somehow merge two breadth-first searches, one which starts at the
+starting (or root) node and one which starts at the goal (or end) node. The
+bi-directional search terminates when both breadth-first searches "meet" at
+the same vertex.</p>
+<p>Could you provide me with a code example (in Java, if possible) or link with
+code for the bidirectional graph search?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>I had the same moment of disbelief when reading that axiom ; a parameter of
-<em>higher</em> value that <em>decreases</em> complexity seems a bit counterintuitive at
-first.</p>
-<p>To put an <em>intuition</em> on this, let's compare a 1-nearest-neighbour trained
-model, and a N&gt;&gt;1-nearest-neighbours one. Let's use a simplified 2D-plot (two-
-features dataset) with a binary classification (each "point" has a class, or
-label, of either A or B).</p>
-<p>With the 1-nearest-neighbour model, each example of the training set is
-<em>potentially</em> the center of an area predicting class A or B, with most of its
-neighbors the center of an area predicting the other class. Your plot might
-look like one of those maps of ethnicity, language or religion in the regions
-of the world where they are deeply intertwined (Balkans or the Middle East
-comes to mind) : small patches of complex shapes and alternating colors, with
-no discernible logic, and thus "high complexity".</p>
-<p><img alt="1-nearest neighbour" src="images/fh4Nd.png"></p>
-<p>If you increase k, the areas predicting each class will be more "smoothed",
-since it's the majority of the k-nearest neighbours which decide the class of
-any point. Thus the areas will be of lesser number, larger sizes and probably
-simpler shapes, like the political maps of country borders in the same areas
-of the world. Thus "less complexity".</p>
-<p><img alt="k-nearest neighbours" src="images/CAaHg.png"></p>
-<p>(Intuition and source from this course.)</p>
+<p>Assuming you have <code>Node</code>s like this (in the file <code>Node.java</code>):</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">java.util.HashSet</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.util.Set</span><span class="p">;</span>
+
+<span class="n">public</span> <span class="k">class</span> <span class="nc">Node</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">private</span> <span class="n">final</span> <span class="n">T</span> <span class="n">data</span><span class="p">;</span> <span class="o">//</span> <span class="n">The</span> <span class="n">data</span> <span class="n">that</span> <span class="n">you</span> <span class="n">want</span> <span class="n">to</span> <span class="n">store</span> <span class="ow">in</span> <span class="n">this</span> <span class="n">node</span><span class="o">.</span>
+    <span class="n">private</span> <span class="n">final</span> <span class="n">Set</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">adjacentNodes</span> <span class="o">=</span> <span class="n">new</span> <span class="n">HashSet</span><span class="o">&lt;&gt;</span><span class="p">();</span>
+
+    <span class="o">//</span> <span class="n">Constructor</span>
+    <span class="n">public</span> <span class="n">Node</span><span class="p">(</span><span class="n">T</span> <span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">this</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="o">//</span> <span class="n">Getters</span>
+
+    <span class="o">/*</span>
+     <span class="o">*</span> <span class="n">Returns</span> <span class="n">the</span> <span class="n">data</span> <span class="n">stored</span> <span class="ow">in</span> <span class="n">this</span> <span class="n">node</span><span class="o">.</span>
+     <span class="o">*</span> <span class="o">*/</span>
+    <span class="n">public</span> <span class="n">T</span> <span class="n">getData</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="o">/*</span>
+     <span class="o">*</span> <span class="n">Returns</span> <span class="n">a</span> <span class="nb">set</span> <span class="n">of</span> <span class="n">the</span> <span class="n">adjacent</span> <span class="n">nodes</span> <span class="n">of</span> <span class="n">this</span> <span class="n">node</span><span class="o">.</span>
+     <span class="o">*</span> <span class="o">*/</span>
+    <span class="n">public</span> <span class="n">Set</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">getAdjacentNodes</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="n">adjacentNodes</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="o">//</span> <span class="n">Setters</span>
+
+    <span class="o">/*</span>
+     <span class="o">*</span> <span class="n">Attempts</span> <span class="n">to</span> <span class="n">add</span> <span class="n">node</span> <span class="n">to</span> <span class="n">the</span> <span class="nb">set</span> <span class="n">of</span> <span class="n">adjacent</span> <span class="n">nodes</span> <span class="n">of</span> <span class="n">this</span> <span class="n">node</span><span class="o">.</span> <span class="n">If</span> <span class="n">it</span> <span class="n">was</span> <span class="ow">not</span> <span class="n">previously</span> <span class="n">added</span><span class="p">,</span> <span class="n">it</span> <span class="ow">is</span> <span class="n">added</span><span class="p">,</span> <span class="ow">and</span>
+     <span class="o">*</span> <span class="n">true</span> <span class="ow">is</span> <span class="n">returned</span><span class="o">.</span> <span class="n">If</span> <span class="n">it</span> <span class="n">was</span> <span class="n">previously</span> <span class="n">added</span><span class="p">,</span> <span class="n">it</span> <span class="n">returns</span> <span class="n">false</span><span class="o">.</span>
+     <span class="o">*</span> <span class="o">*/</span>
+    <span class="n">public</span> <span class="n">boolean</span> <span class="n">addAdjacent</span><span class="p">(</span><span class="n">Node</span> <span class="n">node</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="n">adjacentNodes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">node</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Then the bidirectional search algorithm (defined in the file
+<code>BidirectionalSearch.java</code>) would look something like this:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">java.util.HashSet</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.util.Queue</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.util.Set</span><span class="p">;</span>
+<span class="kn">import</span> <span class="nn">java.util.LinkedList</span><span class="p">;</span>
+
+
+<span class="n">public</span> <span class="k">class</span> <span class="nc">BidirectionalSearch</span> <span class="p">{</span>
+
+    <span class="o">/*</span>
+     <span class="o">*</span> <span class="n">Returns</span> <span class="n">true</span> <span class="k">if</span> <span class="n">a</span> <span class="n">path</span> <span class="n">exists</span> <span class="n">between</span> <span class="n">Node</span> <span class="n">a</span> <span class="ow">and</span> <span class="n">b</span><span class="p">,</span> <span class="n">false</span> <span class="n">otherwise</span><span class="o">.</span>
+     <span class="o">*</span> <span class="o">*/</span>
+    <span class="n">public</span> <span class="n">static</span> <span class="n">boolean</span> <span class="n">pathExists</span><span class="p">(</span><span class="n">Node</span> <span class="n">a</span><span class="p">,</span> <span class="n">Node</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+        <span class="o">//</span> <span class="n">LinkedList</span> <span class="n">implements</span> <span class="n">the</span> <span class="n">Queue</span> <span class="n">interface</span><span class="p">,</span> <span class="n">FIFO</span> <span class="n">queue</span> <span class="n">operations</span> <span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.</span><span class="p">,</span> <span class="n">add</span> <span class="ow">and</span> <span class="n">poll</span><span class="p">)</span><span class="o">.</span>
+
+        <span class="o">//</span> <span class="n">Queue</span> <span class="n">to</span> <span class="n">hold</span> <span class="n">the</span> <span class="n">paths</span> <span class="kn">from</span> <span class="nn">Node</span> <span class="n">a</span><span class="o">.</span>
+        <span class="n">Queue</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">queueA</span> <span class="o">=</span> <span class="n">new</span> <span class="n">LinkedList</span><span class="o">&lt;&gt;</span><span class="p">();</span>
+
+        <span class="o">//</span> <span class="n">Queue</span> <span class="n">to</span> <span class="n">hold</span> <span class="n">the</span> <span class="n">paths</span> <span class="kn">from</span> <span class="nn">Node</span> <span class="n">a</span><span class="o">.</span>
+        <span class="n">Queue</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">queueB</span> <span class="o">=</span> <span class="n">new</span> <span class="n">LinkedList</span><span class="o">&lt;&gt;</span><span class="p">();</span>
+
+        <span class="o">//</span> <span class="n">A</span> <span class="nb">set</span> <span class="n">of</span> <span class="n">visited</span> <span class="n">nodes</span> <span class="n">starting</span> <span class="kn">from</span> <span class="nn">Node</span> <span class="n">a</span><span class="o">.</span>
+        <span class="n">Set</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">visitedA</span> <span class="o">=</span> <span class="n">new</span> <span class="n">HashSet</span><span class="o">&lt;&gt;</span><span class="p">();</span>
+
+        <span class="o">//</span> <span class="n">A</span> <span class="nb">set</span> <span class="n">of</span> <span class="n">visited</span> <span class="n">nodes</span> <span class="n">starting</span> <span class="kn">from</span> <span class="nn">Node</span> <span class="n">b</span><span class="o">.</span>
+        <span class="n">Set</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">visitedB</span> <span class="o">=</span> <span class="n">new</span> <span class="n">HashSet</span><span class="o">&lt;&gt;</span><span class="p">();</span>
+
+        <span class="n">visitedA</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">a</span><span class="p">);</span>
+        <span class="n">visitedB</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
+
+        <span class="n">queueA</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">a</span><span class="p">);</span>
+        <span class="n">queueB</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
+
+        <span class="o">//</span> <span class="n">Both</span> <span class="n">queues</span> <span class="n">need</span> <span class="n">to</span> <span class="n">be</span> <span class="n">empty</span> <span class="n">to</span> <span class="n">exit</span> <span class="n">the</span> <span class="k">while</span> <span class="n">loop</span><span class="o">.</span>
+        <span class="k">while</span> <span class="p">(</span><span class="err">!</span><span class="n">queueA</span><span class="o">.</span><span class="n">isEmpty</span><span class="p">()</span> <span class="o">||</span> <span class="err">!</span><span class="n">queueB</span><span class="o">.</span><span class="n">isEmpty</span><span class="p">())</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">pathExistsHelper</span><span class="p">(</span><span class="n">queueA</span><span class="p">,</span> <span class="n">visitedA</span><span class="p">,</span> <span class="n">visitedB</span><span class="p">))</span> <span class="p">{</span>
+                <span class="k">return</span> <span class="n">true</span><span class="p">;</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">pathExistsHelper</span><span class="p">(</span><span class="n">queueB</span><span class="p">,</span> <span class="n">visitedB</span><span class="p">,</span> <span class="n">visitedA</span><span class="p">))</span> <span class="p">{</span>
+                <span class="k">return</span> <span class="n">true</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">false</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">private</span> <span class="n">static</span> <span class="n">boolean</span> <span class="n">pathExistsHelper</span><span class="p">(</span><span class="n">Queue</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">queue</span><span class="p">,</span>
+                                            <span class="n">Set</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">visitedFromThisSide</span><span class="p">,</span>
+                                            <span class="n">Set</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">visitedFromThatSide</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="err">!</span><span class="n">queue</span><span class="o">.</span><span class="n">isEmpty</span><span class="p">())</span> <span class="p">{</span>
+            <span class="n">Node</span> <span class="nb">next</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">remove</span><span class="p">();</span>
+
+            <span class="n">Set</span><span class="o">&lt;</span><span class="n">Node</span><span class="o">&gt;</span> <span class="n">adjacentNodes</span> <span class="o">=</span> <span class="nb">next</span><span class="o">.</span><span class="n">getAdjacentNodes</span><span class="p">();</span>
+
+            <span class="k">for</span> <span class="p">(</span><span class="n">Node</span> <span class="n">adjacent</span> <span class="p">:</span> <span class="n">adjacentNodes</span><span class="p">)</span> <span class="p">{</span>
+
+                <span class="o">//</span> <span class="n">If</span> <span class="n">the</span> <span class="n">visited</span> <span class="n">nodes</span><span class="p">,</span> <span class="n">starting</span> <span class="kn">from</span> <span class="nn">the</span> <span class="n">other</span> <span class="n">direction</span><span class="p">,</span>
+                <span class="o">//</span> <span class="n">contain</span> <span class="n">the</span> <span class="s2">"adjacent"</span> <span class="n">node</span> <span class="n">of</span> <span class="s2">"next"</span><span class="p">,</span> <span class="n">then</span> <span class="n">we</span> <span class="n">can</span> <span class="n">terminate</span> <span class="n">the</span> <span class="n">search</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">visitedFromThatSide</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">adjacent</span><span class="p">))</span> <span class="p">{</span>
+                    <span class="k">return</span> <span class="n">true</span><span class="p">;</span>
+                <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">visitedFromThisSide</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">adjacent</span><span class="p">))</span> <span class="p">{</span>
+                    <span class="n">queue</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">adjacent</span><span class="p">);</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">false</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">public</span> <span class="n">static</span> <span class="n">void</span> <span class="n">main</span><span class="p">(</span><span class="n">String</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span> <span class="p">{</span>
+        <span class="o">//</span> <span class="n">Test</span> <span class="n">here</span> <span class="n">the</span> <span class="n">implementation</span> <span class="n">above</span><span class="o">.</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
     </div>
     </article>
 </div>
@@ -496,7 +369,7 @@ of the world. Thus "less complexity".</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

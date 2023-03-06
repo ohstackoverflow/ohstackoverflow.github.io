@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where does Scala look for implicits? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/where-does-scala-look-for-implicits/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-do-the-likely-unlikely-macros-in-the-linux-kernel-work-and-what-is-their-benefit/" title="How do the likely/unlikely macros in the Linux kernel work and what is their benefit?" type="text/html">
+<link rel="next" href="../what-s-the-difference-between-iso-8601-and-rfc-3339-date-formats/" title="What's the difference between ISO 8601 and RFC 3339 Date Formats?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Where does Scala look for implicits?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/where-does-scala-look-for-implicits/">
+<meta property="og:description" content="An implicit question to newcomers to Scala seems to be: where does the
+compiler look for implicits? I mean implicit because the question never seems
+to get fully formed, as if there weren't words for ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T14:19:55+08:00">
+<meta property="article:tag" content="implicit-conversion">
+<meta property="article:tag" content="implicits">
+<meta property="article:tag" content="scala">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Where does Scala look for implicits?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T14:19:55+08:00" itemprop="datePublished" title="2023-03-03 14:19">2023-03-03 14:19</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>An <em>implicit</em> question to newcomers to Scala seems to be: where does the
+compiler look for implicits? I mean implicit because the question never seems
+to get fully formed, as if there weren't words for it. :-) For example, where
+do the values for <code>integral</code> below come from?</p>
+<div class="code"><pre class="code literal-block"><span class="n">scala</span><span class="o">&gt;</span> <span class="kn">import</span> <span class="nn">scala.math._</span>
+<span class="kn">import</span> <span class="nn">scala.math._</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">foo</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">t</span><span class="p">:</span> <span class="n">T</span><span class="p">)(</span><span class="n">implicit</span> <span class="n">integral</span><span class="p">:</span> <span class="n">Integral</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="p">{</span><span class="n">println</span><span class="p">(</span><span class="n">integral</span><span class="p">)}</span>
+<span class="n">foo</span><span class="p">:</span> <span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">t</span><span class="p">:</span> <span class="n">T</span><span class="p">)(</span><span class="n">implicit</span> <span class="n">integral</span><span class="p">:</span> <span class="n">scala</span><span class="o">.</span><span class="n">math</span><span class="o">.</span><span class="n">Integral</span><span class="p">[</span><span class="n">T</span><span class="p">])</span><span class="n">Unit</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="n">foo</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">scala</span><span class="o">.</span><span class="n">math</span><span class="o">.</span><span class="n">Numeric</span><span class="err">$</span><span class="n">IntIsIntegral</span><span class="err">$</span><span class="o">@</span><span class="mi">3</span><span class="n">dbea611</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="n">foo</span><span class="p">(</span><span class="mi">0</span><span class="n">L</span><span class="p">)</span>
+<span class="n">scala</span><span class="o">.</span><span class="n">math</span><span class="o">.</span><span class="n">Numeric</span><span class="err">$</span><span class="n">LongIsIntegral</span><span class="err">$</span><span class="o">@</span><span class="mi">48</span><span class="n">c610af</span>
+</pre></div>
+
+<p>Another question that does follow up to those who decide to learn the answer
+to the first question is how does the compiler choose which implicit to use,
+in certain situations of apparent ambiguity (but that compile anyway)?</p>
+<p>For instance, <code>scala.Predef</code> defines two conversions from <code>String</code>: one to
+<code>WrappedString</code> and another to <code>StringOps</code>. Both classes, however, share a lot
+of methods, so why doesn't Scala complain about ambiguity when, say, calling
+<code>map</code>?</p>
+<p><strong>Note:</strong> this question was inspired by this other question, in the hopes of
+stating the problem in a more general manner. The example was copied from
+there, because it is referred to in the answer.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h2>Types of Implicits</h2>
+<p>Implicits in Scala refers to either a value that can be passed
+"automatically", so to speak, or a conversion from one type to another that is
+made automatically.</p>
+<h3>Implicit Conversion</h3>
+<p>Speaking very briefly about the latter type, if one calls a method <code>m</code> on an
+object <code>o</code> of a class <code>C</code>, and that class does not support method <code>m</code>, then
+Scala will look for an implicit conversion from <code>C</code> to something that <em>does</em>
+support <code>m</code>. A simple example would be the method <code>map</code> on <code>String</code>:</p>
+<div class="code"><pre class="code literal-block">"abc".map(_.toInt)
+</pre></div>
+
+<p><code>String</code> does not support the method <code>map</code>, but <code>StringOps</code> does, and there's
+an implicit conversion from <code>String</code> to <code>StringOps</code> available (see <code>implicit
+def augmentString</code> on <code>Predef</code>).</p>
+<h3>Implicit Parameters</h3>
+<p>The other kind of implicit is the implicit <em>parameter</em>. These are passed to
+method calls like any other parameter, but the compiler tries to fill them in
+automatically. If it can't, it will complain. One <em>can</em> pass these parameters
+explicitly, which is how one uses <code>breakOut</code>, for example (see question about
+<code>breakOut</code>, on a day you are feeling up for a challenge).</p>
+<p>In this case, one has to declare the need for an implicit, such as the <code>foo</code>
+method declaration:</p>
+<div class="code"><pre class="code literal-block"><span class="n">def</span><span class="w"> </span><span class="n">foo</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="p">(</span><span class="nl">t</span><span class="p">:</span><span class="w"> </span><span class="n">T</span><span class="p">)(</span><span class="n">implicit</span><span class="w"> </span><span class="nl">integral</span><span class="p">:</span><span class="w"> </span><span class="n">Integral</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="err">{</span><span class="n">println</span><span class="p">(</span><span class="n">integral</span><span class="p">)</span><span class="err">}</span>
+</pre></div>
+
+<h3>View Bounds</h3>
+<p>There's one situation where an implicit is both an implicit conversion and an
+implicit parameter. For example:</p>
+<div class="code"><pre class="code literal-block"><span class="n">def</span><span class="w"> </span><span class="n">getIndex</span><span class="o">[</span><span class="n">T, CC</span><span class="o">]</span><span class="p">(</span><span class="nl">seq</span><span class="p">:</span><span class="w"> </span><span class="n">CC</span><span class="p">,</span><span class="w"> </span><span class="k">value</span><span class="err">:</span><span class="w"> </span><span class="n">T</span><span class="p">)(</span><span class="n">implicit</span><span class="w"> </span><span class="nl">conv</span><span class="p">:</span><span class="w"> </span><span class="n">CC</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Seq</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seq</span><span class="p">.</span><span class="n">indexOf</span><span class="p">(</span><span class="k">value</span><span class="p">)</span>
+
+<span class="n">getIndex</span><span class="p">(</span><span class="ss">"abc"</span><span class="p">,</span><span class="w"> </span><span class="s1">'a'</span><span class="p">)</span>
+</pre></div>
+
+<p>The method <code>getIndex</code> can receive any object, as long as there is an implicit
+conversion available from its class to <code>Seq[T]</code>. Because of that, I can pass a
+<code>String</code> to <code>getIndex</code>, and it will work.</p>
+<p>Behind the scenes, the compiler changes <code>seq.IndexOf(value)</code> to
+<code>conv(seq).indexOf(value)</code>.</p>
+<p>This is so useful that there is syntactic sugar to write them. Using this
+syntactic sugar, <code>getIndex</code> can be defined like this:</p>
+<div class="code"><pre class="code literal-block"><span class="n">def</span><span class="w"> </span><span class="n">getIndex</span><span class="o">[</span><span class="n">T, CC &lt;% Seq[T</span><span class="o">]</span><span class="err">]</span><span class="p">(</span><span class="nl">seq</span><span class="p">:</span><span class="w"> </span><span class="n">CC</span><span class="p">,</span><span class="w"> </span><span class="k">value</span><span class="err">:</span><span class="w"> </span><span class="n">T</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seq</span><span class="p">.</span><span class="n">indexOf</span><span class="p">(</span><span class="k">value</span><span class="p">)</span>
+</pre></div>
+
+<p>This syntactic sugar is described as a <em>view bound</em> , akin to an <em>upper bound</em>
+(<code>CC &lt;: Seq[Int]</code>) or a <em>lower bound</em> (<code>T &gt;: Null</code>).</p>
+<h3>Context Bounds</h3>
+<p>Another common pattern in implicit parameters is the <em>type class pattern</em>.
+This pattern enables the provision of common interfaces to classes which did
+not declare them. It can both serve as a bridge pattern -- gaining separation
+of concerns -- and as an adapter pattern.</p>
+<p>The <code>Integral</code> class you mentioned is a classic example of type class pattern.
+Another example on Scala's standard library is <code>Ordering</code>. There's a library
+that makes heavy use of this pattern, called Scalaz.</p>
+<p>This is an example of its use:</p>
+<div class="code"><pre class="code literal-block"><span class="k">def</span> <span class="nf">sum</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="nb">list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="p">])(</span><span class="n">implicit</span> <span class="n">integral</span><span class="p">:</span> <span class="n">Integral</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span> <span class="n">T</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="kn">import</span> <span class="nn">integral._</span>   <span class="o">//</span> <span class="n">get</span> <span class="n">the</span> <span class="n">implicits</span> <span class="ow">in</span> <span class="n">question</span> <span class="n">into</span> <span class="n">scope</span>
+    <span class="nb">list</span><span class="o">.</span><span class="n">foldLeft</span><span class="p">(</span><span class="n">integral</span><span class="o">.</span><span class="n">zero</span><span class="p">)(</span><span class="n">_</span> <span class="o">+</span> <span class="n">_</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>There is also syntactic sugar for it, called a <em>context bound</em> , which is made
+less useful by the need to refer to the implicit. A straight conversion of
+that method looks like this:</p>
+<div class="code"><pre class="code literal-block"><span class="k">def</span> <span class="nf">sum</span><span class="p">[</span><span class="n">T</span> <span class="p">:</span> <span class="n">Integral</span><span class="p">](</span><span class="nb">list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span> <span class="n">T</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">val</span> <span class="n">integral</span> <span class="o">=</span> <span class="n">implicitly</span><span class="p">[</span><span class="n">Integral</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span>
+    <span class="kn">import</span> <span class="nn">integral._</span>   <span class="o">//</span> <span class="n">get</span> <span class="n">the</span> <span class="n">implicits</span> <span class="ow">in</span> <span class="n">question</span> <span class="n">into</span> <span class="n">scope</span>
+    <span class="nb">list</span><span class="o">.</span><span class="n">foldLeft</span><span class="p">(</span><span class="n">integral</span><span class="o">.</span><span class="n">zero</span><span class="p">)(</span><span class="n">_</span> <span class="o">+</span> <span class="n">_</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Context bounds are more useful when you just need to <em>pass</em> them to other
+methods that use them. For example, the method <code>sorted</code> on <code>Seq</code> needs an
+implicit <code>Ordering</code>. To create a method <code>reverseSort</code>, one could write:</p>
+<div class="code"><pre class="code literal-block"><span class="n">def</span><span class="w"> </span><span class="n">reverseSort</span><span class="p">[</span><span class="n">T</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Ordering</span><span class="p">](</span><span class="n">seq</span><span class="o">:</span><span class="w"> </span><span class="n">Seq</span><span class="p">[</span><span class="n">T</span><span class="p">])</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seq</span><span class="p">.</span><span class="n">sorted</span><span class="p">.</span><span class="n">reverse</span>
+</pre></div>
+
+<p>Because <code>Ordering[T]</code> was implicitly passed to <code>reverseSort</code>, it can then pass
+it implicitly to <code>sorted</code>.</p>
+<h2>Where do Implicits come from?</h2>
+<p>When the compiler sees the need for an implicit, either because you are
+calling a method which does not exist on the object's class, or because you
+are calling a method that requires an implicit parameter, it will search for
+an implicit that will fit the need.</p>
+<p>This search obey certain rules that define which implicits are visible and
+which are not. The following table showing where the compiler will search for
+implicits was taken from an excellent presentation (timestamp 20:20) about
+implicits by Josh Suereth, which I heartily recommend to anyone wanting to
+improve their Scala knowledge. It has been complemented since then with
+feedback and updates.</p>
+<p>The implicits available under number 1 below has precedence over the ones
+under number 2. Other than that, if there are several eligible arguments which
+match the implicit parameter’s type, a most specific one will be chosen using
+the rules of static overloading resolution (see Scala Specification §6.26.3).
+More detailed information can be found in a question I link to at the end of
+this answer.</p>
+<ol>
+<li>First look in current scope <ul>
+<li>Implicits defined in current scope</li>
+<li>Explicit imports</li>
+<li>wildcard imports</li>
+<li><del>Same scope in other files</del></li>
+</ul>
+</li>
+<li>Now look at associated types in <ul>
+<li>Companion objects of a type</li>
+<li>Implicit scope of an argument's type <strong>(2.9.1)</strong>
+</li>
+<li>Implicit scope of type arguments <strong>(2.8.0)</strong>
+</li>
+<li>Outer objects for nested types</li>
+<li>Other dimensions</li>
+</ul>
+</li>
+</ol>
+<p>Let's give some examples for them:</p>
+<h3>Implicits Defined in Current Scope</h3>
+<div class="code"><pre class="code literal-block">implicit<span class="w"> </span>val<span class="w"> </span>n:<span class="w"> </span>Int<span class="w"> </span>=<span class="w"> </span>5
+def<span class="w"> </span>add(x:<span class="w"> </span>Int)(implicit<span class="w"> </span>y:<span class="w"> </span>Int)<span class="w"> </span>=<span class="w"> </span>x<span class="w"> </span>+<span class="w"> </span>y
+add(5)<span class="w"> </span>//<span class="w"> </span>takes<span class="w"> </span>n<span class="w"> </span>from<span class="w"> </span>the<span class="w"> </span>current<span class="w"> </span>scope
+</pre></div>
+
+<h3>Explicit Imports</h3>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">scala.collection.JavaConversions.mapAsScalaMap</span>
+<span class="k">def</span> <span class="nf">env</span> <span class="o">=</span> <span class="n">System</span><span class="o">.</span><span class="n">getenv</span><span class="p">()</span> <span class="o">//</span> <span class="n">Java</span> <span class="nb">map</span>
+<span class="n">val</span> <span class="n">term</span> <span class="o">=</span> <span class="n">env</span><span class="p">(</span><span class="s2">"TERM"</span><span class="p">)</span>    <span class="o">//</span> <span class="n">implicit</span> <span class="n">conversion</span> <span class="kn">from</span> <span class="nn">Java</span> <span class="n">Map</span> <span class="n">to</span> <span class="n">Scala</span> <span class="n">Map</span>
+</pre></div>
+
+<h3>Wildcard Imports</h3>
+<div class="code"><pre class="code literal-block"><span class="k">def</span> <span class="nf">sum</span><span class="p">[</span><span class="n">T</span> <span class="p">:</span> <span class="n">Integral</span><span class="p">](</span><span class="nb">list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span> <span class="n">T</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">val</span> <span class="n">integral</span> <span class="o">=</span> <span class="n">implicitly</span><span class="p">[</span><span class="n">Integral</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span>
+    <span class="kn">import</span> <span class="nn">integral._</span>   <span class="o">//</span> <span class="n">get</span> <span class="n">the</span> <span class="n">implicits</span> <span class="ow">in</span> <span class="n">question</span> <span class="n">into</span> <span class="n">scope</span>
+    <span class="nb">list</span><span class="o">.</span><span class="n">foldLeft</span><span class="p">(</span><span class="n">integral</span><span class="o">.</span><span class="n">zero</span><span class="p">)(</span><span class="n">_</span> <span class="o">+</span> <span class="n">_</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3>Same Scope in Other Files</h3>
+<p><strong>Edit</strong> : It seems this does not have a different precedence. If you have
+some example that demonstrates a precedence distinction, please make a
+comment. Otherwise, don't rely on this one.</p>
+<p>This is like the first example, but assuming the implicit definition is in a
+different file than its usage. See also how package objects might be used in
+to bring in implicits.</p>
+<h3>Companion Objects of a Type</h3>
+<p>There are two object companions of note here. First, the object companion of
+the "source" type is looked into. For instance, inside the object <code>Option</code>
+there is an implicit conversion to <code>Iterable</code>, so one can call <code>Iterable</code>
+methods on <code>Option</code>, or pass <code>Option</code> to something expecting an <code>Iterable</code>.
+For example:</p>
+<div class="code"><pre class="code literal-block"><span class="n">for</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">List</span><span class="p">(</span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="m">3</span><span class="p">)</span>
+<span class="w">    </span><span class="n">y</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Some</span><span class="p">(</span><span class="s">'x'</span><span class="p">)</span>
+<span class="p">}</span><span class="w"> </span><span class="nf">yield </span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+</pre></div>
+
+<p>That expression is translated by the compiler to</p>
+<div class="code"><pre class="code literal-block">List(1, 2, 3).flatMap(x =&gt; Some('x').map(y =&gt; (x, y)))
+</pre></div>
+
+<p>However, <code>List.flatMap</code> expects a <code>TraversableOnce</code>, which <code>Option</code> is not.
+The compiler then looks inside <code>Option</code>'s object companion and finds the
+conversion to <code>Iterable</code>, which is a <code>TraversableOnce</code>, making this expression
+correct.</p>
+<p>Second, the companion object of the expected type:</p>
+<div class="code"><pre class="code literal-block">List(1, 2, 3).sorted
+</pre></div>
+
+<p>The method <code>sorted</code> takes an implicit <code>Ordering</code>. In this case, it looks
+inside the object <code>Ordering</code>, companion to the class <code>Ordering</code>, and finds an
+implicit <code>Ordering[Int]</code> there.</p>
+<p>Note that companion objects of super classes are also looked into. For
+example:</p>
+<div class="code"><pre class="code literal-block">class<span class="w"> </span>A(val<span class="w"> </span>n:<span class="w"> </span>Int)
+object<span class="w"> </span>A<span class="w"> </span>{<span class="w"> </span>
+<span class="w">    </span>implicit<span class="w"> </span>def<span class="w"> </span>str(a:<span class="w"> </span>A)<span class="w"> </span>=<span class="w"> </span>"A:<span class="w"> </span>%d"<span class="w"> </span>format<span class="w"> </span>a.n
+}
+class<span class="w"> </span>B(val<span class="w"> </span>x:<span class="w"> </span>Int,<span class="w"> </span>y:<span class="w"> </span>Int)<span class="w"> </span>extends<span class="w"> </span>A(y)
+val<span class="w"> </span>b<span class="w"> </span>=<span class="w"> </span>new<span class="w"> </span>B(5,<span class="w"> </span>2)
+val<span class="w"> </span>s:<span class="w"> </span>String<span class="w"> </span>=<span class="w"> </span>b<span class="w">  </span>//<span class="w"> </span>s<span class="w"> </span>==<span class="w"> </span>"A:<span class="w"> </span>2"
+</pre></div>
+
+<p>This is how Scala found the implicit <code>Numeric[Int]</code> and <code>Numeric[Long]</code> in
+your question, by the way, as they are found inside <code>Numeric</code>, not <code>Integral</code>.</p>
+<h3>Implicit Scope of an Argument's Type</h3>
+<p>If you have a method with an argument type <code>A</code>, then the implicit scope of
+type <code>A</code> will also be considered. By "implicit scope" I mean that all these
+rules will be applied recursively -- for example, the companion object of <code>A</code>
+will be searched for implicits, as per the rule above.</p>
+<p>Note that this does not mean the implicit scope of <code>A</code> will be searched for
+conversions of that parameter, but of the whole expression. For example:</p>
+<div class="code"><pre class="code literal-block">class<span class="w"> </span>A(val<span class="w"> </span>n:<span class="w"> </span>Int)<span class="w"> </span>{
+<span class="w">  </span>def<span class="w"> </span>+(other:<span class="w"> </span>A)<span class="w"> </span>=<span class="w"> </span>new<span class="w"> </span>A(n<span class="w"> </span>+<span class="w"> </span>other.n)
+}
+object<span class="w"> </span>A<span class="w"> </span>{
+<span class="w">  </span>implicit<span class="w"> </span>def<span class="w"> </span>fromInt(n:<span class="w"> </span>Int)<span class="w"> </span>=<span class="w"> </span>new<span class="w"> </span>A(n)
+}
+
+//<span class="w"> </span>This<span class="w"> </span>becomes<span class="w"> </span>possible:
+1<span class="w"> </span>+<span class="w"> </span>new<span class="w"> </span>A(1)
+//<span class="w"> </span>because<span class="w"> </span>it<span class="w"> </span>is<span class="w"> </span>converted<span class="w"> </span>into<span class="w"> </span>this:
+A.fromInt(1)<span class="w"> </span>+<span class="w"> </span>new<span class="w"> </span>A(1)
+</pre></div>
+
+<p><strong>This is available since Scala 2.9.1.</strong></p>
+<h3>Implicit Scope of Type Arguments</h3>
+<p>This is required to make the type class pattern really work. Consider
+<code>Ordering</code>, for instance: It comes with some implicits in its companion
+object, but you can't add stuff to it. So how can you make an <code>Ordering</code> for
+your own class that is automatically found?</p>
+<p>Let's start with the implementation:</p>
+<div class="code"><pre class="code literal-block">class<span class="w"> </span>A(val<span class="w"> </span>n:<span class="w"> </span>Int)
+object<span class="w"> </span>A<span class="w"> </span>{
+<span class="w">    </span>implicit<span class="w"> </span>val<span class="w"> </span>ord<span class="w"> </span>=<span class="w"> </span>new<span class="w"> </span>Ordering[A]<span class="w"> </span>{
+<span class="w">        </span>def<span class="w"> </span>compare(x:<span class="w"> </span>A,<span class="w"> </span>y:<span class="w"> </span>A)<span class="w"> </span>=<span class="w"> </span>implicitly[Ordering[Int]].compare(x.n,<span class="w"> </span>y.n)
+<span class="w">    </span>}
+}
+</pre></div>
+
+<p>So, consider what happens when you call</p>
+<div class="code"><pre class="code literal-block">List(new A(5), new A(2)).sorted
+</pre></div>
+
+<p>As we saw, the method <code>sorted</code> expects an <code>Ordering[A]</code> (actually, it expects
+an <code>Ordering[B]</code>, where <code>B &gt;: A</code>). There isn't any such thing inside
+<code>Ordering</code>, and there is no "source" type on which to look. Obviously, it is
+finding it inside <code>A</code>, which is a <em>type argument</em> of <code>Ordering</code>.</p>
+<p>This is also how various collection methods expecting <code>CanBuildFrom</code> work: the
+implicits are found inside companion objects to the type parameters of
+<code>CanBuildFrom</code>.</p>
+<p><strong>Note</strong> : <code>Ordering</code> is defined as <code>trait Ordering[T]</code>, where <code>T</code> is a type
+parameter. Previously, I said that Scala looked inside type parameters, which
+doesn't make much sense. The implicit looked for above is <code>Ordering[A]</code>, where
+<code>A</code> is an actual type, not type parameter: it is a <em>type argument</em> to
+<code>Ordering</code>. See section 7.2 of the Scala specification.</p>
+<p><strong>This is available since Scala 2.8.0.</strong></p>
+<h3>Outer Objects for Nested Types</h3>
+<p>I haven't actually seen examples of this. I'd be grateful if someone could
+share one. The principle is simple:</p>
+<div class="code"><pre class="code literal-block">class<span class="w"> </span>A(val<span class="w"> </span>n:<span class="w"> </span>Int)<span class="w"> </span>{
+<span class="w">  </span>class<span class="w"> </span>B(val<span class="w"> </span>m:<span class="w"> </span>Int)<span class="w"> </span>{<span class="w"> </span>require(m<span class="w"> </span><span class="nt">&lt; n</span><span class="err">)</span><span class="w"> </span><span class="err">}</span>
+<span class="err">}</span>
+<span class="err">object</span><span class="w"> </span><span class="err">A</span><span class="w"> </span><span class="err">{</span>
+<span class="w">  </span><span class="err">implicit</span><span class="w"> </span><span class="err">def</span><span class="w"> </span><span class="err">bToString(b:</span><span class="w"> </span><span class="err">A#B)</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">"B:</span><span class="w"> </span><span class="err">%d"</span><span class="w"> </span><span class="err">format</span><span class="w"> </span><span class="err">b.m</span>
+<span class="err">}</span>
+<span class="err">val</span><span class="w"> </span><span class="na">a =</span><span class="w"> </span><span class="s">new</span><span class="w"> </span><span class="err">A(5)</span>
+<span class="err">val</span><span class="w"> </span><span class="na">b =</span><span class="w"> </span><span class="s">new</span><span class="w"> </span><span class="err">a.B(3)</span>
+<span class="err">val</span><span class="w"> </span><span class="err">s:</span><span class="w"> </span><span class="na">String =</span><span class="w"> </span><span class="s">b</span><span class="w">  </span><span class="err">//</span><span class="w"> </span><span class="na">s =</span><span class="s">=</span><span class="w"> </span><span class="err">"B:</span><span class="w"> </span><span class="err">3"</span>
+</pre></div>
+
+<h3>Other Dimensions</h3>
+<p>I'm pretty sure this was a joke, but this answer might not be up-to-date. So
+don't take this question as being the final arbiter of what is happening, and
+if you do noticed it has gotten out-of-date, please inform me so that I can
+fix it.</p>
+<p><strong>EDIT</strong></p>
+<p>Related questions of interest:</p>
+<ul>
+<li>Context and view bounds</li>
+<li>Chaining implicits</li>
+<li>Scala: Implicit parameter resolution precedence</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I wanted to find out the precedence of the implicit parameter resolution, not
+just where it looks for, so I wrote a blog post revisiting implicits without
+import tax (and implicit parameter precedence again after some feedback).</p>
+<p>Here's the list:</p>
+<ul>
+<li>1) implicits visible to current invocation scope via local declaration, imports, outer scope, inheritance, package object that are accessible without prefix.</li>
+<li>2) <em>implicit scope</em> , which contains all sort of companion objects and package object that bear some relation to the implicit's type which we search for (i.e. package object of the type, companion object of the type itself, of its type constructor if any, of its parameters if any, and also of its supertype and supertraits).</li>
+</ul>
+<p>If at either stage we find more than one implicit, static overloading rule is
+used to resolve it.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/implicit-conversion/" rel="tag">implicit-conversion</a></li>
+            <li><a class="tag p-category" href="../../categories/implicits/" rel="tag">implicits</a></li>
+            <li><a class="tag p-category" href="../../categories/scala/" rel="tag">scala</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-do-the-likely-unlikely-macros-in-the-linux-kernel-work-and-what-is-their-benefit/" rel="prev" title="How do the likely/unlikely macros in the Linux kernel work and what is their benefit?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-s-the-difference-between-iso-8601-and-rfc-3339-date-formats/" rel="next" title="What's the difference between ISO 8601 and RFC 3339 Date Formats?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

@@ -108,388 +108,192 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/sign-and-broadcast-smart-contract-transaction-in-tron-network/" class="u-url">Sign and broadcast smart contract transaction in TRON network</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-it-possible-to-create-a-blockchain-with-probabilistic-finality-with-substrate/" class="u-url">Is it possible to create a blockchain with probabilistic finality with substrate?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/sign-and-broadcast-smart-contract-transaction-in-tron-network/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:18:59+08:00" itemprop="datePublished" title="2023-02-28 05:18">2023-02-28 05:18</time></a>
+            <a href="posts/is-it-possible-to-create-a-blockchain-with-probabilistic-finality-with-substrate/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:21:52+08:00" itemprop="datePublished" title="2023-02-28 05:21">2023-02-28 05:21</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>Using a node.js client, I'm trying to invoke a smart contract function by:</p>
-<ol>
-<li>Creating a transaction</li>
-<li>Signing it</li>
-<li>Broadcast the signed transaction</li>
-</ol>
-<p>I deployed a simple smart contract:</p>
-<div class="code"><pre class="code literal-block"><span class="n">pragma</span><span class="w"> </span><span class="n">solidity</span><span class="w"> </span><span class="o">^</span><span class="mf">0.4</span><span class="o">.</span><span class="mi">25</span><span class="p">;</span>
+    <p>Substrate depends on finality for its block production by default. Looking
+also into the application database layer with blocks, it seems that block
+reverting isn't normally possible with arbitrary depth. Does that mean it's
+impossible to have probabilistic finality in substrate?</p>
+<p><strong>Context to the problem:</strong></p>
+<p>In Bitcoin, Ethereum and other probabilistic-finality-based chains, the chain
+can reorg with as many blocks as the system needs. It can even be thousands of
+blocks if need be. Consequently, the state transition function (using
+substrate terminology) must be reversible. Hence, when a reorg happens, blocks
+are reverted in a way where (in bitcoin), outputs are removed and inputs
+become unspent in the UTXO set.</p>
+<p>In the most abstract form, this can be functionally represented as:</p>
+<div class="code"><pre class="code literal-block"><span class="kr">Apply</span><span class="p">(</span><span class="n">StateA</span><span class="p">,</span><span class="w"> </span><span class="n">blockX</span><span class="p">)</span><span class="w">  </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">StateB</span>
 
-<span class="n">contract</span><span class="w"> </span><span class="n">Test</span><span class="w"> </span><span class="p">{</span>
-
-<span class="w">    </span><span class="n">event</span><span class="w"> </span><span class="n">MyEvent</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">message</span><span class="p">,</span><span class="w"> </span><span class="n">uint</span><span class="w"> </span><span class="n">sessionId</span><span class="p">,</span><span class="w"> </span><span class="n">uint</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
-<span class="w">    </span><span class="n">event</span><span class="w"> </span><span class="n">TestEvent</span><span class="p">(</span><span class="n">address</span><span class="w"> </span><span class="n">sender</span><span class="p">);</span>
-
-<span class="w">    </span><span class="n">constructor</span><span class="p">()</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="p">}</span>
-
-
-<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">testFunction</span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">message</span><span class="p">,</span><span class="w"> </span><span class="n">uint</span><span class="w"> </span><span class="n">sessionId</span><span class="p">)</span>
-<span class="w">    </span><span class="n">public</span>
-<span class="w">    </span><span class="n">payable</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">emit</span><span class="w"> </span><span class="n">MyEvent</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">message</span><span class="p">,</span><span class="w"> </span><span class="n">sessionId</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">.</span><span class="n">value</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="n">function</span><span class="w"> </span><span class="n">test2</span><span class="p">()</span>
-<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">emit</span><span class="w"> </span><span class="n">TestEvent</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
+<span class="n">Revert</span><span class="p">(</span><span class="n">StateB</span><span class="p">,</span><span class="w"> </span><span class="n">blockX</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">StateA</span>
 </pre></div>
 
-<p>I'm having success invoking <code>test2</code> (when sending an empty parameters array)
-but failing to invoke <code>testFunction</code> which takes parameters. I've tried using
-tronweb triggerSmartContract call:</p>
-<div class="code"><pre class="code literal-block"><span class="n">async</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">triggerSmartContract</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-
-<span class="w">    </span><span class="n">try</span><span class="w"> </span><span class="p">{</span>
-
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">options</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="n">feeLimit</span><span class="p">:</span><span class="w"> </span><span class="mi">1000000000</span><span class="p">,</span>
-<span class="w">            </span><span class="n">callValue</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span>
-<span class="w">        </span><span class="p">};</span>
-
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">parameters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[{</span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s1">'string'</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="s1">'test-round-id-1'</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s1">'uint'</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="mi">12345</span><span class="p">}];</span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">issuerAddress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tronWeb</span><span class="o">.</span><span class="n">defaultAddress</span><span class="o">.</span><span class="n">base58</span><span class="p">;</span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">functionSelector</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'testFunction(string, uint)'</span><span class="p">;</span>
-
-<span class="w">        </span><span class="n">let</span><span class="w"> </span><span class="n">transactionObject</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">tronWeb</span><span class="o">.</span><span class="n">transactionBuilder</span><span class="o">.</span><span class="n">triggerSmartContract</span><span class="w"> </span><span class="p">(</span>
-<span class="w">            </span><span class="n">contract_address</span><span class="p">,</span>
-<span class="w">            </span><span class="n">functionSelector</span><span class="p">,</span>
-<span class="w">            </span><span class="n">options</span><span class="p">,</span>
-<span class="w">            </span><span class="n">parameters</span><span class="p">,</span>
-<span class="w">            </span><span class="n">tronWeb</span><span class="o">.</span><span class="n">address</span><span class="o">.</span><span class="n">toHex</span><span class="p">(</span><span class="n">issuerAddress</span><span class="p">)</span>
-<span class="w">        </span><span class="p">);</span>
-
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">transactionObject</span><span class="o">.</span><span class="n">result</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">transactionObject</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">result</span><span class="p">)</span>
-<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'Unknown error: '</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">txJson</span><span class="p">,</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
-
-<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Signing</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">transaction</span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">signedTransaction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">tronWeb</span><span class="o">.</span><span class="n">trx</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">transactionObject</span><span class="o">.</span><span class="n">transaction</span><span class="p">);</span>
-
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">signedTransaction</span><span class="o">.</span><span class="n">signature</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'Transaction was not signed properly'</span><span class="p">);</span>
-<span class="w">        </span><span class="p">}</span>
-
-<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Broadcasting</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">transaction</span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">broadcast</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">tronWeb</span><span class="o">.</span><span class="n">trx</span><span class="o">.</span><span class="n">sendRawTransaction</span><span class="p">(</span><span class="n">signedTransaction</span><span class="p">);</span>
-<span class="w">        </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="err">`</span><span class="n">broadcast</span><span class="p">:</span><span class="w"> </span><span class="o">$</span><span class="p">{</span><span class="n">broadcast</span><span class="p">}</span><span class="err">`</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>The code runs and creates a transaction on the blockchain but with result of
-<code>FAIL-REVERT OPCODE EXECUTED</code>. The wallet of the address and key that are
-defined in tronweb object has enough funds in it (it's not out of gas/not
-enough funds matter). Also the function in the smart contract is defined as
-payable.</p>
-<p>Since I can invoke successfully any function with no parameters I tend to
-think the problem relates to the way I construct the <code>parameters</code> array. I
-built the <code>parameters</code> array this way (pairs of <code>type</code> and <code>value</code>) after
-going over the source code of the transactionBuilder (line 833).</p>
-<p>Any suggestions?</p>
+<p>This strictly requires that it's known how a revert is done, given a block. In
+bitcoin, this is easily achievable as we know exactly how to "unspend" inputs
+and delete outputs by a simple database change.</p>
+<p><strong>The current situation in substrate (as far as I understand it):</strong></p>
+<p>But in a general purpose chain like substrate, this cannot be done without
+storing the set of state changes per block over the whole blockchain, which
+has a huge diskspace/memory requirement (called archive-pruning mode in
+substrate). Or, the developer has to provide the mechanism for reversibility,
+which doesn't seem to be a requirement in the pallet standard interface, as
+people are only required to provide the changes that have to be done in the
+database only when applying a block, not when removing/reverting a block from
+the tip of the mainchain.</p>
+<p>As can be seen in the database handling of a block, it's not possible to
+revert an arbitrary number of blocks the same way it's possible in
+probabilistic finality blockchains (unless pruning mode is <code>archive</code>, which is
+impractical to assume for all users). Substrate seems to assume that finality
+is an inevitability, where in the technical underlying database/storage, the
+concept of "canonicalization" is defined. A canonicalized block is a block
+that's technically irrevertible/irreversible, because its state transaction
+function has been applied to the database. And given that pallets don't define
+any mechanism for reverting extrinsics/transactions and hence blocks, there's
+absolutely no way to revert a block after it gets canonicalized. So, substrate
+stores a tree of all possible block candidates that are not yet
+canonicalized/finalized.</p>
+<p>This caused me lots of confusion because it seems that substrate does support
+proof-of-work consensus, but the canonicalization concept completely
+eradicates the possibility to revert blocks, which is typically a requirement
+in proof of work due to its probabilistic nature. (and on a humorous note,
+congratulations, 51% attacks with shadow mining are not possible anymore :-),
+but on a serious note, spontaneous contentious forks and chain-splits are
+possible if a group of honest nodes get isolated long enough, which is not
+that unrealistic, e.g., if a country decides to block the internet for a few
+days or block the node ports for political reasons, which should never be a
+problem in normal proof-of-work systems).</p>
+<p><strong>The question</strong></p>
+<p>This question is based on the requirement of building a substrate-based
+blockchain that follows bitcoin.</p>
+<p>Is it possible to make substrate consensus completely operate with correct
+probabilistic finality (without canonicalization and with proper definitions
+of reversible operations)? What would have to be changed? Is it a realistic
+change or is it drilled to the bones such that it's practically impossible? I
+honestly don't know where to start and would like to get an overview of the
+changes that have to be done to make the substrate blockchain work with
+probabilistic finality.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>try writing function parameters without spaces.<code>const functionSelector =
-'testFunction(string,uint)';</code> I read in the documentation that you have to
-write without spaces, it worked for me on python.</p>
+<p>I will post this answer since the only other answer available in this post is
+wrong and the comments seem to be overseen.</p>
+<p>The answer is no. Substrate, with its canonicalization of the database that
+can happen even before finalization, it's not possible to have a proper proof
+of work blockchain, as it's impossible to reverse blocks after
+canonicalization.</p>
+<p>It was decided by the management of the project I'm working with to move off
+substrate because of this issue. Technical details here.</p>
+<p>I'm posting this information about substrate regardless of whether this design
+good or bad, it's what it's. I can see pros and cons to it.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/retrive-jpg-image-stored-on-ipfs-using-infura-api-and-ipfs-http-client-in-react/" class="u-url">Retrive JPG image stored on IPFS using Infura API and ipfs-http-client in React</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-can-i-get-a-list-of-tokens-in-a-solana-wallet/" class="u-url">How can I get a list of Tokens in a Solana Wallet?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/retrive-jpg-image-stored-on-ipfs-using-infura-api-and-ipfs-http-client-in-react/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:18:39+08:00" itemprop="datePublished" title="2023-02-28 05:18">2023-02-28 05:18</time></a>
+            <a href="posts/how-can-i-get-a-list-of-tokens-in-a-solana-wallet/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:21:34+08:00" itemprop="datePublished" title="2023-02-28 05:21">2023-02-28 05:21</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I uploaded a jpg image on ipfs using infura API and ipfs-http-client. The file
-was taken from input with type=file. The event listner was onchange.</p>
-<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">imports</span>
-<span class="k">const</span><span class="w"> </span><span class="n">IpfsHttpClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s2">"ipfs-http-client"</span><span class="p">);</span>
-<span class="k">const</span><span class="w"> </span><span class="n">ipfsC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">IpfsHttpClient</span><span class="p">({</span>
-<span class="w">  </span><span class="n">host</span><span class="p">:</span><span class="w"> </span><span class="s2">"ipfs.infura.io"</span><span class="p">,</span>
-<span class="w">  </span><span class="n">port</span><span class="p">:</span><span class="w"> </span><span class="s2">"5001"</span><span class="p">,</span>
-<span class="w">  </span><span class="n">protocol</span><span class="p">:</span><span class="w"> </span><span class="s2">"https"</span><span class="p">,</span>
-<span class="p">});</span>
+    <p>I'm trying to get list of owned tokens from a wallet address. In the solana
+web3 documentation, there is a property of <code>Connecton</code> called
+<code>getTokenAccountsByOwner</code>, but I'm getting type error: <code>mintAddress.toBase58
+is not a function</code>.</p>
+<p>Here's the code I use:</p>
+<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">solanaWeb3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'@solana/web3.js'</span><span class="p">);</span>
+<span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Connection</span><span class="p">,</span><span class="w"> </span><span class="n">programs</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'@metaplex/js'</span><span class="p">);</span>
+<span class="k">const</span><span class="w"> </span><span class="n">axios</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'axios'</span><span class="p">);</span>
 
-<span class="o">&lt;</span><span class="n">input</span><span class="w"> </span><span class="n">type</span><span class="o">=</span><span class="s2">"file"</span><span class="w"> </span><span class="n">onChange</span><span class="o">=</span><span class="p">{(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">upload</span><span class="p">(</span><span class="n">e</span><span class="p">);</span><span class="w"> </span><span class="p">}}</span><span class="w"> </span><span class="o">/&gt;</span>
+<span class="o">..</span>
 
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">upload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
-<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">added</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">ipfsC</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="n">progress</span><span class="p">:</span><span class="w"> </span><span class="p">(</span><span class="n">prog</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="err">`</span><span class="n">received</span><span class="p">:</span><span class="w"> </span><span class="o">$</span><span class="p">{</span><span class="n">prog</span><span class="p">}</span><span class="err">`</span><span class="p">),</span>
-<span class="w">    </span><span class="p">});</span>
-<span class="w">    </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">added</span><span class="p">)</span>
+<span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">solanaConnection</span><span class="o">.</span><span class="n">getTokenLargestAccounts</span><span class="p">(</span><span class="s1">'2MTPtFo78QzWJaK9PGk9pZm9dFrVVSBGCRWPpND25GAe'</span><span class="p">));</span>
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<p>It looks like there are some bits mixed around between your question and your
+code, since the question references <code>getTokenAccountsByOwner</code> but then the
+code shows <code>getTokenLargestAccounts</code>.</p>
+<p>Either way, you're passing in a string, when you should be passing in a
+<code>PublicKey</code>. You can instead try:</p>
+<div class="code"><pre class="code literal-block">console.log(solanaConnection.getTokenLargestAccounts(new PublicKey('2MTPtFo78QzWJaK9PGk9pZm9dFrVVSBGCRWPpND25GAe')));
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/i-am-unable-to-send-custom-token-to-other-wallet-on-xrp-ledger/" class="u-url">I am unable to send custom token to other wallet on XRP Ledger</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/i-am-unable-to-send-custom-token-to-other-wallet-on-xrp-ledger/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:21:17+08:00" itemprop="datePublished" title="2023-02-28 05:21">2023-02-28 05:21</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I have manually added trust line to account which I have to receive the token.
+I have token <strong>SOX</strong> token in issuer wallet. I want to send to receiver wallet
+mentioned below. I am trying on testnet.</p>
+<div class="code"><pre class="code literal-block"><span class="k">var</span><span class="w"> </span><span class="n">xrpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'xrpl'</span><span class="p">);</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Issuer</span><span class="w"> </span><span class="n">wallet</span>
+<span class="o">//</span><span class="w"> </span><span class="n">Address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rnA9soPJPtfuTaEhGR7C6VKWei2CtzmLxJ</span>
+<span class="o">//</span><span class="w"> </span><span class="n">Secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sn2tgPrdCr72jvMxjKskGmPH2a1VH</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">receiver</span><span class="w"> </span><span class="n">Account</span>
+<span class="o">//</span><span class="w"> </span><span class="n">Address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rbBuZYumQhogsq6FFP6nkvm1GEiyLvNTz</span><span class="p">;</span>
+<span class="o">//</span><span class="w"> </span><span class="n">Secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sndPAYk5CcqwRpm4oTcofvjx7jAXX</span><span class="p">;</span>
+
+<span class="o">//</span><span class="w"> </span><span class="n">Connect</span><span class="w"> </span><span class="o">---------------------------------------------------------------------</span>
+<span class="n">async</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="n">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">xrpl</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s1">'wss://s.altnet.rippletest.net:51233'</span><span class="p">);</span>
+
+<span class="w">  </span><span class="n">await</span><span class="w"> </span><span class="n">client</span><span class="o">.</span><span class="n">connect</span><span class="p">();</span>
+
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">hot_wallet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">xrpl</span><span class="o">.</span><span class="n">Wallet</span><span class="o">.</span><span class="n">fromSeed</span><span class="p">(</span><span class="s1">'sn2tgPrdCr72jvMxjKskGmPH2a1VH'</span><span class="p">);</span>
+
+<span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">Send</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">----------------------------------------------------------------</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">currency_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'SOX'</span><span class="p">;</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">issue_quantity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'100'</span><span class="p">;</span>
+
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">send_token_tx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">TransactionType</span><span class="p">:</span><span class="w"> </span><span class="s1">'Payment'</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Account</span><span class="p">:</span><span class="w"> </span><span class="n">hot_wallet</span><span class="o">.</span><span class="n">address</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Amount</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="n">currency</span><span class="p">:</span><span class="w"> </span><span class="n">currency_code</span><span class="p">,</span>
+<span class="w">      </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="n">issue_quantity</span><span class="p">,</span>
+<span class="w">      </span><span class="n">issuer</span><span class="p">:</span><span class="w"> </span><span class="n">hot_wallet</span><span class="o">.</span><span class="n">address</span><span class="p">,</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="n">Destination</span><span class="p">:</span><span class="w"> </span><span class="s1">'rbBuZYumQhogsq6FFP6nkvm1GEiyLvNTz'</span><span class="p">,</span>
+<span class="w">    </span><span class="n">DestinationTag</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Needed</span><span class="w"> </span><span class="n">since</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">enabled</span><span class="w"> </span><span class="n">Require</span><span class="w"> </span><span class="n">Destination</span><span class="w"> </span><span class="n">Tags</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">hot</span><span class="w"> </span><span class="n">account</span><span class="w"> </span><span class="n">earlier</span><span class="o">.</span>
 <span class="w">  </span><span class="p">};</span>
+
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">pay_prepared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">client</span><span class="o">.</span><span class="n">autofill</span><span class="p">(</span><span class="n">send_token_tx</span><span class="p">);</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">pay_signed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hot_wallet</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">pay_prepared</span><span class="p">);</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">pay_result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">client</span><span class="o">.</span><span class="n">submitAndWait</span><span class="p">(</span><span class="n">pay_signed</span><span class="o">.</span><span class="n">tx_blob</span><span class="p">);</span>
+
+<span class="w">  </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">pay_result</span><span class="p">);</span>
+
+<span class="w">  </span><span class="n">client</span><span class="o">.</span><span class="n">disconnect</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="n">main</span><span class="p">();</span>
 </pre></div>
 
-<p>the hash that I get back is
-<strong>QmQnSWbsck26xrFRiowdV2JhP7cbKRc9KbjWinRhmJgiMa</strong>.Now I am trying to retrieve
-the image and display it on the web app. <strong>How should I proceed further</strong>.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>This is a v0 CID. You can learn more about CIDs and the different versions in
-the IPFS docs here.</p>
-<p>You can view more information about the encoding information with the CID
-inspector:</p>
-<p><code>https://cid.ipfs.io/#QmQnSWbsck26xrFRiowdV2JhP7cbKRc9KbjWinRhmJgiMa</code></p>
-<p>Or you can load it via HTTP from an IPFS gateway. There are many of those,
-some listed here at the IPFS Public Gateway Checker.</p>
-<p>You can load via any gateway - however, note that the gateway can see what you
-are requesting!</p>
-<p>The best and safest way to use IPFS HTTP gateway URLs is by getting the v1 CID
-which is encoded in a way that works with how HTTP URLs work. It also ensures
-origin-based security (in case it's an HTML URL and executes code).</p>
-<p>So in your code where you have the variable <code>added</code>, you can do this:</p>
-<p><code>let v1CID = added.cid.toV1()</code></p>
-<p>In your case that value will be:</p>
-<p><code>bafybeibekkxkexvbw65ma4syafzfnxtumfx7wjkbtaf2zfsoypmshn6ccu</code></p>
-<p>You can now construct a URL to a gateway like:</p>
-<p><code>https://bafybeibekkxkexvbw65ma4syafzfnxtumfx7wjkbtaf2zfsoypmshn6ccu.ipfs.dweb.link</code></p>
-<p>And you can use that URL in an tag, for example.</p>
-<p>Look at the public gateway checker above to view other options like
-CloudFlare's gateway, which support this subdomain URL feature.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/aca-py-0-6-0-info-ledger-instance-not-provided-error-bug/" class="u-url">Aca-py 0.6.0: INFO Ledger instance not provided error/bug?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/aca-py-0-6-0-info-ledger-instance-not-provided-error-bug/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:18:21+08:00" itemprop="datePublished" title="2023-02-28 05:18">2023-02-28 05:18</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>i am new to Hyperledger Aries and i can´t figure out what i am doing wrong.</p>
-<p>Environment:</p>
-<ul>
-<li>Ubuntu16LTS</li>
-<li>Docker 18.09.7 build 2d0083d</li>
-<li>hyperledger-aries-python version: 0.6.0 (sourcecode)</li>
-</ul>
-<p>From the aca-py repo (https://github.com/hyperledger/aries-cloudagent-python i
-run:</p>
-<p>./scripts/run_docker start -e http://host.docker.internal:8000 -it http
-0.0.0.0 8000 -ot http --admin 0.0.0.0 11000 --admin-insecure-mode --log-level
-DEBUG --genesis-url https://raw.githubusercontent.com/CHempel-
-esatus/SSI4DE_Genesis/master/pool_transactions_genesis --trace</p>
-<p>NOTE: I have tried different pool_genesis_transaction files and tried to pass
-them in various ways (via URL, via a File located in the docker conainer). It
-always drops the same or similar Info:</p>
-<div class="code"><pre class="code literal-block"><span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">32</span><span class="p">,</span><span class="mf">311</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">config</span><span class="mf">.</span><span class="n">ledger</span><span class="w"> </span><span class="n">INFO</span><span class="w"> </span><span class="n">Ledger</span><span class="w"> </span><span class="n">instance</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">provided</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">32</span><span class="p">,</span><span class="mf">312</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">conductor</span><span class="w"> </span><span class="n">WARNING</span><span class="w"> </span><span class="n">No</span><span class="w"> </span><span class="n">ledger</span><span class="w"> </span><span class="n">configured</span>
+<p>You have put the wrong address on the issuer the correct way should be</p>
+<div class="code"><pre class="code literal-block">issuer: 'rn2sbUWaB2iDPjuDncEUXePRwtVdafTBk3',
 </pre></div>
-
-<p>Here is the full output:</p>
-<div class="code"><pre class="code literal-block"><span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">035</span><span class="w"> </span><span class="n">asyncio</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="n">Using</span><span class="w"> </span><span class="n">selector</span><span class="p">:</span><span class="w"> </span><span class="n">EpollSelector</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">036</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">out_of_band</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">037</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">actionmenu</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">038</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">routing</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">039</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">discovery</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">041</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="nb">int</span><span class="n">roduction</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">041</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">problem_report</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">042</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">coordinate_mediation</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">043</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">present_proof</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">044</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">trustping</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">045</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">didexchange</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">047</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">issue_credential</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">048</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">basicmessage</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">050</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">protocols</span><span class="mf">.</span><span class="n">connections</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">051</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">holder</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">057</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">ledger</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">072</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">messaging</span><span class="mf">.</span><span class="n">credential_definitions</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">085</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">messaging</span><span class="mf">.</span><span class="n">schemas</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">091</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">revocation</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">105</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">plugin_registry</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="kr">Load</span><span class="n">ed</span><span class="w"> </span><span class="n">module</span><span class="p">:</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">wallet</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">31</span><span class="p">,</span><span class="mf">119</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">config</span><span class="mf">.</span><span class="n">ledger</span><span class="w"> </span><span class="n">INFO</span><span class="w"> </span><span class="n">Fetching</span><span class="w"> </span><span class="n">genesis</span><span class="w"> </span><span class="n">transactions</span><span class="w"> </span><span class="n">from</span><span class="p">:</span><span class="w"> </span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="mf">.</span><span class="n">githubusercontent</span><span class="mf">.</span><span class="n">com</span><span class="o">/</span><span class="n">CHempel</span><span class="o">-</span><span class="n">esatus</span><span class="o">/</span><span class="n">SSI4DE_Genesis</span><span class="o">/</span><span class="n">master</span><span class="o">/</span><span class="n">pool_transactions_genesis</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">32</span><span class="p">,</span><span class="mf">302</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">profile</span><span class="w"> </span><span class="n">INFO</span><span class="w"> </span><span class="n">Create</span><span class="w"> </span><span class="n">profile</span><span class="w"> </span><span class="n">manager</span><span class="p">:</span><span class="w"> </span><span class="n">in_memory</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">32</span><span class="p">,</span><span class="mf">311</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">config</span><span class="mf">.</span><span class="n">ledger</span><span class="w"> </span><span class="n">INFO</span><span class="w"> </span><span class="n">Ledger</span><span class="w"> </span><span class="n">instance</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">provided</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">12</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">48</span><span class="p">:</span><span class="mf">32</span><span class="p">,</span><span class="mf">312</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">conductor</span><span class="w"> </span><span class="n">WARNING</span><span class="w"> </span><span class="n">No</span><span class="w"> </span><span class="n">ledger</span><span class="w"> </span><span class="n">configured</span>
-
-<span class="p">::::::::::::::::::::::::::::::::::::::::::::::</span>
-<span class="p">::</span><span class="w"> </span><span class="n">Aries</span><span class="w"> </span><span class="n">Cloud</span><span class="w"> </span><span class="n">Agent</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="n">Inbound</span><span class="w"> </span><span class="n">Transports</span><span class="p">:</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">0.0.0.0</span><span class="p">:</span><span class="mf">8000</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="n">Outbound</span><span class="w"> </span><span class="n">Transports</span><span class="p">:</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">http</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">https</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="n">Administration</span><span class="w"> </span><span class="n">API</span><span class="p">:</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="mf">0.0.0.0</span><span class="p">:</span><span class="mf">11000</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::</span><span class="w"> </span><span class="n">ver</span><span class="p">:</span><span class="w"> </span><span class="mf">0.6.0</span><span class="w"> </span><span class="p">::</span>
-<span class="p">::::::::::::::::::::::::::::::::::::::::::::::</span>
-
-<span class="kr">List</span><span class="n">ening</span><span class="mf">...</span>
-</pre></div>
-
-<p>Looking in the demos i just dont know why my aries can not connect to any
-indy-ledger. Using indy-cli with the same genesis-files worked fine. The CLI
-was able to connect so i assume that all pool_genesis_files where correct.</p>
-<p>Am i doing something wrong or is something missing?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I finaly found the solution. The Story how i found it:</p>
-<p><strong>Short Story:</strong></p>
-<p>Prerequisites: Install indy-sdk, aries-cloudagent, python3_indy and python
-3.6.9+ on your machine. See the long story if you don´t know how to do that.
-Python 3.6.9 comes out of the box with Ubuntu18LTS</p>
-<ol>
-<li>install aries-cloudagent-python (aca-py) localy.</li>
-<li>run aca-py first with the provision command to config your aca-py instance. Use the argument wallet-type indy for that</li>
-<li>run aca-py normaly with the start command and your config-params. Be sure to use the --wallet-type indy flag to be able to connect to an indy ledger</li>
-</ol>
-<p><strong>Long Story:</strong></p>
-<p>Inside the aries-cloudagent-python (aca-py) code, it seems that the
-configuration, which ledger to use (e.g. an indy ledger) comes from the
-specified wallet type.</p>
-<p>1st.: providing arguments: --wallet-type indy -&gt; this returned the error, that
---wallet-name and --wallet-key parameters are needed. So i provided them:</p>
-<div class="code"><pre class="code literal-block">./scripts/run_docker start 
--e http://127.0.0.1:8000 
--it http 127.0.0.1 8000 
--ot http
---admin 127.0.0.1 11000
---admin-insecure-mode
---log-level DEBUG
---genesis-url https://raw.githubusercontent.com/CHempel-esatus/SSI4DE_Genesis/master/pool_transactions_genesis 
---trace 
---recreate-wallet 
---wallet-type indy 
---wallet-name test 
---wallet-key 12345
-</pre></div>
-
-<p>2nd.: This results in the following error, telling that no Database for the
-wallet is provided.</p>
-<div class="code"><pre class="code literal-block"><span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">16</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">19</span><span class="p">:</span><span class="mf">45</span><span class="p">,</span><span class="mf">447</span><span class="w"> </span><span class="n">indy</span><span class="mf">.</span><span class="n">libindy</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="n">_indy_loop_callback</span><span class="p">:</span><span class="w"> </span><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">command_handle</span><span class="p">:</span><span class="w"> </span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="n">err</span><span class="w"> </span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">:</span><span class="w"> </span><span class="p">(</span><span class="mf">0</span><span class="p">,)</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">16</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">19</span><span class="p">:</span><span class="mf">45</span><span class="p">,</span><span class="mf">447</span><span class="w"> </span><span class="n">indy</span><span class="mf">.</span><span class="n">libindy</span><span class="w"> </span><span class="n">WARNING</span><span class="w"> </span><span class="n">_indy_loop_callback</span><span class="p">:</span><span class="w"> </span><span class="n">Function</span><span class="w"> </span><span class="kr">return</span><span class="n">ed</span><span class="w"> </span><span class="n">error</span><span class="w"> </span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">16</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">19</span><span class="p">:</span><span class="mf">45</span><span class="p">,</span><span class="mf">449</span><span class="w"> </span><span class="n">indy</span><span class="mf">.</span><span class="n">libindy</span><span class="w"> </span><span class="n">DEBUG</span><span class="w"> </span><span class="n">_indy_loop_callback</span><span class="w"> </span><span class="o">&lt;&lt;&lt;</span>
-<span class="mf">2021</span><span class="o">-</span><span class="mf">03</span><span class="o">-</span><span class="mf">16</span><span class="w"> </span><span class="mf">09</span><span class="p">:</span><span class="mf">19</span><span class="p">:</span><span class="mf">45</span><span class="p">,</span><span class="mf">449</span><span class="w"> </span><span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">commands</span><span class="mf">.</span><span class="n">start</span><span class="w"> </span><span class="n">ERROR</span><span class="w"> </span><span class="n">Exception</span><span class="w"> </span><span class="n">during</span><span class="w"> </span><span class="n">startup</span><span class="p">:</span>
-<span class="n">Traceback</span><span class="w"> </span><span class="p">(</span><span class="n">most</span><span class="w"> </span><span class="n">recent</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="n">last</span><span class="p">):</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/aries_cloudagent/indy/sdk/wallet_setup.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">169</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="kr">open</span><span class="n">_wallet</span>
-<span class="w">    </span><span class="n">credentials</span><span class="o">=</span><span class="n">json</span><span class="mf">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">self</span><span class="mf">.</span><span class="n">wallet_access</span><span class="p">),</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/.pyenv/versions/3.6.13/lib/python3.6/site-packages/indy/wallet.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">127</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="kr">open</span><span class="n">_wallet</span>
-<span class="w">    </span><span class="kr">open</span><span class="n">_wallet</span><span class="mf">.</span><span class="n">cb</span><span class="p">)</span>
-<span class="n">indy</span><span class="mf">.</span><span class="n">error</span><span class="mf">.</span><span class="n">WalletNotFoundError</span>
-
-<span class="n">The</span><span class="w"> </span><span class="n">above</span><span class="w"> </span><span class="n">exception</span><span class="w"> </span><span class="n">was</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">direct</span><span class="w"> </span><span class="n">cause</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">following</span><span class="w"> </span><span class="n">exception</span><span class="p">:</span>
-
-<span class="n">Traceback</span><span class="w"> </span><span class="p">(</span><span class="n">most</span><span class="w"> </span><span class="n">recent</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="n">last</span><span class="p">):</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/aries_cloudagent/commands/start.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">72</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">init</span>
-<span class="w">    </span><span class="n">await</span><span class="w"> </span><span class="n">startup</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/aries_cloudagent/commands/start.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">28</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">start_app</span>
-<span class="w">    </span><span class="n">await</span><span class="w"> </span><span class="n">conductor</span><span class="mf">.</span><span class="n">setup</span><span class="p">()</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/aries_cloudagent/core/conductor.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">91</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">setup</span>
-<span class="w">    </span><span class="n">self</span><span class="mf">.</span><span class="n">root_profile</span><span class="p">,</span><span class="w"> </span><span class="n">self</span><span class="mf">.</span><span class="n">setup_public_did</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">wallet_config</span><span class="p">(</span><span class="kr">cont</span><span class="n">ext</span><span class="p">)</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/aries_cloudagent/config/wallet.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">40</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">wallet_config</span>
-<span class="w">    </span><span class="n">profile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">mgr</span><span class="mf">.</span><span class="kr">open</span><span class="p">(</span><span class="kr">cont</span><span class="n">ext</span><span class="p">,</span><span class="w"> </span><span class="n">profile_cfg</span><span class="p">)</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/aries_cloudagent/indy/sdk/profile.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">161</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="kr">open</span>
-<span class="w">    </span><span class="kr">open</span><span class="n">ed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">indy_config</span><span class="mf">.</span><span class="kr">open</span><span class="n">_wallet</span><span class="p">()</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/aries_cloudagent/indy/sdk/wallet_setup.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">182</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="kr">open</span><span class="n">_wallet</span>
-<span class="w">    </span><span class="p">)</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">x_indy</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/aries_cloudagent/indy/sdk/wallet_setup.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">169</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="kr">open</span><span class="n">_wallet</span>
-<span class="w">    </span><span class="n">credentials</span><span class="o">=</span><span class="n">json</span><span class="mf">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">self</span><span class="mf">.</span><span class="n">wallet_access</span><span class="p">),</span>
-<span class="w">  </span><span class="n">File</span><span class="w"> </span><span class="s">"/home/indy/.pyenv/versions/3.6.13/lib/python3.6/site-packages/indy/wallet.py"</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="mf">127</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="kr">open</span><span class="n">_wallet</span>
-<span class="w">    </span><span class="kr">open</span><span class="n">_wallet</span><span class="mf">.</span><span class="n">cb</span><span class="p">)</span>
-<span class="n">aries_cloudagent</span><span class="mf">.</span><span class="n">core</span><span class="mf">.</span><span class="n">error</span><span class="mf">.</span><span class="n">ProfileNotFoundError</span><span class="p">:</span><span class="w"> </span><span class="n">Wallet</span><span class="w"> </span><span class="err">'</span><span class="n">test</span><span class="err">'</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">found</span><span class="p">:</span><span class="w"> </span><span class="n">Error</span><span class="p">:</span><span class="w"> </span><span class="n">Wallet</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">found</span>
-<span class="w">  </span><span class="n">Caused</span><span class="w"> </span><span class="n">by</span><span class="p">:</span><span class="w"> </span><span class="n">No</span><span class="w"> </span><span class="n">wallet</span><span class="w"> </span><span class="kd">data</span><span class="n">base</span><span class="w"> </span><span class="n">exists</span>
-</pre></div>
-
-<p>3rd.: The documentation of aca-py at https://github.com/hyperledger/aries-
-cloudagent-python/blob/main/DevReadMe.md explicitly says:</p>
-<blockquote>
-<p>Running Locally: For local development, we recommend using the provided
-Docker scripts to run the ACA-Py software</p>
-</blockquote>
-<p>4th.: aca-py is able to use sqlite, which is installed in the docker
-container. To see that aca-py is compatible with sqlite, run</p>
-<p><code>./scripts/run_docker start --help</code></p>
-<p>which returns the list of available arguments. One is the following:</p>
-<div class="code"><pre class="code literal-block"><span class="o">--</span><span class="n">wallet</span><span class="o">-</span><span class="n">storage</span><span class="o">-</span><span class="n">type</span><span class="w"> </span><span class="o">&lt;</span><span class="n">storage</span><span class="o">-</span><span class="n">type</span><span class="o">&gt;</span>
-<span class="w">                        </span><span class="n">Specifies</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">Indy</span><span class="w"> </span><span class="n">wallet</span><span class="w"> </span><span class="n">backend</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">use</span><span class="p">.</span>
-<span class="w">                        </span><span class="n">Supported</span><span class="w"> </span><span class="n">internal</span><span class="w"> </span><span class="n">storage</span><span class="w"> </span><span class="n">types</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="err">'</span><span class="n">basic</span><span class="err">'</span><span class="w"> </span><span class="p">(</span><span class="n">memory</span><span class="p">),</span>
-<span class="w">                        </span><span class="err">'</span><span class="k">default</span><span class="err">'</span><span class="w"> </span><span class="p">(</span><span class="n">sqlite</span><span class="p">),</span><span class="w"> </span><span class="n">and</span><span class="w"> </span><span class="err">'</span><span class="n">postgres_storage</span><span class="err">'</span><span class="p">.</span><span class="w"> </span><span class="n">The</span>
-<span class="w">                        </span><span class="k">default</span><span class="p">,</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">specified</span><span class="p">,</span><span class="w"> </span><span class="n">is</span><span class="w"> </span><span class="err">'</span><span class="k">default</span><span class="err">'</span><span class="p">.</span><span class="w"> </span><span class="p">[</span><span class="n">env</span><span class="w"> </span><span class="n">var</span><span class="o">:</span>
-<span class="w">                        </span><span class="n">ACAPY_WALLET_STORAGE_TYPE</span><span class="p">]</span>
-</pre></div>
-
-<p>5th: Running</p>
-<div class="code"><pre class="code literal-block">./scripts/run_docker provision 
--e http 
---genesis-url 
-https://raw.githubusercontent.com/CHempel-esatus/SSI4DE_Genesis/master/pool_transactions_genesis 
---recreate-wallet 
---wallet-type indy 
---wallet-name test 
---wallet-key 12345
-</pre></div>
-
-<p>returns</p>
-<div class="code"><pre class="code literal-block">Successfully tagged aries-cloudagent-run:latest
-Created new profile
-Profile backend: indy
-Profile name: test
-No public DID
-Ledger configured
-</pre></div>
-
-<p>This is weird, because now he is able to find sqlite. This seems to configure
-the Database properly so it can be used. But because it is inside a docker
-container, and the container discarding every change, this internal
-configuration will never be available.</p>
-<p>6th. To solve this, i´ve installed on an Ubuntu18LTS the aries cloud-agent
-package localy from https://pypi.org/project/aries-cloudagent/</p>
-<div class="code"><pre class="code literal-block">pip3 install aries-cloudagent
-pip3 install python3_indy
-</pre></div>
-
-<p>and followed the installation instructions for the indy-sdk
-https://github.com/hyperledger/indy-sdk</p>
-<p>I also installed sqlite on the local machine with:</p>
-<div class="code"><pre class="code literal-block">sudo apt install sqlite
-</pre></div>
-
-<p>7th.: After i rebooted the system, i executed:</p>
-<div class="code"><pre class="code literal-block">aca-py provision -e http://127.0.0.1:8000 --genesis-url https://raw.githubusercontent.com/CHempel-esatus/SSI4DE_Genesis/master/pool_transactions_genesis --recreate-wallet --wallet-type indy --wallet-name test --wallet-key test
-</pre></div>
-
-<p>returning</p>
-<div class="code"><pre class="code literal-block">Created new profile
-Profile backend: indy
-Profile name: test
-No public DID
-Ledger configured
-</pre></div>
-
-<p>8th.: After that, i cloud run aca-py and connect to my ledger using the admin-
-REST-api</p>
-<p><img alt="enter image description here" src="images/7YWZy.png"></p>
     </div>
     </article>
 </div>
@@ -506,7 +310,7 @@ REST-api</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

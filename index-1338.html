@@ -108,7 +108,128 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/should-you-choose-the-money-or-decimal-x-y-datatypes-in-sql-server/" class="u-url">Should you choose the MONEY or DECIMAL(x,y) datatypes in SQL Server?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/pandas-read-csv-low-memory-and-dtype-options/" class="u-url">Pandas read_csv: low_memory and dtype options</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/pandas-read-csv-low-memory-and-dtype-options/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T07:01:25+08:00" itemprop="datePublished" title="2023-02-18 07:01">2023-02-18 07:01</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <div class="code"><pre class="code literal-block">df = pd.read_csv('somefile.csv')
+</pre></div>
+
+<p>...gives an error:</p>
+<blockquote>
+<p>.../site-packages/pandas/io/parsers.py:1130: DtypeWarning: Columns
+(4,5,7,16) have mixed types. Specify dtype option on import or set
+low_memory=False.</p>
+</blockquote>
+<p>Why is the <code>dtype</code> option related to <code>low_memory</code>, and why might
+<code>low_memory=False</code> help?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h2>The deprecated low_memory option</h2>
+<p>The <code>low_memory</code> option is not properly deprecated, but it should be, since it
+does not actually do anything differently[source]</p>
+<p>The reason you get this <code>low_memory</code> warning is because guessing dtypes for
+each column is very memory demanding. Pandas tries to determine what dtype to
+set by analyzing the data in each column.</p>
+<h2>Dtype Guessing (very bad)</h2>
+<p>Pandas can only determine what dtype a column should have once the whole file
+is read. This means nothing can really be parsed before the whole file is read
+unless you risk having to change the dtype of that column when you read the
+last value.</p>
+<p>Consider the example of one file which has a column called user_id. It
+contains 10 million rows where the user_id is always numbers. Since pandas
+cannot know it is only numbers, it will probably keep it as the original
+strings until it has read the whole file.</p>
+<h2>Specifying dtypes (should always be done)</h2>
+<p>adding</p>
+<div class="code"><pre class="code literal-block">dtype={'user_id': int}
+</pre></div>
+
+<p>to the <code>pd.read_csv()</code> call will make pandas know when it starts reading the
+file, that this is only integers.</p>
+<p>Also worth noting is that if the last line in the file would have <code>"foobar"</code>
+written in the <code>user_id</code> column, the loading would crash if the above dtype
+was specified.</p>
+<h4>Example of broken data that breaks when dtypes are defined</h4>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">StringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">StringIO</span>
+
+
+<span class="n">csvdata</span> <span class="o">=</span> <span class="s2">"""user_id,username</span>
+<span class="s2">1,Alice</span>
+<span class="s2">3,Bob</span>
+<span class="s2">foobar,Caesar"""</span>
+<span class="n">sio</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">(</span><span class="n">csvdata</span><span class="p">)</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">sio</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="p">{</span><span class="s2">"user_id"</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="s2">"username"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">})</span>
+
+<span class="ne">ValueError</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">literal</span> <span class="k">for</span> <span class="n">long</span><span class="p">()</span> <span class="k">with</span> <span class="n">base</span> <span class="mi">10</span><span class="p">:</span> <span class="s1">'foobar'</span>
+</pre></div>
+
+<p>dtypes are typically a numpy thing, read more about them here:
+http://docs.scipy.org/doc/numpy/reference/generated/numpy.dtype.html</p>
+<h2>What dtypes exists?</h2>
+<p>We have access to numpy dtypes: float, int, bool, timedelta64[ns] and
+datetime64[ns]. Note that the numpy date/time dtypes are <em>not</em> time zone
+aware.</p>
+<p>Pandas extends this set of dtypes with its own:</p>
+<p><code>'datetime64[ns, &lt;tz&gt;]'</code> Which is a time zone aware timestamp.</p>
+<p>'category' which is essentially an enum (strings represented by integer keys
+to save</p>
+<p>'period[]' Not to be confused with a timedelta, these objects are actually
+anchored to specific time periods</p>
+<p>'Sparse', 'Sparse[int]', 'Sparse[float]' is for sparse data or 'Data that has
+a lot of holes in it' Instead of saving the NaN or None in the dataframe it
+omits the objects, saving space.</p>
+<p>'Interval' is a topic of its own but its main use is for indexing. See more
+here</p>
+<p>'Int8', 'Int16', 'Int32', 'Int64', 'UInt8', 'UInt16', 'UInt32', 'UInt64' are
+all pandas specific integers that are nullable, unlike the numpy variant.</p>
+<p>'string' is a specific dtype for working with string data and gives access to
+the <code>.str</code> attribute on the series.</p>
+<p>'boolean' is like the numpy 'bool' but it also supports missing data.</p>
+<p>Read the complete reference here:</p>
+<p>Pandas dtype reference</p>
+<h2>Gotchas, caveats, notes</h2>
+<p>Setting <code>dtype=object</code> will silence the above warning, but will not make it
+more memory efficient, only process efficient if anything.</p>
+<p>Setting <code>dtype=unicode</code> will not do anything, since to numpy, a <code>unicode</code> is
+represented as <code>object</code>.</p>
+<h4>Usage of converters</h4>
+<p>@sparrow correctly points out the usage of converters to avoid pandas blowing
+up when encountering <code>'foobar'</code> in a column specified as <code>int</code>. I would like
+to add that converters are really heavy and inefficient to use in pandas and
+should be used as a last resort. This is because the read_csv process is a
+single process.</p>
+<p>CSV files can be processed line by line and thus can be processed by multiple
+converters in parallel more efficiently by simply cutting the file into
+segments and running multiple processes, something that pandas does not
+support. But this is a different story.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Try:</p>
+<div class="code"><pre class="code literal-block">dashboard_df = pd.read_csv(p_file, sep=',', error_bad_lines=False, index_col=False, dtype='unicode')
+</pre></div>
+
+<p>According to the pandas documentation:</p>
+<blockquote>
+<p>dtype : Type name or dict of column -&gt; type</p>
+</blockquote>
+<p>As for low_memory, it's True by default and isn't yet documented. I don't
+think its relevant though. The error message is generic, so you shouldn't need
+to mess with low_memory anyway. Hope this helps and let me know if you have
+further problems</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/should-you-choose-the-money-or-decimal-x-y-datatypes-in-sql-server/" class="u-url">Should you choose the MONEY or DECIMAL(x,y) datatypes in SQL Server?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -252,113 +373,6 @@ request. This is especially useful when writing more complicated requests.</p>
 you can check out POSTMAN/comment below.</p>
 <p><img alt="POSTMAN to get the request code" src="images/jPX0Z.png"></p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/xcode-project-vs-xcode-workspace-differences/" class="u-url">Xcode Project vs. Xcode Workspace - Differences</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/xcode-project-vs-xcode-workspace-differences/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T07:00:11+08:00" itemprop="datePublished" title="2023-02-18 07:00">2023-02-18 07:00</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I am trying to understand how the whole ecosystem of <code>iOS</code> works.<br>
-Until now, I could find an answer for most of my question (and trust me, there
-have been a lots of them), but for this one, there seems to be no clear answer
-yet.</p>
-<p><strong>What is the difference between XcodeProject and XcodeWorkspace files?</strong></p>
-<ol>
-<li>What is the difference between the two of them?</li>
-<li>What are they responsible for?</li>
-<li>Which one of them should I work with when I'm developing my Apps in team/alone?</li>
-<li>Is there anything else I should be aware of in matter of these two files?</li>
-</ol>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>I think there are three key items you need to understand regarding project
-structure: <em>Targets</em> , <em>projects</em> , and <em>workspaces</em>. <strong>Targets</strong> specify in
-detail how a product/binary (i.e., an application or library) is built. They
-include build settings, such as compiler and linker flags, and they define
-which files (source code and resources) actually belong to a product. When you
-build/run, you always select one specific target.</p>
-<p>It is likely that you have a few targets that share code and resources. These
-different targets can be slightly different versions of an app (iPad/iPhone,
-different brandings,…) or test cases that naturally need to access the same
-source files as the app. All these related targets can be grouped in a
-<strong>project</strong>. While the project contains the files from all its targets, each
-target picks its own subset of relevant files. The same goes for build
-settings: You can define default project-wide settings in the project, but if
-one of your targets needs different settings, you can always override them
-there:</p>
-<p><img alt="Shared project settings that all targets inherit, unless they overwrite
-it" src="images/WToPC.png"></p>
-<p>Shared project settings that all targets inherit, unless they override it</p>
-<p><img alt="Concrete target settings: PSE iPhone overwrites the project’s Base SDK
-setting" src="images/UA3TA.png"></p>
-<p>Concrete target settings: <em>PSE iPhone</em> overrides the project’s <code>Base SDK</code>
-setting</p>
-<p>In Xcode, you always open projects (or workspaces, but not targets), and all
-the targets it contains can be built/run, but there’s no way/definition of
-building a project, so every project needs at least one target in order to be
-more than just a collection of files and settings.</p>
-<p><img alt="Select one of the project’s targets to run" src="images/guLvo.png"></p>
-<p>Select one of the project’s targets to run</p>
-<p>In a lot of cases, projects are all you need. If you have a dependency that
-you build from source, you can embed it as a <strong>subproject</strong>. Subprojects can
-be opened separately or within their super project.</p>
-<p><img alt="demoLib is a subprojec" src="images/g3mpl.png"></p>
-<p><em>demoLib</em> is a subproject</p>
-<p>If you add one of the subproject’s targets to the super project’s
-dependencies, the subproject will be automatically built unless it has
-remained unchanged. The advantage here is that you can edit files from both
-your project and your dependencies in the same Xcode window, and when you
-build/run, you can select from the project’s and its subprojects’ targets:</p>
-<p><img alt="Running targets from a subproject" src="images/sV41Z.png"></p>
-<p>If, however, your library (the subproject) is used by a variety of other
-projects (or their targets, to be precise), it makes sense to put it on the
-same hierarchy level – that’s what <strong>workspaces</strong> are for. Workspaces contain
-and manage projects, and all the projects it includes directly (i.e., not
-their subprojects) are on the same level and their targets can depend on each
-other (projects’ targets can depend on subprojects’ targets, but not vice
-versa).</p>
-<p><img alt="Workspace structure" src="images/1ug5Z.png"></p>
-<p>Workspace structure</p>
-<p>In this example, both apps ( <em>AnotherApplication</em> / <em>ProjectStructureExample</em>
-) can reference the <em>demoLib</em> project’s targets. This would also be possible
-by including the <em>demoLib</em> project in both other projects as a subproject
-(which is a reference only, so no duplication necessary), but if you have lots
-of cross-dependencies, workspaces make more sense. If you open a workspace,
-you can choose from all projects’ targets when building/running.</p>
-<p><img alt="Running targets from a workspace" src="images/LtHRd.png"></p>
-<p>You can still open your project files separately, but it is likely their
-targets won’t build because Xcode cannot resolve the dependencies unless you
-open the workspace file. Workspaces give you the same benefit as subprojects:
-Once a dependency changes, Xcode will rebuild it to make sure it’s up-to-date
-(although I have had some issues with that, it doesn’t seem to work reliably).</p>
-<p><strong>Your questions in a nutshell</strong> :</p>
-<p>1) Projects contain files (code/resouces), settings, and targets that build
-products from those files and settings. Workspaces contain projects which can
-reference each other.</p>
-<p>2) Both are responsible for structuring your overall project, but on different
-levels.</p>
-<p>3) I think projects are sufficient in most cases. Don’t use workspaces unless
-there’s a specific reason. Plus, you can always embed your project in a
-workspace later.</p>
-<p>4) I think that’s what the above text is for…</p>
-<p>There’s one remark for 3): CocoaPods, which automatically handles 3rd party
-libraries for you, uses workspaces. Therefore, you have to use them, too, when
-you use <code>CocoaPods</code> (which a lot of people do).</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>A workspace is a collection of projects. It's useful to organize your projects
-when there's correlation between them (e.g.: Project A includes a library,
-that is provided as a project itself as project B. When you build the
-workspace project B is compiled and linked in project A).<br>
-It's common to use a workspace in the popular CocoaPods. When you install your
-pods, they are placed inside a workspace, that holds your project and the pod
-libraries.</p>
-    </div>
     </article>
 </div>
 
@@ -374,7 +388,7 @@ libraries.</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

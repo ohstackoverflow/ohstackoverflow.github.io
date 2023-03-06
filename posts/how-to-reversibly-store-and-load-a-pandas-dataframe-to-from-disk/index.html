@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to reversibly store and load a Pandas dataframe to/from disk | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-to-reversibly-store-and-load-a-pandas-dataframe-to-from-disk/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../is-a-view-faster-than-a-simple-query/" title="Is a view faster than a simple query?" type="text/html">
+<link rel="next" href="../asp-net-mvc-controller-actions-that-return-json-or-partial-html/" title="ASP.NET MVC controller actions that return JSON or partial html" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How to reversibly store and load a Pandas dataframe to/from disk">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-to-reversibly-store-and-load-a-pandas-dataframe-to-from-disk/">
+<meta property="og:description" content="Right now I'm importing a fairly large CSV as a dataframe every time I run
+the script. Is there a good solution for keeping that dataframe constantly
+available in between runs so I don't have to spend">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T13:46:27+08:00">
+<meta property="article:tag" content="dataframe">
+<meta property="article:tag" content="pandas">
+<meta property="article:tag" content="python">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How to reversibly store and load a Pandas dataframe to/from disk</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T13:46:27+08:00" itemprop="datePublished" title="2023-03-03 13:46">2023-03-03 13:46</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Right now I'm importing a fairly large <code>CSV</code> as a dataframe every time I run
+the script. Is there a good solution for keeping that dataframe constantly
+available in between runs so I don't have to spend all that time waiting for
+the script to run?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The easiest way is to pickle it using <code>to_pickle</code>:</p>
+<div class="code"><pre class="code literal-block">df.to_pickle(file_name)  # where to save it, usually as a .pkl
+</pre></div>
+
+<p>Then you can load it back using:</p>
+<div class="code"><pre class="code literal-block">df = pd.read_pickle(file_name)
+</pre></div>
+
+<p><em>Note: before 0.11.1<code>save</code> and <code>load</code> were the only way to do this (they are
+now deprecated in favor of <code>to_pickle</code> and <code>read_pickle</code> respectively).</em></p>
+<hr>
+<p>Another popular choice is to use HDF5 (pytables) which offers very fast access
+times for large datasets:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="n">store</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">HDFStore</span><span class="p">(</span><span class="s1">'store.h5'</span><span class="p">)</span>
+
+<span class="n">store</span><span class="p">[</span><span class="s1">'df'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span>  <span class="c1"># save it</span>
+<span class="n">store</span><span class="p">[</span><span class="s1">'df'</span><span class="p">]</span>  <span class="c1"># load it</span>
+</pre></div>
+
+<p><em>More advanced strategies are discussed in the cookbook.</em></p>
+<hr>
+<p>Since 0.13 there's also msgpack which may be be better for interoperability,
+as a faster alternative to JSON, or if you have python object/text-heavy data
+(see this question).</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Although there are already some answers I found a nice comparison in which
+they tried several ways to serialize Pandas DataFrames: Efficiently Store
+Pandas DataFrames.</p>
+<p>They compare:</p>
+<ul>
+<li>pickle: original ASCII data format</li>
+<li>cPickle, a C library</li>
+<li>pickle-p2: uses the newer binary format</li>
+<li>json: standardlib json library</li>
+<li>json-no-index: like json, but without index</li>
+<li>msgpack: binary JSON alternative</li>
+<li>CSV</li>
+<li>hdfstore: HDF5 storage format</li>
+</ul>
+<p>In their experiment, they serialize a DataFrame of 1,000,000 rows with the two
+columns tested separately: one with text data, the other with numbers. Their
+disclaimer says:</p>
+<blockquote>
+<p>You should not trust that what follows generalizes to your data. You should
+look at your own data and run benchmarks yourself</p>
+</blockquote>
+<p>The source code for the test which they refer to is available online. Since
+this code did not work directly I made some minor changes, which you can get
+here: serialize.py I got the following results:</p>
+<p><img alt="time comparison results" src="../../images/T9JEL.png"></p>
+<p>They also mention that with the conversion of text data to categorical data
+the serialization is much faster. In their test about 10 times as fast (also
+see the test code).</p>
+<p><strong>Edit</strong> : The higher times for pickle than CSV can be explained by the data
+format used. By default <code>pickle</code> uses a printable ASCII representation, which
+generates larger data sets. As can be seen from the graph however, pickle
+using the newer binary data format (version 2, <code>pickle-p2</code>) has much lower
+load times.</p>
+<p>Some other references:</p>
+<ul>
+<li>In the question Fastest Python library to read a CSV file there is a very detailed answer which compares different libraries to read csv files with a benchmark. The result is that for reading csv files <code>numpy.fromfile</code> is the fastest.</li>
+<li>Another serialization test shows msgpack, ujson, and cPickle to be the quickest in serializing.</li>
+</ul>
+</div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/dataframe/" rel="tag">dataframe</a></li>
+            <li><a class="tag p-category" href="../../categories/pandas/" rel="tag">pandas</a></li>
+            <li><a class="tag p-category" href="../../categories/python/" rel="tag">python</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../is-a-view-faster-than-a-simple-query/" rel="prev" title="Is a view faster than a simple query?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../asp-net-mvc-controller-actions-that-return-json-or-partial-html/" rel="next" title="ASP.NET MVC controller actions that return JSON or partial html">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

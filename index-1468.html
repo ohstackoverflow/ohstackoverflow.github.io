@@ -108,125 +108,193 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/key-differences-between-hyperledger-aries-and-hyperledger-indy/" class="u-url">Key differences between Hyperledger Aries and Hyperledger Indy?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/proper-way-to-initialize-pdas-within-the-solana-anchor-framework/" class="u-url">Proper way to initialize PDAs within the Solana Anchor framework</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/key-differences-between-hyperledger-aries-and-hyperledger-indy/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:47:49+08:00" itemprop="datePublished" title="2023-02-28 04:47">2023-02-28 04:47</time></a>
+            <a href="posts/proper-way-to-initialize-pdas-within-the-solana-anchor-framework/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:50:51+08:00" itemprop="datePublished" title="2023-02-28 04:50">2023-02-28 04:50</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>Both Hyperledger Aries and Hyperledger Indy are platforms for building
-distributed ledger applications for identities.</p>
-<p>What are the main differences between them? When to choose one over the other
-to implement a blockchain solution?</p>
+    <p>I'm trying to write a simple Solana Program using Rust/Anchor which uses a
+PDA, but I get a CPI error when I try to invoke it, even though there's no CPI
+happening (maybe the PDA account initialization?).</p>
+<p>Here is the Program code:</p>
+<div class="code"><pre class="code literal-block"><span class="k">use</span><span class="w"> </span><span class="nl">anchor_lang</span><span class="p">:</span><span class="err">:</span><span class="nl">prelude</span><span class="p">:</span><span class="err">:</span><span class="o">*</span><span class="p">;</span>
+
+<span class="n">declare_id</span><span class="err">!</span><span class="p">(</span><span class="ss">"51v31qHaEQniLoYuvvtXByZcfiyvog3R2EKC39EPD52p"</span><span class="p">);</span>
+
+<span class="err">#</span><span class="o">[</span><span class="n">program</span><span class="o">]</span>
+<span class="n">pub</span><span class="w"> </span><span class="k">mod</span><span class="w"> </span><span class="n">solana_sandbox</span><span class="w"> </span><span class="err">{</span>
+<span class="w">  </span><span class="k">use</span><span class="w"> </span><span class="nl">super</span><span class="p">:</span><span class="err">:</span><span class="o">*</span><span class="p">;</span>
+<span class="w">  </span><span class="n">pub</span><span class="w"> </span><span class="n">fn</span><span class="w"> </span><span class="k">initialize</span><span class="p">(</span><span class="nl">ctx</span><span class="p">:</span><span class="w"> </span><span class="n">Context</span><span class="o">&lt;</span><span class="k">Initialize</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="nl">bump</span><span class="p">:</span><span class="w"> </span><span class="n">u8</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">ProgramResult</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">ctx</span><span class="p">.</span><span class="n">accounts</span><span class="p">.</span><span class="n">sandbox_account</span><span class="p">.</span><span class="n">bump</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">bump</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Ok</span><span class="p">(())</span>
+<span class="w">  </span><span class="err">}</span>
+<span class="err">}</span>
+
+<span class="err">#</span><span class="o">[</span><span class="n">derive(Accounts)</span><span class="o">]</span>
+<span class="err">#</span><span class="o">[</span><span class="n">instruction(bump: u8)</span><span class="o">]</span>
+<span class="n">pub</span><span class="w"> </span><span class="n">struct</span><span class="w"> </span><span class="k">Initialize</span><span class="o">&lt;</span><span class="s1">'info&gt; {</span>
+<span class="s1">  #[account(mut)]</span>
+<span class="s1">  pub signer: Signer&lt;'</span><span class="n">info</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">  </span><span class="err">#</span><span class="o">[</span><span class="n">account(</span>
+<span class="n">    init,</span>
+<span class="n">    seeds = [b"seed".as_ref()</span><span class="o">]</span><span class="p">,</span>
+<span class="w">    </span><span class="n">bump</span><span class="p">,</span>
+<span class="w">    </span><span class="n">payer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">signer</span><span class="p">,</span>
+<span class="w">  </span><span class="p">)</span><span class="err">]</span>
+<span class="w">  </span><span class="n">pub</span><span class="w"> </span><span class="nl">sandbox_account</span><span class="p">:</span><span class="w"> </span><span class="n">Account</span><span class="o">&lt;</span><span class="s1">'info, SandboxAccount&gt;,</span>
+<span class="s1">  pub system_program: Program&lt;'</span><span class="n">info</span><span class="p">,</span><span class="w"> </span><span class="k">System</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="err">}</span>
+
+<span class="err">#</span><span class="o">[</span><span class="n">account</span><span class="o">]</span>
+<span class="err">#</span><span class="o">[</span><span class="n">derive(Default)</span><span class="o">]</span>
+<span class="n">pub</span><span class="w"> </span><span class="n">struct</span><span class="w"> </span><span class="n">SandboxAccount</span><span class="w"> </span><span class="err">{</span>
+<span class="w">  </span><span class="n">pub</span><span class="w"> </span><span class="nl">bump</span><span class="p">:</span><span class="w"> </span><span class="n">u8</span><span class="p">,</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>Here is the client code:</p>
+<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="n">const</span><span class="w"> </span><span class="o">[</span><span class="n">sandboxPda, sandboxBump</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">PublicKey</span><span class="p">.</span><span class="n">findProgramAddress</span><span class="p">(</span><span class="o">[</span><span class="n">Buffer.from('seed')</span><span class="o">]</span><span class="p">,</span><span class="w"> </span><span class="n">SystemProgram</span><span class="p">.</span><span class="n">programId</span><span class="p">);</span>
+
+<span class="w">  </span><span class="n">await</span><span class="w"> </span><span class="n">program</span><span class="p">.</span><span class="n">rpc</span><span class="p">.</span><span class="k">initialize</span><span class="p">(</span>
+<span class="w">    </span><span class="n">sandboxBump</span><span class="p">,</span>
+<span class="w">    </span><span class="err">{</span>
+<span class="w">      </span><span class="nl">accounts</span><span class="p">:</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="nl">signer</span><span class="p">:</span><span class="w"> </span><span class="n">keypair</span><span class="p">.</span><span class="n">publicKey</span><span class="p">,</span>
+<span class="w">        </span><span class="nl">sandboxAccount</span><span class="p">:</span><span class="w"> </span><span class="n">sandboxPda</span><span class="p">,</span>
+<span class="w">        </span><span class="nl">systemProgram</span><span class="p">:</span><span class="w"> </span><span class="n">anchor</span><span class="p">.</span><span class="n">web3</span><span class="p">.</span><span class="n">SystemProgram</span><span class="p">.</span><span class="n">programId</span><span class="p">,</span>
+<span class="w">      </span><span class="err">}</span><span class="p">,</span>
+<span class="w">      </span><span class="nl">signers</span><span class="p">:</span><span class="w"> </span><span class="o">[</span><span class="n">keypair</span><span class="o">]</span><span class="p">,</span>
+<span class="w">      </span><span class="nl">instructions</span><span class="p">:</span><span class="w"> </span><span class="err">[]</span>
+<span class="w">    </span><span class="err">}</span><span class="p">);</span>
+</pre></div>
+
+<p>When I run the above, I get the following:</p>
+<div class="code"><pre class="code literal-block">Transaction simulation failed: Error processing Instruction 0: Cross-program invocation with unauthorized signer or writable account 
+    Program 51v31qHaEQniLoYuvvtXByZcfiyvog3R2EKC39EPD52p invoke [1]
+    8ZiyjNgnFFPyw39NyMQE5FGETTjyUhSHUVQG3oKAFZiU's signer privilege escalated
+    Program 51v31qHaEQniLoYuvvtXByZcfiyvog3R2EKC39EPD52p consumed 200000 of 200000 compute units
+    Program 51v31qHaEQniLoYuvvtXByZcfiyvog3R2EKC39EPD52p failed: Cross-program invocation with unauthorized signer or writable account
+</pre></div>
+
+<p><code>8ZiyjNgnFFPyw39NyMQE5FGETTjyUhSHUVQG3oKAFZiU</code> is the PDA address I pass in,
+and I'm using <code>anchor-cli 0.18.0</code>.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Aries is the agent (client) part of a decentralized identity (ledger, DIDs,
-verifiable credentials) application that is intended to be agnostic to the
-underlying ledger/DIDs/verifiable credentials layer.</p>
-<p>Indy is a decentralized identity implementation including support for a
-ledger, DIDs and verifiable credentials.</p>
-<p>Initial Aries work was to move the agent work in Indy to Aries, and so the
-first working versions of Aries use Indy underneath for the decentralized
-identity components. Over time, those components will become pluggable, and
-additional decentralized identity components will be supported. Thus, major
-parts of the indy-sdk will be deprecated, as they are implemented in Aries.</p>
-<p>For building solutions, you should always be looking at Aries to start. You
-will need to know what Indy does, but not the details. The only time you would
-need to dive into Indy is if you what to extend its capabilities to support
-your use case.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>The question is clear, what choice to make between Aries and Indy, we could
-also rephrase as follows: where to start from? Indy represents, certainly, a
-base layer, Aries, at the moment, is the better choice for building identity
-app. Indy, infact, provides: Blockchain network, DID’s implementation, and all
-features related to verifiable credentials. Aries, on top of it, helps to
-build apps which can communicate over peer to peer network through secured
-communication channel: DIDComm. From the user interaction point of view, Aries
-is integrated with identity apps and internally talks to Indy. Aim of Aries,
-obviousely, is to build an interoperable communication layer that can be
-connected not only to Indy but also others blockchains framework. Indy, as the
-first project in the Hyperledger family to build a decentralized identity,
-offers a real-time view of the transactions and its architecture is based on
-self-sovereign identity which enables users to have complete control over
-their identity. At the very beginning Indy was good to build an identity
-solution but, clearly, it lacks a peer to peer communication which is the
-heart of identity solution. Aries has filled this part. For building solutions
-there are lots of things that need to be considered but you should look at
-Aries to start</p>
+<p>Turns out I was using the System Program ID to derive the PDA in my client
+code, rather than using my actual Program ID.</p>
+<p>Should be:</p>
+<div class="code"><pre class="code literal-block"><span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="p">[</span><span class="n">sandboxPda</span><span class="p">,</span><span class="w"> </span><span class="n">sandboxBump</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">PublicKey</span><span class="o">.</span><span class="n">findProgramAddress</span><span class="p">([</span><span class="n">Buffer</span><span class="o">.</span><span class="n">from</span><span class="p">(</span><span class="s1">'seed'</span><span class="p">)],</span><span class="w"> </span><span class="o">&lt;</span><span class="n">PROGRAM_ID</span><span class="o">&gt;</span><span class="p">);</span>
+</pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/private-blockchains-vs-hashgraph-ripple-bigchaindb/" class="u-url">Private blockchains Vs Hashgraph, Ripple, BigChainDb</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/metamask-rpc-error-cannot-set-properties-of-undefined-setting-loadingdefaults-error/" class="u-url">MetaMask - RPC Error: Cannot set properties of undefined (setting 'loadingDefaults') error</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/private-blockchains-vs-hashgraph-ripple-bigchaindb/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:47:29+08:00" itemprop="datePublished" title="2023-02-28 04:47">2023-02-28 04:47</time></a>
+            <a href="posts/metamask-rpc-error-cannot-set-properties-of-undefined-setting-loadingdefaults-error/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:50:30+08:00" itemprop="datePublished" title="2023-02-28 04:50">2023-02-28 04:50</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I have been investigating different blockchains for some use cases. In the
-end, I came to the conclusion that setting up a private blockchain is
-equivalent to having a distributed database with blockchain concepts like
-immutability, digital signatures on top of it. Eg: Bigchaindb. (Well, If we do
-need smart contract feature then distributed database might not work)</p>
-<p>Theoretically, hashgraph consensus algorithm doesn't look secure enough for a
-public chain. It looks like a close alternate version of Ripple.</p>
-<p>In summary,</p>
-<ol>
-<li>Hashgraph, Ripple suits for private chain.</li>
-<li>Private chain is equivalent to setting a Distributed database</li>
-</ol>
-<p>Here I am sharing my views, to know in what way private chain is better than a
-distributed database?</p>
+    <p>I'm building a staking function and hitting the following error after giving
+permission to access my token:</p>
+<blockquote>
+<p>"MetaMask - RPC Error: Cannot set properties of undefined (setting
+'loadingDefaults')"</p>
+</blockquote>
+<p>Staking function Solidity contract:</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="c1">// Staking function</span>
+<span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="n">depositTokens</span><span class="p">(</span><span class="n">uint</span><span class="w"> </span><span class="n">_amount</span><span class="p">)</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">require</span><span class="p">(</span><span class="n">_amount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">'Amount has to be &gt; 0'</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// Transfer tether tokens to this contract</span>
+<span class="w">    </span><span class="n">tether</span><span class="p">.</span><span class="n">transferFrom</span><span class="p">(</span><span class="n">msg</span><span class="p">.</span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">address</span><span class="p">(</span><span class="n">this</span><span class="p">),</span><span class="w"> </span><span class="n">_amount</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Update Staking balance</span>
+<span class="w">    </span><span class="n">stakingBalance</span><span class="p">[</span><span class="n">msg</span><span class="p">.</span><span class="n">sender</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">stakingBalance</span><span class="p">[</span><span class="n">msg</span><span class="p">.</span><span class="n">sender</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">_amount</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="p">(</span>!<span class="n">hasStaked</span><span class="p">[</span><span class="n">msg</span><span class="p">.</span><span class="n">sender</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">stakers</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">msg</span><span class="p">.</span><span class="n">sender</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Update Staking balance</span>
+<span class="w">    </span><span class="n">isStaking</span><span class="p">[</span><span class="n">msg</span><span class="p">.</span><span class="n">sender</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">true</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hasStaked</span><span class="p">[</span><span class="n">msg</span><span class="p">.</span><span class="n">sender</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">true</span><span class="p">;</span>
+
+<span class="w">    </span><span class="p">}</span>
+</pre></div>
+
+<p>Staking Frontend</p>
+<div class="code"><pre class="code literal-block"><span class="n">stakeTokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="n">this</span><span class="o">.</span><span class="n">setState</span><span class="p">({</span><span class="n">loading</span><span class="p">:</span><span class="w"> </span><span class="bp">true</span><span class="w"> </span><span class="p">})</span>
+<span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">tether</span><span class="o">.</span><span class="n">methods</span><span class="o">.</span><span class="n">approve</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">deBank</span><span class="o">.</span><span class="n">_address</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span><span class="o">.</span><span class="n">send</span><span class="p">({</span><span class="n">from</span><span class="p">:</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">account</span><span class="p">})</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">'transactionHash'</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nb">hash</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">deBank</span><span class="o">.</span><span class="n">methods</span><span class="o">.</span><span class="n">depositTokens</span><span class="p">(</span><span class="n">amount</span><span class="p">)</span><span class="o">.</span><span class="n">send</span><span class="p">({</span><span class="n">from</span><span class="p">:</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">account</span><span class="p">})</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">'transactionHash'</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nb">hash</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">this</span><span class="o">.</span><span class="n">setState</span><span class="p">({</span><span class="n">loading</span><span class="p">:</span><span class="bp">false</span><span class="p">})</span>
+<span class="w">  </span><span class="p">})</span>
+<span class="p">})</span>
+</pre></div>
+
+<p>}</p>
+<p><img alt="enter image description here" src="images/wVMZE.png"></p>
+<p>What is weird is that in 25-30% of the case, I get to the second approval step
+and the transaction goes through.</p>
+<p>Anyone has an idea what's causing this?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Most distributed databases in existence today are fault tolerant (so they keep
-running if a few nodes go down among many), but not Byzantine fault tolerant
-(BFT), i.e. they can't handle arbitrary faults. Most blockchains are BFT, so
-even if you don't trust some of the nodes, you can trust the overall system.</p>
-<p>Most distributed databases allow the change or deletion of data. (There are
-some interesting exceptions here, but I digress.) Most blockchains do not.</p>
-<p>Most distributed databases have a central "admin" user who can do almost
-anything, including change data, delete data, delete entire
-tables/collections, or delete the entire database. Most blockchains have no
-single point of control like that.</p>
-<p>Until recently, BigchainDB wasn't BFT and the database admin (e.g. the MongoDB
-database admin) could cause havoc. The next version will be very different: it
-<em>will</em> be BFT, and it won't have any single point of control (i.e. no more
-global admin or anything similar).</p>
+<p>Reinstalling modules and recompiling didn't do anything, but it worked out
+after I changed the function to async await syntax:</p>
+<div class="code"><pre class="code literal-block"><span class="n">stakeTokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">this</span><span class="o">.</span><span class="n">setState</span><span class="p">({</span><span class="w"> </span><span class="n">loading</span><span class="p">:</span><span class="w"> </span><span class="bp">true</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="n">await</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">tether</span><span class="o">.</span><span class="n">methods</span>
+<span class="w">    </span><span class="o">.</span><span class="n">approve</span><span class="p">(</span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">decentralBank</span><span class="o">.</span><span class="n">_address</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span>
+<span class="w">    </span><span class="o">.</span><span class="n">send</span><span class="p">({</span><span class="w"> </span><span class="n">from</span><span class="p">:</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">account</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="n">await</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">decentralBank</span><span class="o">.</span><span class="n">methods</span>
+<span class="w">    </span><span class="o">.</span><span class="n">depositTokens</span><span class="p">(</span><span class="n">amount</span><span class="p">)</span>
+<span class="w">    </span><span class="o">.</span><span class="n">send</span><span class="p">({</span><span class="w"> </span><span class="n">from</span><span class="p">:</span><span class="w"> </span><span class="n">this</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">account</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="n">this</span><span class="o">.</span><span class="n">setState</span><span class="p">({</span><span class="w"> </span><span class="n">loading</span><span class="p">:</span><span class="w"> </span><span class="bp">false</span><span class="w"> </span><span class="p">});</span>
+
+<span class="p">};</span>
+</pre></div>
+
+<p>It should prompt Metamask twice now. 1st for Approve and 2nd for Deposit
+Tokens.</p>
+<p>This error has an open issue on Metamask`s Github:
+https://github.com/MetaMask/metamask-extension/issues/13197</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-happened-exactly-on-chaincode-deploy-and-invoke-query-in-hyperledger/" class="u-url">What happened exactly on chaincode deploy and invoke , query, in Hyperledger?</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/cartesi-rollups-dapp-modularity/" class="u-url">Cartesi Rollups DApp modularity</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/what-happened-exactly-on-chaincode-deploy-and-invoke-query-in-hyperledger/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:47:12+08:00" itemprop="datePublished" title="2023-02-28 04:47">2023-02-28 04:47</time></a>
+            <a href="posts/cartesi-rollups-dapp-modularity/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:50:13+08:00" itemprop="datePublished" title="2023-02-28 04:50">2023-02-28 04:50</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>What happened exactly on chaincode deploy and invoke , query, in Hyperledger?</p>
-<p>Need to confirm the cost of system on Chaincode deploy, invoke and query. If
-they are the same, seems better to make Chaincode more than one, even
-hundreds, thousands.</p>
+    <p>It's been some time that i have a question in my mind. Is it possible to
+implement a modularity strategy for complex Cartesi Rollups DApps where we
+have the main logic program (the one responsible for the input loop) depending
+on one or more HTTP services running separately? The diagram here illustrates
+the architecture I have in mind.</p>
+<p><img alt="architecture" src="images/IgO4y.png"></p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>During “ <strong>Deploy</strong> ” the chain code is submitted to the ledger in a form of
-transaction and distributed to all nodes in the network. Each node creates new
-Docker container with this chaincode embedded. After that container will be
-started and Init method will be executed.</p>
-<p>During “ <strong>Query</strong> ” - chain code will read the current state and send it back
-to user. This transaction is not saved in blockchain.</p>
-<p>During “ <strong>Invoke</strong> ” - chaincode can modify the state of the variables in
-ledger. Each “Invoke” transaction will be added to the “block” in the ledger.</p>
+<p>Yes, this design will definitely work inside the Cartesi Machine.</p>
+<p>Remember that your dApp is running on a Linux inside the Cartesi Machine. ;-)</p>
+<p>That said, you can have these components of your architecture (the HTTP
+services in your diagram) communicating with each other using whatever
+protocol that exists in a normal Linux.</p>
+<p>Best regards!</p>
     </div>
     </article>
 </div>
@@ -243,7 +311,7 @@ ledger. Each “Invoke” transaction will be added to the “block” in the le
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

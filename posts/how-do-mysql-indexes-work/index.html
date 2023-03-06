@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How do MySQL indexes work? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-do-mysql-indexes-work/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../what-is-the-purpose-of-the-colon-gnu-bash-builtin/" title="What is the purpose of the : (colon) GNU Bash builtin?" type="text/html">
+<link rel="next" href="../how-to-have-multiple-css-transitions-on-an-element/" title="How to have multiple CSS transitions on an element?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How do MySQL indexes work?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-do-mysql-indexes-work/">
+<meta property="og:description" content="I am really interested in how MySQL indexes work, more specifically, how can
+they return the data requested without scanning the entire table?
+It's off-topic, I know, but if there is someone who could">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T13:29:22+08:00">
+<meta property="article:tag" content="indexing">
+<meta property="article:tag" content="mysql">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How do MySQL indexes work?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T13:29:22+08:00" itemprop="datePublished" title="2023-03-03 13:29">2023-03-03 13:29</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I am really interested in how MySQL indexes work, more specifically, how can
+they return the data requested without scanning the entire table?</p>
+<p>It's off-topic, I know, but if there is someone who could explain this to me
+in detail, I would be very, very thankful.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Basically an index on a table works like an index in a book (that's where the
+name came from):</p>
+<p>Let's say you have a book about databases and you want to find some
+information about, say, storage. Without an index (assuming no other aid, such
+as a table of contents) you'd have to go through the pages one by one, until
+you found the topic (that's a <code>full table scan</code>). On the other hand, an index
+has a list of keywords, so you'd consult the index and see that <code>storage</code> is
+mentioned on pages 113-120,231 and 354. Then you could flip to those pages
+directly, without searching (that's a search with an index, somewhat faster).</p>
+<p>Of course, how useful the index will be, depends on many things - a few
+examples, using the simile above:</p>
+<ul>
+<li>if you had a book on databases and indexed the word "database", you'd see that it's mentioned on pages 1-59,61-290, and 292 to 400. In such case, the index is not much help and it might be faster to go through the pages one by one (in a database, this is "poor selectivity").</li>
+<li>For a 10-page book, it makes no sense to make an index, as you may end up with a 10-page book prefixed by a 5-page index, which is just silly - just scan the 10 pages and be done with it.</li>
+<li>The index also needs to be useful - there's generally no point to index e.g. the frequency of the letter "L" per page.</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>The first thing you must know is that indexes are a way to avoid scanning the
+full table to obtain the result that you're looking for.</p>
+<p>There are different kinds of indexes and they're implemented in the storage
+layer, so there's no standard between them and they also depend on the storage
+engine that you're using.</p>
+<h3>InnoDB and the B+Tree index</h3>
+<p>For InnoDB, the most common index type is the B+Tree based index, that stores
+the elements in a sorted order. Also, you don't have to access the real table
+to get the indexed values, which makes your query return way faster.</p>
+<p>The "problem" about this index type is that you have to query for the leftmost
+value to use the index. So, if your index has two columns, say last_name and
+first_name, the order that you query these fields <strong>matters a lot</strong>.</p>
+<p>So, given the following table:</p>
+<div class="code"><pre class="code literal-block">CREATE TABLE person (
+    last_name VARCHAR(50) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    INDEX (last_name, first_name)
+);
+</pre></div>
+
+<p>This query would take advantage of the index:</p>
+<div class="code"><pre class="code literal-block">SELECT last_name, first_name FROM person
+WHERE last_name = "John" AND first_name LIKE "J%"
+</pre></div>
+
+<p>But the following one would not</p>
+<div class="code"><pre class="code literal-block">SELECT last_name, first_name FROM person WHERE first_name = "Constantine"
+</pre></div>
+
+<p>Because you're querying the <code>first_name</code> column first and it's not the
+leftmost column in the index.</p>
+<p>This last example is even worse:</p>
+<div class="code"><pre class="code literal-block">SELECT last_name, first_name FROM person WHERE first_name LIKE "%Constantine"
+</pre></div>
+
+<p>Because now, you're comparing the rightmost part of the rightmost field in the
+index.</p>
+<h3>The hash index</h3>
+<p>This is a different index type that unfortunately, only the memory backend
+supports. It's lightning fast but only useful for full lookups, which means
+that you can't use it for operations like <code>&gt;</code>, <code>&lt;</code> or <code>LIKE</code>.</p>
+<p>Since it only works for the memory backend, you probably won't use it very
+often. The main case I can think of right now is the one that you create a
+temporary table in the memory with a set of results from another select and
+perform a lot of other selects in this temporary table using hash indexes.</p>
+<p>If you have a big <code>VARCHAR</code> field, you can "emulate" the use of a hash index
+when using a B-Tree, by creating another column and saving a hash of the big
+value on it. Let's say you're storing a url in a field and the values are
+quite big. You could also create an integer field called <code>url_hash</code> and use a
+hash function like <code>CRC32</code> or any other hash function to hash the url when
+inserting it. And then, when you need to query for this value, you can do
+something like this:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">SELECT</span><span class="w"> </span><span class="nt">url</span><span class="w"> </span><span class="nt">FROM</span><span class="w"> </span><span class="nt">url_table</span><span class="w"> </span><span class="nt">WHERE</span><span class="w"> </span><span class="nt">url_hash</span><span class="o">=</span><span class="nt">CRC32</span><span class="o">(</span><span class="s2">"http://gnu.org"</span><span class="o">);</span>
+</pre></div>
+
+<p>The problem with the above example is that since the <code>CRC32</code> function
+generates a quite small hash, you'll end up with a lot of collisions in the
+hashed values. If you need exact values, you can fix this problem by doing the
+following:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">SELECT</span><span class="w"> </span><span class="nt">url</span><span class="w"> </span><span class="nt">FROM</span><span class="w"> </span><span class="nt">url_table</span><span class="w"> </span>
+<span class="nt">WHERE</span><span class="w"> </span><span class="nt">url_hash</span><span class="o">=</span><span class="nt">CRC32</span><span class="o">(</span><span class="s2">"http://gnu.org"</span><span class="o">)</span><span class="w"> </span><span class="nt">AND</span><span class="w"> </span><span class="nt">url</span><span class="o">=</span><span class="s2">"http://gnu.org"</span><span class="o">;</span>
+</pre></div>
+
+<p>It's still worth to hash things even if the collision number is high cause
+you'll only perform the second comparison (the string one) against the
+repeated hashes.</p>
+<p>Unfortunately, using this technique, you still need to hit the table to
+compare the <code>url</code> field.</p>
+<h3>Wrap up</h3>
+<p>Some facts that you may consider every time you want to talk about
+optimization:</p>
+<ol>
+<li>
+<p>Integer comparison is way faster than string comparison. It can be illustrated with the example about the emulation of the hash index in <code>InnoDB</code>.</p>
+</li>
+<li>
+<p>Maybe, adding additional steps in a process makes it faster, not slower. It can be illustrated by the fact that you can optimize a <code>SELECT</code> by splitting it into two steps, making the first one store values in a newly created in-memory table, and then execute the heavier queries on this second table.</p>
+</li>
+</ol>
+<p>MySQL has other indexes too, but I think the B+Tree one is the most used ever
+and the hash one is a good thing to know, but you can find the other ones in
+the MySQL documentation.</p>
+<p>I highly recommend you to read the "High Performance MySQL" book, the answer
+above was definitely based on its chapter about indexes.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/indexing/" rel="tag">indexing</a></li>
+            <li><a class="tag p-category" href="../../categories/mysql/" rel="tag">mysql</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../what-is-the-purpose-of-the-colon-gnu-bash-builtin/" rel="prev" title="What is the purpose of the : (colon) GNU Bash builtin?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-to-have-multiple-css-transitions-on-an-element/" rel="next" title="How to have multiple CSS transitions on an element?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

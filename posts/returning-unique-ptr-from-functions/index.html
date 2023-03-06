@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Returning unique_ptr from functions | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/returning-unique-ptr-from-functions/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../restful-url-design-for-search/" title="RESTful URL design for search" type="text/html">
+<link rel="next" href="../equivalent-of-math-min-math-max-for-dates/" title="Equivalent of Math.Min &amp; Math.Max for Dates?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Returning unique_ptr from functions">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/returning-unique-ptr-from-functions/">
+<meta property="og:description" content="unique_ptr&lt;T&gt; does not allow copy construction, instead it supports move
+semantics. Yet, I can return a unique_ptr&lt;T&gt; from a function and assign the
+returned value to a variable.
+#include &lt;iostream&gt;
+#">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T08:45:42+08:00">
+<meta property="article:tag" content="c++">
+<meta property="article:tag" content="c++11">
+<meta property="article:tag" content="unique-ptr">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Returning unique_ptr from functions</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T08:45:42+08:00" itemprop="datePublished" title="2023-03-03 08:45">2023-03-03 08:45</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p><code>unique_ptr&lt;T&gt;</code> does not allow copy construction, instead it supports move
+semantics. Yet, I can return a <code>unique_ptr&lt;T&gt;</code> from a function and assign the
+returned value to a variable.</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;memory&gt;</span>
+
+<span class="n">using</span><span class="w"> </span><span class="n">namespace</span><span class="w"> </span><span class="nn">std</span><span class="p">;</span>
+
+<span class="n">unique_ptr</span><span class="o">&lt;</span><span class="kr">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">foo</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="kr">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p</span><span class="p">(</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kr">int</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">p</span><span class="p">;</span><span class="w">                   </span><span class="c1">// 1</span>
+<span class="w">  </span><span class="c1">//return move( p );         // 2</span>
+<span class="p">}</span>
+
+<span class="kr">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="kr">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">foo</span><span class="p">();</span>
+
+<span class="w">  </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The code above compiles and works as intended. So how is it that line <code>1</code>
+doesn't invoke the copy constructor and result in compiler errors? If I had to
+use line <code>2</code> instead it'd make sense (using line <code>2</code> works as well, but we're
+not required to do so).</p>
+<p>I know C++0x allows this exception to <code>unique_ptr</code> since the return value is a
+temporary object that will be destroyed as soon as the function exits, thus
+guaranteeing the uniqueness of the returned pointer. I'm curious about how
+this is implemented, is it special cased in the compiler or is there some
+other clause in the language specification that this exploits?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<blockquote>
+<p>is there some other clause in the language specification that this exploits?</p>
+</blockquote>
+<p>Yes, see 12.8 §34 and §35:</p>
+<blockquote>
+<p>When certain criteria are met, an implementation is allowed to omit the
+copy/move construction of a class object [...] This elision of copy/move
+operations, called <em>copy elision</em> , is permitted [...] in a return statement
+in a function with a class return type, <strong>when the expression is the name of
+a non-volatile automatic object</strong> with the same cv-unqualified type as the
+function return type [...]</p>
+<p>When the criteria for elision of a copy operation are met and the object to
+be copied is designated by an lvalue, overload resolution to select the
+constructor for the copy is first performed <strong>as if the object were
+designated by an rvalue</strong>.</p>
+</blockquote>
+<hr>
+<p>Just wanted to add one more point that returning by value should be the
+default choice here because a named value in the return statement in the worst
+case, i.e. without elisions in C++11, C++14 and C++17 is treated as an rvalue.
+So for example the following function compiles with the <code>-fno-elide-
+constructors</code> flag</p>
+<div class="code"><pre class="code literal-block"><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">int</span><span class="o">&gt;</span><span class="w"> </span><span class="nf">get_unique</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">auto</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">int</span><span class="o">&gt;</span><span class="p">{</span><span class="n">new</span><span class="w"> </span><span class="n">int</span><span class="p">{</span><span class="m">2</span><span class="p">}};</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="m">1</span>
+<span class="w">  </span><span class="n">return</span><span class="w"> </span><span class="n">ptr</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="n">moved</span><span class="w"> </span><span class="n">into</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">returned</span><span class="w"> </span><span class="n">unique_ptr</span>
+<span class="p">}</span>
+
+<span class="kc">...</span>
+
+<span class="n">auto</span><span class="w"> </span><span class="n">int_uptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">get_unique</span><span class="p">();</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="m">3</span>
+</pre></div>
+
+<p>With the flag set on compilation there are two moves (1 and 2) happening in
+this function and then one move later on (3).</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>This is in no way specific to <code>std::unique_ptr</code>, but applies to any class that
+is movable. It's guaranteed by the language rules since you are returning by
+value. The compiler tries to elide copies, invokes a move constructor if it
+can't remove copies, calls a copy constructor if it can't move, and fails to
+compile if it can't copy.</p>
+<p>If you had a function that accepts <code>std::unique_ptr</code> as an argument you
+wouldn't be able to pass p to it. You would have to explicitly invoke move
+constructor, but in this case you shouldn't use variable p after the call to
+<code>bar()</code>.</p>
+<div class="code"><pre class="code literal-block"><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">bar</span><span class="p">(</span><span class="n">std</span><span class="p">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="nb nb-Type">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="o">...</span>
+<span class="p">}</span>
+
+<span class="nb nb-Type">int</span><span class="w"> </span><span class="n">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="nb nb-Type">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">foo</span><span class="p">();</span>
+<span class="w">    </span><span class="n">bar</span><span class="p">(</span><span class="n">p</span><span class="p">);</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">error</span><span class="p">,</span><span class="w"> </span><span class="n">can</span><span class="s1">'t implicitly invoke move constructor on lvalue</span>
+<span class="w">    </span><span class="n">bar</span><span class="p">(</span><span class="n">std</span><span class="p">::</span><span class="n">move</span><span class="p">(</span><span class="n">p</span><span class="p">));</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">OK</span><span class="w"> </span><span class="n">but</span><span class="w"> </span><span class="n">don</span><span class="s1">'t use p afterwards</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/c%2B%2B/" rel="tag">c++</a></li>
+            <li><a class="tag p-category" href="../../categories/c%2B%2B11/" rel="tag">c++11</a></li>
+            <li><a class="tag p-category" href="../../categories/unique-ptr/" rel="tag">unique-ptr</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../restful-url-design-for-search/" rel="prev" title="RESTful URL design for search">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../equivalent-of-math-min-math-max-for-dates/" rel="next" title="Equivalent of Math.Min &amp; Math.Max for Dates?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

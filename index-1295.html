@@ -108,7 +108,87 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-pass-an-array-within-a-query-string/" class="u-url">How to pass an array within a query string?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/should-gemfile-lock-be-included-in-gitignore/" class="u-url">Should Gemfile.lock be included in .gitignore?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/should-gemfile-lock-be-included-in-gitignore/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:57:47+08:00" itemprop="datePublished" title="2023-02-18 05:57">2023-02-18 05:57</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm sort of new to bundler and the files it generates. I have a copy of a git
+repo from GitHub that is being contributed to by many people so I was
+surprised to find that bundler created a file that didn't exist in the repo
+and wasn't in the <code>.gitignore</code> list.</p>
+<p>Since I have forked it, I know adding it to the repo won't break anything for
+the main repo, but if I do a pull request, will it cause a problem?</p>
+<p>Should <code>Gemfile.lock</code> be included in the repository?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Simple answer in the year 2021: <strong>Gemfile.lock should be in the version
+control also for Rubygems</strong>. The accepted answer is now 11 years old.</p>
+<p>Some reasoning here (cherry-picked from comments):</p>
+<p>@josevalim
+https://github.com/heartcombo/devise/pull/3147#issuecomment-52193788</p>
+<blockquote>
+<p>The Gemfile.lock should stay in the repository because contributors and
+developers should be able to fork the project and run it using versions that
+are guaranteed to work.</p>
+</blockquote>
+<p>@rafaelfranca https://github.com/rails/rails/pull/18951#issuecomment-74888396</p>
+<blockquote>
+<p>I don't think it is a good idea to ignore the lock file even for plugins.</p>
+<p>This mean that a "git clone; bundle; rake test" sequence is not guarantee to
+be passing because one of yours dozens of dependencies were upgraded and
+made your code break. Also, as @chancancode said, it make a lot harder to
+bisect.</p>
+</blockquote>
+<p>Also Rails has Gemfile.lock in git:</p>
+<ul>
+<li>https://github.com/rails/rails/commit/0ad6d27643057f2eccfe8351409a75a6d1bbb9d0</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<p>The real problem happens when you are working on an open-source Rails app that
+needs to have a configurable database adapter. I'm developing the Rails 3
+branch of Fat Free CRM. My preference is postgres, but we want the default
+database to be mysql2.</p>
+<p>In this case, <code>Gemfile.lock</code> still needs be checked in with the default set of
+gems, but I need to ignore changes that I have made to it on my machine. To
+accomplish this, I run:</p>
+<div class="code"><pre class="code literal-block">git update-index --assume-unchanged Gemfile.lock
+</pre></div>
+
+<p>and to reverse:</p>
+<div class="code"><pre class="code literal-block">git update-index --no-assume-unchanged Gemfile.lock
+</pre></div>
+
+<p>It is also useful to include something like the following code in your
+<code>Gemfile</code>. This loads the appropriate database adapter gem, based on your
+database.yml.</p>
+<div class="code"><pre class="code literal-block"><span class="err">#</span><span class="w"> </span><span class="n">Loads</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">database</span><span class="w"> </span><span class="n">adapter</span><span class="w"> </span><span class="n">gem</span><span class="w"> </span><span class="n">based</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">config</span><span class="o">/</span><span class="k">database</span><span class="p">.</span><span class="n">yml</span><span class="w"> </span><span class="p">(</span><span class="k">Default</span><span class="err">:</span><span class="w"> </span><span class="n">mysql2</span><span class="p">)</span>
+<span class="err">#</span><span class="w"> </span><span class="o">-----------------------------------------------------------------------------</span>
+<span class="n">db_gems</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="ss">"mysql2"</span><span class="w">     </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">[</span><span class="n">"mysql2", "&gt;= 0.2.6"</span><span class="o">]</span><span class="p">,</span>
+<span class="w">           </span><span class="ss">"postgresql"</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">[</span><span class="n">"pg",     "&gt;= 0.9.0"</span><span class="o">]</span><span class="p">,</span>
+<span class="w">           </span><span class="ss">"sqlite3"</span><span class="w">    </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">[</span><span class="n">"sqlite3"</span><span class="o">]</span><span class="err">}</span>
+<span class="n">adapter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="k">File</span><span class="p">.</span><span class="ow">exists</span><span class="vm">?</span><span class="p">(</span><span class="n">db_config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">File</span><span class="p">.</span><span class="k">join</span><span class="p">(</span><span class="k">File</span><span class="p">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__FILE__</span><span class="p">),</span><span class="ss">"config"</span><span class="p">,</span><span class="ss">"database.yml"</span><span class="p">))</span>
+<span class="w">  </span><span class="n">db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">YAML</span><span class="p">.</span><span class="n">load_file</span><span class="p">(</span><span class="n">db_config</span><span class="p">)</span>
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="k">Fetch</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">first</span><span class="w"> </span><span class="n">configured</span><span class="w"> </span><span class="n">adapter</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">config</span><span class="o">/</span><span class="k">database</span><span class="p">.</span><span class="n">yml</span>
+<span class="w">  </span><span class="p">(</span><span class="n">db</span><span class="o">[</span><span class="n">"production"</span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">db</span><span class="o">[</span><span class="n">"development"</span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">db</span><span class="o">[</span><span class="n">"test"</span><span class="o">]</span><span class="p">)</span><span class="o">[</span><span class="n">"adapter"</span><span class="o">]</span>
+<span class="k">else</span>
+<span class="w">  </span><span class="ss">"mysql2"</span>
+<span class="k">end</span>
+<span class="n">gem</span><span class="w"> </span><span class="o">*</span><span class="n">db_gems</span><span class="o">[</span><span class="n">adapter</span><span class="o">]</span>
+<span class="err">#</span><span class="w"> </span><span class="c1">-----------------------------------------------------------------------------</span>
+</pre></div>
+
+<p>I can't say if this is an established best practice or not, but it works well
+for me.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-pass-an-array-within-a-query-string/" class="u-url">How to pass an array within a query string?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -278,59 +358,6 @@ once again. All browsers support <code>target</code> no matter what version of H
 are using, but some validators will flag the use as deprecated if your doctype
 is HTML4.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/which-is-faster-stack-allocation-or-heap-allocation/" class="u-url">Which is faster: Stack allocation or Heap allocation</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/which-is-faster-stack-allocation-or-heap-allocation/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:56:28+08:00" itemprop="datePublished" title="2023-02-18 05:56">2023-02-18 05:56</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>This question may sound fairly elementary, but this is a debate I had with
-another developer I work with.</p>
-<p>I was taking care to stack allocate things where I could, instead of heap
-allocating them. He was talking to me and watching over my shoulder and
-commented that it wasn't necessary because they are the same performance wise.</p>
-<p>I was always under the impression that growing the stack was constant time,
-and heap allocation's performance depended on the current complexity of the
-heap for both allocation (finding a hole of the proper size) and de-allocating
-(collapsing holes to reduce fragmentation, as many standard library
-implementations take time to do this during deletes if I am not mistaken).</p>
-<p>This strikes me as something that would probably be very compiler dependent.
-For this project in particular I am using a Metrowerks compiler for the PPC
-architecture. Insight on this combination would be most helpful, but in
-general, for GCC, and MSVC++, what is the case? Is heap allocation not as high
-performing as stack allocation? Is there no difference? Or are the differences
-so minute it becomes pointless micro-optimization.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Stack allocation is much faster since all it really does is move the stack
-pointer. Using memory pools, you can get comparable performance out of heap
-allocation, but that comes with a slight added complexity and its own
-headaches.</p>
-<p>Also, stack vs. heap is not only a performance consideration; it also tells
-you a lot about the expected lifetime of objects.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Stack is much faster. It literally only uses a single instruction on most
-architectures, in most cases, e.g. on x86:</p>
-<div class="code"><pre class="code literal-block">sub esp, 0x10
-</pre></div>
-
-<p>(That moves the stack pointer down by 0x10 bytes and thereby "allocates" those
-bytes for use by a variable.)</p>
-<p>Of course, the stack's size is very, very finite, as you will quickly find out
-if you overuse stack allocation or try to do recursion :-)</p>
-<p>Also, there's little reason to optimize the performance of code that doesn't
-verifiably need it, such as demonstrated by profiling. "Premature
-optimization" often causes more problems than it's worth.</p>
-<p>My rule of thumb: if I know I'm going to need some data <em>at compile-time</em> ,
-and it's under a few hundred bytes in size, I stack-allocate it. Otherwise I
-heap-allocate it.</p>
-    </div>
     </article>
 </div>
 
@@ -346,7 +373,7 @@ heap-allocate it.</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

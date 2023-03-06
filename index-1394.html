@@ -108,455 +108,197 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/anchor-boxes-in-yolo-how-are-they-decided/" class="u-url">Anchor Boxes in YOLO : How are they decided</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/convolutional-neural-network-how-to-get-the-feature-maps/" class="u-url">Convolutional neural network - How to get the feature maps?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/anchor-boxes-in-yolo-how-are-they-decided/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:03:09+08:00" itemprop="datePublished" title="2023-02-28 03:03">2023-02-28 03:03</time></a>
+            <a href="posts/convolutional-neural-network-how-to-get-the-feature-maps/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:06:23+08:00" itemprop="datePublished" title="2023-02-28 03:06">2023-02-28 03:06</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I have gone through a couple of <code>YOLO</code> tutorials but I am finding it some what
-hard to figure if the Anchor boxes for each cell the image is to be divided
-into is predetermined. In one of the guides I went through, The image was
-divided into <strong>13x13</strong> cells and it stated each cell predicts <strong>5</strong> anchor
-boxes(bigger than it, ok here's my first problem because it also says it would
-first detect what object is present in the small cell before the prediction of
-the boxes).</p>
-<p>How can the small cell predict anchor boxes for an object bigger than it. Also
-it's said that each cell classifies before predicting its anchor boxes how can
-the small cell classify the right object in it without querying neighbouring
-cells if only a small part of the object falls within the cell</p>
-<p><code>E.g.</code> say one of the <strong>13</strong> cells contains only the white pocket part of a
-man wearing a T-shirt how can that cell classify correctly that a man is
-present without being linked to its neighbouring cells? with a normal CNN when
-trying to localize a single object I know the bounding box prediction relates
-to the whole image so at least I can say the network has an idea of what's
-going on everywhere on the image before deciding where the box should be.</p>
-<p><strong>PS:</strong> What I currently think of how the YOLO works is basically each cell is
-assigned predetermined anchor boxes with a classifier at each end before the
-boxes with the highest scores for each class is then selected but I am sure it
-doesn't add up somewhere.</p>
-<blockquote>
-<p><strong>UPDATE:</strong> Made a mistake with this question, it should have been about how
-regular bounding boxes were decided rather than anchor/prior boxes. So I am
-marking <code>@craq</code>'s answer as correct because that's how anchor boxes are
-decided according to the YOLO v2 paper</p>
-</blockquote>
+    <p>I read a few books and articles about Convolutional neural network, it seems I
+understand the concept but I don't know how to put it up like in image below:
+<img alt="alt text" src="images/LDT3H.png"><br>
+(source: what-when-how.com)</p>
+<p>from 28x28 normalized pixel INPUT we get 4 feature maps of size 24x24. but how
+to get them ? resizing the INPUT image ? or performing image transformations?
+but what kind of transformations? or cutting the input image into 4 pieces of
+size 24x24 by 4 corner? I don't understand the process, to me it seem they cut
+up or resize the image to smaller images at each step. please help thanks.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>I think there are two questions here. Firstly, the one in the title, asking
-where the anchors come from. Secondly, how anchors are assigned to objects.
-I'll try to answer both.</p>
-<ol>
-<li>Anchors are determined by a k-means procedure, looking at all the bounding boxes in your dataset. If you're looking at vehicles, the ones you see from the side will have an aspect ratio of about 2:1 (width = 2*height). The ones viewed from in front will be roughly square, 1:1. If your dataset includes people, the aspect ratio might be 1:3. Foreground objects will be large, background objects will be small. The k-means routine will figure out a selection of anchors that represent your dataset. k=5 for yolov3, but there are different numbers of anchors for each YOLO version.</li>
-</ol>
-<p>It's useful to have anchors that represent your dataset, because YOLO learns
-how to make small adjustments to the anchor boxes in order to create an
-accurate bounding box for your object. YOLO can learn small adjustments
-better/easier than large ones.</p>
-<ol>
-<li>The assignment problem is trickier. As I understand it, part of the training process is for YOLO to learn which anchors to use for which object. So the "assignment" isn't deterministic like it might be for the Hungarian algorithm. Because of this, in general, multiple anchors will detect each object, and you need to do non-max-suppression afterwards in order to pick the "best" one (i.e. highest confidence).</li>
-</ol>
-<p>There are a couple of points that I needed to understand before I came to
-grips with anchors:</p>
-<ul>
-<li>Anchors can be any size, so they can extend beyond the boundaries of the 13x13 grid cells. They have to be, in order to detect large objects.</li>
-<li>Anchors only enter in the final layers of YOLO. YOLO's neural network makes 13x13x5=845 predictions (assuming a 13x13 grid and 5 anchors). The predictions are interpreted as offsets to anchors from which to calculate a bounding box. (The predictions also include a confidence/objectness score and a class label.)</li>
-<li>YOLO's loss function compares each object in the ground truth with one anchor. It picks the anchor (before any offsets) with highest IoU compared to the ground truth. Then the predictions are added as offsets to the anchor. All other anchors are designated as background.</li>
-<li>If anchors which have been assigned to objects have high IoU, their loss is small. Anchors which have not been assigned to objects should predict background by setting confidence close to zero. The final loss function is a combination from all anchors. Since YOLO tries to minimise its overall loss function, the anchor closest to ground truth gets trained to recognise the object, and the other anchors get trained to ignore it.</li>
-</ul>
-<p>The following pages helped my understanding of YOLO's anchors:</p>
-<p>https://medium.com/@vivek.yadav/part-1-generating-anchor-boxes-for-yolo-like-
-network-for-vehicle-detection-using-kitti-dataset-b2fe033e5807</p>
-<p>https://github.com/pjreddie/darknet/issues/568</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-theorical-foundation-for-scikit-learn-dummy-classifier/" class="u-url">What is the theorical foundation for scikit-learn dummy classifier?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-is-the-theorical-foundation-for-scikit-learn-dummy-classifier/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:02:48+08:00" itemprop="datePublished" title="2023-02-28 03:02">2023-02-28 03:02</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>By the documentation I read that a dummy classifier can be used to test it
-against a classification algorithm.</p>
-<blockquote>
-<p>This classifier is useful as a simple baseline to compare with other (real)
-classifiers. Do not use it for real problems.</p>
-</blockquote>
-<p>What does the dummy classifier do when it uses the stratified aproach. I know
-that the docummentation says that:</p>
-<blockquote>
-<p>generates predictions by respecting the training set’s class distribution.</p>
-</blockquote>
-<p>Could anybody give me a more theorical explanation of why this is a proof for
-the performance of the classifier?.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The dummy classifier gives you a measure of "baseline" performance--i.e. the
-success rate one should expect to achieve even if simply guessing.</p>
-<p>Suppose you wish to determine whether a given object possesses or does not
-possess a certain property. If you have analyzed a large number of those
-objects and have found that 90% contain the target property, then guessing
-that every future instance of the object possesses the target property gives
-you a 90% likelihood of guessing correctly. Structuring your guesses this way
-is equivalent to using the <code>most_frequent</code> method in the documentation you
-cite.</p>
-<p>Because many machine learning tasks attempt to increase the success rate of
-(e.g.) classification tasks, evaluating the baseline success rate can afford a
-floor value for the minimal value one's classifier should out-perform. In the
-hypothetical discussed above, you would want your classifier to get more than
-90% accuracy, because 90% is the success rate available to even "dummy"
-classifiers.</p>
-<p>If one trains a dummy classifier with the <code>stratified</code> parameter using the
-data discussed above, that classifier will predict that there is a 90%
-probability that each object it encounters possesses the target property. This
-is different from training a dummy classifier with the <code>most_frequent</code>
-parameter, as the latter would guess that <em>all</em> future objects possess the
-target property. Here's some code to illustrate:</p>
-<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">sklearn.dummy</span> <span class="kn">import</span> <span class="n">DummyClassifier</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-
-<span class="n">two_dimensional_values</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="n">class_labels</span>           <span class="o">=</span> <span class="p">[]</span>
-
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">90</span><span class="p">):</span>
-    <span class="n">two_dimensional_values</span><span class="o">.</span><span class="kp">append</span><span class="p">(</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="p">)</span>
-    <span class="n">class_labels</span><span class="o">.</span><span class="kp">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-    <span class="n">two_dimensional_values</span><span class="o">.</span><span class="kp">append</span><span class="p">(</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="p">)</span>
-    <span class="n">class_labels</span><span class="o">.</span><span class="kp">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-<span class="c1">#now 90% of the training data contains the target property</span>
-<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">array</span><span class="p">(</span> <span class="n">two_dimensional_values</span> <span class="p">)</span>
-<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="kp">array</span><span class="p">(</span> <span class="n">class_labels</span> <span class="p">)</span>
-
-<span class="c1">#train a dummy classifier to make predictions based on the most_frequent class value</span>
-<span class="n">dummy_classifier</span> <span class="o">=</span> <span class="n">DummyClassifier</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s2">"most_frequent"</span><span class="p">)</span>
-<span class="n">dummy_classifier</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span> <span class="n">X</span><span class="p">,</span><span class="n">y</span> <span class="p">)</span>
-
-<span class="c1">#this produces 100 predictions that say "1"</span>
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">two_dimensional_values</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span> <span class="n">dummy_classifier</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span> <span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="p">)</span>
-
-<span class="c1">#train a dummy classifier to make predictions based on the class values</span>
-<span class="n">new_dummy_classifier</span> <span class="o">=</span> <span class="n">DummyClassifier</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s2">"stratified"</span><span class="p">)</span>
-<span class="n">new_dummy_classifier</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span> <span class="n">X</span><span class="p">,</span><span class="n">y</span> <span class="p">)</span>
-
-<span class="c1">#this produces roughly 90 guesses that say "1" and roughly 10 guesses that say "0"</span>
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">two_dimensional_values</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span> <span class="n">new_dummy_classifier</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span> <span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="p">)</span>
+<p>This is matlab help file for CONV2 function, which use in CNN Matlab (to get
+convolutional layers). Read it carefully and you will see your answer.</p>
+<div class="code"><pre class="code literal-block"><span class="c">%CONV2 Two dimensional convolution.</span>
+<span class="c">%   C = CONV2(A, B) performs the 2-D convolution of matrices A and B.</span>
+<span class="c">%   If [ma,na] = size(A), [mb,nb] = size(B), and [mc,nc] = size(C), then</span>
+<span class="c">%   mc = max([ma+mb-1,ma,mb]) and nc = max([na+nb-1,na,nb]).</span>
+<span class="c">%</span>
+<span class="c">%   C = CONV2(H1, H2, A) convolves A first with the vector H1 along the</span>
+<span class="c">%   rows and then with the vector H2 along the columns. If n1 = length(H1)</span>
+<span class="c">%   and n2 = length(H2), then mc = max([ma+n1-1,ma,n1]) and </span>
+<span class="c">%   nc = max([na+n2-1,na,n2]).</span>
+<span class="c">%</span>
+<span class="c">%   C = CONV2(..., SHAPE) returns a subsection of the 2-D</span>
+<span class="c">%   convolution with size specified by SHAPE:</span>
+<span class="c">%     'full'  - (default) returns the full 2-D convolution,</span>
+<span class="c">%     'same'  - returns the central part of the convolution</span>
+<span class="c">%               that is the same size as A.</span>
+<span class="c">%     'valid' - returns only those parts of the convolution</span>
+<span class="c">%               that are computed without the zero-padded edges.</span>
+<span class="c">%               **size(C) = max([ma-max(0,mb-1),na-max(0,nb-1)],0).**</span>
 </pre></div>
-
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/robot-programming-with-lisp/" class="u-url">robot programming with lisp?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/robot-programming-with-lisp/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:06:02+08:00" itemprop="datePublished" title="2023-02-28 03:06">2023-02-28 03:06</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm looking for some examples of robot/AI programming using lisp. Are there
+any good online examples available anywhere (preferably not too academic in
+nature)?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>XS Lisp on Lego Mindstorms: http://www.xslisp.com/ilc03.pdf There are multiple
+references online on Clojure and Lego Mindstorms dealing with a Clojure API
+for Lego Mindstorms. In fact Lisp (in some form) and Leog Mindstorms's seems
+not uncommon: here's a AAAI paper on Lisp and Mindstorms with some code with a
+decided AI education approach: "Lauching into AI's October Sky with Robotics
+and Lisp" :
+http://www.aaai.org/ojs/index.php/aimagazine/article/viewArticle/1863</p>
+<p>A Robotics Society of Southern California intro to Lisp may have
+source/examples on other pages: http://rssc.org/content/introduction-lisp</p>
+<p>Aside from something like Mindstorms almost all robotic systems are custom
+corporate and/or university projects so you are likely to have to see if any
+final project results have published source. There may also be university
+examples for robotics classes.</p>
+<p>If you are looking for general AI programming then there are numerous
+references: Norvig's "Paradigms of Artificial Intelligence Programming: Case
+Studies in Common Lisp" is a good starting point.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>A major motivation for Dummy Classifier is F-score, when the positive class is
-in minority (i.e. imbalanced classes). This classifier is used for sanity test
-of actual classifier. Actually, dummy classifier completely ignores the input
-data. In case of 'most frequent' method, it checks the occurrence of most
-frequent label.</p>
+<p>This is supposed to be among the bestest books on both Common LISP and AI
+Programming. Use it wisely.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/python-justifying-numpy-array/" class="u-url">Python: Justifying NumPy array</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/pytorch-binary-classification-same-network-structure-simpler-data-but-worse-performance/" class="u-url">PyTorch Binary Classification - same network structure, 'simpler' data, but worse performance?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/python-justifying-numpy-array/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:02:24+08:00" itemprop="datePublished" title="2023-02-28 03:02">2023-02-28 03:02</time></a>
+            <a href="posts/pytorch-binary-classification-same-network-structure-simpler-data-but-worse-performance/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:05:39+08:00" itemprop="datePublished" title="2023-02-28 03:05">2023-02-28 03:05</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>Please I am a bit new to <code>Python</code> and it has been nice, I could comment that
-python is very sexy till I needed to shift content of a 4x4 matrix which I
-want to use in building a 2048 game demo of the game is here I have this
-function</p>
-<div class="code"><pre class="code literal-block"><span class="n">def</span><span class="w"> </span><span class="n">cover_left</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span><span class="err">:</span>
-<span class="w">        </span><span class="k">new</span><span class="o">=[</span><span class="n">[0,0,0,0</span><span class="o">]</span><span class="p">,</span><span class="o">[</span><span class="n">0,0,0,0</span><span class="o">]</span><span class="p">,</span><span class="o">[</span><span class="n">0,0,0,0</span><span class="o">]</span><span class="p">,</span><span class="o">[</span><span class="n">0,0,0,0</span><span class="o">]</span><span class="err">]</span>
-<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="k">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="err">:</span>
-<span class="w">             </span><span class="nf">count</span><span class="o">=</span><span class="mi">0</span>
-<span class="w">             </span><span class="k">for</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="k">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="err">:</span>
-<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">mat</span><span class="o">[</span><span class="n">i</span><span class="o">][</span><span class="n">j</span><span class="o">]!=</span><span class="mi">0</span><span class="err">:</span>
-<span class="w">                    </span><span class="k">new</span><span class="o">[</span><span class="n">i</span><span class="o">][</span><span class="n">count</span><span class="o">]=</span><span class="n">mat</span><span class="o">[</span><span class="n">i</span><span class="o">][</span><span class="n">j</span><span class="o">]</span>
-<span class="w">                    </span><span class="nf">count</span><span class="o">+=</span><span class="mi">1</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span>
+    <p>To get to grips with PyTorch (and deep learning in general) I started by
+working through some basic classification examples. One such example was
+classifying a non-linear dataset created using sklearn (full code available as
+notebook here)</p>
+<div class="code"><pre class="code literal-block">n_pts = 500
+X, y = datasets.make_circles(n_samples=n_pts, random_state=123, noise=0.1, factor=0.2)
+x_data = torch.FloatTensor(X)
+y_data = torch.FloatTensor(y.reshape(500, 1))
 </pre></div>
 
-<p>This is what this function does if you call it like this</p>
-<div class="code"><pre class="code literal-block">cover_left([
-              [1,0,2,0], 
-              [3,0,4,0], 
-              [5,0,6,0], 
-              [0,7,0,8]
-          ])
+<p><img alt="enter image description here" src="images/w20Tb.png"></p>
+<p>This is then accurately classified using a pretty basic neural net</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Model</span>(<span class="n">nn</span>.<span class="n">Module</span>):
+    <span class="n">def</span> <span class="n">__init__</span>(<span class="nb">self</span>, <span class="n">input_size</span>, <span class="n">H1</span>, <span class="n">output_size</span>):
+        <span class="n">super</span>().<span class="n">__init__</span>()
+        <span class="nb">self</span>.<span class="n">linear</span> = <span class="n">nn</span>.<span class="n">Linear</span>(<span class="n">input_size</span>, <span class="n">H1</span>)
+        <span class="nb">self</span>.<span class="n">linear2</span> = <span class="n">nn</span>.<span class="n">Linear</span>(<span class="n">H1</span>, <span class="n">output_size</span>)
+
+    <span class="n">def</span> <span class="n">forward</span>(<span class="nb">self</span>, <span class="nb">x</span>):
+        <span class="nb">x</span> = <span class="n">torch</span>.<span class="n">sigmoid</span>(<span class="nb">self</span>.<span class="n">linear</span>(<span class="nb">x</span>))
+        <span class="nb">x</span> = <span class="n">torch</span>.<span class="n">sigmoid</span>(<span class="nb">self</span>.<span class="n">linear2</span>(<span class="nb">x</span>))
+        <span class="k">return</span> <span class="nb">x</span>
+
+    <span class="n">def</span> <span class="n">predict</span>(<span class="nb">self</span>, <span class="nb">x</span>):
+        <span class="nb">pred</span> = <span class="nb">self</span>.<span class="n">forward</span>(<span class="nb">x</span>)
+        <span class="k">if</span> <span class="nb">pred</span> &gt;= <span class="mf">0.5</span>:
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="n">else:</span>
+            <span class="k">return</span> <span class="mi">0</span>
 </pre></div>
 
-<p>It will cover the zeros to the left and produce</p>
-<div class="code"><pre class="code literal-block">[  [1, 2, 0, 0],
-   [3, 4, 0, 0],
-   [5, 6, 0, 0],
-   [7, 8, 0, 0]]
-</pre></div>
-
-<p>Please I need someone to help me with a <code>numpy</code> way of doing this which I
-believe will be faster and require less code (I am using in a depth-first
-search algo) and more importantly the implementation of <code>cover_up</code>,
-<code>cover_down</code> and <code>cover_left</code>.</p>
-<div class="code"><pre class="code literal-block"><span class="n n-Quoted">`cover_up`</span>
-<span class="w">    </span><span class="err">[</span><span class="w">  </span><span class="err">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="err">]]</span>
-<span class="n n-Quoted">`cover_down`</span>
-<span class="w">    </span><span class="err">[</span><span class="w">  </span><span class="err">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="err">]]</span>
-<span class="n n-Quoted">`cover_right`</span>
-<span class="w">    </span><span class="err">[</span><span class="w">  </span><span class="err">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="err">]</span><span class="p">,</span>
-<span class="w">       </span><span class="err">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="err">]]</span>
-</pre></div>
-
+<p>As I have an interest in health data I then decided to try and use the same
+network structure to classify some a basic real-world dataset. I took heart
+rate data for one patient from here, and altered it so all values &gt; 91 would
+be labelled as anomalies (e.g. a <code>1</code> and everything &lt;= 91 labelled a <code>0</code>).
+This is completely arbitrary, but I just wanted to see how the classification
+would work. The complete notebook for this example is here.</p>
+<p><img alt="enter image description here" src="images/6izzI.png"></p>
+<p>What is not intuitive to me is why the first example reaches <strong>a loss of
+0.0016 after 1,000 epochs</strong> , whereas the second example only reaches <strong>a loss
+of 0.4296 after 10,000 epochs</strong></p>
+<p><img alt="Training Loss for Example 1" src="images/rDag4.png"></p>
+<p><img alt="Training Loss for Heart Rate Example" src="images/PMubT.png"></p>
+<p>Perhaps I am being naive in thinking that the heart rate example would be much
+easier to classify. Any insights to help me understand why this is not what I
+am seeing would be great!</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Here's a vectorized approach inspired by <code>this other post</code> and generalized to
-cover <code>non-zeros</code> for all four directions -</p>
-<div class="code"><pre class="code literal-block"><span class="n">def</span><span class="w"> </span><span class="n">justify</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">invalid_val</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">side</span><span class="o">=</span><span class="s1">'left'</span><span class="p">)</span><span class="err">:</span><span class="w">    </span>
-<span class="w">    </span><span class="ss">"""</span>
-<span class="ss">    Justifies a 2D array</span>
+<h4>TL;DR</h4>
+<p>Your input data is not normalized.</p>
+<ol>
+<li>use <code>x_data = (x_data - x_data.mean()) / x_data.std()</code>
+</li>
+<li>increase the learning rate <code>optimizer = torch.optim.Adam(model.parameters(), lr=0.01)</code>
+</li>
+</ol>
+<p>You'll get<br><img alt="enter image description here" src="images/vt4VK.png"></p>
+<p>convergence in only 1000 iterations.</p>
+<h4>More details</h4>
+<p>The key difference between the two examples you have is that the data <code>x</code> in
+the first example is centered around (0, 0) and has very low variance.<br>
+On the other hand, the data in the second example is centered around 92 and
+has relatively large variance.</p>
+<p>This initial bias in the data is not taken into account when you randomly
+initialize the weights which is done based on the assumption that the inputs
+are roughly normally distributed around <em>zero</em>.<br>
+It is almost impossible for the optimization process to compensate for this
+gross deviation - thus the model gets stuck in a sub-optimal solution.</p>
+<p>Once you normalize the inputs, by subtracting the mean and dividing by the
+std, the optimization process becomes stable again and rapidly converges to a
+good solution.</p>
+<p>For more details about input normalization and weights initialization, you can
+read section 2.2 in <em>He et al</em> <strong>Delving Deep into Rectifiers: Surpassing
+Human-Level Performance on ImageNet Classification</strong> (ICCV 2015).</p>
+<h4>What if I cannot normalize the data?</h4>
+<p>If, for some reason, you cannot compute mean and std data in advance, you can
+still use <code>nn.BatchNorm1d</code> to estimate and normalize the data as part of the
+training process. For example</p>
+<div class="code"><pre class="code literal-block"><span class="k">class</span> <span class="n">Model</span>(<span class="n">nn</span>.<span class="n">Module</span>):
+    <span class="n">def</span> <span class="n">__init__</span>(<span class="nb">self</span>, <span class="n">input_size</span>, <span class="n">H1</span>, <span class="n">output_size</span>):
+        <span class="n">super</span>().<span class="n">__init__</span>()
+        <span class="nb">self</span>.<span class="n">bn</span> = <span class="n">nn</span>.<span class="n">BatchNorm1d</span>(<span class="n">input_size</span>)  <span class="c1"># adding batchnorm</span>
+        <span class="nb">self</span>.<span class="n">linear</span> = <span class="n">nn</span>.<span class="n">Linear</span>(<span class="n">input_size</span>, <span class="n">H1</span>)
+        <span class="nb">self</span>.<span class="n">linear2</span> = <span class="n">nn</span>.<span class="n">Linear</span>(<span class="n">H1</span>, <span class="n">output_size</span>)
 
-<span class="ss">    Parameters</span>
-<span class="ss">    ----------</span>
-<span class="ss">    A : ndarray</span>
-<span class="ss">        Input array to be justified</span>
-<span class="ss">    axis : int</span>
-<span class="ss">        Axis along which justification is to be made</span>
-<span class="ss">    side : str</span>
-<span class="ss">        Direction of justification. It could be 'left', 'right', 'up', 'down'</span>
-<span class="ss">        It should be 'left' or 'right' for axis=1 and 'up' or 'down' for axis=0.</span>
-
-<span class="ss">    """</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">invalid_val</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="nl">nan</span><span class="p">:</span>
-<span class="w">        </span><span class="n">mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">~</span><span class="n">np</span><span class="p">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
-<span class="w">    </span><span class="k">else</span><span class="err">:</span>
-<span class="w">        </span><span class="n">mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="o">!=</span><span class="n">invalid_val</span>
-<span class="w">    </span><span class="n">justified_mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="n">sort</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">side</span><span class="o">==</span><span class="s1">'up'</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="n">side</span><span class="o">==</span><span class="s1">'left'</span><span class="p">)</span><span class="err">:</span>
-<span class="w">        </span><span class="n">justified_mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="n">flip</span><span class="p">(</span><span class="n">justified_mask</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
-<span class="w">    </span><span class="k">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="k">full</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">shape</span><span class="p">,</span><span class="w"> </span><span class="n">invalid_val</span><span class="p">)</span><span class="w"> </span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">axis</span><span class="o">==</span><span class="mi">1</span><span class="err">:</span>
-<span class="w">        </span><span class="k">out</span><span class="o">[</span><span class="n">justified_mask</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="o">[</span><span class="n">mask</span><span class="o">]</span>
-<span class="w">    </span><span class="k">else</span><span class="err">:</span>
-<span class="w">        </span><span class="k">out</span><span class="p">.</span><span class="n">T</span><span class="o">[</span><span class="n">justified_mask.T</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">T</span><span class="o">[</span><span class="n">mask.T</span><span class="o">]</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">out</span>
+    <span class="n">def</span> <span class="n">forward</span>(<span class="nb">self</span>, <span class="nb">x</span>):
+        <span class="nb">x</span> = <span class="n">torch</span>.<span class="n">sigmoid</span>(<span class="nb">self</span>.<span class="n">linear</span>(<span class="nb">self</span>.<span class="n">bn</span>(<span class="nb">x</span>)))  <span class="c1"># batchnorm the input x</span>
+        <span class="nb">x</span> = <span class="n">torch</span>.<span class="n">sigmoid</span>(<span class="nb">self</span>.<span class="n">linear2</span>(<span class="nb">x</span>))
+        <span class="k">return</span> <span class="nb">x</span>
 </pre></div>
 
-<p>Sample runs -</p>
-<div class="code"><pre class="code literal-block">In [473]: a # input array
-Out[473]: 
-array([[1, 0, 2, 0],
-       [3, 0, 4, 0],
-       [5, 0, 6, 0],
-       [6, 7, 0, 8]])
-
-In [474]: justify(a, axis=0, side='up')
-Out[474]: 
-array([[1, 7, 2, 8],
-       [3, 0, 4, 0],
-       [5, 0, 6, 0],
-       [6, 0, 0, 0]])
-
-In [475]: justify(a, axis=0, side='down')
-Out[475]: 
-array([[1, 0, 0, 0],
-       [3, 0, 2, 0],
-       [5, 0, 4, 0],
-       [6, 7, 6, 8]])
-
-In [476]: justify(a, axis=1, side='left')
-Out[476]: 
-array([[1, 2, 0, 0],
-       [3, 4, 0, 0],
-       [5, 6, 0, 0],
-       [6, 7, 8, 0]])
-
-In [477]: justify(a, axis=1, side='right')
-Out[477]: 
-array([[0, 0, 1, 2],
-       [0, 0, 3, 4],
-       [0, 0, 5, 6],
-       [0, 6, 7, 8]])
-</pre></div>
-
-<h4>Generic case (ndarray)</h4>
-<p>For a ndarray, we could modify it to -</p>
-<div class="code"><pre class="code literal-block"><span class="n">def</span><span class="w"> </span><span class="n">justify_nd</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">invalid_val</span><span class="p">,</span><span class="w"> </span><span class="n">axis</span><span class="p">,</span><span class="w"> </span><span class="n">side</span><span class="p">)</span><span class="err">:</span><span class="w">    </span>
-<span class="w">    </span><span class="ss">"""</span>
-<span class="ss">    Justify ndarray for the valid elements (that are not invalid_val).</span>
-
-<span class="ss">    Parameters</span>
-<span class="ss">    ----------</span>
-<span class="ss">    A : ndarray</span>
-<span class="ss">        Input array to be justified</span>
-<span class="ss">    invalid_val : scalar</span>
-<span class="ss">        invalid value</span>
-<span class="ss">    axis : int</span>
-<span class="ss">        Axis along which justification is to be made</span>
-<span class="ss">    side : str</span>
-<span class="ss">        Direction of justification. Must be 'front' or 'end'.</span>
-<span class="ss">        So, with 'front', valid elements are pushed to the front and</span>
-<span class="ss">        with 'end' valid elements are pushed to the end along specified axis.</span>
-<span class="ss">    """</span>
-
-<span class="w">    </span><span class="n">pushax</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lambda</span><span class="w"> </span><span class="nl">a</span><span class="p">:</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">axis</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">invalid_val</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="nl">nan</span><span class="p">:</span>
-<span class="w">        </span><span class="n">mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">~</span><span class="n">np</span><span class="p">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
-<span class="w">    </span><span class="k">else</span><span class="err">:</span>
-<span class="w">        </span><span class="n">mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="o">!=</span><span class="n">invalid_val</span>
-<span class="w">    </span><span class="n">justified_mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="n">sort</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
-
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">side</span><span class="o">==</span><span class="s1">'front'</span><span class="err">:</span>
-<span class="w">        </span><span class="n">justified_mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="n">flip</span><span class="p">(</span><span class="n">justified_mask</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
-
-<span class="w">    </span><span class="k">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">np</span><span class="p">.</span><span class="k">full</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">shape</span><span class="p">,</span><span class="w"> </span><span class="n">invalid_val</span><span class="p">)</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">axis</span><span class="o">==-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="p">(</span><span class="n">axis</span><span class="o">==</span><span class="n">a</span><span class="p">.</span><span class="n">ndim</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="err">:</span>
-<span class="w">        </span><span class="k">out</span><span class="o">[</span><span class="n">justified_mask</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="o">[</span><span class="n">mask</span><span class="o">]</span>
-<span class="w">    </span><span class="k">else</span><span class="err">:</span>
-<span class="w">        </span><span class="n">pushax</span><span class="p">(</span><span class="k">out</span><span class="p">)</span><span class="o">[</span><span class="n">pushax(justified_mask)</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pushax</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">[</span><span class="n">pushax(mask)</span><span class="o">]</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">out</span>
-</pre></div>
-
-<p>Sample runs -</p>
-<p>Input array :</p>
-<div class="code"><pre class="code literal-block">In [87]: a
-Out[87]: 
-array([[[54, 57,  0, 77],
-        [77,  0,  0, 31],
-        [46,  0,  0, 98],
-        [98, 22, 68, 75]],
-
-       [[49,  0,  0, 98],
-        [ 0, 47,  0, 87],
-        [82, 19,  0, 90],
-        [79, 89, 57, 74]],
-
-       [[ 0,  0,  0,  0],
-        [29,  0,  0, 49],
-        [42, 75,  0, 67],
-        [42, 41, 84, 33]],
-
-       [[ 0,  0,  0, 38],
-        [44, 10,  0,  0],
-        [63,  0,  0,  0],
-        [89, 14,  0,  0]]])
-</pre></div>
-
-<p>To <code>'front'</code>, along <code>axis =0</code> :</p>
-<div class="code"><pre class="code literal-block">In [88]: justify_nd(a, invalid_val=0, axis=0, side='front')
-Out[88]: 
-array([[[54, 57,  0, 77],
-        [77, 47,  0, 31],
-        [46, 19,  0, 98],
-        [98, 22, 68, 75]],
-
-       [[49,  0,  0, 98],
-        [29, 10,  0, 87],
-        [82, 75,  0, 90],
-        [79, 89, 57, 74]],
-
-       [[ 0,  0,  0, 38],
-        [44,  0,  0, 49],
-        [42,  0,  0, 67],
-        [42, 41, 84, 33]],
-
-       [[ 0,  0,  0,  0],
-        [ 0,  0,  0,  0],
-        [63,  0,  0,  0],
-        [89, 14,  0,  0]]])
-</pre></div>
-
-<p>Along <code>axis=1</code> :</p>
-<div class="code"><pre class="code literal-block">In [89]: justify_nd(a, invalid_val=0, axis=1, side='front')
-Out[89]: 
-array([[[54, 57, 68, 77],
-        [77, 22,  0, 31],
-        [46,  0,  0, 98],
-        [98,  0,  0, 75]],
-
-       [[49, 47, 57, 98],
-        [82, 19,  0, 87],
-        [79, 89,  0, 90],
-        [ 0,  0,  0, 74]],
-
-       [[29, 75, 84, 49],
-        [42, 41,  0, 67],
-        [42,  0,  0, 33],
-        [ 0,  0,  0,  0]],
-
-       [[44, 10,  0, 38],
-        [63, 14,  0,  0],
-        [89,  0,  0,  0],
-        [ 0,  0,  0,  0]]])
-</pre></div>
-
-<p>Along <code>axis=2</code> :</p>
-<div class="code"><pre class="code literal-block">In [90]: justify_nd(a, invalid_val=0, axis=2, side='front')
-Out[90]: 
-array([[[54, 57, 77,  0],
-        [77, 31,  0,  0],
-        [46, 98,  0,  0],
-        [98, 22, 68, 75]],
-
-       [[49, 98,  0,  0],
-        [47, 87,  0,  0],
-        [82, 19, 90,  0],
-        [79, 89, 57, 74]],
-
-       [[ 0,  0,  0,  0],
-        [29, 49,  0,  0],
-        [42, 75, 67,  0],
-        [42, 41, 84, 33]],
-
-       [[38,  0,  0,  0],
-        [44, 10,  0,  0],
-        [63,  0,  0,  0],
-        [89, 14,  0,  0]]])
-</pre></div>
-
-<p>To the <code>'end'</code> :</p>
-<div class="code"><pre class="code literal-block"><span class="nv">In</span><span class="w"> </span>[<span class="mi">94</span>]:<span class="w"> </span><span class="nv">justify_nd</span><span class="ss">(</span><span class="nv">a</span>,<span class="w"> </span><span class="nv">invalid_val</span><span class="o">=</span><span class="mi">0</span>,<span class="w"> </span><span class="nv">axis</span><span class="o">=</span><span class="mi">2</span>,<span class="w"> </span><span class="nv">side</span><span class="o">=</span><span class="s1">'end'</span><span class="ss">)</span>
-<span class="nv">Out</span>[<span class="mi">94</span>]:<span class="w"> </span>
-<span class="nv">array</span><span class="ss">(</span>[[[<span class="w"> </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">54</span>,<span class="w"> </span><span class="mi">57</span>,<span class="w"> </span><span class="mi">77</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">77</span>,<span class="w"> </span><span class="mi">31</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">46</span>,<span class="w"> </span><span class="mi">98</span>],
-<span class="w">        </span>[<span class="mi">98</span>,<span class="w"> </span><span class="mi">22</span>,<span class="w"> </span><span class="mi">68</span>,<span class="w"> </span><span class="mi">75</span>]],
-
-<span class="w">       </span>[[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">49</span>,<span class="w"> </span><span class="mi">98</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">47</span>,<span class="w"> </span><span class="mi">87</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">82</span>,<span class="w"> </span><span class="mi">19</span>,<span class="w"> </span><span class="mi">90</span>],
-<span class="w">        </span>[<span class="mi">79</span>,<span class="w"> </span><span class="mi">89</span>,<span class="w"> </span><span class="mi">57</span>,<span class="w"> </span><span class="mi">74</span>]],
-
-<span class="w">       </span>[[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">29</span>,<span class="w"> </span><span class="mi">49</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">42</span>,<span class="w"> </span><span class="mi">75</span>,<span class="w"> </span><span class="mi">67</span>],
-<span class="w">        </span>[<span class="mi">42</span>,<span class="w"> </span><span class="mi">41</span>,<span class="w"> </span><span class="mi">84</span>,<span class="w"> </span><span class="mi">33</span>]],
-
-<span class="w">       </span>[[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">38</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">44</span>,<span class="w"> </span><span class="mi">10</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">63</span>],
-<span class="w">        </span>[<span class="w"> </span><span class="mi">0</span>,<span class="w">  </span><span class="mi">0</span>,<span class="w"> </span><span class="mi">89</span>,<span class="w"> </span><span class="mi">14</span>]]]<span class="ss">)</span>
-</pre></div>
+<p>This modification <em>without</em> any change to the input data, yields similar
+convergance after only 1000 epochs:<br><img alt="enter image description here" src="images/Q9XRw.png"></p>
+<h4>A minor comment</h4>
+<p>For numerical stability, it is better to use <code>nn.BCEWithLogitsLoss</code> instead of
+<code>nn.BCELoss</code>. For this end, you need to remove the <code>torch.sigmoid</code> from the
+<code>forward()</code> output, the <code>sigmoid</code> will be computed inside the loss.<br>
+See, for example, this thread regarding the related sigmoid + cross entropy
+loss for binary predictions.</p>
     </div>
     </article>
 </div>
@@ -573,7 +315,7 @@ array([[[54, 57, 77,  0],
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

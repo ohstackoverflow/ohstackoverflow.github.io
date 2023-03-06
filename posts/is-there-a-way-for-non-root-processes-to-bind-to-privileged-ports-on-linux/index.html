@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is there a way for non-root processes to bind to "privileged" ports on Linux? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-on-linux/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../implement-touch-using-python/" title="Implement touch using Python?" type="text/html">
+<link rel="next" href="../efficiently-convert-rows-to-columns-in-sql-server/" title="Efficiently convert rows to columns in sql server" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content='Is there a way for non-root processes to bind to "privileged" ports on'>
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-on-linux/">
+<meta property="og:description" content="It's very annoying to have this limitation on my development box, when there
+won't ever be any users other than me.
+I'm aware of the standard workarounds, but none of them do exactly what I
+want:
+
+aut">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T07:46:28+08:00">
+<meta property="article:tag" content="iptables">
+<meta property="article:tag" content="ipv6">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="linux-capabilities">
+<meta property="article:tag" content="root">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Is there a way for non-root processes to bind to "privileged" ports on Linux?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T07:46:28+08:00" itemprop="datePublished" title="2023-03-03 07:46">2023-03-03 07:46</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>It's very annoying to have this limitation on my development box, when there
+won't ever be any users other than me.</p>
+<p>I'm aware of the standard workarounds, but none of them do exactly what I
+want:</p>
+<ol>
+<li>authbind (The version in Debian testing, 1.0, only supports IPv4)</li>
+<li>Using the iptables REDIRECT target to redirect a low port to a high port (the "nat" table is not yet implemented for ip6tables, the IPv6 version of iptables)</li>
+<li>sudo (Running as root is what I'm trying to avoid)</li>
+<li>SELinux (or similar). (This is just my dev box, I don't want to introduce a lot of extra complexity.)</li>
+</ol>
+<p>Is there some simple <code>sysctl</code> variable to allow non-root processes to bind to
+"privileged" ports (ports less than 1024) on Linux, or am I just out of luck?</p>
+<p>EDIT: In some cases, you can use capabilities to do this.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Okay, thanks to the people who pointed out the capabilities system and
+<code>CAP_NET_BIND_SERVICE</code> capability. If you have a recent kernel, it is indeed
+possible to use this to start a service as non-root but bind low ports. The
+short answer is that you do:</p>
+<div class="code"><pre class="code literal-block">setcap 'cap_net_bind_service=+ep' /path/to/program
+</pre></div>
+
+<p>And then anytime <code>program</code> is executed thereafter it will have the
+<code>CAP_NET_BIND_SERVICE</code> capability. <code>setcap</code> is in the debian package
+<code>libcap2-bin</code>.</p>
+<p>Now for the caveats:</p>
+<ol>
+<li>You will need at least a 2.6.24 kernel</li>
+<li>This won't work if your file is a script. (i.e. uses a <code>#!</code> line to launch an interpreter). In this case, as far I as understand, you'd have to apply the capability to the interpreter executable itself, which of course is a security nightmare, since any program using that interpreter will have the capability. I wasn't able to find any clean, easy way to work around this problem.</li>
+<li>Linux will disable <code>LD_LIBRARY_PATH</code> on any <code>program</code> that has elevated privileges like <code>setcap</code> or <code>suid</code>. So if your <code>program</code> uses its own <code>.../lib/</code>, you might have to look into another option like port forwarding.</li>
+</ol>
+<p><strong>Resources:</strong></p>
+<ul>
+<li>capabilities(7) man page. Read this long and hard if you're going to use capabilities in a production environment. There are some really tricky details of how capabilities are inherited across exec() calls that are detailed here.</li>
+<li>setcap man page</li>
+<li>"Bind ports below 1024 without root on GNU/Linux": The document that first pointed me towards <code>setcap</code>.</li>
+</ul>
+<p>Note: RHEL first added this in v6.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p><strong>Update 2017:</strong></p>
+<h2>Use authbind</h2>
+<p><em>Disclaimer (update per 2021):</em> Note that <code>authbind</code> works via <code>LD_PRELOAD</code>,
+which is only used if your program uses <code>libc</code>, which is (or might) not be the
+case if your program is compiled with GO, or any other compiler that avoids C.
+If you use go, set the kernel parameter for the protected port range, see
+bottom of post.   </p>
+<p><code>Authbind</code> is much better than <code>CAP_NET_BIND_SERVICE</code> or a custom kernel.  </p>
+<ul>
+<li>
+<p><code>CAP_NET_BIND_SERVICE</code> grants trust to the binary but provides no control over per-port access.   </p>
+</li>
+<li>
+<p><code>Authbind</code> grants trust to the user/group and provides control over per-port access, and supports both IPv4 and IPv6 ( <strong>IPv6 support has been added as of late</strong> ).</p>
+</li>
+<li>
+<p>Install: <code>apt-get install authbind</code></p>
+</li>
+<li>
+<p>Configure access to relevant ports, e.g. 80 and 443 for all users and groups:</p>
+</li>
+</ul>
+<blockquote>
+<p>sudo touch /etc/authbind/byport/80<br>
+ sudo touch /etc/authbind/byport/443<br>
+ sudo chmod 777 /etc/authbind/byport/80<br>
+ sudo chmod 777 /etc/authbind/byport/443<br></p>
+</blockquote>
+<ol>
+<li>
+<p>Execute your command via <code>authbind</code><br>
+(optionally specifying <code>--deep</code> or other arguments, see <code>man authbind</code>):</p>
+<div class="code"><pre class="code literal-block">     authbind --deep /path/to/binary command line args
+</pre></div>
+
+<p>e.g.  </p>
+<div class="code"><pre class="code literal-block"> authbind --deep java -jar SomeServer.jar
+</pre></div>
+
+</li>
+</ol>
+<hr>
+<p>As a follow-up to Joshua's fabulous (=not recommended unless you know what you
+do) recommendation to hack the kernel:</p>
+<p>I've first posted it here.</p>
+<p>Simple. With a normal or old kernel, you don't.<br>
+As pointed out by others, <code>iptables</code> can forward a port.<br>
+As also pointed out by others, <code>CAP_NET_BIND_SERVICE</code> can also do the job.<br>
+Of course <code>CAP_NET_BIND_SERVICE</code> will fail if you launch your program from a
+script, unless you set the cap on the shell interpreter, which is pointless,
+you could just as well run your service as root...<br>
+e.g. for Java, you have to apply it to the JAVA JVM</p>
+<div class="code"><pre class="code literal-block">sudo /sbin/setcap 'cap_net_bind_service=ep' /usr/lib/jvm/java-8-openjdk/jre/bin/java
+</pre></div>
+
+<p>Obviously, that then means any Java program can bind system ports.<br>
+Ditto for mono/.NET.</p>
+<p>I'm also pretty sure xinetd isn't the best of ideas.<br>
+But since both methods are hacks, why not just lift the limit by lifting the
+restriction ?<br>
+Nobody said you have to run a normal kernel, so you can just run your own.</p>
+<p>You just download the source for the latest kernel (or the same you currently
+have). Afterwards, you go to:</p>
+<div class="code"><pre class="code literal-block"><span class="o">/</span><span class="nv">usr</span><span class="o">/</span><span class="nv">src</span><span class="o">/</span><span class="nv">linux</span><span class="o">-&lt;</span><span class="nv">version_number</span><span class="o">&gt;/</span><span class="k">include</span><span class="o">/</span><span class="nv">net</span><span class="o">/</span><span class="nv">sock</span>.<span class="nv">h</span>:
+</pre></div>
+
+<p>There you look for this line</p>
+<div class="code"><pre class="code literal-block"><span class="o">/*</span><span class="w"> </span><span class="n">Sockets</span><span class="w"> </span><span class="mi">0</span><span class="o">-</span><span class="mi">1023</span><span class="w"> </span><span class="n">can</span><span class="o">'</span><span class="n">t</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">bound</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">unless</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">superuser</span><span class="w"> </span><span class="o">*/</span>
+#<span class="n">define</span><span class="w"> </span><span class="n">PROT_SOCK</span><span class="w">       </span><span class="mi">1024</span>
+</pre></div>
+
+<p>and change it to</p>
+<div class="code"><pre class="code literal-block">#define PROT_SOCK 0
+</pre></div>
+
+<p>if you don't want to have an insecure ssh situation, you alter it to this:</p>
+<div class="code"><pre class="code literal-block">#define PROT_SOCK 24
+</pre></div>
+
+<p>Generally, I'd use the lowest setting that you need, e.g. 79 for http, or 24
+when using SMTP on port 25.</p>
+<p>That's already all.<br>
+Compile the kernel, and install it.<br>
+Reboot.<br>
+Finished - that stupid limit is GONE, and that also works for scripts.  </p>
+<p>Here's how you compile a kernel:</p>
+<p>https://help.ubuntu.com/community/Kernel/Compile</p>
+<div class="code"><pre class="code literal-block"><span class="c1"># You can get the kernel-source via package `linux-source`, no manual download required</span>
+<span class="n">apt</span><span class="o">-</span><span class="n">get</span><span class="w"> </span><span class="n">install</span><span class="w"> </span><span class="n">linux</span><span class="o">-</span><span class="n">source</span><span class="w"> </span><span class="n">fakeroot</span>
+
+<span class="n">mkdir</span><span class="w"> </span><span class="o">~/</span><span class="n">src</span>
+<span class="n">cd</span><span class="w"> </span><span class="o">~/</span><span class="n">src</span>
+<span class="n">tar</span><span class="w"> </span><span class="n">xjvf</span><span class="w"> </span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">linux</span><span class="o">-</span><span class="n">source</span><span class="o">-&lt;</span><span class="n">version</span><span class="o">&gt;.</span><span class="n">tar</span><span class="o">.</span><span class="n">bz2</span>
+<span class="n">cd</span><span class="w"> </span><span class="n">linux</span><span class="o">-</span><span class="n">source</span><span class="o">-&lt;</span><span class="n">version</span><span class="o">&gt;</span>
+
+<span class="c1"># Apply the changes to PROT_SOCK define in /include/net/sock.h</span>
+
+<span class="c1"># Copy the kernel config file you are currently using</span>
+<span class="n">cp</span><span class="w"> </span><span class="o">-</span><span class="n">vi</span><span class="w"> </span><span class="o">/</span><span class="n">boot</span><span class="o">/</span><span class="n">config</span><span class="o">-</span><span class="err">`</span><span class="n">uname</span><span class="w"> </span><span class="o">-</span><span class="n">r</span><span class="err">`</span><span class="w"> </span><span class="o">.</span><span class="n">config</span>
+
+<span class="c1"># Install ncurses libary, if you want to run menuconfig</span>
+<span class="n">apt</span><span class="o">-</span><span class="n">get</span><span class="w"> </span><span class="n">install</span><span class="w"> </span><span class="n">libncurses5</span><span class="w"> </span><span class="n">libncurses5</span><span class="o">-</span><span class="n">dev</span>
+
+<span class="c1"># Run menuconfig (optional)</span>
+<span class="n">make</span><span class="w"> </span><span class="n">menuconfig</span>
+
+<span class="c1"># Define the number of threads you wanna use when compiling (should be &lt;number CPU cores&gt; - 1), e.g. for quad-core</span>
+<span class="k">export</span><span class="w"> </span><span class="n">CONCURRENCY_LEVEL</span><span class="o">=</span><span class="mi">3</span>
+<span class="c1"># Now compile the custom kernel</span>
+<span class="n">fakeroot</span><span class="w"> </span><span class="n">make</span><span class="o">-</span><span class="n">kpkg</span><span class="w"> </span><span class="o">--</span><span class="n">initrd</span><span class="w"> </span><span class="o">--</span><span class="n">append</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">version</span><span class="o">=</span><span class="n">custom</span><span class="w"> </span><span class="n">kernel</span><span class="o">-</span><span class="n">image</span><span class="w"> </span><span class="n">kernel</span><span class="o">-</span><span class="n">headers</span>
+
+<span class="c1"># And wait a long long time</span>
+
+<span class="n">cd</span><span class="w"> </span><span class="o">..</span>
+</pre></div>
+
+<p>In a nutshell,</p>
+<ul>
+<li>use <code>iptables</code> if you want to stay secure,</li>
+<li>compile the kernel if you want to be sure this restriction never bothers you again.</li>
+</ul>
+<hr>
+<h2>sysctl method</h2>
+<p><strong>Note:</strong><br>
+As of late, updating the kernel is no longer required.<br>
+You can now set</p>
+<div class="code"><pre class="code literal-block">sysctl net.ipv4.ip_unprivileged_port_start=80
+</pre></div>
+
+<p>Or to persist</p>
+<div class="code"><pre class="code literal-block">sysctl -w net.ipv4.ip_unprivileged_port_start=80.
+</pre></div>
+
+<p>And if that yields an error, simply edit <code>/etc/sysctl.conf</code> with nano and set
+the parameter there for persistence across reboots.</p>
+<p>or via <code>procfs</code></p>
+<div class="code"><pre class="code literal-block">echo 80 | sudo tee /proc/sys/net/ipv4/ip_unprivileged_port_start
+</pre></div>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/iptables/" rel="tag">iptables</a></li>
+            <li><a class="tag p-category" href="../../categories/ipv6/" rel="tag">ipv6</a></li>
+            <li><a class="tag p-category" href="../../categories/linux/" rel="tag">linux</a></li>
+            <li><a class="tag p-category" href="../../categories/linux-capabilities/" rel="tag">linux-capabilities</a></li>
+            <li><a class="tag p-category" href="../../categories/root/" rel="tag">root</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../implement-touch-using-python/" rel="prev" title="Implement touch using Python?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../efficiently-convert-rows-to-columns-in-sql-server/" rel="next" title="Efficiently convert rows to columns in sql server">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

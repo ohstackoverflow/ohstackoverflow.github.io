@@ -108,250 +108,112 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/solidity-function-needs-to-specify-overridden-contract-question/" class="u-url">Solidity "Function needs to specify overridden contract" question</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-do-i-accurately-convert-eth-to-wei-when-sending-transaction/" class="u-url">How do I accurately convert ETH to WEI when sending transaction?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/solidity-function-needs-to-specify-overridden-contract-question/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:03:22+08:00" itemprop="datePublished" title="2023-02-28 05:03">2023-02-28 05:03</time></a>
+            <a href="posts/how-do-i-accurately-convert-eth-to-wei-when-sending-transaction/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:06:25+08:00" itemprop="datePublished" title="2023-02-28 05:06">2023-02-28 05:06</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I'm a newbie in Solidity, and I have a question about multiple inheritances.</p>
-<p>So if I have some contracts like:</p>
-<div class="code"><pre class="code literal-block">contract A {
+    <p>I am trying to send <code>ETH</code> from one account to another but the conversion from
+<code>ETH</code> to <code>WEI</code> keeps giving me headaches. In this case, I am trying to send
+<code>0.11 ETH</code> but in the confirmation window, I get <code>313.59464925 ETH</code> instead.</p>
+<div class="code"><pre class="code literal-block"><span class="c1">// This is my transaction code</span>
 
-    function foo() public virtual {
-        console.log("A");
-    }
-}
-
-contract B is A {
-    function foo() public virtual override {
-        console.log("B");
-    }
-}
-
-contract C is A, B {
-    function foo() public override(A, B) {
-        super.foo();
-    }
-}
+<span class="n">await</span><span class="w"> </span><span class="nb">window</span><span class="p">.</span><span class="n">ethereum</span>
+<span class="w">  </span><span class="p">.</span><span class="n">request</span><span class="p">({</span>
+<span class="w">    </span><span class="n">method</span><span class="p">:</span><span class="w"> </span><span class="s">"eth_sendTransaction"</span><span class="p">,</span>
+<span class="w">    </span><span class="n">params</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="n">from</span><span class="p">:</span><span class="w"> </span><span class="nb">window</span><span class="p">.</span><span class="n">ethereum</span><span class="p">.</span><span class="n">selectedAddress</span><span class="p">,</span>
+<span class="w">          </span><span class="n">to</span><span class="p">:</span><span class="w"> </span><span class="s">"0x4dxxxxxxxxxxxxxxxxxx2dr9820C"</span><span class="p">,</span>
+<span class="w">          </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="n">String</span><span class="p">(</span><span class="mf">0.11</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000000000000000000</span><span class="p">),</span><span class="w"> </span><span class="c1">// convert to WEI</span>
+<span class="w">          </span><span class="p">},</span>
+<span class="w">        </span><span class="p">],</span>
+<span class="w">      </span><span class="p">})</span>
+<span class="w">  </span><span class="p">.</span><span class="nb">then</span><span class="p">((</span><span class="n">result</span><span class="p">)</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="n">console</span><span class="p">.</span><span class="nb">log</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+<span class="w">  </span><span class="p">.</span><span class="k">catch</span><span class="p">((</span><span class="nb">error</span><span class="p">)</span><span class="w"> </span><span class="p">=</span><span class="o">&gt;</span><span class="w"> </span><span class="n">console</span><span class="p">.</span><span class="nb">log</span><span class="p">(</span><span class="nb">error</span><span class="p">));</span>
 </pre></div>
 
-<p>The <code>foo</code> function of contract C must be <code>override(A, B)</code> insdead
-<code>override(B)</code></p>
-<p>or it'd throw an error like <code>Function needs to specify overridden contract
-"A".</code></p>
-<p>So here's the question, The function must specify the full inheritance
-parents.</p>
-<p>Why can't it know the information by <code>contract C is A, B</code>,</p>
-<p>I mean, what's the point? The <code>overrider(A,B)</code> part is unnecessary.</p>
-<p>Or there are some tricks I don't know?</p>
-<p>Please give me an answer, so curious and can't find some useful information by
-docs.</p>
+<p>I have also tried using BigNumber but it doesn't solve the problem, I guess
+I'm messing something up. How do I accurately convert <code>ETH</code> to <code>WEI</code>?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>The official documentation of solidity says:</p>
-<blockquote>
-<p>For multiple inheritance, the most derived base contracts that define the
-same function must be specified explicitly after the <code>override</code> keyword. In
-other words, you have to specify all base contracts that define the same
-function and have not yet been overridden by another base contract (on some
-path through the inheritance graph). Additionally, if a contract inherits
-the same function from multiple (unrelated) bases, it has to explicitly
-override it</p>
-</blockquote>
-<p>So in your example you must use <strong>explicit</strong> <code>override</code> keyword.</p>
+<p>i prefer using web3 utils to have cleaner code and prevent unexpected bugs so
+with that you can write this:</p>
+<div class="code"><pre class="code literal-block">value: "0x" + Web3.utils.toBN(Web3.utils.toWei("0.11", "ether")).toString(16)
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Are you using <strong>ethers.js</strong> with <strong>hardhat?</strong> If yes, to convert Ethers to
+Wei, you can use <strong>ethers.utils</strong> as follows:</p>
+<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ethers</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s2">"hardhat"</span><span class="p">);</span><span class="w">    </span>
+<span class="n">let</span><span class="w"> </span><span class="n">ethersToWei</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ethers</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">parseUnits</span><span class="p">(</span><span class="mf">1.</span><span class="n">toString</span><span class="p">(),</span><span class="w"> </span><span class="s2">"ether"</span><span class="p">);</span>
+</pre></div>
+
+<p>The code above converts 1 ether to equivalent Wei.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/invalid-opcode-error-with-a-simple-solidity-contract-and-script/" class="u-url">invalid opcode error with a simple Solidity contract and script</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-get-private-and-public-keys-for-the-wallet-by-providing-a-seed-phrase-near-protocol/" class="u-url">How to get private and public keys for the wallet by providing a seed phrase (NEAR Protocol)</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/invalid-opcode-error-with-a-simple-solidity-contract-and-script/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:03:05+08:00" itemprop="datePublished" title="2023-02-28 05:03">2023-02-28 05:03</time></a>
+            <a href="posts/how-to-get-private-and-public-keys-for-the-wallet-by-providing-a-seed-phrase-near-protocol/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:06:04+08:00" itemprop="datePublished" title="2023-02-28 05:06">2023-02-28 05:06</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I am a newcomer to Solidity and web3.js . I am following the tutorial here -</p>
-<p>https://medium.com/@mvmurthy/full-stack-hello-world-voting-ethereum-dapp-
-tutorial-part-1-40d2d0d807c2</p>
-<p>to build a simple Voting Dapp. I've installed ganache-cli, solc and web3
-version 0.20.2 in the local node_modules folder using npm. The Voting.sol
-contract in Solidity is :</p>
-<div class="code"><pre class="code literal-block"><span class="n">pragma</span><span class="w"> </span><span class="n">solidity</span><span class="w"> </span><span class="o">^</span><span class="mf">0.4.18</span><span class="p">;</span>
-
-<span class="n">contract</span><span class="w"> </span><span class="n">Voting</span><span class="w"> </span><span class="err">{</span>
-
-<span class="w">  </span><span class="n">mapping</span><span class="w"> </span><span class="p">(</span><span class="n">bytes32</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">uint8</span><span class="p">)</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">votesReceived</span><span class="p">;</span>
-<span class="w">  </span><span class="n">bytes32</span><span class="err">[]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">candidateList</span><span class="p">;</span>
-
-<span class="w">  </span><span class="k">function</span><span class="w"> </span><span class="n">Voting</span><span class="p">(</span><span class="n">bytes32</span><span class="err">[]</span><span class="w"> </span><span class="n">candidateNames</span><span class="p">)</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="n">candidateList</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">candidateNames</span><span class="p">;</span>
-<span class="w">  </span><span class="err">}</span>
-
-<span class="w">  </span><span class="k">function</span><span class="w"> </span><span class="n">totalVotesFor</span><span class="p">(</span><span class="n">bytes32</span><span class="w"> </span><span class="n">candidate</span><span class="p">)</span><span class="w"> </span><span class="k">view</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">uint8</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">votesReceived</span><span class="o">[</span><span class="n">candidate</span><span class="o">]</span><span class="p">;</span>
-<span class="w">  </span><span class="err">}</span>
-<span class="err">}</span>
-</pre></div>
-
-<p>with the following script called voting_main.js:</p>
-<div class="code"><pre class="code literal-block">Web3 = require('web3')
-web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
-
-fs = require('fs')
-code = fs.readFileSync('Voting.sol').toString()
-
-solc = require('solc')
-compiledCode = solc.compile(code)
-
-abiDefinition = JSON.parse(compiledCode.contracts[':Voting'].interface)
-VotingContract = web3.eth.contract(abiDefinition)
-byteCode = compiledCode.contracts[':Voting'].bytecode
-deployedContract = VotingContract.new(['Rama','Nick','Jose'],{data: byteCode, from: web3.eth.accounts[0], gas: 4700000})
-contractInstance = VotingContract.at(deployedContract.address)
-
-contractInstance.totalVotesFor.call('Rama')
-</pre></div>
-
-<p>When I run ganache-cli on localhost:8545 and then run the script in another
-terminal, I get the following error.</p>
-<div class="code"><pre class="code literal-block"><span class="n">ameya</span><span class="p">@</span><span class="n">ameya</span><span class="o">-</span><span class="n">HP</span><span class="o">-</span><span class="n">ENVY</span><span class="mi">-15</span><span class="o">-</span><span class="n">Notebook</span><span class="o">-</span><span class="n">PC</span><span class="o">:~/</span><span class="n">Fresh_install$</span><span class="w"> </span><span class="n">node</span><span class="w"> </span><span class="n">voting_main</span><span class="p">.</span><span class="n">js</span><span class="w"> </span>
-<span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">ameya</span><span class="o">/</span><span class="n">Fresh_install</span><span class="o">/</span><span class="n">node_modules</span><span class="o">/</span><span class="n">solc</span><span class="o">/</span><span class="n">soljson</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">1</span>
-<span class="p">(</span><span class="n">function</span><span class="w"> </span><span class="p">(</span><span class="n">exports</span><span class="p">,</span><span class="w"> </span><span class="n">require</span><span class="p">,</span><span class="w"> </span><span class="n">module</span><span class="p">,</span><span class="w"> </span><span class="n">__filename</span><span class="p">,</span><span class="w"> </span><span class="n">__dirname</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">var</span><span class="w"> </span><span class="n">Module</span><span class="p">;</span><span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">Module</span><span class="p">)</span><span class="n">Module</span><span class="o">=</span><span class="p">(</span><span class="k">typeof</span><span class="w"> </span><span class="n">Module</span><span class="o">!==</span><span class="s">"undefined"</span><span class="o">?</span><span class="n">Module</span><span class="o">:</span><span class="n">null</span><span class="p">)</span><span class="o">||</span><span class="p">{};</span><span class="n">var</span><span class="w"> </span><span class="n">moduleOverrides</span><span class="o">=</span><span class="p">{};</span><span class="k">for</span><span class="p">(</span><span class="n">var</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">Module</span><span class="p">){</span><span class="k">if</span><span class="p">(</span><span class="n">Module</span><span class="p">.</span><span class="n">hasOwnProperty</span><span class="p">(</span><span class="n">key</span><span class="p">)){</span><span class="n">moduleOverrides</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">=</span><span class="n">Module</span><span class="p">[</span><span class="n">key</span><span class="p">]}}</span><span class="n">var</span><span class="w"> </span><span class="n">ENVIRONMENT_IS_WEB</span><span class="o">=</span><span class="k">typeof</span><span class="w"> </span><span class="n">window</span><span class="o">===</span><span class="s">"object"</span><span class="p">;</span><span class="n">var</span><span class="w"> </span><span class="n">ENVIRONMENT_IS_WORKER</span><span class="o">=</span><span class="k">typeof</span><span class="w"> </span><span class="n">importScripts</span><span class="o">===</span><span class="s">"function"</span><span class="p">;</span><span class="n">var</span><span class="w"> </span><span class="n">ENVIRONMENT_IS_NODE</span><span class="o">=</span><span class="k">typeof</span><span class="w"> </span><span class="n">process</span><span class="o">===</span><span class="s">"object"</span><span class="o">&amp;&amp;</span><span class="k">typeof</span><span class="w"> </span><span class="n">require</span><span class="o">===</span><span class="s">"function"</span><span class="o">&amp;&amp;!</span><span class="n">ENVIRONMENT_IS_WEB</span><span class="o">&amp;&amp;!</span><span class="n">ENVIRONMENT_IS_WORKER</span><span class="p">;</span><span class="n">var</span><span class="w"> </span><span class="n">ENVIRONMENT_IS_SHELL</span><span class="o">=!</span><span class="n">ENVIRONMENT_IS_WEB</span><span class="o">&amp;&amp;!</span><span class="n">ENVIRONMENT_IS_NODE</span><span class="o">&amp;&amp;!</span><span class="n">ENVIRONMENT_IS_WORKER</span><span class="p">;</span><span class="k">if</span><span class="p">(</span><span class="n">ENVIRONMENT_IS_NODE</span><span class="p">){</span><span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">Module</span><span class="p">[</span><span class="s">"print"</span><span class="p">])</span><span class="n">Module</span><span class="p">[</span><span class="s">"print"</span><span class="p">]</span><span class="o">=</span><span class="n">function</span><span class="w"> </span><span class="n">print</span><span class="p">(</span><span class="n">x</span><span class="p">){</span><span class="n">process</span><span class="p">[</span><span class="s">"stdout"</span><span class="p">].</span><span class="n">write</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="s">"</span><span class="se">\n</span><span class="s">"</span><span class="p">)};</span><span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">Module</span><span class="p">[</span><span class="s">"printErr"</span><span class="p">])</span><span class="n">Module</span><span class="p">[</span><span class="s">"printErr"</span><span class="p">]</span><span class="o">=</span><span class="n">function</span><span class="w"> </span><span class="n">printErr</span><span class="p">(</span><span class="n">x</span><span class="p">){</span><span class="n">process</span><span class="p">[</span><span class="s">"stderr"</span><span class="p">].</span><span class="n">write</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="s">"</span><span class="se">\n</span><span class="s">"</span><span class="p">)};</span><span class="n">var</span><span class="w"> </span><span class="n">nodeFS</span><span class="o">=</span><span class="n">require</span><span class="p">(</span><span class="s">"fs"</span><span class="p">);</span><span class="n">var</span><span class="w"> </span><span class="n">nodePath</span><span class="o">=</span><span class="n">require</span><span class="p">(</span><span class="s">"path"</span><span class="p">);</span><span class="n">Module</span><span class="p">[</span><span class="s">"read"</span><span class="p">]</span><span class="o">=</span><span class="n">function</span><span class="w"> </span><span class="n">read</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="n">binary</span><span class="p">){</span><span class="n">filename</span><span class="o">=</span><span class="n">nodePath</span><span class="p">[</span><span class="s">"normalize"</span><span class="p">](</span><span class="n">filename</span><span class="p">);</span><span class="n">var</span><span class="w"> </span><span class="n">ret</span><span class="o">=</span><span class="n">nodeFS</span><span class="p">[</span><span class="s">"readFileSync"</span><span class="p">](</span><span class="n">filename</span><span class="p">);</span><span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">r</span>
-
-<span class="nl">Error</span><span class="p">:</span><span class="w"> </span><span class="n">VM</span><span class="w"> </span><span class="n">Exception</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="n">processing</span><span class="w"> </span><span class="n">transaction</span><span class="o">:</span><span class="w"> </span><span class="n">invalid</span><span class="w"> </span><span class="n">opcode</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">Object</span><span class="p">.</span><span class="n">InvalidResponse</span><span class="w"> </span><span class="p">(</span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">ameya</span><span class="o">/</span><span class="n">Fresh_install</span><span class="o">/</span><span class="n">node_modules</span><span class="o">/</span><span class="n">web3</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">web3</span><span class="o">/</span><span class="n">errors</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">38</span><span class="o">:</span><span class="mi">16</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">RequestManager</span><span class="p">.</span><span class="n">send</span><span class="w"> </span><span class="p">(</span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">ameya</span><span class="o">/</span><span class="n">Fresh_install</span><span class="o">/</span><span class="n">node_modules</span><span class="o">/</span><span class="n">web3</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">web3</span><span class="o">/</span><span class="n">requestmanager</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">61</span><span class="o">:</span><span class="mi">22</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">Eth</span><span class="p">.</span><span class="n">send</span><span class="w"> </span><span class="p">[</span><span class="n">as</span><span class="w"> </span><span class="n">call</span><span class="p">]</span><span class="w"> </span><span class="p">(</span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">ameya</span><span class="o">/</span><span class="n">Fresh_install</span><span class="o">/</span><span class="n">node_modules</span><span class="o">/</span><span class="n">web3</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">web3</span><span class="o">/</span><span class="n">method</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">145</span><span class="o">:</span><span class="mi">58</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">SolidityFunction</span><span class="p">.</span><span class="n">call</span><span class="w"> </span><span class="p">(</span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">ameya</span><span class="o">/</span><span class="n">Fresh_install</span><span class="o">/</span><span class="n">node_modules</span><span class="o">/</span><span class="n">web3</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">web3</span><span class="o">/</span><span class="n">function</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">135</span><span class="o">:</span><span class="mi">32</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">Object</span><span class="p">.</span><span class="o">&lt;</span><span class="n">anonymous</span><span class="o">&gt;</span><span class="w"> </span><span class="p">(</span><span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">ameya</span><span class="o">/</span><span class="n">Fresh_install</span><span class="o">/</span><span class="n">voting_main</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">16</span><span class="o">:</span><span class="mi">32</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">Module</span><span class="p">.</span><span class="n">_compile</span><span class="w"> </span><span class="p">(</span><span class="n">internal</span><span class="o">/</span><span class="n">modules</span><span class="o">/</span><span class="n">cjs</span><span class="o">/</span><span class="n">loader</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">654</span><span class="o">:</span><span class="mi">30</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">Object</span><span class="p">.</span><span class="n">Module</span><span class="p">.</span><span class="n">_extensions</span><span class="p">..</span><span class="n">js</span><span class="w"> </span><span class="p">(</span><span class="n">internal</span><span class="o">/</span><span class="n">modules</span><span class="o">/</span><span class="n">cjs</span><span class="o">/</span><span class="n">loader</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">665</span><span class="o">:</span><span class="mi">10</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">Module</span><span class="p">.</span><span class="n">load</span><span class="w"> </span><span class="p">(</span><span class="n">internal</span><span class="o">/</span><span class="n">modules</span><span class="o">/</span><span class="n">cjs</span><span class="o">/</span><span class="n">loader</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">566</span><span class="o">:</span><span class="mi">32</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">tryModuleLoad</span><span class="w"> </span><span class="p">(</span><span class="n">internal</span><span class="o">/</span><span class="n">modules</span><span class="o">/</span><span class="n">cjs</span><span class="o">/</span><span class="n">loader</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">506</span><span class="o">:</span><span class="mi">12</span><span class="p">)</span>
-<span class="w">    </span><span class="n">at</span><span class="w"> </span><span class="n">Function</span><span class="p">.</span><span class="n">Module</span><span class="p">.</span><span class="n">_load</span><span class="w"> </span><span class="p">(</span><span class="n">internal</span><span class="o">/</span><span class="n">modules</span><span class="o">/</span><span class="n">cjs</span><span class="o">/</span><span class="n">loader</span><span class="p">.</span><span class="n">js</span><span class="o">:</span><span class="mi">498</span><span class="o">:</span><span class="mi">3</span><span class="p">)</span>
-</pre></div>
-
-<p>This seems to be a very simple example which is still throwing the invalid
-opcode error. Where am I going wrong ?</p>
+    <p>I need to be able to get public and private keys for NEAR wallet by providing
+it's seed-phrase. I've found a specific library/repo in NEAR's GitHub account
+that looks very promising for my case :) : https://github.com/near/near-seed-
+phrase</p>
+<p>But, after some testing it looks like the results provided by this library
+(parseSeedPhrase function) don't match the actual keys which can be obtained
+by using near-cli utility.</p>
+<p>I have an assumption that maybe NEAR's Testnet is using different value for a
+derivationPath parameter, and the one that is included as a default one inside
+the library is for the Mainnet only. Maybe I just missing something, any help
+would be appreciated.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>You don't need to call <code>.at()</code> if you're using <code>.new()</code>. You use <code>at()</code> when
-you want to interact with a contract that has already been deployed to the
-blockchain.</p>
-<p>If you choose to deploy a new contract, you should use the async version of
-the method call (synchronous is no longer supported in web3j 1.0). Your call
-should be something like this:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">VotingContract</span><span class="p">.</span><span class="nc">new</span><span class="o">(</span><span class="cp">[</span><span class="s1">'Rama'</span><span class="p">,</span><span class="s1">'Nick'</span><span class="p">,</span><span class="s1">'Jose'</span><span class="cp">]</span><span class="o">,</span><span class="p">{</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">byteCode</span><span class="p">,</span><span class="w"> </span><span class="n">from</span><span class="o">:</span><span class="w"> </span><span class="n">web3</span><span class="o">.</span><span class="n">eth</span><span class="o">.</span><span class="n">accounts</span><span class="cp">[</span><span class="mi">0</span><span class="cp">]</span><span class="p">,</span><span class="w"> </span><span class="n">gas</span><span class="o">:</span><span class="w"> </span><span class="mi">4700000</span><span class="p">}</span><span class="o">,</span><span class="w"> </span><span class="o">(</span><span class="nt">error</span><span class="o">,</span><span class="w"> </span><span class="nt">deployedContract</span><span class="o">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="err">if</span><span class="w"> </span><span class="err">(!error)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">        </span><span class="err">if</span><span class="w"> </span><span class="err">(deployedContract.address)</span><span class="w"> </span><span class="err">{</span>
-<span class="w">            </span><span class="err">console.log(deployedContract.totalVotesFor.call('Rama'))</span><span class="p">;</span>
-<span class="w">        </span><span class="p">}</span>
-<span class="w">    </span><span class="err">}</span>
-<span class="err">}</span><span class="o">);</span>
-</pre></div>
-
-<p>Note that the callback is fired twice. First time is for the submission of the
-transaction (<code>deployedContract.transactionHash</code> will be set) and the second
-time after the transaction is mined.</p>
-<p>You can also look at the example in the web3js docs (pasted below for
-convenience).</p>
-<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">fs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s2">"fs"</span><span class="p">);</span>
-<span class="k">const</span><span class="w"> </span><span class="n">solc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'solc'</span><span class="p">)</span>
-
-<span class="n">let</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fs</span><span class="o">.</span><span class="n">readFileSync</span><span class="p">(</span><span class="s1">'nameContract.sol'</span><span class="p">,</span><span class="w"> </span><span class="s1">'utf8'</span><span class="p">);</span>
-<span class="n">let</span><span class="w"> </span><span class="n">compiledContract</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">solc</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
-<span class="n">let</span><span class="w"> </span><span class="n">abi</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">compiledContract</span><span class="o">.</span><span class="n">contracts</span><span class="p">[</span><span class="s1">'nameContract'</span><span class="p">]</span><span class="o">.</span><span class="n">interface</span><span class="p">;</span>
-<span class="n">let</span><span class="w"> </span><span class="n">bytecode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">compiledContract</span><span class="o">.</span><span class="n">contracts</span><span class="p">[</span><span class="s1">'nameContract'</span><span class="p">]</span><span class="o">.</span><span class="n">bytecode</span><span class="p">;</span>
-<span class="n">let</span><span class="w"> </span><span class="n">gasEstimate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">web3</span><span class="o">.</span><span class="n">eth</span><span class="o">.</span><span class="n">estimateGas</span><span class="p">({</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">bytecode</span><span class="p">});</span>
-<span class="n">let</span><span class="w"> </span><span class="n">MyContract</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">web3</span><span class="o">.</span><span class="n">eth</span><span class="o">.</span><span class="n">contract</span><span class="p">(</span><span class="n">JSON</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">abi</span><span class="p">));</span>
-
-<span class="k">var</span><span class="w"> </span><span class="n">myContractReturned</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MyContract</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span><span class="w"> </span><span class="n">param2</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">   </span><span class="n">from</span><span class="p">:</span><span class="n">mySenderAddress</span><span class="p">,</span>
-<span class="w">   </span><span class="n">data</span><span class="p">:</span><span class="n">bytecode</span><span class="p">,</span>
-<span class="w">   </span><span class="n">gas</span><span class="p">:</span><span class="n">gasEstimate</span><span class="p">},</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">err</span><span class="p">,</span><span class="w"> </span><span class="n">myContract</span><span class="p">){</span>
-<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">err</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">NOTE</span><span class="p">:</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">callback</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">fire</span><span class="w"> </span><span class="n">twice</span><span class="o">!</span>
-<span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">Once</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">contract</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">transactionHash</span><span class="w"> </span><span class="n">property</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">once</span><span class="w"> </span><span class="n">its</span><span class="w"> </span><span class="n">deployed</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">address</span><span class="o">.</span>
-
-<span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.</span><span class="w"> </span><span class="n">check</span><span class="w"> </span><span class="n">tx</span><span class="w"> </span><span class="nb">hash</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="p">(</span><span class="n">transaction</span><span class="w"> </span><span class="n">send</span><span class="p">)</span>
-<span class="w">       </span><span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">myContract</span><span class="o">.</span><span class="n">address</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">           </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">myContract</span><span class="o">.</span><span class="n">transactionHash</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="nb">hash</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">transaction</span><span class="p">,</span><span class="w"> </span><span class="n">which</span><span class="w"> </span><span class="n">deploys</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">contract</span>
-
-<span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">check</span><span class="w"> </span><span class="n">address</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="p">(</span><span class="n">contract</span><span class="w"> </span><span class="n">deployed</span><span class="p">)</span>
-<span class="w">       </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">           </span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">myContract</span><span class="o">.</span><span class="n">address</span><span class="p">)</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">contract</span><span class="w"> </span><span class="n">address</span>
-<span class="w">       </span><span class="p">}</span>
-
-<span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">Note</span><span class="w"> </span><span class="n">that</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">returned</span><span class="w"> </span><span class="s2">"myContractReturned"</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"myContract"</span><span class="p">,</span>
-<span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">so</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">returned</span><span class="w"> </span><span class="s2">"myContractReturned"</span><span class="w"> </span><span class="n">object</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">also</span><span class="w"> </span><span class="n">get</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">address</span><span class="w"> </span><span class="n">set</span><span class="o">.</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">  </span><span class="p">});</span>
-</pre></div>
+<p>near-seed-phrase works just fine, and the key generated by it is used for
+account creation (proof), but then Wallet generates a new random keypair and
+adds it to the account (proof) and stores it in the Local Storage of the
+browser. Thus, if you compare the key in the local storage, that won't match
+the one that is derived from the seed phrase since Wallet does not want you to
+invalidate your seed phrase after you sign in from a new device (you should be
+able to just remove the access key after you are done with the session).</p>
+<p>Let's re-iterate, Wallet only uses the key derived from the seed phrase to add
+a fresh key to a given account, and never stores the seed phrase or the key
+derived from the seed phrase in the local storage.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/cas-enrollment-registration-for-hyperledger-fabric/" class="u-url">CAs,Enrollment,Registration for HyperLedger Fabric</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-move-a-turing-complete-language/" class="u-url">Is Move a Turing-complete language?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/cas-enrollment-registration-for-hyperledger-fabric/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T05:02:48+08:00" itemprop="datePublished" title="2023-02-28 05:02">2023-02-28 05:02</time></a>
+            <a href="posts/is-move-a-turing-complete-language/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T05:05:44+08:00" itemprop="datePublished" title="2023-02-28 05:05">2023-02-28 05:05</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I was studying <strong>Hyperledger Fabric</strong> and running sample codes . I am still
-trying to get the correct picture of how things work ,especially in the
-user/admin registration and enrollment using certificates and crypt materials.</p>
-<p>I want to know how the following work .</p>
-<p>1)Register</p>
-<p>2)enrollment</p>
-<p>3)user and admincontext .</p>
-<p>Another thing i am confused about is the certificates or CAs. To use the
-blockchain network how to use my own/3rd party certificates of x509 type . Is
-it even possible . ?</p>
-<p>In the BYFN sample in hyperledger fabric docs ,certificate is generated using
-the cryptogen tool and used to verify with the MSP for blockchain
-participation.</p>
-<p>How does it work in a real world or a business application scenario .</p>
-<p>THANKS</p>
+    <p>Will Move (on the Diem platform), like Ethereum, be turing complete? I have
+read the white paper but have been unable to decide.</p>
+<p>This is the white paper:
+https://developers.libra.org/docs/assets/papers/libra-move-a-language-with-
+programmable-resources.pdf</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>The cryptogen tool is not production ready, it is advised to use the Fabric CA
-or certificates from a 3rd party tool, like you mentioned.</p>
-<p>Below our steps to take to register and enroll a new user using the default
-parameters for the Fabric CA:</p>
-<p>Make sure your CA is deployed and started using:</p>
-<p><code>fabric-ca-server start -b admin:adminpw -d</code></p>
-<p>Then you can enroll the default admin identity using:</p>
-<div class="code"><pre class="code literal-block"><span class="n">fabric</span><span class="o">-</span><span class="n">ca</span><span class="o">-</span><span class="n">client</span><span class="w"> </span><span class="n">enroll</span><span class="w"> </span><span class="o">-</span><span class="n">u</span><span class="w"> </span><span class="ss">"http://admin:adminpw@localhost:7054"</span>
-</pre></div>
-
-<p>With the admin now enrolled, we can register our first user:</p>
-<div class="code"><pre class="code literal-block"><span class="n">fabric</span><span class="o">-</span><span class="n">ca</span><span class="o">-</span><span class="n">client</span><span class="w"> </span><span class="n">register</span><span class="w"> </span><span class="o">-</span><span class="n">u</span><span class="w"> </span><span class="s">"http://localhost:7054"</span><span class="w"> </span><span class="o">--</span><span class="n">id</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="s">"demoblockchain"</span><span class="w"> </span><span class="o">--</span><span class="n">id</span><span class="p">.</span><span class="n">secret</span><span class="w"> </span><span class="s">"demo"</span><span class="w"> </span><span class="o">--</span><span class="n">id</span><span class="p">.</span><span class="k">type</span><span class="w"> </span><span class="s">"client"</span><span class="w"> </span><span class="o">--</span><span class="n">id</span><span class="p">.</span><span class="n">affiliation</span><span class="w"> </span><span class="s">"org1.department1"</span>
-</pre></div>
-
-<ul>
-<li>-u is the shorthand flag for the url of our CA.</li>
-<li>--id.name is the name of our user</li>
-<li>--id.secret is the password for the user</li>
-<li>--id.type is the type of user. (client, peer, orderer, validator, auditor, ca)</li>
-<li>--id.affiliation is to determine who the user belongs to</li>
-</ul>
-<p>Now that we have the user registered with the CA, we need to enroll the new
-user.</p>
-<div class="code"><pre class="code literal-block"><span class="n">fabric</span><span class="o">-</span><span class="n">ca</span><span class="o">-</span><span class="n">client</span><span class="w"> </span><span class="n">enroll</span><span class="w"> </span><span class="o">-</span><span class="n">u</span><span class="w"> </span><span class="ss">"http://demoblockchain:demo@localhost:7054"</span>
-</pre></div>
-
-<p>The output of this command will give you the list of certificates and where
-they have been stored.</p>
-<p>I hope this helps with the flow of registration and enrollment!</p>
+<p>It is a Turing-complete programming language. It supports while loops and
+Recursion.</p>
+<p>See the Move Basics documentation for more information.</p>
     </div>
     </article>
 </div>
@@ -368,7 +230,7 @@ they have been stored.</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

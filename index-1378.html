@@ -108,168 +108,361 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-utilize-hebbian-learning/" class="u-url">How to utilize Hebbian learning?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/algorithms-for-realtime-strategy-wargame-ai/" class="u-url">Algorithms for realtime strategy wargame AI</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/how-to-utilize-hebbian-learning/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T02:46:07+08:00" itemprop="datePublished" title="2023-02-28 02:46">2023-02-28 02:46</time></a>
+            <a href="posts/algorithms-for-realtime-strategy-wargame-ai/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T02:49:17+08:00" itemprop="datePublished" title="2023-02-28 02:49">2023-02-28 02:49</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I want to upgrade my evolution simulator to use Hebb learning, like this one.
-I basically want small creatures to be able to learn how to find food. I
-achieved that with the basic feedforward networks, but I'm stuck at
-understanding how to do it with Hebb learning. The basic principle of Hebb
-learning is that, if two neurons fire together, they wire together.</p>
-<p>So, the weights are updated like this:</p>
-<div class="code"><pre class="code literal-block">weight_change = learning_rate * input * output
-</pre></div>
-
-<p>The information I've found on how this can be useful is pretty scarce, and I
-don't get it.</p>
-<p>In my current version of the simulator, the weights between an action and an
-input (movement, eyes) are increased when a creature eats a piece of food, and
-I fail to see how that can translate into this new model. There simply is no
-room to tell if it did something right or wrong here, because the only
-parameters are input and output! Basically, if one input activates movement in
-one direction, the weight would just keep on increasing, no matter if the
-creature is eating something or not!</p>
-<p>Am I applying Hebb learning in a wrong way? Just for reference, I'm using
-Python.</p>
+    <p>I'm designing a realtime strategy wargame where the AI will be responsible for
+controlling a large number of units (possibly 1000+) on a large hexagonal map.</p>
+<p>A unit has a number of action points which can be expended on movement,
+attacking enemy units or various special actions (e.g. building new units).
+For example, a tank with 5 action points could spend 3 on movement then 2 in
+firing on an enemy within range. Different units have different costs for
+different actions etc.</p>
+<p>Some additional notes:</p>
+<ul>
+<li>The output of the AI is a "command" to any given unit</li>
+<li>Action points are allocated at the beginning of a time period, but may be spent at any point within the time period (this is to allow for realtime multiplayer games). Hence "do nothing and save action points for later" is a potentially valid tactic (e.g. a gun turret that cannot move waiting for an enemy to come within firing range)</li>
+<li>The game is updating in realtime, but the AI can get a consistent snapshot of the game state at any time (thanks to the game state being one of Clojure's persistent data structures)</li>
+<li>I'm not expecting "optimal" behaviour, just something that is not obviously stupid and provides reasonable fun/challenge to play against</li>
+</ul>
+<p>What can you recommend in terms of specific algorithms/approaches that would
+allow for the right balance between efficiency and reasonably intelligent
+behaviour?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p><code>Hebbs law</code> is a brilliant insight for <code>associative learning</code>, but its only
-part of the picture. And you are right, implemented as you have done, and left
-unchecked a weight will just keep on increasing. The key is to add in some
-form of normalisation or limiting process. This is illustrated quite well of
-the wiki page for Oja's rule. What I suggest you do is add in a <code>post-synaptic
-divisive normalisation</code> step, what this means is that you divide through a
-weight by the sum of all the weights converging on the same post-synaptic
-neuron (i.e. the sum of all weights converging on a neuron is fixed at <code>1</code>).</p>
-<p>What you want to do can be done by building a network that utilises <code>Hebbian
-learning</code>. I'm not quite sure on what you are passing in as input into your
-system, or how you've set things up. But you could look at <code>LISSOM</code> which is
-an Hebbian extension to SOM, (self-organising map).</p>
-<p>In a layer of this kind typically all the neurons may be interconnected. You
-pass in the input vector, and allow the activity in the network to settle,
-this is some number of settling steps. Then you update the weights. You do
-this during the training phase, at the end of which associated items in the
-input space will tend to form grouped activity patches in the output map.</p>
-<p>It's also worth noting that the brain is massively interconnected, and highly
-recursive (i.e. there is feedforward, feedback, lateral interconnectivity,
-microcircuits, and a lot of other stuff too..).</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Although Hebbian learning, as a general concept, forms the basis for many
-learning algorithms, including backpropagation, the simple, linear formula
-which you use is very limited. Not only do weights rise infinitely, even when
-the network has learned all the patterns, but the network can perfectly learn
-only orthogonal (linearly independent) patterns.</p>
-<p>Linear Hebbian learning is not even biologically plausible. Biological neural
-networks are much bigger than yours and are highly non-linear, both the
-neurons and the synapses between them. In big, non-linear networks, the
-chances that your patterns are close to orthogonal are higher.</p>
-<p>So, if you insist on using a neural network, I suggest adding hidden layers of
-neurons and introducing non-linearities, both in the weights, e.g. as fraxel
-proposed, and in firing of neurons---here you might use a sigmoid function,
-like <code>tanh</code> (yes, using negative values for "non-firing" is good since it can
-lead to reducing weights). In its generalized form, Hebbian rule can be
-expressed as</p>
-<div class="code"><pre class="code literal-block">weight_change = learning_rate * f1(input, weight) * f2(output, target_output)
-</pre></div>
-
-<p>where <code>f1</code> and <code>f2</code> are some functions. In your case, there is no
-<code>target_output</code>, so <code>f2</code> is free to ignore it.</p>
-<p>In order to have neurons in your hidden layers fire, and thus to get a
-connection between input and output, you can initialize the weights to random
-values.</p>
-<p>But is a neural network really necessary, or even suitable for your problem?
-Have you considered simple correlation? I mean, Hebb derived his rule to
-explain how learning might function in biological systems, not as the best
-possible machine learning algorithm.</p>
-    </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/good-implementations-of-reinforcement-learning/" class="u-url">Good implementations of reinforcement learning?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/good-implementations-of-reinforcement-learning/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T02:45:45+08:00" itemprop="datePublished" title="2023-02-28 02:45">2023-02-28 02:45</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>For an ai-class project I need to implement a reinforcement learning algorithm
-which beats a simple game of tetris. The game is written in Java and we have
-the source code. I know the basics of reinforcement learning theory but was
-wondering if anyone in the SO community had hands on experience with this type
-of thing.</p>
+<p>First you should aim to make your game turn based at some level for the AI
+(i.e. you can somehow model it turn based even if it may not be entirely turn
+based, in RTS you may be able to break discrete intervals of time into turns.)
+Second, you should determine how much information the AI should work with.
+That is, if the AI is allowed to cheat and know every move of its opponent
+(thereby making it stronger) or if it should know less or more. Third, you
+should define a cost function of a state. The idea being that a higher cost
+means a worse state for the computer to be in. Fourth you need a move
+generator, generating all valid states the AI can transition to from a given
+state (this may be homogeneous [state-independent] or heterogeneous [state-
+dependent].)</p>
+<p>The thing is, the cost function will be greatly influenced by what exactly you
+define the state to be. The more information you encode in the state the
+better balanced your AI will be but the more difficult it will be for it to
+perform, as it will have to search exponentially more for every additional
+state variable you include (in an exhaustive search.)</p>
+<p>If you provide a definition of a state and a cost function your problem
+transforms to a general problem in AI that can be tackled with any algorithm
+of your choice.</p>
+<p>Here is a summary of what I think would work well:</p>
 <ol>
-<li>What would your recommended readings be for an implementation of reinforced learning in a tetris game?</li>
-<li>Are there any good open source projects that accomplish similar things that would be worth checking out?</li>
+<li>
+<p>Evolutionary algorithms may work well if you put enough effort into them, but they will add a layer of complexity that will create room for bugs amongst other things that can go wrong. They will also require extreme amounts of tweaking of the fitness function etc. I don't have much experience working with these but if they are anything like neural networks (which I believe they are since both are heuristics inspired by biological models) you will quickly find they are fickle and far from consistent. Most importantly, I doubt they add any benefits over the option I describe in 3.</p>
+</li>
+<li>
+<p>With the cost function and state defined it would technically be possible for you to apply gradient decent (with the assumption that the state function is differentiable and the domain of the state variables are continuous) however this would probably yield inferior results, since the biggest weakness of gradient descent is getting stuck in local minima. To give an example, this method would be prone to something like attacking the enemy always as soon as possible because there is a non-zero chance of annihilating them. Clearly, this may not be desirable behaviour for a game, however, gradient decent is a greedy method and doesn't know better.</p>
+</li>
+<li>
+<p>This option would be my most highest recommended one: simulated annealing. Simulated annealing would (IMHO) have all the benefits of 1. without the added complexity while being much more robust than 2. In essence SA is just a random walk amongst the states. So in addition to the cost and states you will have to define a way to randomly transition between states. SA is also not prone to be stuck in local minima, while producing very good results quite consistently. The only tweaking required with SA would be the cooling schedule--which decides how fast SA will converge. The greatest advantage of SA I find is that it is conceptually simple and produces superior results empirically to most other methods I have tried. Information on SA can be found here with a long list of generic implementations at the bottom.</p>
+</li>
 </ol>
-<p>Edit: The more specific the better, but general resources about the subject
-are welcomed.</p>
-<p><strong>Follow up:</strong></p>
-<p>Thought it would be nice if I posted a followup.</p>
-<p>Here's the solution (code and writeup) I ended up with for any future students
-:).</p>
-<p><strong>Paper</strong> / <strong>Code</strong></p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Take a look at the 2009 RL-competition. One of the problem domains is a tetris
-game. There was a tetris problem the year before too. Here’s the 52-page final
-report from that year’s fifth-place finalist, which goes into a lot of detail
-about how the agent worked.</p>
+<p>3b. ( <em>Edit Added much later</em> ) SA and the techniques I listed above are
+general AI techniques and not really specialized to AI for games. In general,
+the more specialized the algorithm the more chance it has at performing
+better. See No Free Lunch Theorem 2. Another extension of 3 is something
+called parallel tempering which dramatically improves the performance of SA by
+helping it avoid local optima. Some of the original papers on parallel
+tempering are quite dated 3, but others have been updated4.</p>
+<p>Regardless of what method you choose in the end, its going to be very
+important to break your problem down into states and a cost function as I said
+earlier. As a rule of thumb I would start with 20-50 state variables as your
+state search space is exponential in the number of these variables.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>The Heaton Research ebook is quite good at explaining neural network concepts
-(with code). Chapter 4 is dedicated to machine learning and the various
-training methods for your networks. There is a downloadable library and sample
-applications for you to look at.</p>
+<p>First you should aim to make your game turn based at some level for the AI
+(i.e. you can somehow model it turn based even if it may not be entirely turn
+based, in RTS you may be able to break discrete intervals of time into turns.)
+Second, you should determine how much information the AI should work with.
+That is, if the AI is allowed to cheat and know every move of its opponent
+(thereby making it stronger) or if it should know less or more. Third, you
+should define a cost function of a state. The idea being that a higher cost
+means a worse state for the computer to be in. Fourth you need a move
+generator, generating all valid states the AI can transition to from a given
+state (this may be homogeneous [state-independent] or heterogeneous [state-
+dependent].)</p>
+<p>The thing is, the cost function will be greatly influenced by what exactly you
+define the state to be. The more information you encode in the state the
+better balanced your AI will be but the more difficult it will be for it to
+perform, as it will have to search exponentially more for every additional
+state variable you include (in an exhaustive search.)</p>
+<p>If you provide a definition of a state and a cost function your problem
+transforms to a general problem in AI that can be tackled with any algorithm
+of your choice.</p>
+<p>Here is a summary of what I think would work well:</p>
+<ol>
+<li>
+<p>Evolutionary algorithms may work well if you put enough effort into them, but they will add a layer of complexity that will create room for bugs amongst other things that can go wrong. They will also require extreme amounts of tweaking of the fitness function etc. I don't have much experience working with these but if they are anything like neural networks (which I believe they are since both are heuristics inspired by biological models) you will quickly find they are fickle and far from consistent. Most importantly, I doubt they add any benefits over the option I describe in 3.</p>
+</li>
+<li>
+<p>With the cost function and state defined it would technically be possible for you to apply gradient decent (with the assumption that the state function is differentiable and the domain of the state variables are continuous) however this would probably yield inferior results, since the biggest weakness of gradient descent is getting stuck in local minima. To give an example, this method would be prone to something like attacking the enemy always as soon as possible because there is a non-zero chance of annihilating them. Clearly, this may not be desirable behaviour for a game, however, gradient decent is a greedy method and doesn't know better.</p>
+</li>
+<li>
+<p>This option would be my most highest recommended one: simulated annealing. Simulated annealing would (IMHO) have all the benefits of 1. without the added complexity while being much more robust than 2. In essence SA is just a random walk amongst the states. So in addition to the cost and states you will have to define a way to randomly transition between states. SA is also not prone to be stuck in local minima, while producing very good results quite consistently. The only tweaking required with SA would be the cooling schedule--which decides how fast SA will converge. The greatest advantage of SA I find is that it is conceptually simple and produces superior results empirically to most other methods I have tried. Information on SA can be found here with a long list of generic implementations at the bottom.</p>
+</li>
+</ol>
+<p>3b. ( <em>Edit Added much later</em> ) SA and the techniques I listed above are
+general AI techniques and not really specialized to AI for games. In general,
+the more specialized the algorithm the more chance it has at performing
+better. See No Free Lunch Theorem 2. Another extension of 3 is something
+called parallel tempering which dramatically improves the performance of SA by
+helping it avoid local optima. Some of the original papers on parallel
+tempering are quite dated 3, but others have been updated4.</p>
+<p>Regardless of what method you choose in the end, its going to be very
+important to break your problem down into states and a cost function as I said
+earlier. As a rule of thumb I would start with 20-50 state variables as your
+state search space is exponential in the number of these variables.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-energy-in-image-processing/" class="u-url">What is "energy" in image processing?</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-are-the-differences-between-simulated-annealing-and-genetic-algorithms/" class="u-url">What are the differences between simulated annealing and genetic algorithms?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/what-is-energy-in-image-processing/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T02:45:17+08:00" itemprop="datePublished" title="2023-02-28 02:45">2023-02-28 02:45</time></a>
+            <a href="posts/what-are-the-differences-between-simulated-annealing-and-genetic-algorithms/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T02:48:52+08:00" itemprop="datePublished" title="2023-02-28 02:48">2023-02-28 02:48</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I've read across several Image Processing books and websites, but I'm still
-not sure the true definition of the term "energy" in Image Processing. I've
-found several definition, but sometimes they just don't match.</p>
-<p>When we say "energy" in Image processing, what are we implying?</p>
+    <p>What are the relevant differences, in terms of performance and use cases,
+between simulated annealing (with bean search) and genetic algorithms?</p>
+<p>I know that SA can be thought as GA where the population size is only one, but
+I don't know the key difference between the two.</p>
+<p>Also, I am trying to think of a situation where SA will outperform GA or GA
+will outperform SA. Just one simple example which will help me understand will
+be enough.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>There is more than one definition of "energy" in image processing, so it
-depends on the context of where it was used.</p>
-<p>Energy is used to describe a measure of "information" when formulating an
-operation under a probability framework such as MAP (maximum a priori)
-estimation in conjunction with Markov Random Fields. Sometimes the energy can
-be a negative measure to be minimised and sometimes it is a positive measure
-to be maximized.</p>
+<p>Well strictly speaking, these two things-- <strong>simulated annealing</strong> (SA) and
+<strong>genetic algorithms</strong> are neither algorithms nor is their purpose 'data
+mining'.</p>
+<p>Both are <em>meta-heuristics</em> --a couple of levels above 'algorithm' on the
+abstraction scale. In other words, both terms refer to high-level metaphors--
+one borrowed from metallurgy and the other from evolutionary biology. In the
+meta-heuristic taxonomy, SA is a <em>single-state method</em> and GA is a <em>population
+method</em> (in a sub-class along with PSO, ACO, et al, usually referred to as
+<em>biologically-inspired meta-heuristics</em> ).</p>
+<p>These two meta-heuristics are used to solve optimization problems,
+particularly (though not exclusively) in <em>combinatorial optimization</em> (aka
+<em>constraint-satisfaction programming</em> ). Combinatorial optimization refers to
+optimization by selecting from among a set of discrete items--in other words,
+there is no continuous function to minimize. The knapsack problem, traveling
+salesman problem, cutting stock problem--are all combinatorial optimization
+problems.</p>
+<p>The connection to data mining is that the core of many (most?) supervised
+Machine Learning (ML) algorithms is the solution of an optimization
+problem--(Multi-Layer Perceptron and Support Vector Machines for instance).</p>
+<p>Any solution technique to solve cap problems, regardless of the algorithm,
+will consist essentially of these steps (which are typically coded as a single
+block within a recursive loop):</p>
+<ol>
+<li>
+<p>encode the domain-specific details in a cost function (it's the step-wise minimization of the value returned from this function that constitutes a 'solution' to the c/o problem);</p>
+</li>
+<li>
+<p>evaluate the cost function passing in an initial 'guess' (to begin iteration);</p>
+</li>
+<li>
+<p>based on the value returned from the cost function, generate a subsequent candidate solution (or more than one, depending on the meta-heuristic) to the cost function;</p>
+</li>
+<li>
+<p>evaluate each candidate solution by passing it in an argument set, to the cost function;</p>
+</li>
+<li>
+<p>repeat steps (iii) and (iv) until either some convergence criterion is satisfied or a maximum number of iterations is reached.</p>
+</li>
+</ol>
+<p>Meta-heuristics are directed to step (iii) above; hence, SA and GA differ in
+how they generate candidate solutions for evaluation by the cost function. In
+other words, that's the place to look to understand how these two meta-
+heuristics differ.</p>
+<p>Informally, the essence of an algorithm directed to solution of combinatorial
+optimization is how it handles a candidate solution whose value returned from
+the cost function is <strong><em>worse</em></strong> than the current best candidate solution (the
+one that returns the lowest value from the cost function). The simplest way
+for an optimization algorithm to handle such a candidate solution is to reject
+it outright--that's what the hill climbing algorithm does. But by doing this,
+simple hill climbing will always miss a better solution separated from the
+current solution by a hill. Put another way, a sophisticated optimization
+algorithm has to include a technique for (temporarily) accepting a candidate
+solution worse than (i.e., uphill from) the current best solution because an
+even better solution than the current one might lie along a path through that
+worse solution.</p>
+<hr>
+<p>So how do SA and GA generate candidate solutions?</p>
+<p>The essence of SA is usually expressed in terms of the probability that a
+higher-cost candidate solution will be accepted (the entire expression inside
+the double parenthesis is an exponent:</p>
+<div class="code"><pre class="code literal-block">p = e((-highCost - lowCost)/temperature)
+</pre></div>
+
+<p>Or in python:</p>
+<div class="code"><pre class="code literal-block">p = pow(math.e, (-hiCost - loCost) / T)
+</pre></div>
+
+<p>The 'temperature' term is a variable whose value decays during progress of the
+optimization--and therefore, the probability that SA will accept a worse
+solution decreases as iteration number increases.</p>
+<p>Put another way, when the algorithm begins iterating, T is very large, which
+as you can see, causes the algorithm to move to every newly created candidate
+solution, whether better or worse than the current best solution--i.e., it is
+doing a <em>random walk</em> in the solution space. As iteration number increases
+(i.e., as the temperature cools) the algorithm's search of the solution space
+becomes less permissive, until at T = 0, the behavior is identical to a simple
+hill-climbing algorithm (i.e., only solutions better than the current best
+solution are accepted).</p>
+<p><strong><em>Genetic Algorithms</em></strong> are very different. For one thing--and this is a big
+thing--it generates not a single candidate solution but an entire 'population
+of them'. It works like this: GA calls the cost function on each member
+(candidate solution) of the population. It then ranks them, from best to
+worse, ordered by the value returned from the cost function ('best' has the
+lowest value). From these ranked values (and their corresponding candidate
+solutions) the next population is created. New members of the population are
+created in essentially one of three ways. The first is usually referred to as
+'elitism' and in practice usually refers to just taking the highest ranked
+candidate solutions and passing them straight through--unmodified--to the next
+generation. The other two ways that new members of the population are usually
+referred to as 'mutation' and 'crossover'. Mutation usually involves a change
+in one element in a candidate solution vector from the current population to
+create a solution vector in the new population, e.g., [4, 5, 1, 0, 2] =&gt; [4,
+5, 2, 0, 2]. The result of the crossover operation is like what would happen
+if vectors could have sex--i.e., a new child vector whose elements are
+comprised of some from each of two parents.</p>
+<p>So those are the algorithmic differences between GA and SA. What about the
+differences in performance?</p>
+<p>In practice: (my observations are limited to combinatorial optimization
+problems) GA nearly always beats SA (returns a lower 'best' return value from
+the cost function--ie, a value close to the solution space's global minimum),
+but at a higher computation cost. As far as i am aware, the textbooks and
+technical publications recite the same conclusion on resolution.</p>
+<p>but here's the thing: GA is inherently parallelizable; what's more, it's
+trivial to do so because the individual "search agents" comprising each
+population do not need to exchange messages--ie, they work independently of
+each other. Obviously that means <em>GA computation can be distributed</em> , which
+means <strong>in practice, you can get much better results (closer to the global
+minimum) and better performance (execution speed).</strong></p>
+<p>In what circumstances might SA outperform GA? The general scenario i think
+would be those optimization problems having a small solution space so that the
+result from SA and GA are practically the same, yet the execution context
+(e.g., hundreds of similar problems run in batch mode) favors the faster
+algorithm (which should always be SA).</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>It depends on the context, but in general, in Signal Processing, "energy"
-corresponds to the mean squared value of the signal (typically measured with
-respect to the global mean value). This concept is usually associated with the
-Parseval theorem, which allows us to think of the total energy as distributed
-along "frequencies" (and so one can say, for example, that a image has most of
-its energy concentrated in low frequencies).</p>
-<p>Another -related- use is in image transforms: for example, the DCT transform
-(basis of the JPEG compression method) transforms a blocks of pixels (8x8
-image) into a matrix of transformed coefficients; for typical images, it
-results that, while the original 8x8 image has its energy evenly distributed
-among the 64 pixels, the transformed image has its energy concentrated in the
-left-upper "pixels" (which, again, correspond to "low frequencies", in some
-analagous sense).</p>
+<p>It is really difficult to compare the two since they were inspired from
+different domains..</p>
+<p>A Genetic Algorithm maintains a population of possible solutions, and at each
+step, selects pairs of possible solution, combines them (crossover), and
+applies some random changes (mutation). The algorithm is based the idea of
+"survival of the fittest" where the selection process is done according to a
+fitness criteria (usually in optimization problems it is simply the value of
+the objective function evaluated using the current solution). The crossover is
+done in hope that two good solutions, when combined, might give even better
+solution.</p>
+<p>On the other hand, Simulated Annealing only tracks one solution in the space
+of possible solutions, and at each iteration considers whether to move to a
+neighboring solution or stay in the current one according to some
+probabilities (which decays over time). This is different from a heuristic
+search (say greedy search) in that it doesn't suffer from the problems of
+local optimum since it can get unstuck from cases where all neighboring
+solutions are worst the current one.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/manhattan-distance-is-over-estimating-and-making-me-crazy/" class="u-url">Manhattan distance is over estimating and making me crazy</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/manhattan-distance-is-over-estimating-and-making-me-crazy/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T02:48:35+08:00" itemprop="datePublished" title="2023-02-28 02:48">2023-02-28 02:48</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I'm implementing <strong>a-star algorithm</strong> with <strong>Manhattan distance</strong> to solve the
+<strong>8-puzzle</strong> (in C). It seems to work very well and passes a lot of unit tests
+but it fails to find the shortest path in one case (it finds 27 steps instead
+of 25).</p>
+<p>When I change the heuristic function to Hamming distance it finds in 25 steps.
+Also finds in 25 steps when I make the Manhattan distance function to return a
+half of the actual cost.</p>
+<p>That's why I believe the problem lies somewhere in Manhattan distance function
+and it is over estimating the cost (hence inadmissible). I thought maybe
+something else is going wrong in the C program so I wrote a little Python
+script to test and verify the output of the Manhattan distance function only
+and they both produce the exact same result.</p>
+<p>I'm really confused because the heuristic function seems to be the only point
+of failure and it seems to be correct at the same time.</p>
+<p><img alt="8-puzzle start goal" src="images/R8fXD.gif"></p>
+<p>You can try <strong>this solver</strong> and put the tile order like "2,6,1,0,7,8,3,5,4"
+Choose the algorithm <em>Manhattan distance</em> and it finds in 25 steps. Now change
+it to <em>Manhattan distance + linear conflict</em> and it finds 27 steps.</p>
+<p>But my Manhattan distance (without linear conflict) finds in 27 steps.</p>
+<p>Here's my general algorithm:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">manhattan_distance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="nv">iterate</span><span class="w"> </span><span class="nv">over</span><span class="w"> </span><span class="nv">all</span><span class="w"> </span><span class="nv">tiles</span>
+<span class="k">if</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">tile</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">blank</span><span class="w"> </span><span class="nv">tile</span>:
+<span class="nv">find</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">coordinates</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">this</span><span class="w"> </span><span class="nv">tile</span><span class="w"> </span><span class="nv">on</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">goal</span><span class="w"> </span><span class="nv">board</span>
+<span class="nv">manhattan_distance</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nv">abs</span><span class="ss">(</span><span class="nv">x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">goal_x</span><span class="ss">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">abs</span><span class="ss">(</span><span class="nv">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">goal_y</span><span class="ss">)</span>
+</pre></div>
+
+<p>I think if there was something very badly wrong with some important part it
+wouldn't pass all 25+ previous tests so this might be some sort of edge case.</p>
+<p>Here's commented Manhattan distance function in C:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">ManhattanDistance</span><span class="ss">(</span><span class="nv">Puzzle</span><span class="w"> </span><span class="nv">p</span>,<span class="w"> </span><span class="nv">State</span><span class="w"> </span><span class="nv">b</span><span class="ss">)</span>{
+<span class="w">   </span><span class="nv">State</span><span class="w"> </span><span class="nv">goal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">getFinalState</span><span class="ss">(</span><span class="nv">p</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">   </span><span class="nv">int</span><span class="w"> </span><span class="nv">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">getSize</span><span class="ss">(</span><span class="nv">b</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">   </span><span class="nv">int</span><span class="w"> </span><span class="nv">distance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">;</span>
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">getSize</span><span class="ss">(</span><span class="nv">goal</span><span class="ss">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">size</span><span class="ss">)</span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="nv">both</span><span class="w"> </span><span class="nv">states</span><span class="w"> </span><span class="nv">are</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">same</span><span class="w"> </span><span class="nv">size</span>
+<span class="w">      </span><span class="nv">int</span><span class="w"> </span><span class="nv">i</span>,<span class="w"> </span><span class="nv">j</span><span class="c1">;</span>
+<span class="w">      </span><span class="k">for</span><span class="ss">(</span><span class="nv">i</span><span class="o">=</span><span class="mi">0</span><span class="c1">; i&lt;size; i++){</span>
+<span class="w">         </span><span class="k">for</span><span class="ss">(</span><span class="nv">j</span><span class="o">=</span><span class="mi">0</span><span class="c1">; j&lt;size; j++){ // iterate over all tiles</span>
+<span class="w">            </span><span class="nv">int</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">getStateValue</span><span class="ss">(</span><span class="nv">b</span>,<span class="w"> </span><span class="nv">i</span>,<span class="w"> </span><span class="nv">j</span><span class="ss">)</span><span class="c1">; // what is the number on this tile?</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">a</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s1">'B'</span><span class="ss">)</span>{<span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nv">it</span><span class="err">'s not the blank tile</span>
+<span class="err">               int final_cordinates[2];</span>
+<span class="err">               getTileCoords(goal, a, final_cordinates); // find the coordinates on the other board</span>
+<span class="err">               int final_i = final_cordinates[0];</span>
+<span class="err">               int final_j = final_cordinates[1];</span>
+<span class="err">               distance +=  abs(i - final_i) + abs(j - final_j);</span>
+<span class="err">            }</span>
+<span class="err">         }</span>
+<span class="err">      }</span>
+<span class="err">   }</span>
+<span class="err">   return distance;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>Please help me.</p>
+<p><strong>EDIT:</strong> As discussed in comments, the code provided for opening nodes can be
+found here</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The problem seems to be not in your heuristic function, but in the algorithm
+itself. From your description of the problem, and the fact that it occures
+only on some specific cases, I believe it has to do with the re-opening of a
+closed vertice, once you find a better path to it.</p>
+<p>While reading the code you have provided [in comments], I think I understood
+where the problem lays, in line 20:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="p">(</span><span class="n">getG</span><span class="p">(</span><span class="k">current</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">getG</span><span class="p">(</span><span class="n">children</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">))</span><span class="err">{</span>
+</pre></div>
+
+<p>This is wrong! You are checking if <code>g(current) + 1 &lt; g(children[i])</code>, you
+actually want to check for: <code>f(current) + 1 + h(children[i]) &lt;
+g(children[i])</code>, since you want to check this value with the heuristic
+function of <code>children[i]</code>, and not of <code>current</code>!<br>
+Note that it is identical as to set <code>f(children[i]) =
+min{f(children[i]),f(current)+1}</code>, and then adding <code>h(children[i])</code> to get the
+<code>g</code> value.</p>
     </div>
     </article>
 </div>
@@ -286,7 +479,7 @@ analagous sense).</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

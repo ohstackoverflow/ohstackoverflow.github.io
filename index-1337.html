@@ -108,7 +108,114 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/php-short-ternary-elvis-operator-vs-null-coalescing-operator/" class="u-url">PHP short-ternary ("Elvis") operator vs null coalescing operator</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/xcode-project-vs-xcode-workspace-differences/" class="u-url">Xcode Project vs. Xcode Workspace - Differences</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/xcode-project-vs-xcode-workspace-differences/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T07:00:11+08:00" itemprop="datePublished" title="2023-02-18 07:00">2023-02-18 07:00</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I am trying to understand how the whole ecosystem of <code>iOS</code> works.<br>
+Until now, I could find an answer for most of my question (and trust me, there
+have been a lots of them), but for this one, there seems to be no clear answer
+yet.</p>
+<p><strong>What is the difference between XcodeProject and XcodeWorkspace files?</strong></p>
+<ol>
+<li>What is the difference between the two of them?</li>
+<li>What are they responsible for?</li>
+<li>Which one of them should I work with when I'm developing my Apps in team/alone?</li>
+<li>Is there anything else I should be aware of in matter of these two files?</li>
+</ol>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I think there are three key items you need to understand regarding project
+structure: <em>Targets</em> , <em>projects</em> , and <em>workspaces</em>. <strong>Targets</strong> specify in
+detail how a product/binary (i.e., an application or library) is built. They
+include build settings, such as compiler and linker flags, and they define
+which files (source code and resources) actually belong to a product. When you
+build/run, you always select one specific target.</p>
+<p>It is likely that you have a few targets that share code and resources. These
+different targets can be slightly different versions of an app (iPad/iPhone,
+different brandings,…) or test cases that naturally need to access the same
+source files as the app. All these related targets can be grouped in a
+<strong>project</strong>. While the project contains the files from all its targets, each
+target picks its own subset of relevant files. The same goes for build
+settings: You can define default project-wide settings in the project, but if
+one of your targets needs different settings, you can always override them
+there:</p>
+<p><img alt="Shared project settings that all targets inherit, unless they overwrite
+it" src="images/WToPC.png"></p>
+<p>Shared project settings that all targets inherit, unless they override it</p>
+<p><img alt="Concrete target settings: PSE iPhone overwrites the project’s Base SDK
+setting" src="images/UA3TA.png"></p>
+<p>Concrete target settings: <em>PSE iPhone</em> overrides the project’s <code>Base SDK</code>
+setting</p>
+<p>In Xcode, you always open projects (or workspaces, but not targets), and all
+the targets it contains can be built/run, but there’s no way/definition of
+building a project, so every project needs at least one target in order to be
+more than just a collection of files and settings.</p>
+<p><img alt="Select one of the project’s targets to run" src="images/guLvo.png"></p>
+<p>Select one of the project’s targets to run</p>
+<p>In a lot of cases, projects are all you need. If you have a dependency that
+you build from source, you can embed it as a <strong>subproject</strong>. Subprojects can
+be opened separately or within their super project.</p>
+<p><img alt="demoLib is a subprojec" src="images/g3mpl.png"></p>
+<p><em>demoLib</em> is a subproject</p>
+<p>If you add one of the subproject’s targets to the super project’s
+dependencies, the subproject will be automatically built unless it has
+remained unchanged. The advantage here is that you can edit files from both
+your project and your dependencies in the same Xcode window, and when you
+build/run, you can select from the project’s and its subprojects’ targets:</p>
+<p><img alt="Running targets from a subproject" src="images/sV41Z.png"></p>
+<p>If, however, your library (the subproject) is used by a variety of other
+projects (or their targets, to be precise), it makes sense to put it on the
+same hierarchy level – that’s what <strong>workspaces</strong> are for. Workspaces contain
+and manage projects, and all the projects it includes directly (i.e., not
+their subprojects) are on the same level and their targets can depend on each
+other (projects’ targets can depend on subprojects’ targets, but not vice
+versa).</p>
+<p><img alt="Workspace structure" src="images/1ug5Z.png"></p>
+<p>Workspace structure</p>
+<p>In this example, both apps ( <em>AnotherApplication</em> / <em>ProjectStructureExample</em>
+) can reference the <em>demoLib</em> project’s targets. This would also be possible
+by including the <em>demoLib</em> project in both other projects as a subproject
+(which is a reference only, so no duplication necessary), but if you have lots
+of cross-dependencies, workspaces make more sense. If you open a workspace,
+you can choose from all projects’ targets when building/running.</p>
+<p><img alt="Running targets from a workspace" src="images/LtHRd.png"></p>
+<p>You can still open your project files separately, but it is likely their
+targets won’t build because Xcode cannot resolve the dependencies unless you
+open the workspace file. Workspaces give you the same benefit as subprojects:
+Once a dependency changes, Xcode will rebuild it to make sure it’s up-to-date
+(although I have had some issues with that, it doesn’t seem to work reliably).</p>
+<p><strong>Your questions in a nutshell</strong> :</p>
+<p>1) Projects contain files (code/resouces), settings, and targets that build
+products from those files and settings. Workspaces contain projects which can
+reference each other.</p>
+<p>2) Both are responsible for structuring your overall project, but on different
+levels.</p>
+<p>3) I think projects are sufficient in most cases. Don’t use workspaces unless
+there’s a specific reason. Plus, you can always embed your project in a
+workspace later.</p>
+<p>4) I think that’s what the above text is for…</p>
+<p>There’s one remark for 3): CocoaPods, which automatically handles 3rd party
+libraries for you, uses workspaces. Therefore, you have to use them, too, when
+you use <code>CocoaPods</code> (which a lot of people do).</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>A workspace is a collection of projects. It's useful to organize your projects
+when there's correlation between them (e.g.: Project A includes a library,
+that is provided as a project itself as project B. When you build the
+workspace project B is compiled and linked in project A).<br>
+It's common to use a workspace in the popular CocoaPods. When you install your
+pods, they are placed inside a workspace, that holds your project and the pod
+libraries.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/php-short-ternary-elvis-operator-vs-null-coalescing-operator/" class="u-url">PHP short-ternary ("Elvis") operator vs null coalescing operator</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -379,60 +486,6 @@ the callback function. Here is an example:</p>
 <span class="p">},</span><span class="w"> </span><span class="n">thisObj</span><span class="p">);</span>
 </pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/t-sql-selecting-rows-to-delete-via-joins/" class="u-url">T-SQL: Selecting rows to delete via joins</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/t-sql-selecting-rows-to-delete-via-joins/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:58:42+08:00" itemprop="datePublished" title="2023-02-18 06:58">2023-02-18 06:58</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>Scenario:</p>
-<p>Let's say I have two tables, TableA and TableB. TableB's primary key is a
-single column (BId), and is a foreign key column in TableA.</p>
-<p>In my situation, I want to remove all rows in TableA that are linked with
-specific rows in TableB: Can I do that through joins? Delete all rows that are
-pulled in from the joins?</p>
-<div class="code"><pre class="code literal-block">DELETE FROM TableA 
-FROM
-   TableA a
-   INNER JOIN TableB b
-      ON b.BId = a.BId
-      AND [my filter condition]
-</pre></div>
-
-<p>Or am I forced to do this:</p>
-<div class="code"><pre class="code literal-block">DELETE FROM TableA
-WHERE
-   BId IN (SELECT BId FROM TableB WHERE [my filter condition])
-</pre></div>
-
-<p>The reason I ask is it seems to me that the first option would be much more
-effecient when dealing with larger tables.</p>
-<p>Thanks!</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<div class="code"><pre class="code literal-block">DELETE TableA
-FROM   TableA a
-       INNER JOIN TableB b
-               ON b.Bid = a.Bid
-                  AND [my filter condition]
-</pre></div>
-
-<p>should work</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>I would use this syntax</p>
-<div class="code"><pre class="code literal-block"><span class="n">Delete</span><span class="w"> </span><span class="n">a</span><span class="w"> </span>
-<span class="n">from</span><span class="w"> </span><span class="n">TableA</span><span class="w"> </span><span class="n">a</span>
-<span class="n">Inner</span><span class="w"> </span><span class="n">Join</span><span class="w"> </span><span class="n">TableB</span><span class="w"> </span><span class="n">b</span>
-<span class="n">on</span><span class="w">  </span><span class="n">a</span><span class="p">.</span><span class="n">BId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">BId</span>
-<span class="n">WHERE</span><span class="w"> </span><span class="p">[</span><span class="n">filter</span><span class="w"> </span><span class="n">condition</span><span class="p">]</span>
-</pre></div>
-    </div>
     </article>
 </div>
 
@@ -448,7 +501,7 @@ FROM   TableA a
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

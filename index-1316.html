@@ -108,7 +108,111 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/spring-transactional-isolation-propagation/" class="u-url">Spring @Transactional - isolation, propagation</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/cleanest-way-to-write-retry-logic/" class="u-url">Cleanest way to write retry logic?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/cleanest-way-to-write-retry-logic/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T06:28:41+08:00" itemprop="datePublished" title="2023-02-18 06:28">2023-02-18 06:28</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Occasionally I have a need to retry an operation several times before giving
+up. My code is like:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nv">retries</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="c1">;</span>
+<span class="k">while</span><span class="ss">(</span><span class="nv">true</span><span class="ss">)</span><span class="w"> </span>{
+<span class="w">  </span><span class="nv">try</span><span class="w"> </span>{
+<span class="w">    </span><span class="nv">DoSomething</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">break</span><span class="c1">; // success!</span>
+<span class="w">  </span>}<span class="w"> </span><span class="nv">catch</span><span class="w"> </span>{
+<span class="w">    </span><span class="k">if</span><span class="ss">(</span><span class="o">--</span><span class="nv">retries</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="ss">)</span><span class="w"> </span><span class="nv">throw</span><span class="c1">;</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nv">Thread</span>.<span class="nv">Sleep</span><span class="ss">(</span><span class="mi">1000</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">  </span>}
+}
+</pre></div>
+
+<p>I would like to rewrite this in a general retry function like:</p>
+<div class="code"><pre class="code literal-block">TryThreeTimes(DoSomething);
+</pre></div>
+
+<p>Is it possible in C#? What would be the code for the <code>TryThreeTimes()</code> method?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Blanket catch statements that simply retry the same call can be dangerous if
+used as a general exception handling mechanism. Having said that, here's a
+lambda-based retry wrapper that you can use with any method. I chose to factor
+the number of retries and the retry timeout out as parameters for a bit more
+flexibility:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">Retry</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Do</span><span class="p">(</span>
+<span class="w">        </span><span class="n">Action</span><span class="w"> </span><span class="n">action</span><span class="p">,</span>
+<span class="w">        </span><span class="n">TimeSpan</span><span class="w"> </span><span class="n">retryInterval</span><span class="p">,</span>
+<span class="w">        </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">maxAttemptCount</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Do</span><span class="o">&lt;</span><span class="n">object</span><span class="o">&gt;</span><span class="p">(()</span><span class="w"> </span><span class="o">=&gt;</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">action</span><span class="p">();</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">        </span><span class="p">},</span><span class="w"> </span><span class="n">retryInterval</span><span class="p">,</span><span class="w"> </span><span class="n">maxAttemptCount</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">Do</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span>
+<span class="w">        </span><span class="n">Func</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">action</span><span class="p">,</span>
+<span class="w">        </span><span class="n">TimeSpan</span><span class="w"> </span><span class="n">retryInterval</span><span class="p">,</span>
+<span class="w">        </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">maxAttemptCount</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">exceptions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Exception</span><span class="o">&gt;</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">attempted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">attempted</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">maxAttemptCount</span><span class="p">;</span><span class="w"> </span><span class="n">attempted</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">try</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">attempted</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">Thread</span><span class="o">.</span><span class="n">Sleep</span><span class="p">(</span><span class="n">retryInterval</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">action</span><span class="p">();</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">catch</span><span class="w"> </span><span class="p">(</span><span class="n">Exception</span><span class="w"> </span><span class="n">ex</span><span class="p">)</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="n">exceptions</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="n">ex</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">AggregateException</span><span class="p">(</span><span class="n">exceptions</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>You can now use this utility method to perform retry logic:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Retry</span>.<span class="k">Do</span><span class="ss">(()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nv">SomeFunctionThatCanFail</span><span class="ss">()</span>,<span class="w"> </span><span class="nv">TimeSpan</span>.<span class="nv">FromSeconds</span><span class="ss">(</span><span class="mi">1</span><span class="ss">))</span><span class="c1">;</span>
+</pre></div>
+
+<p>or:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Retry</span>.<span class="k">Do</span><span class="ss">(</span><span class="nv">SomeFunctionThatCanFail</span>,<span class="w"> </span><span class="nv">TimeSpan</span>.<span class="nv">FromSeconds</span><span class="ss">(</span><span class="mi">1</span><span class="ss">))</span><span class="c1">;</span>
+</pre></div>
+
+<p>or:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">int</span><span class="w"> </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">Retry</span>.<span class="k">Do</span><span class="ss">(</span><span class="nv">SomeFunctionWhichReturnsInt</span>,<span class="w"> </span><span class="nv">TimeSpan</span>.<span class="nv">FromSeconds</span><span class="ss">(</span><span class="mi">1</span><span class="ss">)</span>,<span class="w"> </span><span class="mi">4</span><span class="ss">)</span><span class="c1">;</span>
+</pre></div>
+
+<p>Or you could even make an <code>async</code> overload.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>You should try <strong>Polly</strong>. It's a .NET library written by me that allows
+developers to express transient exception handling policies such as Retry,
+Retry Forever, Wait and Retry or Circuit Breaker in a fluent manner.</p>
+<h2>Example</h2>
+<div class="code"><pre class="code literal-block">Policy
+    .Handle&lt;SqlException&gt;(ex =&gt; ex.Number == 1205)
+    .Or&lt;ArgumentException&gt;(ex =&gt; ex.ParamName == "example")
+    .WaitAndRetry(3, _ =&gt; TimeSpan.FromSeconds(3))
+    .Execute(DoSomething);
+</pre></div>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/spring-transactional-isolation-propagation/" class="u-url">Spring @Transactional - isolation, propagation</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -370,110 +474,6 @@ the current file's.)</p>
 <span class="nb">print</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">getfile</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">currentframe</span><span class="p">()))))</span> <span class="c1"># script directory</span>
 </pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/check-if-all-elements-in-a-list-are-identical/" class="u-url">Check if all elements in a list are identical</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/check-if-all-elements-in-a-list-are-identical/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:27:23+08:00" itemprop="datePublished" title="2023-02-18 06:27">2023-02-18 06:27</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I need a function which takes in a <code>list</code> and outputs <code>True</code> if all elements
-in the input list evaluate as equal to each other using the standard equality
-operator and <code>False</code> otherwise.</p>
-<p>I feel it would be best to iterate through the list comparing adjacent
-elements and then <code>AND</code> all the resulting Boolean values. But I'm not sure
-what's the most Pythonic way to do that.</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Use <code>itertools.groupby</code> (see the <code>itertools</code> recipes):</p>
-<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">groupby</span>
-
-<span class="k">def</span> <span class="nf">all_equal</span><span class="p">(</span><span class="n">iterable</span><span class="p">):</span>
-    <span class="n">g</span> <span class="o">=</span> <span class="n">groupby</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">next</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-</pre></div>
-
-<p>or without <code>groupby</code>:</p>
-<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">all_equal</span><span class="ss">(</span><span class="nv">iterator</span><span class="ss">)</span>:
-<span class="w">    </span><span class="nv">iterator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">iter</span><span class="ss">(</span><span class="nv">iterator</span><span class="ss">)</span>
-<span class="w">    </span><span class="nv">try</span>:
-<span class="w">        </span><span class="nv">first</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">next</span><span class="ss">(</span><span class="nv">iterator</span><span class="ss">)</span>
-<span class="w">    </span><span class="nv">except</span><span class="w"> </span><span class="nv">StopIteration</span>:
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nv">True</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">all</span><span class="ss">(</span><span class="nv">first</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">x</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">iterator</span><span class="ss">)</span>
-</pre></div>
-
-<hr>
-<p>There are a number of alternative one-liners you might consider:</p>
-<ol>
-<li>
-<p>Converting the input to a set and checking that it only has one or zero (in case the input is empty) items</p>
-<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">all_equal2</span><span class="ss">(</span><span class="nv">iterator</span><span class="ss">)</span>:
-<span class="k">return</span><span class="w"> </span><span class="nv">len</span><span class="ss">(</span><span class="nv">set</span><span class="ss">(</span><span class="nv">iterator</span><span class="ss">))</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span>
-</pre></div>
-
-</li>
-<li>
-<p>Comparing against the input list without the first item</p>
-<div class="code"><pre class="code literal-block"><span class="s s-Atom">def</span> <span class="nf">all_equal3</span><span class="p">(</span><span class="s s-Atom">lst</span><span class="p">)</span><span class="o">:</span>
-<span class="s s-Atom">return</span> <span class="s s-Atom">lst</span><span class="p">[</span><span class="o">:-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s s-Atom">lst</span><span class="p">[</span><span class="mi">1</span><span class="o">:</span><span class="p">]</span>
-</pre></div>
-
-</li>
-<li>
-<p>Counting how many times the first item appears in the list</p>
-<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">all_equal_ivo</span><span class="ss">(</span><span class="nv">lst</span><span class="ss">)</span>:
-<span class="k">return</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">lst</span><span class="w"> </span><span class="nv">or</span><span class="w"> </span><span class="nv">lst</span>.<span class="nv">count</span><span class="ss">(</span><span class="nv">lst</span>[<span class="mi">0</span>]<span class="ss">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">len</span><span class="ss">(</span><span class="nv">lst</span><span class="ss">)</span>
-</pre></div>
-
-</li>
-<li>
-<p>Comparing against a list of the first element repeated</p>
-<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">all_equal_6502</span><span class="ss">(</span><span class="nv">lst</span><span class="ss">)</span>:
-<span class="k">return</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">lst</span><span class="w"> </span><span class="nv">or</span><span class="w"> </span>[<span class="nv">lst</span>[<span class="mi">0</span>]]<span class="o">*</span><span class="nv">len</span><span class="ss">(</span><span class="nv">lst</span><span class="ss">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nv">lst</span>
-</pre></div>
-
-</li>
-</ol>
-<p>But they have some downsides, namely:</p>
-<ol>
-<li>
-<code>all_equal</code> and <code>all_equal2</code> can use any iterators, but the others must take a sequence input, typically concrete containers like a list or tuple.</li>
-<li>
-<code>all_equal</code> and <code>all_equal3</code> stop as soon as a difference is found (what is called "short circuit"), whereas all the alternatives require iterating over the entire list, even if you can tell that the answer is <code>False</code> just by looking at the first two elements.</li>
-<li>In <code>all_equal2</code> the content must be hashable. A list of lists will raise a <code>TypeError</code> for example.</li>
-<li>
-<code>all_equal2</code> (in the worst case) and <code>all_equal_6502</code> create a copy of the list, meaning you need to use double the memory.</li>
-</ol>
-<p>On Python 3.9, using <code>perfplot</code>, we get these timings (lower <code>Runtime [s]</code> is
-better):</p>
-<p><img alt="for a list with a difference in the first two elements, groupby is
-fastest" src="images/P44QA.png"><img alt="for a list with no differences, count(l[0])
-is fastest" src="images/jLwdT.png"></p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>A solution faster than using set() that works on sequences (not iterables) is
-to simply count the first element. This assumes the list is non-empty (but
-that's trivial to check, and decide yourself what the outcome should be on an
-empty list)</p>
-<div class="code"><pre class="code literal-block">x.count(x[0]) == len(x)
-</pre></div>
-
-<p>some simple benchmarks:</p>
-<div class="code"><pre class="code literal-block">&gt;&gt;&gt; timeit.timeit('len(set(s1))&lt;=1', 's1=[1]*5000', number=10000)
-1.4383411407470703
-&gt;&gt;&gt; timeit.timeit('len(set(s1))&lt;=1', 's1=[1]*4999+[2]', number=10000)
-1.4765670299530029
-&gt;&gt;&gt; timeit.timeit('s1.count(s1[0])==len(s1)', 's1=[1]*5000', number=10000)
-0.26274609565734863
-&gt;&gt;&gt; timeit.timeit('s1.count(s1[0])==len(s1)', 's1=[1]*4999+[2]', number=10000)
-0.25654196739196777
-</pre></div>
-    </div>
     </article>
 </div>
 
@@ -489,7 +489,7 @@ empty list)</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

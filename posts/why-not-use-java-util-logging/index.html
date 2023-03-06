@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why not use java.util.logging? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/why-not-use-java-util-logging/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-exactly-does-attribute-constructor-work/" title="How exactly does __attribute__((constructor)) work?" type="text/html">
+<link rel="next" href="../what-is-the-difference-between-same-and-valid-padding-in-tf-nn-max-pool-of-tensorflow/" title="What is the difference between 'SAME' and 'VALID' padding in tf.nn.max_pool of tensorflow?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Why not use java.util.logging?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/why-not-use-java-util-logging/">
+<meta property="og:description" content="For the first time in my life I find myself in a position where I'm writing a
+Java API that will be open sourced. Hopefully to be included in many other
+projects.
+For logging I (and indeed the people ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T15:26:32+08:00">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="logback">
+<meta property="article:tag" content="logging">
+<meta property="article:tag" content="slf4j">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Why not use java.util.logging?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T15:26:32+08:00" itemprop="datePublished" title="2023-03-03 15:26">2023-03-03 15:26</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>For the first time in my life I find myself in a position where I'm writing a
+Java API that will be open sourced. Hopefully to be included in many other
+projects.</p>
+<p>For logging I (and indeed the people I work with) have always used JUL
+(<code>java.util.logging</code>) and never had any issues with it. However now I need to
+understand in more detail what I should do for my API development. I've done
+some research on this and with the information I've got I just get more
+confused. Hence this post.</p>
+<p>Since I come from JUL I'm biased on that. My knowledge of the rest is not that
+big.</p>
+<p>From the research I've done I've come up with these reasons why people do not
+like JUL:</p>
+<ol>
+<li>
+<p><em>"I started developing in Java long before Sun released JUL and it was just easier for me to continue with logging-framework-X rather than to learn something new"</em>. Hmm. I'm not kidding, this is actually what people say. With this argument we could all be doing COBOL. (however I can certainly relate to this being a lazy dude myself)</p>
+</li>
+<li>
+<p><em>"I don't like the names of the logging levels in JUL"</em>. Ok, seriously, this is just not enough of a reason to introduce a new dependency.</p>
+</li>
+<li>
+<p><em>"I don't like the standard format of the output from JUL"</em>. Hmm. This is just configuration. You do not even have to do anything code-wise. (true, back in old days you may have had to create your own Formatter class to get it right).</p>
+</li>
+<li>
+<p><em>"I use other libraries that also use logging-framework-X so I thought it easier just to use that one"</em>. This is a circular argument, isn't ? Why does 'everybody' use logging-framework-X and not JUL?</p>
+</li>
+<li>
+<p><em>"Everybody else is using logging-framework-X"</em>. This to me is just a special case of the above. Majority is not always right.</p>
+</li>
+</ol>
+<p>So the real big question is <strong>why not JUL?</strong>. What is it I have missed ? The
+raison d'être for logging facades (SLF4J, JCL) is that multiple logging
+implementations have existed historically and the reason for that really goes
+back to the era before JUL as I see it. If JUL was perfect then logging
+facades wouldn't exist, or what? To make matters more confusing JUL is to some
+extent a facade itself, allowing Handlers, Formatters and even the LogManager
+to be swapped.</p>
+<p>Rather than embracing multiple ways of doing the same thing (logging),
+shouldn't we question why they were necessary in the first place? (and see if
+those reasons still exist)</p>
+<p>Ok, my research so far has led to a couple of things that I can see may be
+<strong>real issues</strong> with JUL:</p>
+<ol>
+<li>
+<strong>Performance</strong>. Some say that performance in SLF4J is superior to the rest. This seems to me to be a case of premature optimization. If you need to log hundreds of megabytes per second then I'm not sure you are on the right path anyway. JUL has also evolved and the tests you did on Java 1.4 may no longer be true. You can read about it here and this fix has made it into Java 7. Many also talk about the overhead of string concatenation in logging methods. However template based logging avoids this cost and it exist also in JUL. Personally I never really write template based logging. Too lazy for that. For example if I do this with JUL:<div class="code"><pre class="code literal-block"> log.finest("Lookup request from username=" + username 
++ ", valueX=" + valueX
++ ", valueY=" + valueY));
+</pre></div>
+
+</li>
+</ol>
+<p>my IDE will warn me and ask permission that it should change it to:</p>
+<div class="code"><pre class="code literal-block">     log.log(Level.FINEST, "Lookup request from username={0}, valueX={1}, valueY={2}", 
+    new Object[]{username, valueX, valueY});
+</pre></div>
+
+<p>.. which I will of course accept. Permission granted ! Thank you for your
+help.</p>
+<p>So I don't actually write such statements myself, that is done by the IDE.</p>
+<p>In conclusion on the issue of performance I haven't found anything that would
+suggest that JUL's performance is not ok compared to the competition.</p>
+<ol>
+<li>
+<p><strong>Configuration from classpath</strong>. Out-of-the-box JUL cannot load a configuration file from the classpath. It is a few lines of code to make it do so. I can see why this may be annoying but the solution is short and simple.</p>
+</li>
+<li>
+<p><strong>Availability of output handlers</strong>. JUL comes with 5 output handlers out-of-the-box: console, file stream, socket and memory. These can be extended or new ones can be written. This may for example be writing to UNIX/Linux Syslog and Windows Event Log. I have personally never had this requirement nor have I seen it used but I can certainly relate to why it may be a useful feature. Logback comes with an appender for Syslog for example. Still I would argue that</p>
+<ol>
+<li>99.5% of the needs for output destinations are covered by what is in JUL out-of-the-box.</li>
+<li>Special needs could be catered for by custom handlers on top of JUL rather than on top of something else. There's nothing to me that suggests that it takes more time to write a Syslog output handler for JUL than it does for another logging framework.</li>
+</ol>
+</li>
+</ol>
+<p>I'm really concerned that there's something I've overlooked. The use of
+logging facades and logging implementations other than JUL is so widespread
+that I have to come to the conclusion that it's me who just doesn't
+understand. That wouldn't be the first time, I'm afraid. :-)</p>
+<p>So what should I do with my API? I want it to become successful. I can of
+course just "go with the flow" and implement SLF4J (which seems the most
+popular these days) but for my own sake I still need to understand exactly
+what is wrong with the JUL of today that warrants all the fuzz? Will I
+sabotage myself by choosing JUL for my library ?</p>
+<h3>Testing performance</h3>
+<p><em>(section added by nolan600 on 07-JUL-2012)</em></p>
+<p>There's a reference below from Ceki about SLF4J's parametrization being 10
+times or more faster than JUL's. So I've started doing some simple tests. At
+first glance the claim is certainly correct. Here are the preliminary results
+(but read on!):</p>
+<ul>
+<li>Execution time SLF4J, backend Logback: 1515</li>
+<li>Execution time SLF4J, backend JUL: 12938</li>
+<li>Execution time JUL: 16911</li>
+</ul>
+<p>The numbers above are msecs so less is better. So 10 times performance
+difference is by first actually pretty close. My initial reaction: That is a
+lot !</p>
+<p>Here is the core of the test. As can be seen an integer and a string is
+construted in a loop which is then used in the log statement:</p>
+<div class="code"><pre class="code literal-block"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">int</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="c1">; i &lt; noOfExecutions; i++) {</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="ss">(</span><span class="nv">char</span><span class="w"> </span><span class="nv">x</span><span class="o">=</span><span class="mi">32</span><span class="c1">; x&lt;88; x++) {</span>
+<span class="w">            </span><span class="nv">String</span><span class="w"> </span><span class="nv">someString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">Character</span>.<span class="nv">toString</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="nv">here</span><span class="w"> </span><span class="nv">we</span><span class="w"> </span><span class="nv">log</span><span class="w"> </span>
+<span class="w">        </span>}
+<span class="w">    </span>}
+</pre></div>
+
+<p>(I wanted the log statement to have both a primitive data type (in this case
+an int) and a more complex data type (in this case a String). Not sure it
+matters but there you have it.)</p>
+<p>The log statement for SLF4J:</p>
+<div class="code"><pre class="code literal-block">logger.info("Logging {} and {} ", i, someString);
+</pre></div>
+
+<p>The log statement for JUL:</p>
+<div class="code"><pre class="code literal-block">logger.log(Level.INFO, "Logging {0} and {1}", new Object[]{i, someString});
+</pre></div>
+
+<p>The JVM was 'warmed up' with the same test executed once before the actual
+measurement was done. Java 1.7.03 was used on Windows 7. Latest versions of
+SLF4J (v1.6.6) and Logback (v1.0.6) was used. Stdout and stderr was redirected
+to null device.</p>
+<p>However, careful now, it turns out JUL is spending most of its time in
+<code>getSourceClassName()</code> because JUL by default prints the source class name in
+the output, while Logback doesn't. So we are comparing apples and oranges. I
+have to do the test again and configure the logging implementations in a
+similar manner so that they actually output the same stuff. I do however
+suspect that SLF4J+Logback will still come out on top but far from the initial
+numbers as given above. Stay tuned.</p>
+<p>Btw: The test was first time I've actually worked with SLF4J or Logback. A
+pleasant experience. JUL is certainly a lot less welcoming when you are
+starting out.</p>
+<h3>Testing performance (part 2)</h3>
+<p><em>(section added by nolan600 on 08-JUL-2012)</em></p>
+<p>As it turns out it doesn't really matter for performance how you configure
+your pattern in JUL, i.e. whether or not it includes the source name or not. I
+tried with a very simple pattern:</p>
+<div class="code"><pre class="code literal-block">java.util.logging.SimpleFormatter.format="%4$s: %5$s [%1$tc]%n"
+</pre></div>
+
+<p>and that did not change the above timings at all. My profiler revealed that
+the logger still spent a lot of time in calls to <code>getSourceClassName()</code> even
+if this was not part of my pattern. The pattern doesn't matter.</p>
+<p>I'm therefore concluding on the issue of performance that at least for the
+tested template based log statement there seems to be roughly a factor of 10
+in real performance difference between JUL (slow) and SLF4J+Logback (quick).
+Just like Ceki said.</p>
+<p>I can also see another thing namely that SLF4J's <code>getLogger()</code> call is a lot
+more expensive than JUL's ditto. (95 ms vs 0.3 ms if my profiler is accurate).
+This makes sense. SLF4J has to do some time on the binding of the underlying
+logging implementation. This doesn't scare me. These calls should be somewhat
+rare in the lifetime of an application. The fastness should be in the actual
+log calls.</p>
+<h2>Final conclusion</h2>
+<p><em>(section added by peterh on 08-JUL-2012)</em></p>
+<p>Thank you for all your answers. Contrary to what I initially thought I've
+ended up deciding to use SLF4J for my API. This is based on a number of things
+and your input:</p>
+<ol>
+<li>
+<p>It gives flexibility to choose log implementation at deployment time.</p>
+</li>
+<li>
+<p>Issues with lack of flexibility of JUL's configuration when run inside an application server.</p>
+</li>
+<li>
+<p>SLF4J is certainly a lot faster as detailed above in particular if you couple it with Logback. Even if this was just a rough test I have reason to believe that a lot more effort has gone into optimization on SLF4J+Logback than on JUL.</p>
+</li>
+<li>
+<p>Documentation. The documentation for SLF4J is simply a lot more comprehensive and precise.</p>
+</li>
+<li>
+<p>Pattern flexibility. As I did the tests I set out to have JUL mimic the default pattern from Logback. This pattern includes the name of the thread. It turns out JUL cannot do this out of the box. Ok, I haven't missed it until now, but I don't think it is a thing that should be missing from a log framework. Period!</p>
+</li>
+<li>
+<p>Most (or many) Java projects today use Maven so adding a dependency is not that big a thing especially if that dependency is rather stable, i.e. doesn't constantly change its API. This seems to be true for SLF4J. Also the SLF4J jar and friends are small in size.</p>
+</li>
+</ol>
+<p>So the strange thing that happened was that I actually got quite upset with
+JUL after having worked a bit with SLF4J. I still regret that it has to be
+this way with JUL. JUL is far from perfect but kind of does the job. Just not
+quite well enough. The same can be said about <code>Properties</code> as an example but
+we do not think about abstracting that so people can plug in their own
+configuration library and what have you. I think the reason is that
+<code>Properties</code> comes in just above the bar while the opposite is true for JUL of
+today ... and in the past it came in at zero because it didn't exist.</p>
+<h2>Final-final conclusion (maybe)</h2>
+<p><em>(section added by peterh on 02-OCT-2022)</em></p>
+<p>Java 9 introduced the System.Logger which is intended as a facade to logging
+implementations. Hence, as far as I can tell, it competes with SLF4J, but has
+the advantage that it is included with the JDK. <strong>So perhaps library
+developers should use System.Logger rather than SLF4J</strong> ?</p>
+<p>I find this blog post by Renato Athaydes to explain it quite well. (btw: the
+bug in the Log4j-v2 bridge mentioned by Renato seems to have been fixed with
+v2.13.2 of Log4j v2)</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>Disclaimer</strong> : I am the founder of log4j, SLF4J and logback projects.</p>
+<p>There are objective reasons for preferring SLF4J. For one, <strong>SLF4J allows the
+end-user the liberty to choose the underlying logging framework</strong>. In
+addition, savvier users tend to prefer logback which offers capabilities
+beyond log4j, with j.u.l falling way behind. Feature-wise j.u.l may be
+sufficient for some users but for many others it just isn't. In a nutshell, if
+logging is important to you, you would want to use SLF4J with logback as the
+underlying implementation. If logging is unimportant, j.u.l is fine.</p>
+<p>However, as an oss developer, you need to take into account the preferences of
+your users and not just your own. It follows that you should adopt SLF4J not
+because <em>you</em> are convinced that SLF4J is better than j.u.l but because most
+Java developers currently (July 2012) prefer SLF4J as their logging API. If
+ultimately you decide not to care about popular opinion, consider the
+following facts:</p>
+<ol>
+<li>those who prefer j.u.l do so out of convenience because j.u.l is bundled with the JDK. To my knowledge there are no other objective arguments in favor of j.u.l.</li>
+<li>your own preference for j.u.l is just that, <em>a preference</em>.</li>
+</ol>
+<p>Thus, holding "hard facts" above public opinion, while seemingly brave, is a
+logical fallacy in this case.</p>
+<p>If still not convinced, JB Nizet makes an additional and potent argument:</p>
+<blockquote>
+<p>Except the end user could have already done this customization for his own
+code, or another library that uses log4j or logback. j.u.l is extensible,
+but having to extend logback, j.u.l, log4j and God only knows which other
+logging framework because he uses four libraries that use four different
+logging frameworks is cumbersome. By using SLF4J, you allow him to configure
+the logging frameworks he wants, not the one you have chosen. <strong>Remember
+that a typical project uses myriads of libraries, and not just yours</strong>.</p>
+</blockquote>
+<p>If for whatever reason you hate the SLF4J API and using it will snuff the fun
+out of your work, then by all means go for j.u.l. After all, there are means
+to redirect j.u.l to SLF4J.</p>
+<p>By the way, j.u.l parametrization is at least 10 times slower than SLF4J's
+which ends up making a noticeable difference.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<ol>
+<li>
+<p><code>java.util.logging</code> was introduced in Java 1.4. There were uses for logging before that. That's why many other logging APIs exist. Those APIs were used heavily before Java 1.4 and thus had a great market share that didn't just drop to zero when 1.4 was release.</p>
+</li>
+<li>
+<p>JUL didn't start out all that great. Many of the things you mentioned were a lot worse in 1.4 and only got better in 1.5 (and I guess in 6 as well, but I'm not too sure).</p>
+</li>
+<li>
+<p>JUL isn't well suited for multiple applications with different configurations in the same JVM (think multiple web applications that should not interact). Tomcat needs to jump through some hoops to get that working (effectively re-implementing JUL if I understood that correctly).</p>
+</li>
+<li>
+<p>You can't always influence what logging framework your libraries use. Therefore using SLF4J (which is actually just a very thin API layer above other libraries) helps keep a somewhat consistent picture of the entire logging world (so you can decide the underlying logging framework while still having library logging in the same system).</p>
+</li>
+<li>
+<p>Libraries can't easily change. If a previous version of a library used to use logging-library-X it can't easily switch to logging-library-Y (for example JUL), even if the latter is clearly superior. Any user of that library would need to learn the new logging framework and (at least) reconfigure their logging. That's a big no-no, especially when it brings no apparent gain to most people.</p>
+</li>
+</ol>
+<p>Having said all that I think JUL is <em>at least</em> a valid alternative to other
+logging frameworks these days.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/java/" rel="tag">java</a></li>
+            <li><a class="tag p-category" href="../../categories/logback/" rel="tag">logback</a></li>
+            <li><a class="tag p-category" href="../../categories/logging/" rel="tag">logging</a></li>
+            <li><a class="tag p-category" href="../../categories/slf4j/" rel="tag">slf4j</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-exactly-does-attribute-constructor-work/" rel="prev" title="How exactly does __attribute__((constructor)) work?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-is-the-difference-between-same-and-valid-padding-in-tf-nn-max-pool-of-tensorflow/" rel="next" title="What is the difference between 'SAME' and 'VALID' padding in tf.nn.max_pool of tensorflow?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

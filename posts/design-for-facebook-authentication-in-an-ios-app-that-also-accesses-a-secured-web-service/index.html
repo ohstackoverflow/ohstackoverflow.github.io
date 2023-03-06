@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design for Facebook authentication in an iOS app that also accesses a secured web service | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/design-for-facebook-authentication-in-an-ios-app-that-also-accesses-a-secured-web-service/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../what-is-the-meaning-of-polyfills-in-html5/" title="What is the meaning of polyfills in HTML5?" type="text/html">
+<link rel="next" href="../manifest-merger-failed-with-multiple-errors-in-android-studio/" title="Manifest Merger failed with multiple errors in Android Studio" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="Design for Facebook authentication in an iOS app that also accesses a ">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/design-for-facebook-authentication-in-an-ios-app-that-also-accesses-a-secured-web-service/">
+<meta property="og:description" content="Goal: Allow a user to authentication with Facebook into an iOS application
+which requires access to a protected web service that I'm running.
+Assumptions: There is a native authentication (and registr">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T17:46:37+08:00">
+<meta property="article:tag" content="facebook">
+<meta property="article:tag" content="facebook-graph-api">
+<meta property="article:tag" content="ios">
+<meta property="article:tag" content="ios4">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">Design for Facebook authentication in an iOS app that also accesses a secured web service</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T17:46:37+08:00" itemprop="datePublished" title="2023-03-03 17:46">2023-03-03 17:46</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p><strong>Goal:</strong> Allow a user to authentication with Facebook into an iOS application
+which requires access to a protected web service that I'm running.</p>
+<p><strong>Assumptions:</strong> There is a native authentication (and registration) system in
+place for those users that opt not to use Facebook for sign in.</p>
+<p><strong>Details:</strong></p>
+<ul>
+<li>Assume we want to offer the option for a user to sign in with Facebook without creating a separate account/credential for our system.</li>
+<li>Because we support our own native auth mechanism (username and password) we have our own user IDs and issue an authentication token that is used for subsequent interactions after the initial credential validation.</li>
+</ul>
+<p>I'm surprised that Facebook doesn't have best practices for this in their
+developer documentation. All the existing documentation is either assuming you
+are building FB auth into a website, or a standalone mobile app with no
+service that requires authentication.</p>
+<p>Here's my initial thoughts on how this would be designed but want validation
+on whether it's correct.</p>
+<ol>
+<li>Client pops the Facebook iOS Login</li>
+<li>UI User signs in with Facebook credentials and gets access token</li>
+<li>iOS App passes access token to our server</li>
+<li>Our server talks to FB graph API using access token to (a) validate the token and (b) get the FB user ID for that access token. </li>
+</ol>
+<p>e.g. Our server would call https://graph.facebook.com/me/?access_token=XYZ
+which would return profile info in a JSON object</p>
+<ol>
+<li>
+<p>Assuming it's valid, our server extracts the User ID from the JSON object and checks whether the user already has an account. If so, we issue our own auth ticket to client to use for that session. If user doesn't have an account, we create a new one with the Facebook User ID, assign our own unique UserID and issue our auth ticket.</p>
+</li>
+<li>
+<p>Client then passes auth ticket back on subsequent interactions that need authentication.</p>
+</li>
+</ol>
+<p>This seems like the right approach to me but not sure if I'm missing something
+insanely basic and going down the wrong (complicated) path.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I just dealt with this myself, and here's the part that bit me:</p>
+<p>In your step 5... It's possible for a user to register for an account with you
+entirely separate from their Facebook ID, right? Then some other time they log
+in with Facebook.... And you just created them a second account and lost their
+first one.</p>
+<p>There needs to be a way to be logged in to your web service, then log in to
+facebook, and capture the association between the facebook ID and the local
+account.</p>
+<p>Apart from that, your plan sounds solid.</p>
+<p><strong>Update</strong> : Facebook has added a doc outlining such a scenario HERE</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Use https to transmit the auth token to your server, as stated by Facebook</p>
+<blockquote>
+<p>Sharing of Access Tokens</p>
+<p>Our Data Policies explicitly prohibit any sharing of an Access Token for
+your app with any other app. However, we do allow developers to share Tokens
+between a native implementation and a server implementation of the same App
+(ie. using the same App ID) as long as the transfer takes place using HTTPS.</p>
+</blockquote>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/facebook/" rel="tag">facebook</a></li>
+            <li><a class="tag p-category" href="../../categories/facebook-graph-api/" rel="tag">facebook-graph-api</a></li>
+            <li><a class="tag p-category" href="../../categories/ios/" rel="tag">ios</a></li>
+            <li><a class="tag p-category" href="../../categories/ios4/" rel="tag">ios4</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../what-is-the-meaning-of-polyfills-in-html5/" rel="prev" title="What is the meaning of polyfills in HTML5?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../manifest-merger-failed-with-multiple-errors-in-android-studio/" rel="next" title="Manifest Merger failed with multiple errors in Android Studio">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

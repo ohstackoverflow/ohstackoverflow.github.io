@@ -108,304 +108,152 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/is-it-possible-to-store-images-on-the-ethereum-blockchain/" class="u-url">Is it possible to store images on the Ethereum blockchain?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/hyperledger-fabric-with-docker-not-storing-data-after-restart/" class="u-url">Hyperledger Fabric with docker not storing data after restart</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/is-it-possible-to-store-images-on-the-ethereum-blockchain/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:45:50+08:00" itemprop="datePublished" title="2023-02-28 04:45">2023-02-28 04:45</time></a>
+            <a href="posts/hyperledger-fabric-with-docker-not-storing-data-after-restart/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:48:47+08:00" itemprop="datePublished" title="2023-02-28 04:48">2023-02-28 04:48</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I'm ramping up on learning Solidity, and have some ideas. At the moment I am
-curious if files/images can be put on the blockchain. I'm thinking an
-alternative would be some hybrid approach where some stuff is on the
-blockchain, and some stuff is in a more traditional file storage and uses
-address references to grab it. One issue I foresee is gas price of file
-uploads.</p>
+    <p>I setup Hyperledger Fabric V0.6 with docker image. I wrote small chain code
+program and perform some operations. Data is getting stored and fetched on
+request from Hyperledger blockchain.</p>
+<p>I restart my chaincode program and data still persist. Ofcouse this should be
+expected behaviour.</p>
+<p>But when I stop my Hyperledger fabric with command docker-compose down and
+start it again with docker-compose start and then start my chaincode program,
+I found that the whole data which was written before restart is gone. I
+couldn't find any data in my blockchain.</p>
+<p>How can I avoid this behaviour of Hyperledger? I am running it on single
+peer/node. With multiple peers, if one of the peer restarted, then
+data/transactions from other peers get copied on it. But consider a worst
+scenario when all peers down. Does that mean we loose all our data?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<blockquote>
-<p>Is it possible to store images on the Ethereum blockchain?</p>
-</blockquote>
-<p>It's absolutely possible!</p>
-<p>Should you do it? Almost certainly not!</p>
-<blockquote>
-<p>One issue I foresee is gas price of file uploads.</p>
-</blockquote>
-<ul>
-<li>The cost of data storage is 640k gas per kilobyte of data.</li>
-<li>The current gas price is approximately 15 Gwei (or 0.000000015 ETH).</li>
-<li>At today's price, 1 ETH is approximately $200.</li>
-</ul>
-<p>That works out at just under $2 per kilobyte.</p>
-<p>It's not for me to tell you if this is too expensive for your application, but
-you should also consider that the price of both Gas and Ether vary
-dramatically over time, and you should expect to experience periods when this
-number will be <em>significantly</em> higher.</p>
+<p>As per the official docs <code>docker-compose down</code> stops and <strong>removes</strong> all
+containers listed in docker-compose file <em>along</em> with their volumes (unless
+specified as external, have a look into the documentation).</p>
+<p>You may want to stop the containers with <code>docker-compose stop</code> - this way
+after <code>docker-compose up</code> their data will be preserved.</p>
 <p><br></p>
 <h3>Suggest</h3>
-<p>Note: I tried to store that +10,000 long base64 string of a 100kb image, but
-it did't accept. but when i tried 1kb image, it worked.</p>
-<p>yes. This is the solidity code to do it:-</p>
-<div class="code"><pre class="code literal-block"><span class="o">//</span><span class="w"> </span><span class="n">SPDX</span><span class="o">-</span><span class="n">License</span><span class="o">-</span><span class="nl">Identifier</span><span class="p">:</span><span class="w"> </span><span class="n">GPL</span><span class="o">-</span><span class="mf">3.0</span>
-<span class="n">pragma</span><span class="w"> </span><span class="n">solidity</span><span class="w"> </span><span class="o">&gt;=</span><span class="mf">0.7.0</span><span class="w"> </span><span class="o">&lt;</span><span class="mf">0.9.0</span><span class="p">;</span>
-<span class="n">contract</span><span class="w"> </span><span class="n">ImgStorage</span><span class="w"> </span><span class="err">{</span>
-<span class="w">    </span><span class="n">uint</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span>
-<span class="w">    </span><span class="n">mapping</span><span class="p">(</span><span class="n">uint</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">string</span><span class="err">[]</span><span class="p">)</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">base64_images</span><span class="p">;</span>
-<span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="n">push</span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">memory</span><span class="w">  </span><span class="n">base64_img</span><span class="p">)</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="err">{</span>
-<span class="w">        </span><span class="n">base64_images</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">base64_img</span><span class="p">);</span>
-<span class="w">        </span><span class="n">i</span><span class="o">++</span><span class="p">;</span><span class="w">        </span>
-<span class="w">    </span><span class="err">}</span>
-<span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="n">returnImage</span><span class="p">(</span><span class="n">uint</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="k">view</span><span class="w"> </span><span class="k">returns</span><span class="p">(</span><span class="n">string</span><span class="err">[]</span><span class="w"> </span><span class="n">memory</span><span class="p">)</span><span class="err">{</span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">base64_images</span><span class="o">[</span><span class="n">n</span><span class="o">]</span><span class="p">;</span>
-<span class="w">    </span><span class="err">}</span>
-<span class="err">}</span>
-</pre></div>
-
-<p>working code image: <img alt="enter image description here" src="images/nmz8a.png"></p>
-<p>You can convert image to base64 and vise versa online. Here is NodeJS code to
-convert image to base64 string:</p>
-<div class="code"><pre class="code literal-block"><span class="k">const</span><span class="w"> </span><span class="n">imageToBase64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">require</span><span class="p">(</span><span class="s1">'image-to-base64'</span><span class="p">);</span>
-<span class="k">const</span><span class="w"> </span><span class="n">fs</span><span class="o">=</span><span class="n">require</span><span class="p">(</span><span class="s1">'fs'</span><span class="p">)</span>
-<span class="n">imageToBase64</span><span class="p">(</span><span class="s2">"img/1kb.png"</span><span class="p">)</span><span class="w"> </span>
-<span class="w">    </span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">data</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="n">fs</span><span class="o">.</span><span class="n">writeFile</span><span class="p">(</span><span class="s1">'1kb_png.md'</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="o">=&gt;</span><span class="p">{</span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">err</span><span class="p">)})})</span>
-<span class="w">    </span><span class="o">.</span><span class="n">catch</span><span class="p">(</span><span class="n">err</span><span class="w"> </span><span class="o">=&gt;</span><span class="n">console</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
-</pre></div>
+<h2>A Note on Data Persistence</h2>
+<p>If data persistence is desired on the peer container or the CouchDB container,
+one option is to mount a directory in the docker-host into a relevant
+directory in the container. For example, you may add the following two lines
+in the peer container specification in the <code>docker-compose-base.yaml</code> file:</p>
+<p><code>volumes: - /var/hyperledger/peer0:/var/hyperledger/production</code></p>
+<p>For the CouchDB container, you may add the following two lines in the CouchDB
+container specification:</p>
+<p><code>volumes: - /var/hyperledger/couchdb0:/opt/couchdb/data</code></p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-transfer-a-nft-from-one-account-to-another-using-erc721/" class="u-url">How to transfer a NFT from one account to another using ERC721?</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-we-get-transaction-information-recorded-in-the-past-block-using-solidity-in-the-smart-contract/" class="u-url">Can we get transaction information recorded in the past block using Solidity in the Smart contract?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/how-to-transfer-a-nft-from-one-account-to-another-using-erc721/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:45:29+08:00" itemprop="datePublished" title="2023-02-28 04:45">2023-02-28 04:45</time></a>
+            <a href="posts/can-we-get-transaction-information-recorded-in-the-past-block-using-solidity-in-the-smart-contract/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:48:30+08:00" itemprop="datePublished" title="2023-02-28 04:48">2023-02-28 04:48</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I'm writing an NFT smart contract using the OpenZeppelin ERC721Full contract.
-I'm able to mint NFTs, but I want to have a button that enables them to be
-bought. I'm trying writing this function:</p>
-<div class="code"><pre class="code literal-block">function buyNFT(uint _id) public payable{
-    //Get NFT owner address
-    address payable _seller = ownerOf(_id);
-
-    // aprove nft sell
-    approve(_seller, _id);
-    setApprovalForAll(msg.sender, true);
-
-    //transfer NFT
-    transferFrom(_seller, msg.sender, _id);
-
-    // transfer price in ETH
-    address(_seller).transfer(msg.value);
-
-    emit NftBought(_seller, msg.sender, msg.value);
-
-  }
-</pre></div>
-
-<p>This does not work because function approve must be called by the owner or an
-already approved address. I have no clue on how a buy function should be
-built. I know that I must use some requirements but first I want the function
-to work on tests and then I'll write the requirements.</p>
-<p><strong>How should a buy function be coded?</strong> Because the only solution I have found
-is to overwrite the approve function and omit the require of who can call this
-function. But it looks like it isn't the way it should be done.</p>
-<p>Thank you!</p>
+    <p>I am studying blockchain with Ethereum, and I want to use past transaction
+data in the Smart contract using Solidity. If I use Web3.js module in the
+program written in javascript, I can get these data easily. But I can't get
+these data in the Smart contract using Solidity.</p>
+<p>Reference of Solidity says that we can get current block number, blockhash,
+etc., by using "block.number" and "block.blockhash(uint blockNumber)"
+functions, but doesn't mention getting transaction data.
+(http://solidity.readthedocs.io/en/latest/units-and-global-
+variables.html#special-variables-and-functions)</p>
+<p><img alt="enter image description here" src="images/ZGwyP.png"></p>
+<p>please help me.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>You can use just the _transfer() function, see my <code>buy()</code> function for an
-example of implementation.</p>
-<p>The approvals for sale can be done using a custom mapping - in my example
-<code>tokenIdToPrice</code>. If the value is non-zero, the token ID (mapping key) is for
-sale.</p>
-<p>This is a basic code that allows selling an NTF. Feel free to expand on my
-code to allow "give away for free", "whitelist buyers" or any other feature.</p>
-<div class="code"><pre class="code literal-block"><span class="n">pragma</span> <span class="n">solidity</span> <span class="o">^</span><span class="mf">0.8.4</span><span class="p">;</span>
-
-<span class="kn">import</span> <span class="s1">'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol'</span><span class="p">;</span>
-
-<span class="n">contract</span> <span class="n">MyToken</span> <span class="ow">is</span> <span class="n">ERC721</span> <span class="p">{</span>
-    <span class="n">event</span> <span class="n">NftBought</span><span class="p">(</span><span class="n">address</span> <span class="n">_seller</span><span class="p">,</span> <span class="n">address</span> <span class="n">_buyer</span><span class="p">,</span> <span class="n">uint256</span> <span class="n">_price</span><span class="p">);</span>
-
-    <span class="n">mapping</span> <span class="p">(</span><span class="n">uint256</span> <span class="o">=&gt;</span> <span class="n">uint256</span><span class="p">)</span> <span class="n">public</span> <span class="n">tokenIdToPrice</span><span class="p">;</span>
-
-    <span class="n">constructor</span><span class="p">()</span> <span class="n">ERC721</span><span class="p">(</span><span class="s1">'MyToken'</span><span class="p">,</span> <span class="s1">'MyT'</span><span class="p">)</span> <span class="p">{</span>
-        <span class="n">_mint</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
-    <span class="p">}</span>
-
-    <span class="n">function</span> <span class="n">allowBuy</span><span class="p">(</span><span class="n">uint256</span> <span class="n">_tokenId</span><span class="p">,</span> <span class="n">uint256</span> <span class="n">_price</span><span class="p">)</span> <span class="n">external</span> <span class="p">{</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span> <span class="o">==</span> <span class="n">ownerOf</span><span class="p">(</span><span class="n">_tokenId</span><span class="p">),</span> <span class="s1">'Not owner of this token'</span><span class="p">);</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">_price</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">'Price zero'</span><span class="p">);</span>
-        <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="n">_price</span><span class="p">;</span>
-    <span class="p">}</span>
-
-    <span class="n">function</span> <span class="n">disallowBuy</span><span class="p">(</span><span class="n">uint256</span> <span class="n">_tokenId</span><span class="p">)</span> <span class="n">external</span> <span class="p">{</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span> <span class="o">==</span> <span class="n">ownerOf</span><span class="p">(</span><span class="n">_tokenId</span><span class="p">),</span> <span class="s1">'Not owner of this token'</span><span class="p">);</span>
-        <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-    <span class="p">}</span>
-
-    <span class="n">function</span> <span class="n">buy</span><span class="p">(</span><span class="n">uint256</span> <span class="n">_tokenId</span><span class="p">)</span> <span class="n">external</span> <span class="n">payable</span> <span class="p">{</span>
-        <span class="n">uint256</span> <span class="n">price</span> <span class="o">=</span> <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">];</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">price</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">'This token is not for sale'</span><span class="p">);</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">price</span><span class="p">,</span> <span class="s1">'Incorrect value'</span><span class="p">);</span>
-
-        <span class="n">address</span> <span class="n">seller</span> <span class="o">=</span> <span class="n">ownerOf</span><span class="p">(</span><span class="n">_tokenId</span><span class="p">);</span>
-        <span class="n">_transfer</span><span class="p">(</span><span class="n">seller</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="n">_tokenId</span><span class="p">);</span>
-        <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="o">//</span> <span class="ow">not</span> <span class="k">for</span> <span class="n">sale</span> <span class="n">anymore</span>
-        <span class="n">payable</span><span class="p">(</span><span class="n">seller</span><span class="p">)</span><span class="o">.</span><span class="n">transfer</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">value</span><span class="p">);</span> <span class="o">//</span> <span class="n">send</span> <span class="n">the</span> <span class="n">ETH</span> <span class="n">to</span> <span class="n">the</span> <span class="n">seller</span>
-
-        <span class="n">emit</span> <span class="n">NftBought</span><span class="p">(</span><span class="n">seller</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">value</span><span class="p">);</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-
-<p>How to simulate the sale:</p>
+<p>The answer is simple. Unfortunately, you simply can’t access old transaction
+or block data onchain from Solidity. At most, you can access hashes of last
+256 blocks (see <code>blockhash</code> in documentation )</p>
+<p>Alternatively, as a workaround you could consider using Oraclize. Oraclize
+represents way to read offchain data onchain, so you could try to read
+transaction data from Etherscan web API. The way Oraclize works is that :</p>
 <ol>
-<li>The contract deployer (<code>msg.sender</code>) gets token ID 1.</li>
-<li>Execute <code>allowBuy(1, 2)</code> that will allow anyone to buy token ID 1 for 2 wei.</li>
-<li>From a second address, execute <code>buy(1)</code> sending along 2 wei, to buy the token ID 1.</li>
-<li>Call (the parent ERC721) function <code>ownerOf(1)</code> to validate that the owner is now the second address.</li>
+<li>You request to Oraclize smart contract what data you want to fetch from internet (some URL)</li>
+<li>Oraclize offchain servers then detect your on-chain request</li>
+<li>The look up the data you wanted (they'll make some http request to the URL you provided)</li>
+<li>Once they get response, they will send transaction to your contract (calling specific callback method) containing data you requested</li>
 </ol>
-<p><br></p>
-<h3>Suggest</h3>
-<p>If you let anyone call the <code>approve</code> function, it would allow anyone to
-approve themselves to take NFTs! The purpose of <code>approve</code> is to give the owner
-of an asset the ability to give someone else permission to transfer that asset
-as if it was theirs.</p>
-<p>The basic premise of any sale is that you want to make sure that you get paid,
-and that the buyer receives the goods in return for the sale. Petr Hedja's
-solution takes care of this by having the <code>buy</code> function not only transfer the
-NFT, but also include the logic for sending the price of the token. I'd like
-to recommend a similar structure with a few changes. One is so that the
-function will also work with ERC20 tokens, the other is to prevent an edge
-case where if gas runs out during execution, the buyer could end up with their
-NFT for free. This is building on his answer, though, and freely uses some of
-the code in that answer for architecture.</p>
-<p>Ether can still be set as the accepted currency by inputting the zero address
-(<code>address(0)</code>) as the contract address of the token.</p>
-<p>If the sale is in an ERC20 token, the buyer will need to approve the NFT
-contract to spend the amount of the sale since the contract will be pulling
-the funds from the buyer's account directly.</p>
-<div class="code"><pre class="code literal-block"><span class="n">pragma</span> <span class="n">solidity</span> <span class="o">^</span><span class="mf">0.8.4</span><span class="p">;</span>
-
-<span class="kn">import</span> <span class="s1">'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol'</span><span class="p">;</span>
-<span class="kn">import</span> <span class="s1">'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol'</span><span class="p">;</span>
-
-<span class="n">contract</span> <span class="n">MyToken</span> <span class="ow">is</span> <span class="n">ERC721</span> <span class="p">{</span>
-    <span class="n">event</span> <span class="n">NftBought</span><span class="p">(</span><span class="n">address</span> <span class="n">_seller</span><span class="p">,</span> <span class="n">address</span> <span class="n">_buyer</span><span class="p">,</span> <span class="n">uint256</span> <span class="n">_price</span><span class="p">);</span>
-
-    <span class="n">mapping</span> <span class="p">(</span><span class="n">uint256</span> <span class="o">=&gt;</span> <span class="n">uint256</span><span class="p">)</span> <span class="n">public</span> <span class="n">tokenIdToPrice</span><span class="p">;</span>
-    <span class="n">mapping</span> <span class="p">(</span><span class="n">uint256</span> <span class="o">=&gt;</span> <span class="n">address</span><span class="p">)</span> <span class="n">public</span> <span class="n">tokenIdToTokenAddress</span><span class="p">;</span>
-
-    <span class="n">constructor</span><span class="p">()</span> <span class="n">ERC721</span><span class="p">(</span><span class="s1">'MyToken'</span><span class="p">,</span> <span class="s1">'MyT'</span><span class="p">)</span> <span class="p">{</span>
-        <span class="n">_mint</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
-    <span class="p">}</span>
-
-    <span class="n">function</span> <span class="n">setPrice</span><span class="p">(</span><span class="n">uint256</span> <span class="n">_tokenId</span><span class="p">,</span> <span class="n">uint256</span> <span class="n">_price</span><span class="p">,</span> <span class="n">address</span> <span class="n">_tokenAddress</span><span class="p">)</span> <span class="n">external</span> <span class="p">{</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span> <span class="o">==</span> <span class="n">ownerOf</span><span class="p">(</span><span class="n">_tokenId</span><span class="p">),</span> <span class="s1">'Not owner of this token'</span><span class="p">);</span>
-        <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="n">_price</span><span class="p">;</span>
-        <span class="n">tokenIdToTokenAddress</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="n">_tokenAddress</span><span class="p">;</span>
-    <span class="p">}</span>
-
-    <span class="n">function</span> <span class="n">allowBuy</span><span class="p">(</span><span class="n">uint256</span> <span class="n">_tokenId</span><span class="p">,</span> <span class="n">uint256</span> <span class="n">_price</span><span class="p">)</span> <span class="n">external</span> <span class="p">{</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span> <span class="o">==</span> <span class="n">ownerOf</span><span class="p">(</span><span class="n">_tokenId</span><span class="p">),</span> <span class="s1">'Not owner of this token'</span><span class="p">);</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">_price</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">'Price zero'</span><span class="p">);</span>
-        <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="n">_price</span><span class="p">;</span>
-    <span class="p">}</span>
-
-    <span class="n">function</span> <span class="n">disallowBuy</span><span class="p">(</span><span class="n">uint256</span> <span class="n">_tokenId</span><span class="p">)</span> <span class="n">external</span> <span class="p">{</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span> <span class="o">==</span> <span class="n">ownerOf</span><span class="p">(</span><span class="n">_tokenId</span><span class="p">),</span> <span class="s1">'Not owner of this token'</span><span class="p">);</span>
-        <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-    <span class="p">}</span>
-
-    <span class="n">function</span> <span class="n">buy</span><span class="p">(</span><span class="n">uint256</span> <span class="n">_tokenId</span><span class="p">)</span> <span class="n">external</span> <span class="n">payable</span> <span class="p">{</span>
-        <span class="n">uint256</span> <span class="n">price</span> <span class="o">=</span> <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">];</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">price</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">'This token is not for sale'</span><span class="p">);</span>
-        <span class="n">require</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">price</span><span class="p">,</span> <span class="s1">'Incorrect value'</span><span class="p">);</span>
-        <span class="n">address</span> <span class="n">seller</span> <span class="o">=</span> <span class="n">ownerOf</span><span class="p">(</span><span class="n">_tokenId</span><span class="p">);</span>
-        <span class="n">address</span> <span class="n">tokenAddress</span> <span class="o">=</span> <span class="n">tokenIdToTokenAddress</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">];</span>
-        <span class="k">if</span><span class="p">(</span><span class="n">address</span> <span class="o">!=</span> <span class="n">address</span><span class="p">(</span><span class="mi">0</span><span class="p">){</span>
-            <span class="n">IERC20</span> <span class="n">tokenContract</span> <span class="o">=</span> <span class="n">IERC20</span><span class="p">(</span><span class="n">tokenAddress</span><span class="p">);</span>
-            <span class="n">require</span><span class="p">(</span><span class="n">tokenContract</span><span class="o">.</span><span class="n">transferFrom</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="n">address</span><span class="p">(</span><span class="n">this</span><span class="p">),</span> <span class="n">price</span><span class="p">),</span>
-                <span class="s2">"buy: payment failed"</span><span class="p">);</span>
-        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-            <span class="n">payable</span><span class="p">(</span><span class="n">seller</span><span class="p">)</span><span class="o">.</span><span class="n">transfer</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">value</span><span class="p">);</span>
-        <span class="p">}</span>
-        <span class="n">_transfer</span><span class="p">(</span><span class="n">seller</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="n">_tokenId</span><span class="p">);</span>
-        <span class="n">tokenIdToPrice</span><span class="p">[</span><span class="n">_tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-
-
-        <span class="n">emit</span> <span class="n">NftBought</span><span class="p">(</span><span class="n">seller</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">value</span><span class="p">);</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
+<p>With such approach however, you are relying that:</p>
+<ol>
+<li>EtherScan is up and running</li>
+<li>Oraclize is up un running.</li>
+</ol>
+<p>If you only care about transaction data related to your smart contracts,
+another way would be to store that transaction data onchain. Maybe we could
+gave you some more suggestions if you tell us more about what specific problem
+are you solving.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/can-i-create-a-local-blockchain-with-ruby-on-rails-or-node-js-instead-of-ethereum-geth/" class="u-url">Can I create a local blockchain with Ruby on Rails or Node.js instead of Ethereum+Geth?</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/hyperledger-fabric-blockchain-network-from-scratch/" class="u-url">Hyperledger Fabric blockchain network from scratch</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/can-i-create-a-local-blockchain-with-ruby-on-rails-or-node-js-instead-of-ethereum-geth/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T04:45:12+08:00" itemprop="datePublished" title="2023-02-28 04:45">2023-02-28 04:45</time></a>
+            <a href="posts/hyperledger-fabric-blockchain-network-from-scratch/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T04:48:10+08:00" itemprop="datePublished" title="2023-02-28 04:48">2023-02-28 04:48</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <h4>The Question:</h4>
-<p>Does anyone know a stable framework which can be used to create a blockchain
-application, creating a server/node, creating a miner, a wallet, a blockchain
-inspector, etc?</p>
-<p>Such a framework does <strong>not</strong> have to be in Node.js nor Ruby on Rails, but
-those are the two technologies I am most familiar with.</p>
-<h4>Some Background:</h4>
-<p>I have to craft an internship project based on blockchain technology.</p>
-<p>I have been looking at Ethereum which seems nice. Ethereum's GETH command line
-interface allows me to create a blockchain and also mine that blockchain.</p>
-<p>However, I need to be able to use a web-capable development platform such as
-Ruby on Rails, Node.js, or similar so I can have interns craft a UI to go
-along with a local blockchain.</p>
-<p>I have looked at Toshi(RoR) and BitCoin.js(Node), but will need something that
-has better documentation.</p>
-<p>Thanks for any and all your suggestions!</p>
+    <p>I've been studying the Hyperledger Fabric framework reading the docs for quite
+a while now but I'm getting a little lost in the middle of all that info. My
+question is: Is there any guidelines/"Step by step" on how to design a
+blockchain network from scratch? If you are starting a new project, where do
+you start?</p>
+<p>Because I think I would understand it way more quicker if I actually started
+coding a little instead of reading and reading and reading...</p>
+<p>Thanks a lot!</p>
+<p><strong>Edit 1:</strong></p>
+<p>I've chosen @kekomal answer as the correct one but I'd like to thank @Isha
+Padalia for the awesome VS Code extension and tutorial.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>When I built Etheria, I chose the following:</p>
-<p><strong>Development techs:</strong></p>
-<ul>
-<li>Ubuntu Linux 14.04</li>
-<li>Eclipse Mars 2 (get from web, not repo) (javascript formatting works well, you can tell eclipse to format .sol files as javascript)</li>
-<li>Solidity + chriseth's Solidity compiler at https://ethereum.github.io/browser-solidity</li>
-</ul>
-<p><strong>And for deployment:</strong></p>
-<ul>
-<li>Digital Ocean</li>
-<li>Ubuntu 14.04</li>
-<li>geth (stable, not development) </li>
-<li>node + async + express</li>
-</ul>
-<p><strong>Notes on choices:</strong></p>
-<p>Ubuntu 14.04 for development - As it is the Linux standard, many Ethereum docs
-assume it which streamlines things. Easy to install geth and keep it upgraded.</p>
-<p>Eclipse Mars 2 - Ubuntu's packaged Eclipse is old.</p>
-<p>Solidity - Was once (is possibly still) billed as the "official" ethereum
-language and is easy to learn. chriseth is the man.</p>
-<p>Digital Ocean - cheap, easy hosting. My security needs were nil as I didn't
-need a wallet on the machine. If you plan on keeping wallets on your machine,
-your risk profile may be different and necessitate other options.</p>
-<p>Ubuntu 14.04 for deployment - Easy to install geth and keep it upgraded.</p>
-<p>geth - I'm sure pyeth and eth are equally valid. geth is more widely used</p>
-<p>node - Seamless interaction with the indispensable and awesome web3.js library
-which is used to interact with your geth instance (which should be running
-with local-access-allowed IPC). Async for easy async calls, express for
-endpoint creation and organization.</p>
-<p><strong>My code:</strong></p>
-<p>Etheria contract: https://github.com/fivedogit/etheria</p>
-<p>Etheria node: https://github.com/fivedogit/etheria_node</p>
+<p>If you are really interested in learning and diving into Hyperledger Fabric,
+avoid <code>byfn</code> script. It performs a lot of magic for building a very simple
+Hyperledger Fabric network. After that, you have a network that you don't know
+how has been created and you have absolutely no idea of how to start deploying
+your custom network. There are daily questions here from people who started
+that way and are absolutely lost.</p>
+<p>I find interesting this tutorial: https://medium.com/beyondi/setup-the-
+hyperledger-fabric-network-from-scratch-b82913b47549. Take into account that
+it is a little bit outdated.</p>
+<p>You can complement it with this newer tutorial:
+https://www.blockchainexpert.uk/blog/how-to-deploy-hyperledger-fabric-network-
+from-scratch. Don't only run the steps. Analyze the files in
+https://github.com/blockchain-expert/hyperledger-fabric-network-from-scratch.
+Try playing with <code>configtx.yaml</code>, <code>crypto-config.yaml</code> and docker-compose
+files to customize your network and understand what you are doing.</p>
+<p>Customize your organizations, your consortiums, your ordering service, your
+peers... Create your channels, join them, update your anchor peers... And
+understand what you are doing.</p>
+<p>After that, if your network had one orderer, deploy a new one with more than
+one (with Raft consensus). If your network was using <code>cryptogen</code>, deploy a new
+one using Fabric-CAs instead. Or you can follow by playing with chaincodes.</p>
+<p><strong>NOTE:</strong> Apart from Hyperledger Fabric itself, it is essential to have basic
+notions of docker and PKI.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>You are a beginner in Hypelredger fabric development then you have first
+cleared the concept of the orderer, peer, CA, and organization concept. And
+then first you have to start IBM Blockchain Platform VS Code extension for
+fabric. It will provide a local fabric environment to create, test and deploy
+a fabric smart contract. Also generate 1 peer, 1 orderer, 1 CA service under
+VS code environment.</p>
+<p>Here is a link to start development with VS code extension.</p>
+<p>Hope it will help you:)</p>
     </div>
     </article>
 </div>
@@ -422,7 +270,7 @@ endpoint creation and organization.</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

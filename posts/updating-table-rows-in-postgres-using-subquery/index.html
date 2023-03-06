@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>updating table rows in postgres using subquery | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/updating-table-rows-in-postgres-using-subquery/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../ipad-multitasking-support-requires-these-orientations/" title="iPad Multitasking support requires these orientations" type="text/html">
+<link rel="next" href="../why-does-debug-false-setting-make-my-django-static-files-access-fail/" title="Why does DEBUG=False setting make my django Static Files Access fail?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="updating table rows in postgres using subquery">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/updating-table-rows-in-postgres-using-subquery/">
+<meta property="og:description" content="I have this table in a postgres 8.4 database:
+CREATE TABLE public.dummy
+(
+  address_id SERIAL,
+  addr1 character(40),
+  addr2 character(40),
+  city character(25),
+  state character(2),
+  zip character">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T06:58:39+08:00">
+<meta property="article:tag" content="postgresql">
+<meta property="article:tag" content="sql">
+<meta property="article:tag" content="sql-update">
+<meta property="article:tag" content="subquery">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">updating table rows in postgres using subquery</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T06:58:39+08:00" itemprop="datePublished" title="2023-03-03 06:58">2023-03-03 06:58</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I have this table in a postgres 8.4 database:</p>
+<div class="code"><pre class="code literal-block"><span class="n">CREATE</span><span class="w"> </span><span class="n">TABLE</span><span class="w"> </span><span class="n">public</span><span class="o">.</span><span class="n">dummy</span>
+<span class="p">(</span>
+<span class="w">  </span><span class="n">address_id</span><span class="w"> </span><span class="n">SERIAL</span><span class="p">,</span>
+<span class="w">  </span><span class="n">addr1</span><span class="w"> </span><span class="n">character</span><span class="p">(</span><span class="mi">40</span><span class="p">),</span>
+<span class="w">  </span><span class="n">addr2</span><span class="w"> </span><span class="n">character</span><span class="p">(</span><span class="mi">40</span><span class="p">),</span>
+<span class="w">  </span><span class="n">city</span><span class="w"> </span><span class="n">character</span><span class="p">(</span><span class="mi">25</span><span class="p">),</span>
+<span class="w">  </span><span class="n">state</span><span class="w"> </span><span class="n">character</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
+<span class="w">  </span><span class="n">zip</span><span class="w"> </span><span class="n">character</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span>
+<span class="w">  </span><span class="n">customer</span><span class="w"> </span><span class="n">boolean</span><span class="p">,</span>
+<span class="w">  </span><span class="n">supplier</span><span class="w"> </span><span class="n">boolean</span><span class="p">,</span>
+<span class="w">  </span><span class="n">partner</span><span class="w"> </span><span class="n">boolean</span>
+
+<span class="p">)</span>
+<span class="n">WITH</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">OIDS</span><span class="o">=</span><span class="n">FALSE</span>
+<span class="p">);</span>
+</pre></div>
+
+<p>I want to update the table. Initially i tested my query using this <code>insert</code>
+statement:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">insert</span><span class="w"> </span><span class="nv">into</span><span class="w"> </span><span class="nv">address</span><span class="w"> </span><span class="nv">customer</span>,<span class="nv">supplier</span>,<span class="nv">partner</span>
+<span class="nv">SELECT</span><span class="w">  </span>
+<span class="w">    </span><span class="nv">case</span><span class="w"> </span><span class="nv">when</span><span class="w"> </span><span class="nv">cust</span>.<span class="nv">addr1</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">null</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nv">TRUE</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="nv">FALSE</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="nv">customer</span>,<span class="w"> </span>
+<span class="w">    </span><span class="nv">case</span><span class="w"> </span><span class="nv">when</span><span class="w"> </span><span class="nv">suppl</span>.<span class="nv">addr1</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">null</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nv">TRUE</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="nv">FALSE</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="nv">supplier</span>,
+<span class="w">    </span><span class="nv">case</span><span class="w"> </span><span class="nv">when</span><span class="w"> </span><span class="nv">partn</span>.<span class="nv">addr1</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">null</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nv">TRUE</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="nv">FALSE</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="nv">partner</span>
+<span class="nv">from</span><span class="w"> </span><span class="ss">(</span>
+<span class="w">    </span><span class="nv">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="w">        </span><span class="nv">from</span><span class="w"> </span><span class="nv">address</span><span class="ss">)</span><span class="w"> </span><span class="nv">pa</span>
+<span class="w">    </span><span class="nv">left</span><span class="w"> </span><span class="nv">outer</span><span class="w"> </span><span class="nv">join</span><span class="w"> </span><span class="nv">cust_original</span><span class="w"> </span><span class="nv">cust</span>
+<span class="w">        </span><span class="nv">on</span><span class="w"> </span><span class="ss">(</span><span class="nv">pa</span>.<span class="nv">addr1</span><span class="o">=</span><span class="nv">cust</span>.<span class="nv">addr1</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">addr2</span><span class="o">=</span><span class="nv">cust</span>.<span class="nv">addr2</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">city</span><span class="o">=</span><span class="nv">cust</span>.<span class="nv">city</span><span class="w"> </span>
+<span class="w">            </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">state</span><span class="o">=</span><span class="nv">cust</span>.<span class="nv">state</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">substring</span><span class="ss">(</span><span class="nv">cust</span>.<span class="nv">zip</span>,<span class="mi">1</span>,<span class="mi">5</span><span class="ss">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">zip</span><span class="w">  </span><span class="ss">)</span>
+<span class="w">    </span><span class="nv">left</span><span class="w"> </span><span class="nv">outer</span><span class="w"> </span><span class="nv">join</span><span class="w"> </span><span class="nv">supp_original</span><span class="w"> </span><span class="nv">suppl</span><span class="w"> </span>
+<span class="w">        </span><span class="nv">on</span><span class="w"> </span><span class="ss">(</span><span class="nv">pa</span>.<span class="nv">addr1</span><span class="o">=</span><span class="nv">suppl</span>.<span class="nv">addr1</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">addr2</span><span class="o">=</span><span class="nv">suppl</span>.<span class="nv">addr2</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">city</span><span class="o">=</span><span class="nv">suppl</span>.<span class="nv">city</span><span class="w"> </span>
+<span class="w">                </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">state</span><span class="o">=</span><span class="nv">suppl</span>.<span class="nv">state</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">zip</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">substring</span><span class="ss">(</span><span class="nv">suppl</span>.<span class="nv">zip</span>,<span class="mi">1</span>,<span class="mi">5</span><span class="ss">))</span>
+<span class="w">    </span><span class="nv">left</span><span class="w"> </span><span class="nv">outer</span><span class="w"> </span><span class="nv">join</span><span class="w"> </span><span class="nv">partner_original</span><span class="w"> </span><span class="nv">partn</span>
+<span class="w">        </span><span class="nv">on</span><span class="w"> </span><span class="ss">(</span><span class="nv">pa</span>.<span class="nv">addr1</span><span class="o">=</span><span class="nv">partn</span>.<span class="nv">addr1</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">addr2</span><span class="o">=</span><span class="nv">partn</span>.<span class="nv">addr2</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">city</span><span class="o">=</span><span class="nv">partn</span>.<span class="nv">city</span>
+<span class="w">                  </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">state</span><span class="o">=</span><span class="nv">partn</span>.<span class="nv">state</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">zip</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">substring</span><span class="ss">(</span><span class="nv">partn</span>.<span class="nv">zip</span>,<span class="mi">1</span>,<span class="mi">5</span><span class="ss">)</span><span class="w"> </span><span class="ss">)</span>
+<span class="nv">where</span><span class="w"> </span><span class="nv">pa</span>.<span class="nv">address_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">address_id</span>
+</pre></div>
+
+<p>How can I convert this to an <code>update</code> statement, i.e., update existing rows
+using values returned from a <code>select</code> statement?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Postgres allows:</p>
+<div class="code"><pre class="code literal-block">UPDATE dummy
+SET customer=subquery.customer,
+    address=subquery.address,
+    partn=subquery.partn
+FROM (SELECT address_id, customer, address, partn
+      FROM  /* big hairy SQL */ ...) AS subquery
+WHERE dummy.address_id=subquery.address_id;
+</pre></div>
+
+<p>This syntax is not standard SQL, but it is much more convenient for this type
+of query than standard SQL. I believe Oracle (at least) accepts something
+similar.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>You're after the <code>UPDATE FROM</code> syntax.</p>
+<div class="code"><pre class="code literal-block">UPDATE 
+  table T1  
+SET 
+  column1 = T2.column1 
+FROM 
+  table T2 
+  INNER JOIN table T3 USING (column2) 
+WHERE 
+  T1.column2 = T2.column2;
+</pre></div>
+
+<p><strong>References</strong></p>
+<ul>
+<li>Code sample here: GROUP BY in UPDATE FROM clause</li>
+<li>And here</li>
+<li>Formal Syntax Specification</li>
+</ul>
+</div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/postgresql/" rel="tag">postgresql</a></li>
+            <li><a class="tag p-category" href="../../categories/sql/" rel="tag">sql</a></li>
+            <li><a class="tag p-category" href="../../categories/sql-update/" rel="tag">sql-update</a></li>
+            <li><a class="tag p-category" href="../../categories/subquery/" rel="tag">subquery</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../ipad-multitasking-support-requires-these-orientations/" rel="prev" title="iPad Multitasking support requires these orientations">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../why-does-debug-false-setting-make-my-django-static-files-access-fail/" rel="next" title="Why does DEBUG=False setting make my django Static Files Access fail?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

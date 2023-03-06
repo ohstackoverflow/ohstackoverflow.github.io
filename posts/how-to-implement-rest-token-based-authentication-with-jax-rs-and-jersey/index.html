@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to implement REST token-based authentication with JAX-RS and Jersey | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-to-implement-rest-token-based-authentication-with-jax-rs-and-jersey/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-render-an-asp-net-mvc-view-as-a-string/" title="How to render an ASP.NET MVC view as a string?" type="text/html">
+<link rel="next" href="../how-to-pretty-print-nested-dictionaries/" title="How to pretty print nested dictionaries?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How to implement REST token-based authentication with JAX-RS and Jerse">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-to-implement-rest-token-based-authentication-with-jax-rs-and-jersey/">
+<meta property="og:description" content="I'm looking for a way to enable token-based authentication in Jersey. I am
+trying not to use any particular framework. Is that possible?
+My plan is: A user signs up for my web service, my web service ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T04:43:03+08:00">
+<meta property="article:tag" content="authentication">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="jax-rs">
+<meta property="article:tag" content="jersey-2.0">
+<meta property="article:tag" content="rest">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How to implement REST token-based authentication with JAX-RS and Jersey</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T04:43:03+08:00" itemprop="datePublished" title="2023-03-03 04:43">2023-03-03 04:43</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I'm looking for a way to enable token-based authentication in Jersey. I am
+trying not to use any particular framework. Is that possible?</p>
+<p>My plan is: A user signs up for my web service, my web service generates a
+token, sends it to the client, and the client will retain it. Then the client,
+for each request, will send the token instead of username and password.</p>
+<p>I was thinking of using a custom filter for each request and
+<code>@PreAuthorize("hasRole('ROLE')")</code>, but I just thought that this causes a lot
+of requests to the database to check if the token is valid.</p>
+<p>Or not create filter and in each request put a param token? So that each API
+first checks the token and after executes something to retrieve resource.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>How token-based authentication works</h3>
+<p>In token-based authentication, the client exchanges <em>hard credentials</em> (such
+as username and password) for a piece of data called <em>token</em>. For each
+request, instead of sending the hard credentials, the client will send the
+token to the server to perform authentication and then authorization.</p>
+<p>In a few words, an authentication scheme based on tokens follow these steps:</p>
+<ol>
+<li>The client sends their credentials (username and password) to the server.</li>
+<li>The server authenticates the credentials and, if they are valid, generate a token for the user.</li>
+<li>The server stores the previously generated token in some storage along with the user identifier and an expiration date.</li>
+<li>The server sends the generated token to the client.</li>
+<li>The client sends the token to the server in each request.</li>
+<li>The server, in each request, extracts the token from the incoming request. With the token, the server looks up the user details to perform authentication. <ul>
+<li>If the token is valid, the server accepts the request.</li>
+<li>If the token is invalid, the server refuses the request.</li>
+</ul>
+</li>
+<li>Once the authentication has been performed, the server performs authorization.</li>
+<li>The server can provide an endpoint to refresh tokens.</li>
+</ol>
+<h3>What you can do with JAX-RS 2.0 (Jersey, RESTEasy and Apache CXF)</h3>
+<p>This solution uses only the JAX-RS 2.0 API, <em>avoiding any vendor specific
+solution</em>. So, it should work with JAX-RS 2.0 implementations, such as Jersey,
+RESTEasy and Apache CXF.</p>
+<p>It is worthwhile to mention that if you are using token-based authentication,
+you are not relying on the standard Java EE web application security
+mechanisms offered by the servlet container and configurable via application's
+<code>web.xml</code> descriptor. It's a custom authentication.</p>
+<h4>Authenticating a user with their username and password and issuing a token</h4>
+<p>Create a JAX-RS resource method which receives and validates the credentials
+(username and password) and issue a token for the user:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Path</span><span class="p">(</span><span class="ss">"/authentication"</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">AuthenticationEndpoint</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="nv">@POST</span>
+<span class="w">    </span><span class="nv">@Produces</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_JSON</span><span class="p">)</span>
+<span class="w">    </span><span class="nv">@Consumes</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_FORM_URLENCODED</span><span class="p">)</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="n">authenticateUser</span><span class="p">(</span><span class="nv">@FormParam</span><span class="p">(</span><span class="ss">"username"</span><span class="p">)</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                     </span><span class="nv">@FormParam</span><span class="p">(</span><span class="ss">"password"</span><span class="p">)</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">password</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="k">try</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Authenticate</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">user</span><span class="w"> </span><span class="k">using</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">credentials</span><span class="w"> </span><span class="n">provided</span>
+<span class="w">            </span><span class="n">authenticate</span><span class="p">(</span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">password</span><span class="p">);</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Issue</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">user</span>
+<span class="w">            </span><span class="n">String</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">issueToken</span><span class="p">(</span><span class="n">username</span><span class="p">);</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="k">Return</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">response</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Response</span><span class="p">.</span><span class="n">ok</span><span class="p">(</span><span class="n">token</span><span class="p">).</span><span class="n">build</span><span class="p">();</span>
+
+<span class="w">        </span><span class="err">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="k">Exception</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Response</span><span class="p">.</span><span class="n">status</span><span class="p">(</span><span class="n">Response</span><span class="p">.</span><span class="n">Status</span><span class="p">.</span><span class="n">FORBIDDEN</span><span class="p">).</span><span class="n">build</span><span class="p">();</span>
+<span class="w">        </span><span class="err">}</span><span class="w">      </span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">authenticate</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">password</span><span class="p">)</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="k">Exception</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Authenticate</span><span class="w"> </span><span class="n">against</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">database</span><span class="p">,</span><span class="w"> </span><span class="n">LDAP</span><span class="p">,</span><span class="w"> </span><span class="k">file</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">whatever</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">Throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="k">Exception</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">credentials</span><span class="w"> </span><span class="k">are</span><span class="w"> </span><span class="n">invalid</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">issueToken</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">username</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Issue</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="p">(</span><span class="n">can</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">random</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">persisted</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">database</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">JWT</span><span class="w"> </span><span class="n">token</span><span class="p">)</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">issued</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">associated</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">user</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">Return</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">issued</span><span class="w"> </span><span class="n">token</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>If any exceptions are thrown when validating the credentials, a response with
+the status <code>403</code> (Forbidden) will be returned.</p>
+<p>If the credentials are successfully validated, a response with the status
+<code>200</code> (OK) will be returned and the issued token will be sent to the client in
+the response payload. The client must send the token to the server in every
+request.</p>
+<p>When consuming <code>application/x-www-form-urlencoded</code>, the client must send the
+credentials in the following format in the request payload:</p>
+<div class="code"><pre class="code literal-block">username=admin&amp;password=123456
+</pre></div>
+
+<p>Instead of form params, it's possible to wrap the username and the password
+into a class:</p>
+<div class="code"><pre class="code literal-block">public class Credentials implements Serializable {
+
+    private String username;
+    private String password;
+
+    // Getters and setters omitted
+}
+</pre></div>
+
+<p>And then consume it as JSON:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@POST</span>
+<span class="nv">@Produces</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_JSON</span><span class="p">)</span>
+<span class="nv">@Consumes</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_JSON</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="n">authenticateUser</span><span class="p">(</span><span class="n">Credentials</span><span class="w"> </span><span class="n">credentials</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">credentials</span><span class="p">.</span><span class="n">getUsername</span><span class="p">();</span>
+<span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">credentials</span><span class="p">.</span><span class="n">getPassword</span><span class="p">();</span>
+
+<span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="n">Authenticate</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">user</span><span class="p">,</span><span class="w"> </span><span class="n">issue</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">response</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>Using this approach, the client must to send the credentials in the following
+format in the payload of the request:</p>
+<div class="code"><pre class="code literal-block">{
+  "username": "admin",
+  "password": "123456"
+}
+</pre></div>
+
+<h4>Extracting the token from the request and validating it</h4>
+<p>The client should send the token in the standard HTTP <code>Authorization</code> header
+of the request. For example:</p>
+<div class="code"><pre class="code literal-block"><span class="n">Authorization</span><span class="o">:</span><span class="w"> </span><span class="n">Bearer</span><span class="w"> </span><span class="o">&lt;</span><span class="n">token</span><span class="o">-</span><span class="n">goes</span><span class="o">-</span><span class="n">here</span><span class="o">&gt;</span>
+</pre></div>
+
+<p>The name of the standard HTTP header is unfortunate because it carries
+<em>authentication</em> information, not <em>authorization</em>. However, it's the standard
+HTTP header for sending credentials to the server.</p>
+<p>JAX-RS provides <code>@NameBinding</code>, a meta-annotation used to create other
+annotations to bind filters and interceptors to resource classes and methods.
+Define a <code>@Secured</code> annotation as following:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@NameBinding</span>
+<span class="nv">@Retention</span><span class="p">(</span><span class="n">RUNTIME</span><span class="p">)</span>
+<span class="nv">@Target</span><span class="p">(</span><span class="err">{</span><span class="n">TYPE</span><span class="p">,</span><span class="w"> </span><span class="k">METHOD</span><span class="err">}</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="nv">@interface</span><span class="w"> </span><span class="n">Secured</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="err">}</span>
+</pre></div>
+
+<p>The above defined name-binding annotation will be used to decorate a filter
+class, which implements <code>ContainerRequestFilter</code>, allowing you to intercept
+the request before it be handled by a resource method. The
+<code>ContainerRequestContext</code> can be used to access the HTTP request headers and
+then extract the token:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Secured</span>
+<span class="nv">@Provider</span>
+<span class="nv">@Priority</span><span class="p">(</span><span class="n">Priorities</span><span class="p">.</span><span class="n">AUTHENTICATION</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">AuthenticationFilter</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">ContainerRequestFilter</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">REALM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"example"</span><span class="p">;</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">AUTHENTICATION_SCHEME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">"Bearer"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="nv">@Override</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="k">filter</span><span class="p">(</span><span class="n">ContainerRequestContext</span><span class="w"> </span><span class="n">requestContext</span><span class="p">)</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="n">IOException</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">Get</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">Authorization</span><span class="w"> </span><span class="n">header</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">request</span>
+<span class="w">        </span><span class="n">String</span><span class="w"> </span><span class="n">authorizationHeader</span><span class="w"> </span><span class="o">=</span>
+<span class="w">                </span><span class="n">requestContext</span><span class="p">.</span><span class="n">getHeaderString</span><span class="p">(</span><span class="n">HttpHeaders</span><span class="p">.</span><span class="k">AUTHORIZATION</span><span class="p">);</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Validate</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">Authorization</span><span class="w"> </span><span class="n">header</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="err">!</span><span class="n">isTokenBasedAuthentication</span><span class="p">(</span><span class="n">authorizationHeader</span><span class="p">))</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">abortWithUnauthorized</span><span class="p">(</span><span class="n">requestContext</span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">Extract</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">Authorization</span><span class="w"> </span><span class="n">header</span>
+<span class="w">        </span><span class="n">String</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">authorizationHeader</span>
+<span class="w">                            </span><span class="p">.</span><span class="nf">substring</span><span class="p">(</span><span class="n">AUTHENTICATION_SCHEME</span><span class="p">.</span><span class="n">length</span><span class="p">()).</span><span class="k">trim</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">try</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Validate</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">token</span>
+<span class="w">            </span><span class="n">validateToken</span><span class="p">(</span><span class="n">token</span><span class="p">);</span>
+
+<span class="w">        </span><span class="err">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="k">Exception</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">abortWithUnauthorized</span><span class="p">(</span><span class="n">requestContext</span><span class="p">);</span>
+<span class="w">        </span><span class="err">}</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">boolean</span><span class="w"> </span><span class="n">isTokenBasedAuthentication</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">authorizationHeader</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">Check</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">Authorization</span><span class="w"> </span><span class="n">header</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">valid</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">It</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">prefixed</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="ss">"Bearer"</span><span class="w"> </span><span class="n">plus</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">whitespace</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">authentication</span><span class="w"> </span><span class="n">scheme</span><span class="w"> </span><span class="n">comparison</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="k">case</span><span class="o">-</span><span class="k">insensitive</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">authorizationHeader</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">authorizationHeader</span><span class="p">.</span><span class="n">toLowerCase</span><span class="p">()</span>
+<span class="w">                    </span><span class="p">.</span><span class="n">startsWith</span><span class="p">(</span><span class="n">AUTHENTICATION_SCHEME</span><span class="p">.</span><span class="n">toLowerCase</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="ss">" "</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">abortWithUnauthorized</span><span class="p">(</span><span class="n">ContainerRequestContext</span><span class="w"> </span><span class="n">requestContext</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Abort</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">filter</span><span class="w"> </span><span class="n">chain</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="mi">401</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="n">response</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">WWW</span><span class="o">-</span><span class="n">Authenticate</span><span class="w"> </span><span class="n">header</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">sent</span><span class="w"> </span><span class="n">along</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">response</span>
+<span class="w">        </span><span class="n">requestContext</span><span class="p">.</span><span class="n">abortWith</span><span class="p">(</span>
+<span class="w">                </span><span class="n">Response</span><span class="p">.</span><span class="n">status</span><span class="p">(</span><span class="n">Response</span><span class="p">.</span><span class="n">Status</span><span class="p">.</span><span class="n">UNAUTHORIZED</span><span class="p">)</span>
+<span class="w">                        </span><span class="p">.</span><span class="n">header</span><span class="p">(</span><span class="n">HttpHeaders</span><span class="p">.</span><span class="n">WWW_AUTHENTICATE</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                </span><span class="n">AUTHENTICATION_SCHEME</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="ss">" realm=\"" + REALM + "</span><span class="err">\</span><span class="ss">""</span><span class="p">)</span>
+<span class="w">                        </span><span class="p">.</span><span class="n">build</span><span class="p">());</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">validateToken</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">token</span><span class="p">)</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="k">Exception</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">Check</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="n">was</span><span class="w"> </span><span class="n">issued</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">server</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">it</span><span class="err">'</span><span class="n">s</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">expired</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">Throw</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="k">Exception</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">invalid</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>If any problems happen during the token validation, a response with the status
+<code>401</code> (Unauthorized) will be returned. Otherwise the request will proceed to a
+resource method.</p>
+<h4>Securing your REST endpoints</h4>
+<p>To bind the authentication filter to resource methods or resource classes,
+annotate them with the <code>@Secured</code> annotation created above. For the methods
+and/or classes that are annotated, the filter will be executed. It means that
+such endpoints will <em>only</em> be reached if the request is performed with a valid
+token.</p>
+<p>If some methods or classes do not need authentication, simply do not annotate
+them:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Path</span><span class="p">(</span><span class="ss">"/example"</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ExampleResource</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="nv">@GET</span>
+<span class="w">    </span><span class="nv">@Path</span><span class="p">(</span><span class="ss">"{id}"</span><span class="p">)</span>
+<span class="w">    </span><span class="nv">@Produces</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_JSON</span><span class="p">)</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="n">myUnsecuredMethod</span><span class="p">(</span><span class="nv">@PathParam</span><span class="p">(</span><span class="ss">"id"</span><span class="p">)</span><span class="w"> </span><span class="n">Long</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">annotated</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nv">@Secured</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">authentication</span><span class="w"> </span><span class="k">filter</span><span class="w"> </span><span class="n">won</span><span class="err">'</span><span class="n">t</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">executed</span><span class="w"> </span><span class="k">before</span><span class="w"> </span><span class="n">invoking</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">method</span>
+<span class="w">        </span><span class="p">...</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="nv">@DELETE</span>
+<span class="w">    </span><span class="nv">@Secured</span>
+<span class="w">    </span><span class="nv">@Path</span><span class="p">(</span><span class="ss">"{id}"</span><span class="p">)</span>
+<span class="w">    </span><span class="nv">@Produces</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_JSON</span><span class="p">)</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="n">mySecuredMethod</span><span class="p">(</span><span class="nv">@PathParam</span><span class="p">(</span><span class="ss">"id"</span><span class="p">)</span><span class="w"> </span><span class="n">Long</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">annotated</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nv">@Secured</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">authentication</span><span class="w"> </span><span class="k">filter</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">executed</span><span class="w"> </span><span class="k">before</span><span class="w"> </span><span class="n">invoking</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">method</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="n">HTTP</span><span class="w"> </span><span class="n">request</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">performed</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">valid</span><span class="w"> </span><span class="n">token</span>
+<span class="w">        </span><span class="p">...</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>In the example shown above, the filter will be executed <em>only</em> for the
+<code>mySecuredMethod(Long)</code> method because it's annotated with <code>@Secured</code>.</p>
+<h3>Identifying the current user</h3>
+<p>It's very likely that you will need to know the user who is performing the
+request agains your REST API. The following approaches can be used to achieve
+it:</p>
+<h4>Overriding the security context of the current request</h4>
+<p>Within your <code>ContainerRequestFilter.filter(ContainerRequestContext)</code> method, a
+new <code>SecurityContext</code> instance can be set for the current request. Then
+override the <code>SecurityContext.getUserPrincipal()</code>, returning a <code>Principal</code>
+instance:</p>
+<div class="code"><pre class="code literal-block"><span class="n">final</span><span class="w"> </span><span class="n">SecurityContext</span><span class="w"> </span><span class="n">currentSecurityContext</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">requestContext</span><span class="p">.</span><span class="n">getSecurityContext</span><span class="p">();</span>
+<span class="n">requestContext</span><span class="p">.</span><span class="n">setSecurityContext</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">SecurityContext</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="nv">@Override</span>
+<span class="w">        </span><span class="k">public</span><span class="w"> </span><span class="n">Principal</span><span class="w"> </span><span class="n">getUserPrincipal</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">username</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+
+<span class="w">    </span><span class="nv">@Override</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">boolean</span><span class="w"> </span><span class="n">isUserInRole</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="k">role</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="nv">@Override</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">boolean</span><span class="w"> </span><span class="n">isSecure</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">currentSecurityContext</span><span class="p">.</span><span class="n">isSecure</span><span class="p">();</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="nv">@Override</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">getAuthenticationScheme</span><span class="p">()</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">AUTHENTICATION_SCHEME</span><span class="p">;</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span><span class="p">);</span>
+</pre></div>
+
+<p>Use the token to look up the user identifier (username), which will be the
+<code>Principal</code>'s name.</p>
+<p>Inject the <code>SecurityContext</code> in any JAX-RS resource class:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Context</span>
+<span class="n">SecurityContext</span><span class="w"> </span><span class="n">securityContext</span><span class="p">;</span>
+</pre></div>
+
+<p>The same can be done in a JAX-RS resource method:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@GET</span>
+<span class="nv">@Secured</span>
+<span class="nv">@Path</span><span class="p">(</span><span class="ss">"{id}"</span><span class="p">)</span>
+<span class="nv">@Produces</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_JSON</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="n">myMethod</span><span class="p">(</span><span class="nv">@PathParam</span><span class="p">(</span><span class="ss">"id"</span><span class="p">)</span><span class="w"> </span><span class="n">Long</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                         </span><span class="nv">@Context</span><span class="w"> </span><span class="n">SecurityContext</span><span class="w"> </span><span class="n">securityContext</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="p">...</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>And then get the <code>Principal</code>:</p>
+<div class="code"><pre class="code literal-block">Principal principal = securityContext.getUserPrincipal();
+String username = principal.getName();
+</pre></div>
+
+<h4>Using CDI (Context and Dependency Injection)</h4>
+<p>If, for some reason, you don't want to override the <code>SecurityContext</code>, you can
+use CDI (Context and Dependency Injection), which provides useful features
+such as events and producers.</p>
+<p>Create a CDI qualifier:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Qualifier</span>
+<span class="nv">@Retention</span><span class="p">(</span><span class="n">RUNTIME</span><span class="p">)</span>
+<span class="nv">@Target</span><span class="p">(</span><span class="err">{</span><span class="w"> </span><span class="k">METHOD</span><span class="p">,</span><span class="w"> </span><span class="n">FIELD</span><span class="p">,</span><span class="w"> </span><span class="k">PARAMETER</span><span class="w"> </span><span class="err">}</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="nv">@interface</span><span class="w"> </span><span class="n">AuthenticatedUser</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="err">}</span>
+</pre></div>
+
+<p>In your <code>AuthenticationFilter</code> created above, inject an <code>Event</code> annotated with
+<code>@AuthenticatedUser</code>:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Inject</span>
+<span class="nv">@AuthenticatedUser</span>
+<span class="n">Event</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">userAuthenticatedEvent</span><span class="p">;</span>
+</pre></div>
+
+<p>If the authentication succeeds, fire the event passing the username as
+parameter (remember, the token is issued for a user and the token will be used
+to look up the user identifier):</p>
+<div class="code"><pre class="code literal-block">userAuthenticatedEvent.fire(username);
+</pre></div>
+
+<p>It's very likely that there's a class that represents a user in your
+application. Let's call this class <code>User</code>.</p>
+<p>Create a CDI bean to handle the authentication event, find a <code>User</code> instance
+with the correspondent username and assign it to the <code>authenticatedUser</code>
+producer field:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@RequestScoped</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">AuthenticatedUserProducer</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="nv">@Produces</span>
+<span class="w">    </span><span class="nv">@RequestScoped</span>
+<span class="w">    </span><span class="nv">@AuthenticatedUser</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">User</span><span class="w"> </span><span class="n">authenticatedUser</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="n">handleAuthenticationEvent</span><span class="p">(</span><span class="nv">@Observes</span><span class="w"> </span><span class="nv">@AuthenticatedUser</span><span class="w"> </span><span class="n">String</span><span class="w"> </span><span class="n">username</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="n">this</span><span class="p">.</span><span class="n">authenticatedUser</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">findUser</span><span class="p">(</span><span class="n">username</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="k">User</span><span class="w"> </span><span class="n">findUser</span><span class="p">(</span><span class="n">String</span><span class="w"> </span><span class="n">username</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">Hit</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">database</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">service</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">find</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">user</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">its</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">it</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="k">Return</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">User</span><span class="w"> </span><span class="n">instance</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>The <code>authenticatedUser</code> field produces a <code>User</code> instance that can be injected
+into container managed beans, such as JAX-RS services, CDI beans, servlets and
+EJBs. Use the following piece of code to inject a <code>User</code> instance (in fact,
+it's a CDI proxy):</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Inject</span>
+<span class="nv">@AuthenticatedUser</span>
+<span class="k">User</span><span class="w"> </span><span class="n">authenticatedUser</span><span class="p">;</span>
+</pre></div>
+
+<p>Note that the CDI <code>@Produces</code> annotation is <em>different</em> from the JAX-RS
+<code>@Produces</code> annotation:</p>
+<ul>
+<li>CDI: <code>javax.enterprise.inject.Produces</code>
+</li>
+<li>JAX-RS: <code>javax.ws.rs.Produces</code>
+</li>
+</ul>
+<p>Be sure you use the CDI <code>@Produces</code> annotation in your
+<code>AuthenticatedUserProducer</code> bean.</p>
+<p>The key here is the bean annotated with <code>@RequestScoped</code>, allowing you to
+share data between filters and your beans. If you don't wan't to use events,
+you can modify the filter to store the authenticated user in a request scoped
+bean and then read it from your JAX-RS resource classes.</p>
+<p>Compared to the approach that overrides the <code>SecurityContext</code>, the CDI
+approach allows you to get the authenticated user from beans other than JAX-RS
+resources and providers.</p>
+<h3>Supporting role-based authorization</h3>
+<p>Please refer to my other answer for details on how to support role-based
+authorization.</p>
+<h3>Issuing tokens</h3>
+<p>A token can be:</p>
+<ul>
+<li>
+<strong>Opaque:</strong> Reveals no details other than the value itself (like a random string)</li>
+<li>
+<strong>Self-contained:</strong> Contains details about the token itself (like JWT).</li>
+</ul>
+<p>See details below:</p>
+<h4>Random string as token</h4>
+<p>A token can be issued by generating a random string and persisting it to a
+database along with the user identifier and an expiration date. A good example
+of how to generate a random string in Java can be seen here. You also could
+use:</p>
+<div class="code"><pre class="code literal-block"><span class="k">Random</span><span class="w"> </span><span class="k">random</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">SecureRandom</span><span class="ss">()</span><span class="c1">;</span>
+<span class="nv">String</span><span class="w"> </span><span class="nv">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">new</span><span class="w"> </span><span class="nv">BigInteger</span><span class="ss">(</span><span class="mi">130</span>,<span class="w"> </span><span class="k">random</span><span class="ss">)</span>.<span class="nv">toString</span><span class="ss">(</span><span class="mi">32</span><span class="ss">)</span><span class="c1">;</span>
+</pre></div>
+
+<h4>JWT (JSON Web Token)</h4>
+<p>JWT (JSON Web Token) is a standard method for representing claims securely
+between two parties and is defined by the RFC 7519.</p>
+<p>It's a self-contained token and it enables you to store details in <em>claims</em>.
+These claims are stored in the token payload which is a JSON encoded as
+Base64. Here are some claims registered in the RFC 7519 and what they mean
+(read the full RFC for further details):</p>
+<ul>
+<li>
+<code>iss</code>: Principal that issued the token.</li>
+<li>
+<code>sub</code>: Principal that is the subject of the JWT.</li>
+<li>
+<code>exp</code>: Expiration date for the token.</li>
+<li>
+<code>nbf</code>: Time on which the token will start to be accepted for processing.</li>
+<li>
+<code>iat</code>: Time on which the token was issued.</li>
+<li>
+<code>jti</code>: Unique identifier for the token.</li>
+</ul>
+<p>Be aware that you must not store sensitive data, such as passwords, in the
+token.</p>
+<p>The payload can be read by the client and the integrity of the token can be
+easily checked by verifying its signature on the server. The signature is what
+prevents the token from being tampered with.</p>
+<p>You won't need to persist JWT tokens if you don't need to track them.
+Althought, by persisting the tokens, you will have the possibility of
+invalidating and revoking the access of them. To keep the track of JWT tokens,
+instead of persisting the whole token on the server, you could persist the
+token identifier (<code>jti</code> claim) along with some other details such as the user
+you issued the token for, the expiration date, etc.</p>
+<p>When persisting tokens, always consider removing the old ones in order to
+prevent your database from growing indefinitely.</p>
+<h3>Using JWT</h3>
+<p>There are a few Java libraries to issue and validate JWT tokens such as:</p>
+<ul>
+<li>jjwt</li>
+<li>java-jwt</li>
+<li>jose4j</li>
+</ul>
+<p>To find some other great resources to work with JWT, have a look at
+http://jwt.io.</p>
+<h4>Handling token revocation with JWT</h4>
+<p>If you want to revoke tokens, you must keep the track of them. You don't need
+to store the whole token on server side, store only the token identifier (that
+must be unique) and some metadata if you need. For the token identifier you
+could use UUID.</p>
+<p>The <code>jti</code> claim should be used to store the token identifier on the token.
+When validating the token, ensure that it has not been revoked by checking the
+value of the <code>jti</code> claim against the token identifiers you have on server
+side.</p>
+<p>For security purposes, revoke all the tokens for a user when they change their
+password.</p>
+<h3>Additional information</h3>
+<ul>
+<li>It doesn't matter which type of authentication you decide to use. <strong>Always</strong> do it on the top of a HTTPS connection to prevent the man-in-the-middle attack.</li>
+<li>Take a look at this question from Information Security for more information about tokens.</li>
+<li>In this article you will find some useful information about token-based authentication.</li>
+</ul>
+<p><br></p>
+<h3>Suggest</h3>
+<blockquote>
+<p>This answer is all about <strong>authorization</strong> and it is a complement of my
+previous answer about <strong>authentication</strong></p>
+<p><strong>Why <em>another</em> answer?</strong> I attempted to expand my previous answer by adding
+details on how to support JSR-250 annotations. However the original answer
+became the way <em>too long</em> and exceeded the maximum length of 30,000
+characters. So I moved the whole authorization details to this answer,
+keeping the other answer focused on performing authentication and issuing
+tokens.</p>
+</blockquote>
+<hr>
+<h3>Supporting role-based authorization with the <code>@Secured</code> annotation</h3>
+<p>Besides authentication flow shown in the other answer, role-based
+authorization can be supported in the REST endpoints.</p>
+<p>Create an enumeration and define the roles according to your needs:</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="n">Role</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ROLE_1</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ROLE_2</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ROLE_3</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Change the <code>@Secured</code> name binding annotation created before to support roles:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@NameBinding</span>
+<span class="nv">@Retention</span><span class="p">(</span><span class="n">RUNTIME</span><span class="p">)</span>
+<span class="nv">@Target</span><span class="p">(</span><span class="err">{</span><span class="n">TYPE</span><span class="p">,</span><span class="w"> </span><span class="k">METHOD</span><span class="err">}</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="nv">@interface</span><span class="w"> </span><span class="n">Secured</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="k">Role</span><span class="err">[]</span><span class="w"> </span><span class="k">value</span><span class="p">()</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="err">{}</span><span class="p">;</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>And then annotate the resource classes and methods with <code>@Secured</code> to perform
+the authorization. The method annotations will override the class annotations:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Path</span><span class="p">(</span><span class="ss">"/example"</span><span class="p">)</span>
+<span class="nv">@Secured</span><span class="p">(</span><span class="err">{</span><span class="k">Role</span><span class="p">.</span><span class="n">ROLE_1</span><span class="err">}</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">ExampleResource</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="nv">@GET</span>
+<span class="w">    </span><span class="nv">@Path</span><span class="p">(</span><span class="ss">"{id}"</span><span class="p">)</span>
+<span class="w">    </span><span class="nv">@Produces</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_JSON</span><span class="p">)</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="n">myMethod</span><span class="p">(</span><span class="nv">@PathParam</span><span class="p">(</span><span class="ss">"id"</span><span class="p">)</span><span class="w"> </span><span class="n">Long</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">annotated</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nv">@Secured</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">But</span><span class="w"> </span><span class="n">it</span><span class="err">'</span><span class="n">s</span><span class="w"> </span><span class="n">declared</span><span class="w"> </span><span class="k">within</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">annotated</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nv">@Secured</span><span class="p">(</span><span class="err">{</span><span class="k">Role</span><span class="p">.</span><span class="n">ROLE_1</span><span class="err">}</span><span class="p">)</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">So</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="k">only</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">executed</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">users</span><span class="w"> </span><span class="n">who</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">ROLE_1</span><span class="w"> </span><span class="k">role</span>
+<span class="w">        </span><span class="p">...</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="nv">@DELETE</span>
+<span class="w">    </span><span class="nv">@Path</span><span class="p">(</span><span class="ss">"{id}"</span><span class="p">)</span><span class="w">    </span>
+<span class="w">    </span><span class="nv">@Produces</span><span class="p">(</span><span class="n">MediaType</span><span class="p">.</span><span class="n">APPLICATION_JSON</span><span class="p">)</span>
+<span class="w">    </span><span class="nv">@Secured</span><span class="p">(</span><span class="err">{</span><span class="k">Role</span><span class="p">.</span><span class="n">ROLE_1</span><span class="p">,</span><span class="w"> </span><span class="k">Role</span><span class="p">.</span><span class="n">ROLE_2</span><span class="err">}</span><span class="p">)</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="n">myOtherMethod</span><span class="p">(</span><span class="nv">@PathParam</span><span class="p">(</span><span class="ss">"id"</span><span class="p">)</span><span class="w"> </span><span class="n">Long</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">This</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">annotated</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nv">@Secured</span><span class="p">(</span><span class="err">{</span><span class="k">Role</span><span class="p">.</span><span class="n">ROLE_1</span><span class="p">,</span><span class="w"> </span><span class="k">Role</span><span class="p">.</span><span class="n">ROLE_2</span><span class="err">}</span><span class="p">)</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="n">annotation</span><span class="w"> </span><span class="n">overrides</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">annotation</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">So</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="k">only</span><span class="w"> </span><span class="n">can</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">executed</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">users</span><span class="w"> </span><span class="n">who</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">ROLE_1</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">ROLE_2</span><span class="w"> </span><span class="n">roles</span>
+<span class="w">        </span><span class="p">...</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p>Create a filter with the <code>AUTHORIZATION</code> priority, which is executed after the
+<code>AUTHENTICATION</code> priority filter defined previously.</p>
+<p>The <code>ResourceInfo</code> can be used to get the resource <code>Method</code> and resource
+<code>Class</code> that will handle the request and then extract the <code>@Secured</code>
+annotations from them:</p>
+<div class="code"><pre class="code literal-block"><span class="err">@</span><span class="nx">Secured</span>
+<span class="err">@</span><span class="nx">Provider</span>
+<span class="err">@</span><span class="nx">Priority</span><span class="p">(</span><span class="nx">Priorities</span><span class="p">.</span><span class="nx">AUTHORIZATION</span><span class="p">)</span>
+<span class="kr">public</span><span class="w"> </span><span class="kd">class</span><span class="w"> </span><span class="nx">AuthorizationFilter</span><span class="w"> </span><span class="kr">implements</span><span class="w"> </span><span class="nx">ContainerRequestFilter</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="err">@</span><span class="nx">Context</span>
+<span class="w">    </span><span class="kr">private</span><span class="w"> </span><span class="nx">ResourceInfo</span><span class="w"> </span><span class="nx">resourceInfo</span><span class="p">;</span>
+
+<span class="w">    </span><span class="err">@</span><span class="nx">Override</span>
+<span class="w">    </span><span class="kr">public</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">filter</span><span class="p">(</span><span class="nx">ContainerRequestContext</span><span class="w"> </span><span class="nx">requestContext</span><span class="p">)</span><span class="w"> </span><span class="kr">throws</span><span class="w"> </span><span class="nx">IOException</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">        </span><span class="c1">// Get the resource class which matches with the requested URL</span>
+<span class="w">        </span><span class="c1">// Extract the roles declared by it</span>
+<span class="w">        </span><span class="nx">Class</span><span class="cp">&lt;?</span><span class="o">&gt;</span> <span class="nx">resourceClass</span> <span class="o">=</span> <span class="nx">resourceInfo</span><span class="o">.</span><span class="nx">getResourceClass</span><span class="p">();</span>
+        <span class="k">List</span><span class="o">&lt;</span><span class="nx">Role</span><span class="o">&gt;</span> <span class="nx">classRoles</span> <span class="o">=</span> <span class="nx">extractRoles</span><span class="p">(</span><span class="nx">resourceClass</span><span class="p">);</span>
+
+        <span class="c1">// Get the resource method which matches with the requested URL</span>
+        <span class="c1">// Extract the roles declared by it</span>
+        <span class="nx">Method</span> <span class="nx">resourceMethod</span> <span class="o">=</span> <span class="nx">resourceInfo</span><span class="o">.</span><span class="nx">getResourceMethod</span><span class="p">();</span>
+        <span class="k">List</span><span class="o">&lt;</span><span class="nx">Role</span><span class="o">&gt;</span> <span class="nx">methodRoles</span> <span class="o">=</span> <span class="nx">extractRoles</span><span class="p">(</span><span class="nx">resourceMethod</span><span class="p">);</span>
+
+        <span class="k">try</span> <span class="p">{</span>
+
+            <span class="c1">// Check if the user is allowed to execute the method</span>
+            <span class="c1">// The method annotations override the class annotations</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">methodRoles</span><span class="o">.</span><span class="nx">isEmpty</span><span class="p">())</span> <span class="p">{</span>
+                <span class="nx">checkPermissions</span><span class="p">(</span><span class="nx">classRoles</span><span class="p">);</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="nx">checkPermissions</span><span class="p">(</span><span class="nx">methodRoles</span><span class="p">);</span>
+            <span class="p">}</span>
+
+        <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">Exception</span> <span class="nx">e</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nx">requestContext</span><span class="o">.</span><span class="nx">abortWith</span><span class="p">(</span>
+                <span class="nx">Response</span><span class="o">.</span><span class="nx">status</span><span class="p">(</span><span class="nx">Response</span><span class="o">.</span><span class="nx">Status</span><span class="o">.</span><span class="nx">FORBIDDEN</span><span class="p">)</span><span class="o">.</span><span class="nx">build</span><span class="p">());</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="c1">// Extract the roles from the annotated element</span>
+    <span class="k">private</span> <span class="k">List</span><span class="o">&lt;</span><span class="nx">Role</span><span class="o">&gt;</span> <span class="nx">extractRoles</span><span class="p">(</span><span class="nx">AnnotatedElement</span> <span class="nx">annotatedElement</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nx">annotatedElement</span> <span class="o">==</span> <span class="k">null</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="k">new</span> <span class="nx">ArrayList</span><span class="o">&lt;</span><span class="nx">Role</span><span class="o">&gt;</span><span class="p">();</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="nx">Secured</span> <span class="nx">secured</span> <span class="o">=</span> <span class="nx">annotatedElement</span><span class="o">.</span><span class="nx">getAnnotation</span><span class="p">(</span><span class="nx">Secured</span><span class="o">.</span><span class="nx">class</span><span class="p">);</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">secured</span> <span class="o">==</span> <span class="k">null</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">return</span> <span class="k">new</span> <span class="nx">ArrayList</span><span class="o">&lt;</span><span class="nx">Role</span><span class="o">&gt;</span><span class="p">();</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="nx">Role</span><span class="p">[]</span> <span class="nx">allowedRoles</span> <span class="o">=</span> <span class="nx">secured</span><span class="o">.</span><span class="nx">value</span><span class="p">();</span>
+                <span class="k">return</span> <span class="nx">Arrays</span><span class="o">.</span><span class="nx">asList</span><span class="p">(</span><span class="nx">allowedRoles</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="k">private</span> <span class="nx">void</span> <span class="nx">checkPermissions</span><span class="p">(</span><span class="k">List</span><span class="o">&lt;</span><span class="nx">Role</span><span class="o">&gt;</span> <span class="nx">allowedRoles</span><span class="p">)</span> <span class="nx">throws</span> <span class="nx">Exception</span> <span class="p">{</span>
+        <span class="c1">// Check if the user contains one of the allowed roles</span>
+        <span class="c1">// Throw an Exception if the user has not permission to execute the method</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>If the user has no permission to execute the operation, the request is aborted
+with a <code>403</code> (Forbidden).</p>
+<p>To know the user who is performing the request, see my previous answer. You
+can get it from the <code>SecurityContext</code> (which should be already set in the
+<code>ContainerRequestContext</code>) or inject it using CDI, depending on the approach
+you go for.</p>
+<p>If a <code>@Secured</code> annotation has no roles declared, you can assume all
+authenticated users can access that endpoint, disregarding the roles the users
+have.</p>
+<h3>Supporting role-based authorization with JSR-250 annotations</h3>
+<p>Alternatively to defining the roles in the <code>@Secured</code> annotation as shown
+above, you could consider JSR-250 annotations such as <code>@RolesAllowed</code>,
+<code>@PermitAll</code> and <code>@DenyAll</code>.</p>
+<p>JAX-RS doesn't support such annotations out-of-the-box, but it could be
+achieved with a filter. Here are a few considerations to keep in mind if you
+want to support all of them:</p>
+<ul>
+<li>
+<code>@DenyAll</code> on the method takes precedence over <code>@RolesAllowed</code> and <code>@PermitAll</code> on the class.</li>
+<li>
+<code>@RolesAllowed</code> on the method takes precedence over <code>@PermitAll</code> on the class.</li>
+<li>
+<code>@PermitAll</code> on the method takes precedence over <code>@RolesAllowed</code> on the class.</li>
+<li>
+<code>@DenyAll</code> can't be attached to classes.</li>
+<li>
+<code>@RolesAllowed</code> on the class takes precedence over <code>@PermitAll</code> on the class.</li>
+</ul>
+<p>So an authorization filter that checks JSR-250 annotations could be like:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">@Provider</span>
+<span class="nv">@Priority</span><span class="p">(</span><span class="n">Priorities</span><span class="p">.</span><span class="k">AUTHORIZATION</span><span class="p">)</span>
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">AuthorizationFilter</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">ContainerRequestFilter</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">    </span><span class="nv">@Context</span>
+<span class="w">    </span><span class="n">private</span><span class="w"> </span><span class="n">ResourceInfo</span><span class="w"> </span><span class="n">resourceInfo</span><span class="p">;</span>
+
+<span class="w">    </span><span class="nv">@Override</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">void</span><span class="w"> </span><span class="k">filter</span><span class="p">(</span><span class="n">ContainerRequestContext</span><span class="w"> </span><span class="n">requestContext</span><span class="p">)</span><span class="w"> </span><span class="n">throws</span><span class="w"> </span><span class="n">IOException</span><span class="w"> </span><span class="err">{</span>
+
+<span class="w">        </span><span class="k">Method</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">resourceInfo</span><span class="p">.</span><span class="n">getResourceMethod</span><span class="p">();</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="nv">@DenyAll</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="n">takes</span><span class="w"> </span><span class="n">precedence</span><span class="w"> </span><span class="k">over</span><span class="w"> </span><span class="nv">@RolesAllowed</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="nv">@PermitAll</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">method</span><span class="p">.</span><span class="n">isAnnotationPresent</span><span class="p">(</span><span class="n">DenyAll</span><span class="p">.</span><span class="k">class</span><span class="p">))</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">refuseRequest</span><span class="p">();</span>
+<span class="w">        </span><span class="err">}</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="nv">@RolesAllowed</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="n">takes</span><span class="w"> </span><span class="n">precedence</span><span class="w"> </span><span class="k">over</span><span class="w"> </span><span class="nv">@PermitAll</span>
+<span class="w">        </span><span class="n">RolesAllowed</span><span class="w"> </span><span class="n">rolesAllowed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">method</span><span class="p">.</span><span class="n">getAnnotation</span><span class="p">(</span><span class="n">RolesAllowed</span><span class="p">.</span><span class="k">class</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">rolesAllowed</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="n">performAuthorization</span><span class="p">(</span><span class="n">rolesAllowed</span><span class="p">.</span><span class="k">value</span><span class="p">(),</span><span class="w"> </span><span class="n">requestContext</span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="nv">@PermitAll</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">method</span><span class="w"> </span><span class="n">takes</span><span class="w"> </span><span class="n">precedence</span><span class="w"> </span><span class="k">over</span><span class="w"> </span><span class="nv">@RolesAllowed</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">class</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">method</span><span class="p">.</span><span class="n">isAnnotationPresent</span><span class="p">(</span><span class="n">PermitAll</span><span class="p">.</span><span class="k">class</span><span class="p">))</span><span class="w"> </span><span class="err">{</span>
+<span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="n">Do</span><span class="w"> </span><span class="n">nothing</span>
+<span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<span class="w">        </span><span class="err">}</span>
+
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="nv">@DenyAll</span><span class="w"> </span><span class="n">can</span><span class="s1">'t be attached to classes</span>
+
+<span class="s1">        // @RolesAllowed on the class takes precedence over @PermitAll on the class</span>
+<span class="s1">        rolesAllowed = </span>
+<span class="s1">            resourceInfo.getResourceClass().getAnnotation(RolesAllowed.class);</span>
+<span class="s1">        if (rolesAllowed != null) {</span>
+<span class="s1">            performAuthorization(rolesAllowed.value(), requestContext);</span>
+<span class="s1">        }</span>
+
+<span class="s1">        // @PermitAll on the class</span>
+<span class="s1">        if (resourceInfo.getResourceClass().isAnnotationPresent(PermitAll.class)) {</span>
+<span class="s1">            // Do nothing</span>
+<span class="s1">            return;</span>
+<span class="s1">        }</span>
+
+<span class="s1">        // Authentication is required for non-annotated methods</span>
+<span class="s1">        if (!isAuthenticated(requestContext)) {</span>
+<span class="s1">            refuseRequest();</span>
+<span class="s1">        }</span>
+<span class="s1">    }</span>
+
+<span class="s1">    /**</span>
+<span class="s1">     * Perform authorization based on roles.</span>
+<span class="s1">     *</span>
+<span class="s1">     * @param rolesAllowed</span>
+<span class="s1">     * @param requestContext</span>
+<span class="s1">     */</span>
+<span class="s1">    private void performAuthorization(String[] rolesAllowed, </span>
+<span class="s1">                                      ContainerRequestContext requestContext) {</span>
+
+<span class="s1">        if (rolesAllowed.length &gt; 0 &amp;&amp; !isAuthenticated(requestContext)) {</span>
+<span class="s1">            refuseRequest();</span>
+<span class="s1">        }</span>
+
+<span class="s1">        for (final String role : rolesAllowed) {</span>
+<span class="s1">            if (requestContext.getSecurityContext().isUserInRole(role)) {</span>
+<span class="s1">                return;</span>
+<span class="s1">            }</span>
+<span class="s1">        }</span>
+
+<span class="s1">        refuseRequest();</span>
+<span class="s1">    }</span>
+
+<span class="s1">    /**</span>
+<span class="s1">     * Check if the user is authenticated.</span>
+<span class="s1">     *</span>
+<span class="s1">     * @param requestContext</span>
+<span class="s1">     * @return</span>
+<span class="s1">     */</span>
+<span class="s1">    private boolean isAuthenticated(final ContainerRequestContext requestContext) {</span>
+<span class="s1">        // Return true if the user is authenticated or false otherwise</span>
+<span class="s1">        // An implementation could be like:</span>
+<span class="s1">        // return requestContext.getSecurityContext().getUserPrincipal() != null;</span>
+<span class="s1">    }</span>
+
+<span class="s1">    /**</span>
+<span class="s1">     * Refuse the request.</span>
+<span class="s1">     */</span>
+<span class="s1">    private void refuseRequest() {</span>
+<span class="s1">        throw new AccessDeniedException(</span>
+<span class="s1">            "You don'</span><span class="n">t</span><span class="w"> </span><span class="n">have</span><span class="w"> </span><span class="nf">permissions</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">perform</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">action</span><span class="p">.</span><span class="err">"</span><span class="p">);</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><strong>Note:</strong> The above implementation is based on the Jersey
+<code>RolesAllowedDynamicFeature</code>. If you use Jersey, you don't need to write your
+own filter, just use the existing implementation.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/authentication/" rel="tag">authentication</a></li>
+            <li><a class="tag p-category" href="../../categories/java/" rel="tag">java</a></li>
+            <li><a class="tag p-category" href="../../categories/jax-rs/" rel="tag">jax-rs</a></li>
+            <li><a class="tag p-category" href="../../categories/jersey-20/" rel="tag">jersey-2.0</a></li>
+            <li><a class="tag p-category" href="../../categories/rest/" rel="tag">rest</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-render-an-asp-net-mvc-view-as-a-string/" rel="prev" title="How to render an ASP.NET MVC view as a string?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-to-pretty-print-nested-dictionaries/" rel="next" title="How to pretty print nested dictionaries?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

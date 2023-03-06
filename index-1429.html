@@ -108,224 +108,148 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-does-monte-carlo-tree-search-reset-tree/" class="u-url">Why does Monte Carlo Tree Search reset Tree</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-propagate-fire-recurrent-neural-networks-rnn/" class="u-url">How to propagate/fire recurrent neural networks(RNN)?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/why-does-monte-carlo-tree-search-reset-tree/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:40:19+08:00" itemprop="datePublished" title="2023-02-28 03:40">2023-02-28 03:40</time></a>
+            <a href="posts/how-to-propagate-fire-recurrent-neural-networks-rnn/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:43:33+08:00" itemprop="datePublished" title="2023-02-28 03:43">2023-02-28 03:43</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I had a small but potentially stupid question about Monte Carlo Tree Search. I
-understand most of it but have been looking at some implementations and
-noticed that after the MCTS is run for a given state and a best move returned,
-the tree is thrown away. So for the next move, we have to run MCTS from
-scratch on this new state to get the next best position.</p>
-<p>I was just wondering why we don't retain some of the information from the old
-tree. It seems like there is valuable information about the states in the old
-tree, especially given that the best move is one where the MCTS has explored
-most. Is there any particular reason we can't use this old information in some
-useful way?</p>
+    <p>I'm learning about artificial neural networks and have implemented a standard
+feed-forward net with a couple hidden layers. Now, I'm trying to understand
+how a recurrent neural network(RNN) works in practice, and am having trouble
+with how activation/propagation flows through the network.</p>
+<p>In my feed-forward, the activation is a simple layer by layer firing of the
+neurons. In a recurrent net, the neurons connect back to previous layers and
+sometimes themselves, so the way to propagate the network must be different.
+Trouble is, I can't seem to find an explanation of exactly how the propagation
+happens.</p>
+<p>How might it occur say for a network like this:</p>
+<div class="code"><pre class="code literal-block"><span class="n">Input1</span><span class="w"> </span><span class="o">---&gt;</span><span class="n">Neuron</span><span class="w"> </span><span class="n">A1</span><span class="w"> </span><span class="o">---------&gt;</span><span class="w">  </span><span class="n">Neuron</span><span class="w"> </span><span class="n">B1</span><span class="w"> </span><span class="o">---------------------&gt;</span><span class="w"> </span><span class="kr">Output</span>
+<span class="w">                </span><span class="o">^</span><span class="w">                   </span><span class="o">^</span><span class="w">     </span><span class="o">^</span><span class="w">      </span><span class="o">|</span>
+<span class="w">                </span><span class="o">|</span><span class="w">                   </span><span class="o">|</span><span class="w">     </span><span class="o">--------</span>
+<span class="w">                </span><span class="o">|</span><span class="w">                   </span><span class="o">|</span>
+<span class="n">Input2</span><span class="w"> </span><span class="o">---&gt;</span><span class="n">Neuron</span><span class="w"> </span><span class="n">A2</span><span class="w"> </span><span class="o">---------&gt;</span><span class="w">  </span><span class="n">Neuron</span><span class="w"> </span><span class="n">B2</span>
+</pre></div>
+
+<p>I imagined it would be a rolling activation with a gradual die down as the
+neuron's thresholds decrease the neuron firing to 0, much like in biology, but
+it appears there is a much more computational efficient way to do this through
+derivatives?</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>Some implementations do indeed retain the information.</p>
-<p>For example, the AlphaGo Zero paper says:</p>
-<blockquote>
-<p>The search tree is reused at subsequent time-steps: the child node
-corresponding to the played action becomes the new root node; the subtree
-below this child is retained along with all its statistics, while the
-remainder of the tree is discarded</p>
-</blockquote>
+<p>I think I have a grasp now on the basic principle of propagating recurrent
+versus feed-forward networks: an explicit time step.</p>
+<p>In a feed-forward, the propagation happens layer by layer, so Layer 1 neurons
+fire first, followed by Layers 2, 3 etc, so the propagation is one neuron
+activation stimulating activation in the neurons that take it as input.</p>
+<p>Alternatively, we can think of propagation instead as the neurons whose inputs
+are active at any given point in time are the ones to fire. So if we have a
+time t=0 were Layer 1 neurons are active, at the next time t=1 the next layer
+Layer 2 will activate, since the neurons in Layer 2 take the neurons in Layer
+1 as input.</p>
+<p>While the difference in thinking may seem like semantics, for me it was
+crucial in figuring out how to implement recurrent networks. In the feed-
+forward the time step is implicit, and the code passes over the neuron layers
+in turn, activating them like falling dominoes. In a recurrent network, trying
+the falling-domino way of activation where every neuron specifies what neuron
+it activates next would be a nightmare for large, convoluted networks.
+Instead, it makes sense to poll very neuron in the network at a give time t,
+to see if it activates based on its inputs.</p>
+<p>There are of course many different types of recurrent neural network, but I
+think it is this crucial explicit time step that is the key to recurrent
+network propagation.</p>
+<p>The differential equations part I was wondering about comes in to play if
+instead of having discrete time steps of t be 0, 1, 2, etc., to try and have
+smoother, more continuous network flow by modeling the propagation over very
+small time increments, like 0.2, 0.1, 0.05, etc.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/assembling-a-function-as-needed-and-computing-it-fast/" class="u-url">Assembling a function as needed and computing it fast</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/multithreaded-a-search-in-java-or-lisp-or-c/" class="u-url">Multithreaded A* Search in Java or Lisp or C#</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/assembling-a-function-as-needed-and-computing-it-fast/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:40:02+08:00" itemprop="datePublished" title="2023-02-28 03:40">2023-02-28 03:40</time></a>
+            <a href="posts/multithreaded-a-search-in-java-or-lisp-or-c/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:43:16+08:00" itemprop="datePublished" title="2023-02-28 03:43">2023-02-28 03:43</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>There are interpreted languages out there, such as Lisp, Tcl, Perl, etc., that
-make it easy to define a lambda/proc/sub within your code during runtime and
-to evaluate it within the same session.</p>
-<p>There are compiled languages out there, such as C++, that would execute much
-faster than the interpreted ones, yet defining a function within a compiled
-program during runtime and executing it is not easy, if at all possible.</p>
-<p>The problem here is to do the following:</p>
-<ol>
-<li>
-<p>Define a function during runtime: for example, based on the initial input data derive an analytic model of the data.</p>
-</li>
-<li>
-<p>Execute the above function fast in a loop: for example, apply the derived analytic model for analysing incoming data.</p>
-</li>
-</ol>
-<p>One solution that I saw was not very pretty:</p>
-<ol>
-<li>
-<p>A procedure representing the analytic model was derived in embedded Tcl based on the initial input data. </p>
-</li>
-<li>
-<p>A lookup table was created by evaluating the procedure in Tcl on an array of sample points that, optimistically speaking, would cover the applicability range.</p>
-</li>
-<li>
-<p>The lookup table was passed from the Tcl interpreter back to the binary (which was developed in C++).</p>
-</li>
-<li>
-<p>Then the incoming data was analysed by interpolating between "close enough" values in the lookup table.</p>
-</li>
-</ol>
-<p>The above solution works, but has quite a few problems, both conceptual and
-computational. Thus the question: is it possible to define a function purely
-within C++ and make it available for execution within the same runtime
-session?</p>
-<p>Conceptually speaking, is it possible to do something like create a function
-as a string, compile it in-memory, and somehow link it back into the binary
-that's being executed?</p>
+    <p>Is there a good way to do a multithreaded A* search? Single threaded is fairly
+easy, as given in (for example) Artificial Intelligence: A Modern Approach,
+but I have not come across a good multithreaded version.</p>
+<p>Assume a sane language like Java or C# or Lisp where we have thread pools and
+work blocks, and of course garbage collection.</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>If you want something working right out of the box have a look at ExprTK. If
-you want to write an expression parser yourself check out Boost Spirit.</p>
-<p>An alternative would be to create C++ code on the fly, compile it as a shared
-library (plugin) and load it at runtime. This would probably be the fastest
-solution.</p>
+<p>I recommend reading this paper:</p>
+<p>"Parallel bidirectional A* search on a symmetry multiprocessor"</p>
+<p>There is also another paper, also at IEEE called:</p>
+<p>"Parallel Astar search on message-passing architectures"</p>
+<p>Both papers find novel methods for gaining quite a bit of speedup.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/neural-network-architecture-design/" class="u-url">Neural Network Architecture Design</a></h1>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/looping-through-training-data-in-neural-networks-backpropagation-algorithm/" class="u-url">Looping through training data in Neural Networks Backpropagation Algorithm</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
             </span></p>
             <p class="dateline">
-            <a href="posts/neural-network-architecture-design/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-28T03:39:41+08:00" itemprop="datePublished" title="2023-02-28 03:39">2023-02-28 03:39</time></a>
+            <a href="posts/looping-through-training-data-in-neural-networks-backpropagation-algorithm/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-28T03:42:58+08:00" itemprop="datePublished" title="2023-02-28 03:42">2023-02-28 03:42</time></a>
             </p>
         </div>
     </header><div class="e-content entry-content">
-    <p>I'm playing around with Neural Networks trying to understand the best
-practices for designing their architecture based on the kind of problem you
-need to solve.</p>
-<p>I generated a very simple data set composed of a single convex region as you
-can see below:</p>
-<p><img alt="enter image description here" src="images/4omgO.png"></p>
-<p>Everything works fine when I use an architecture with L = 1, or L = 2 hidden
-layers (plus the output layer), but as soon as I add a third hidden layer (L =
-3) my performance drops down to slightly better than chance.</p>
-<p>I know that the more complexity you add to a network (number of weights and
-parameters to learn) the more you tend to go towards over-fitting your data,
-but I believe this is not the nature of my problem for two reasons:</p>
-<ul>
-<li>my performance on the Training set is also around 60% (whereas over-fitting typically means you have a very low training error and high test error),</li>
-<li>and I have a very large amount of data examples (don't look at the figure that's only a toy figure I uplaoded).</li>
-</ul>
-<blockquote>
-<p>Can anybody help me understand why adding an extra hidden layer gives me
-this drop in performances on such a simple task?</p>
-</blockquote>
-<p>Here is an image of my performance as a function of the number of layers used:</p>
-<p><img alt="enter image description here" src="images/1K3b5.png"></p>
-<p><strong>ADDED PART DUE TO COMMENTS:</strong></p>
-<ul>
-<li>I am using a sigmoid functions assuming values between 0 and 1, <code>L(s) = 1 / 1 + exp(-s)</code>
-</li>
-<li>I am using early stopping (after 40000 iterations of backprop) as a criteria to stop the learning. I know it is not the best way to stop but I thought that it would ok for such a simple classification task, if you believe this is the main reason I'm not converging I I might implement some better criteria. </li>
-</ul>
+    <p>How many times do I use a sample of training data in one training cycle? Say I
+have 60 training data. I go through the 1st row and do a forward pass and
+adjust weights using results from backward pass. Using the sigmoidal function
+as below:</p>
+<div class="code"><pre class="code literal-block">Forward pass 
+Si = sum of (Wi * Uj)
+Ui = f(Si) = 1 / 1 + e^ - Si
+
+Backward pass 
+Output Cell = (expected -Ui)(f'(Si)), where 
+f'(Si) = Ui(1-Ui)
+</pre></div>
+
+<p>Do I then go through the 2nd row and do the same process as the 1st or do I go
+around the 1st row until the error is less?</p>
+<p>I hope someone can help please</p>
 <p><br><br></p>
 <h2>Answer</h2>
-<p>At least on the surface of it, this appears to be a case of the so-called
-"vanishing gradient" problem.</p>
-<p><strong>Activation functions</strong></p>
-<p>Your neurons activate according to the logistic sigmoid function, f(x) = 1 /
-(1 + e^-x) :</p>
-<p><img alt="sigmoid function" src="images/Vzk32.png"></p>
-<p>This activation function is used frequently because it has several nice
-properties. One of these nice properties is that the derivative of f(x) is
-expressible computationally using the value of the function itself, as f'(x) =
-f(x)(1 - f(x)). This function has a nonzero value for x near zero, but quickly
-goes to zero as |x| gets large :</p>
-<p><img alt="sigmoid first derivative" src="images/oZiJL.png"></p>
-<p><strong>Gradient descent</strong></p>
-<p>In a feedforward neural network with logistic activations, the error is
-typically propagated backwards through the network using the first derivative
-as a learning signal. The usual update for a weight in your network is
-proportional to the error attributable to that weight times the current weight
-value times the derivative of the logistic function.</p>
-<div class="code"><pre class="code literal-block">delta_w(w) ~= w * f'(err(w)) * err(w)
-</pre></div>
-
-<p>As the product of three potentially very small values, the first derivative in
-such networks can become small very rapidly if the weights in the network fall
-outside the "middle" regime of the logistic function's derivative. In
-addition, this rapidly vanishing derivative becomes exacerbated by adding more
-layers, because the error in a layer gets "split up" and partitioned out to
-each unit in the layer. This, in turn, further reduces the gradient in layers
-below that.</p>
-<p>In networks with more than, say, two hidden layers, this can become a serious
-problem for training the network, since the first-order gradient information
-will lead you to believe that the weights cannot usefully change.</p>
-<p>However, there are some solutions that can help ! The ones I can think of
-involve changing your learning method to use something more sophisticated than
-first-order gradient descent, generally incorporating some second-order
-derivative information.</p>
-<p><strong>Momentum</strong></p>
-<p>The simplest solution to approximate using some second-order information is to
-include a momentum term in your network parameter updates. Instead of updating
-parameters using :</p>
-<div class="code"><pre class="code literal-block">w_new = w_old - learning_rate * delta_w(w_old)
-</pre></div>
-
-<p>incorporate a momentum term :</p>
-<div class="code"><pre class="code literal-block">w_dir_new = mu * w_dir_old - learning_rate * delta_w(w_old)
-w_new = w_old + w_dir_new
-</pre></div>
-
-<p>Intuitively, you want to use information from past derivatives to help
-determine whether you want to follow the new derivative entirely (which you
-can do by setting mu = 0), or to keep going in the direction you were heading
-on the previous update, tempered by the new gradient information (by setting
-mu &gt; 0).</p>
-<p>You can actually get even better than this by using "Nesterov's Accelerated
-Gradient" :</p>
-<div class="code"><pre class="code literal-block">w_dir_new = mu * w_dir_old - learning_rate * delta_w(w_old + mu * w_dir_old)
-w_new = w_old + w_dir_new
-</pre></div>
-
-<p>I think the idea here is that instead of computing the derivative at the "old"
-parameter value <code>w</code>, compute it at what would be the "new" setting for <code>w</code> if
-you went ahead and moved there according to a standard momentum term. Read
-more in a neural-networks context here (PDF).</p>
-<p><strong>Hessian-Free</strong></p>
-<p>The textbook way to incorporate second-order gradient information into your
-neural network training algorithm is to use Newton's Method to compute the
-first <em>and</em> second order derivatives of your objective function with respect
-to the parameters. However, the second order derivative, called the Hessian
-matrix, is often extremely large and prohibitively expensive to compute.</p>
-<p>Instead of computing the entire Hessian, some clever research in the past few
-years has indicated a way to compute just the values of the Hessian in a
-particular search direction. You can then use this process to identify a
-better parameter update than just the first-order gradient.</p>
-<p>You can learn more about this by reading through a research paper (PDF) or
-looking at a sample implementation.</p>
-<p><strong>Others</strong></p>
-<p>There are many other optimization methods that could be useful for this task
--- conjugate gradient (PDF -- definitely worth a read), Levenberg-Marquardt
-(PDF), L-BFGS -- but from what I've seen in the research literature, momentum
-and Hessian-free methods seem to be the most common ones.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>Because the number of iterations of training required for convergence
-increases as you add complexity to a neural network, holding the length of
-training constant while adding layers to a neural network will certainly
-result in you eventually observing a drop like this. To figure out whether
-that is the explanation for this particular observation, try increasing the
-number of iterations of training that you're using and see if it improves.
-Using a more intelligent stopping criterion is also a good option, but a
-simple increase in the cut-off will give you answers faster.</p>
+<h2>Training the network</h2>
+<p>You should use each instance of the training set once per training epoch.</p>
+<blockquote>
+<p>A <em>training epoch</em> is a complete cycle through your dataset.</p>
+</blockquote>
+<p>After you've looped through the dataset and calculated the deltas, you should
+adjust the weights of the network. Then you may perform a new forward pass on
+the neural network and do another training epoch, looping through your
+training dataset.  </p>
+<p><strong>Graphical representation</strong><br>
+A really great graphical representation of backpropagation may be found at
+this link.</p>
+<hr>
+<h2>Single-step training</h2>
+<p>There are two approaches to train you network to perform classification on a
+dataset. The easiest method is called single-step or online learning. This is
+the method you will find in most litterature, and it is also the fastest to
+converge. As you train your network you will calculate the deltas for each
+layer and adjust the weights for <em>each instance of your dataset</em>.</p>
+<p>Thus if you have a dataset of 60 instances, this means you should have
+adjusted the weights 60 times before the training epoch is over.</p>
+<h2>Batch training</h2>
+<p>The other approach is called batch training or offline learning. This approach
+often yields a network with a lower residual error. When you train the network
+you should calculate the deltas for each layer for every instance of the
+dataset, and then finally average the individual deltas and <em>correct the
+weights once per epoch</em>.</p>
+<p>If you have a dataset of 60 instances, this means you should have adjusted the
+weights once before the training epoch is over.</p>
     </div>
     </article>
 </div>
@@ -342,7 +266,7 @@ simple increase in the cut-off will give you answers faster.</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

@@ -108,7 +108,60 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/programmatically-find-the-number-of-cores-on-a-machine/" class="u-url">Programmatically find the number of cores on a machine</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/which-is-faster-stack-allocation-or-heap-allocation/" class="u-url">Which is faster: Stack allocation or Heap allocation</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/which-is-faster-stack-allocation-or-heap-allocation/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T05:56:28+08:00" itemprop="datePublished" title="2023-02-18 05:56">2023-02-18 05:56</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>This question may sound fairly elementary, but this is a debate I had with
+another developer I work with.</p>
+<p>I was taking care to stack allocate things where I could, instead of heap
+allocating them. He was talking to me and watching over my shoulder and
+commented that it wasn't necessary because they are the same performance wise.</p>
+<p>I was always under the impression that growing the stack was constant time,
+and heap allocation's performance depended on the current complexity of the
+heap for both allocation (finding a hole of the proper size) and de-allocating
+(collapsing holes to reduce fragmentation, as many standard library
+implementations take time to do this during deletes if I am not mistaken).</p>
+<p>This strikes me as something that would probably be very compiler dependent.
+For this project in particular I am using a Metrowerks compiler for the PPC
+architecture. Insight on this combination would be most helpful, but in
+general, for GCC, and MSVC++, what is the case? Is heap allocation not as high
+performing as stack allocation? Is there no difference? Or are the differences
+so minute it becomes pointless micro-optimization.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Stack allocation is much faster since all it really does is move the stack
+pointer. Using memory pools, you can get comparable performance out of heap
+allocation, but that comes with a slight added complexity and its own
+headaches.</p>
+<p>Also, stack vs. heap is not only a performance consideration; it also tells
+you a lot about the expected lifetime of objects.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Stack is much faster. It literally only uses a single instruction on most
+architectures, in most cases, e.g. on x86:</p>
+<div class="code"><pre class="code literal-block">sub esp, 0x10
+</pre></div>
+
+<p>(That moves the stack pointer down by 0x10 bytes and thereby "allocates" those
+bytes for use by a variable.)</p>
+<p>Of course, the stack's size is very, very finite, as you will quickly find out
+if you overuse stack allocation or try to do recursion :-)</p>
+<p>Also, there's little reason to optimize the performance of code that doesn't
+verifiably need it, such as demonstrated by profiling. "Premature
+optimization" often causes more problems than it's worth.</p>
+<p>My rule of thumb: if I know I'm going to need some data <em>at compile-time</em> ,
+and it's under a few hundred bytes in size, I stack-allocate it. Otherwise I
+heap-allocate it.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/programmatically-find-the-number-of-cores-on-a-machine/" class="u-url">Programmatically find the number of cores on a machine</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -208,118 +261,6 @@ sysctl(mib, 2, &amp;numCPU, &amp;len, NULL, 0);</p>
 the hardware is capable of executing concurrently based on the number of CPU
 cores and hyper-threading units.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-calculate-number-of-days-between-two-dates/" class="u-url">How to calculate number of days between two dates?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-calculate-number-of-days-between-two-dates/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T05:55:32+08:00" itemprop="datePublished" title="2023-02-18 05:55">2023-02-18 05:55</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>For example, given two dates in input boxes:</p>
-<div class="code"><pre class="code literal-block"><span class="nt">&lt;input</span><span class="w"> </span><span class="na">id=</span><span class="s">"first"</span><span class="w"> </span><span class="na">value=</span><span class="s">"1/1/2000"</span><span class="nt">/&gt;</span>
-<span class="nt">&lt;input</span><span class="w"> </span><span class="na">id=</span><span class="s">"second"</span><span class="w"> </span><span class="na">value=</span><span class="s">"1/1/2001"</span><span class="nt">/&gt;</span>
-
-<span class="nt">&lt;script&gt;</span>
-<span class="w">  </span>alert(datediff("day",<span class="w"> </span>first,<span class="w"> </span>second));<span class="w"> </span>//<span class="w"> </span>what<span class="w"> </span>goes<span class="w"> </span>here?
-<span class="nt">&lt;/script&gt;</span>
-</pre></div>
-
-<p>How do I get the number of days between two dates in JavaScript?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>Here is a <strong>quick and dirty</strong> implementation of <code>datediff</code>, as a proof of
-concept to solve the problem as presented in the question. It relies on the
-fact that you can get the elapsed milliseconds between two dates by
-subtracting them, which coerces them into their primitive number value
-(milliseconds since the start of 1970).</p>
-<div class="code"><pre class="code literal-block"><span class="o">/**</span>
-<span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Take</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">difference</span><span class="w"> </span><span class="n">between</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">dates</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">divide</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">milliseconds</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">day</span><span class="o">.</span>
-<span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Round</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">nearest</span><span class="w"> </span><span class="n">whole</span><span class="w"> </span><span class="n">number</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">deal</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">DST</span><span class="o">.</span>
-<span class="w"> </span><span class="o">*/</span>
-<span class="n">function</span><span class="w"> </span><span class="n">datediff</span><span class="p">(</span><span class="n">first</span><span class="p">,</span><span class="w"> </span><span class="n">second</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">        </span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Math</span><span class="o">.</span><span class="n">round</span><span class="p">((</span><span class="n">second</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">60</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">60</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">24</span><span class="p">));</span>
-<span class="p">}</span>
-
-<span class="o">/**</span>
-<span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Date</span><span class="p">(</span><span class="s2">"dateString"</span><span class="p">)</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">browser</span><span class="o">-</span><span class="n">dependent</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">discouraged</span><span class="p">,</span><span class="w"> </span><span class="n">so</span><span class="w"> </span><span class="n">we</span><span class="s1">'ll write</span>
-<span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">simple</span><span class="w"> </span><span class="n">parse</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">U</span><span class="o">.</span><span class="n">S</span><span class="o">.</span><span class="w"> </span><span class="n">date</span><span class="w"> </span><span class="n">format</span><span class="w"> </span><span class="p">(</span><span class="n">which</span><span class="w"> </span><span class="n">does</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="n">checking</span><span class="p">)</span>
-<span class="w"> </span><span class="o">*/</span>
-<span class="n">function</span><span class="w"> </span><span class="n">parseDate</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">mdy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'/'</span><span class="p">);</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Date</span><span class="p">(</span><span class="n">mdy</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="n">mdy</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">mdy</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
-<span class="p">}</span>
-
-<span class="n">alert</span><span class="p">(</span><span class="n">datediff</span><span class="p">(</span><span class="n">parseDate</span><span class="p">(</span><span class="n">first</span><span class="o">.</span><span class="n">value</span><span class="p">),</span><span class="w"> </span><span class="n">parseDate</span><span class="p">(</span><span class="n">second</span><span class="o">.</span><span class="n">value</span><span class="p">)));</span>
-
-
-<span class="o">&lt;</span><span class="n">input</span><span class="w"> </span><span class="n">id</span><span class="o">=</span><span class="s2">"first"</span><span class="w"> </span><span class="n">value</span><span class="o">=</span><span class="s2">"1/1/2000"</span><span class="o">/&gt;</span>
-<span class="o">&lt;</span><span class="n">input</span><span class="w"> </span><span class="n">id</span><span class="o">=</span><span class="s2">"second"</span><span class="w"> </span><span class="n">value</span><span class="o">=</span><span class="s2">"1/1/2001"</span><span class="o">/&gt;</span>
-</pre></div>
-
-<p>You should be aware that the "normal" Date APIs (without "UTC" in the name)
-operate in the local timezone of the user's browser, so in general you could
-run into issues if your user is in a timezone that you don't expect, and your
-code will have to deal with Daylight Saving Time transitions. You should
-carefully read the documentation for the Date object and its methods, and for
-anything more complicated, strongly consider using a library that offers more
-safe and powerful APIs for date manipulation.</p>
-<ul>
-<li>Numbers and Dates -- MDN JavaScript Guide</li>
-<li>
-<code>Date</code> -- MDN JavaScript reference</li>
-</ul>
-<p>Also, for illustration purposes, the snippet uses named access on the <code>window</code>
-object for brevity, but in production you should use standardized APIs like
-getElementById, or more likely, some UI framework.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>As of this writing, only one of the other answers correctly handles DST
-(daylight saving time) transitions. Here are the results on a system located
-in California:</p>
-<div class="code"><pre class="code literal-block">                                        1/1/2013- 3/10/2013- 11/3/2013-
-User       Formula                      2/1/2013  3/11/2013  11/4/2013  Result
----------  ---------------------------  --------  ---------  ---------  ---------
-Miles                   (d2 - d1) / N   31        0.9583333  1.0416666  Incorrect
-some         Math.floor((d2 - d1) / N)  31        0          1          Incorrect
-fuentesjr    Math.round((d2 - d1) / N)  31        1          1          Correct
-toloco     Math.ceiling((d2 - d1) / N)  31        1          2          Incorrect
-
-N = 86400000
-</pre></div>
-
-<p>Although <code>Math.round</code> returns the correct results, I think it's somewhat
-clunky. Instead, by explicitly accounting for changes to the UTC offset when
-DST begins or ends, we can use exact arithmetic:</p>
-<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">treatAsUTC</span><span class="p">(</span><span class="n">date</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Date</span><span class="p">(</span><span class="n">date</span><span class="p">);</span>
-<span class="w">    </span><span class="n">result</span><span class="o">.</span><span class="n">setMinutes</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">getMinutes</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">getTimezoneOffset</span><span class="p">());</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="n">function</span><span class="w"> </span><span class="n">daysBetween</span><span class="p">(</span><span class="n">startDate</span><span class="p">,</span><span class="w"> </span><span class="n">endDate</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">millisecondsPerDay</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">24</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">60</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">60</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">treatAsUTC</span><span class="p">(</span><span class="n">endDate</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">treatAsUTC</span><span class="p">(</span><span class="n">startDate</span><span class="p">))</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">millisecondsPerDay</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="n">alert</span><span class="p">(</span><span class="n">daysBetween</span><span class="p">(</span><span class="o">$</span><span class="p">(</span><span class="s1">'#first'</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">(),</span><span class="w"> </span><span class="o">$</span><span class="p">(</span><span class="s1">'#second'</span><span class="p">)</span><span class="o">.</span><span class="n">val</span><span class="p">()));</span>
-</pre></div>
-
-<h3>Explanation</h3>
-<p>JavaScript date calculations are tricky because <code>Date</code> objects store times
-internally in UTC, not local time. For example, 3/10/2013 12:00 AM Pacific
-Standard Time (UTC-08:00) is stored as 3/10/2013 8:00 AM UTC, and 3/11/2013
-12:00 AM Pacific Daylight Time (UTC-07:00) is stored as 3/11/2013 7:00 AM UTC.
-On this day, midnight to midnight local time is only 23 hours in UTC!</p>
-<p>Although a day in local time can have more or less than 24 hours, a day in UTC
-is always exactly 24 hours.1 The <code>daysBetween</code> method shown above takes
-advantage of this fact by first calling <code>treatAsUTC</code> to adjust both local
-times to midnight UTC, before subtracting and dividing.</p>
-<p>1. JavaScript ignores leap seconds.</p>
-    </div>
     </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-enable-external-request-in-iis-express/" class="u-url">How to enable external request in IIS Express?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
@@ -399,7 +340,7 @@ application "/"</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

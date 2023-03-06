@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="This is a snapshot site for StackOverflow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StackOverflow Snapshot (old posts, page 2461) | StackOverflow Snapshot</title>
+<link href="assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/index-2461.html">
+<link rel="prev" href="index-2462.html" type="text/html">
+<link rel="next" href="index-2460.html" type="text/html">
+<!--[if lt IE 9]><script src="assets/js/html5.js"></script><![endif]-->
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="archive.html">Archive</a>
+                </li>
+<li>
+<a href="categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+
+    
+
+
+    
+<div class="postindex">
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/synchronously-waiting-for-an-async-operation-and-why-does-wait-freeze-the-program-here/" class="u-url">Synchronously waiting for an async operation, and why does Wait() freeze the program here</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/synchronously-waiting-for-an-async-operation-and-why-does-wait-freeze-the-program-here/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-04T17:50:02+08:00" itemprop="datePublished" title="2023-03-04 17:50">2023-03-04 17:50</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p><strong>Preface</strong> : I'm looking for an explanation, not just a solution. I already
+know the solution.</p>
+<p>Despite having spent several days studying MSDN articles about the Task-based
+Asynchronous Pattern (TAP), async and await, I'm still a bit confused about
+some of the finer details.</p>
+<p>I'm writing a logger for Windows Store Apps, and I want to support both
+asynchronous and synchronous logging. The asynchronous methods follow the TAP,
+the synchronous ones should hide all this, and look and work like ordinary
+methods.</p>
+<p>This is the core method of asynchronous logging:</p>
+<div class="code"><pre class="code literal-block">private async Task WriteToLogAsync(string text)
+{
+    StorageFolder folder = ApplicationData.Current.LocalFolder;
+    StorageFile file = await folder.CreateFileAsync("log.log",
+        CreationCollisionOption.OpenIfExists);
+    await FileIO.AppendTextAsync(file, text,
+        Windows.Storage.Streams.UnicodeEncoding.Utf8);
+}
+</pre></div>
+
+<p>Now the corresponding synchronous method...</p>
+<p><strong>Version 1</strong> :</p>
+<div class="code"><pre class="code literal-block"><span class="nv">private</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">WriteToLog</span><span class="ss">(</span><span class="nv">string</span><span class="w"> </span><span class="nv">text</span><span class="ss">)</span>
+{
+<span class="w">    </span><span class="nv">Task</span><span class="w"> </span><span class="nv">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">WriteToLogAsync</span><span class="ss">(</span><span class="nv">text</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">task</span>.<span class="k">Wait</span><span class="ss">()</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>This looks correct, but it does not work. The whole program freezes forever.</p>
+<p><strong>Version 2</strong> :</p>
+<p>Hmm.. Maybe the task was not started?</p>
+<div class="code"><pre class="code literal-block"><span class="nv">private</span><span class="w"> </span><span class="nv">void</span><span class="w"> </span><span class="nv">WriteToLog</span><span class="ss">(</span><span class="nv">string</span><span class="w"> </span><span class="nv">text</span><span class="ss">)</span>
+{
+<span class="w">    </span><span class="nv">Task</span><span class="w"> </span><span class="nv">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">WriteToLogAsync</span><span class="ss">(</span><span class="nv">text</span><span class="ss">)</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">task</span>.<span class="nv">Start</span><span class="ss">()</span><span class="c1">;</span>
+<span class="w">    </span><span class="nv">task</span>.<span class="k">Wait</span><span class="ss">()</span><span class="c1">;</span>
+}
+</pre></div>
+
+<p>This throws <code>InvalidOperationException: Start may not be called on a promise-
+style task.</code></p>
+<p><strong>Version 3:</strong></p>
+<p>Hmm.. <code>Task.RunSynchronously</code> sounds promising.</p>
+<div class="code"><pre class="code literal-block">private void WriteToLog(string text)
+{
+    Task task = WriteToLogAsync(text);
+    task.RunSynchronously();
+}
+</pre></div>
+
+<p>This throws <code>InvalidOperationException: RunSynchronously may not be called on
+a task not bound to a delegate, such as the task returned from an asynchronous
+method.</code></p>
+<p><strong>Version 4 (the solution):</strong></p>
+<div class="code"><pre class="code literal-block"><span class="n">private</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">WriteToLog</span><span class="p">(</span><span class="n">string</span><span class="w"> </span><span class="n">text</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">var</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Task</span><span class="o">.</span><span class="n">Run</span><span class="p">(</span><span class="n">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">await</span><span class="w"> </span><span class="n">WriteToLogAsync</span><span class="p">(</span><span class="n">text</span><span class="p">);</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="n">task</span><span class="o">.</span><span class="n">Wait</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>This works. So, 2 and 3 are the wrong tools. But 1? What's wrong with 1 and
+what's the difference to 4? What makes 1 cause a freeze? Is there some problem
+with the task object? Is there a non-obvious deadlock?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The <code>await</code> inside your asynchronous method is trying to come back to the UI
+thread.</p>
+<p>Since the UI thread is busy waiting for the entire task to complete, you have
+a deadlock.</p>
+<p>Moving the async call to <code>Task.Run()</code> solves the issue.<br>
+Because the async call is now running on a thread pool thread, it doesn't try
+to come back to the UI thread, and everything therefore works.</p>
+<p>Alternatively, you could call <code>StartAsTask().ConfigureAwait(false)</code> before
+awaiting the inner operation to make it come back to the thread pool rather
+than the UI thread, avoiding the deadlock entirely.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Calling <code>async</code> code from synchronous code can be quite tricky.</p>
+<p>I explain the full reasons for this deadlock on my blog. In short, there's a
+"context" that is saved by default at the beginning of each <code>await</code> and used
+to resume the method.</p>
+<p>So if this is called in an UI context, when the <code>await</code> completes, the <code>async</code>
+method tries to re-enter that context to continue executing. Unfortunately,
+code using <code>Wait</code> (or <code>Result</code>) will block a thread in that context, so the
+<code>async</code> method cannot complete.</p>
+<p>The guidelines to avoid this are:</p>
+<ol>
+<li>Use <code>ConfigureAwait(continueOnCapturedContext: false)</code> as much as possible. This enables your <code>async</code> methods to continue executing without having to re-enter the context.</li>
+<li>Use <code>async</code> all the way. Use <code>await</code> instead of <code>Result</code> or <code>Wait</code>.</li>
+</ol>
+<p>If your method is naturally asynchronous, then you (probably) shouldn't expose
+a synchronous wrapper.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/inotifypropertychanged-vs-dependencyproperty-in-viewmodel/" class="u-url">INotifyPropertyChanged vs. DependencyProperty in ViewModel</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/inotifypropertychanged-vs-dependencyproperty-in-viewmodel/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-04T17:48:42+08:00" itemprop="datePublished" title="2023-03-04 17:48">2023-03-04 17:48</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>When implementing the ViewModel in a Model-View-ViewModel architecture WPF
+application there seem to be two major choices how to make it databindable. I
+have seen implementations that use <code>DependencyProperty</code> for properties the
+View is going to bind against and I have seen the ViewModel implementing
+<code>INotifyPropertyChanged</code> instead.</p>
+<p>My question is when should I prefer one over the other? Are there any
+performance differences? Is it really a good idea to give the ViewModel
+dependencies to WPF? What else do I need to consider when make the design
+decision?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Kent wrote an interesting blog about this topic: View Models: POCOs versus
+DependencyObjects.</p>
+<p><strong>Short summary:</strong></p>
+<ol>
+<li>DependencyObjects are not marked as serializable</li>
+<li>The DependencyObject class overrides and seals the Equals() and GetHashCode() methods</li>
+<li>A DependencyObject has thread affinity – it can only be accessed on the thread on which it was created</li>
+</ol>
+<p>I prefer the POCO approach. A base class for PresentationModel (aka ViewModel)
+which implements INotifyPropertyChanged interface can be found here:
+http://compositeextensions.codeplex.com</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>According to the WPF performance guide, DependencyObjects definitely perform
+better than POCOs that implement INotifyPropertyChanged:</p>
+<p>http://msdn.microsoft.com/en-us/library/bb613546.aspx</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/singletons-vs-application-context-in-android/" class="u-url">Singletons vs. Application Context in Android?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/singletons-vs-application-context-in-android/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-04T17:47:16+08:00" itemprop="datePublished" title="2023-03-04 17:47">2023-03-04 17:47</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Recalling this post enumerating several problems of using singletons and
+having seen several examples of Android applications using singleton pattern,
+I wonder if it's a good idea to use Singletons instead of single instances
+shared through global application state (subclassing android.os.Application
+and obtaining it through context.getApplication()).</p>
+<p>What advantages/drawbacks would both mechanisms have?</p>
+<p>To be honest, I expect the same answer in this post Singleton pattern with Web
+application, Not a good idea! but applied to Android. Am I correct? What's
+different in DalvikVM otherwise?</p>
+<p>EDIT: I would like to have opinions on several aspects involved:</p>
+<ul>
+<li>Synchronization</li>
+<li>Reusability</li>
+<li>Testing</li>
+</ul>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>I very much disagree with Dianne Hackborn's response. We are bit by bit
+removing all singletons from our project in favor of lightweight, task scoped
+objects which can easiliy be re-created when you actually need them.</p>
+<p>Singletons are a nightmare for testing and, if lazily initialized, will
+introduce <strong>"state indeterminism"</strong> with subtle side effects (which may
+suddenly surface when moving calls to <code>getInstance()</code> from one scope to
+another). Visibility has been mentioned as another problem, and since
+singletons imply <strong>"global" (= random)</strong> access to shared state, subtle bugs
+may arise when not properly synchronized in concurrent applications.</p>
+<p>I consider it an anti-pattern, it's a bad object-oriented style that
+essentially amounts to maintaining global state.</p>
+<p>To come back to your question:</p>
+<p>Although the app context can be considered a singleton itself, it is
+framework-managed and has a well defined <em>life-cycle</em> , scope, and access
+path. Hence I believe that if you do need to manage app-global state, it
+should go here, nowhere else. For anything else, rethink if you <em>really</em> need
+a singleton object, or if it would also be possible to rewrite your singleton
+class to instead instantiate small, short-lived objects that perform the task
+at hand.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>I very much recommend singletons. If you have a singleton that needs a
+context, have:</p>
+<div class="code"><pre class="code literal-block">MySingleton.getInstance(Context c) {
+    //
+    // ... needing to create ...
+    sInstance = new MySingleton(c.getApplicationContext());
+}
+</pre></div>
+
+<p>I prefer singletons over Application because it helps keep an app much more
+organized and modular -- instead of having one place where all of your global
+state across the app needs to be maintained, each separate piece can take care
+of itself. Also the fact that singletons lazily initialize (at request)
+instead of leading you down the path of doing all initialization up-front in
+Application.onCreate() is good.</p>
+<p>There is nothing intrinsically wrong with using singletons. Just use them
+correctly, when it makes sense. The Android framework actually has a lot of
+them, for it to maintain per-process caches of loaded resources and other such
+things.</p>
+<p>Also for simple applications multithreading doesn't become an issue with
+singletons, because by design all standard callbacks to the app are dispatched
+on the main thread of the process so you won't have multi-threading happening
+unless you introduce it explicitly through threads or implicitly by publishing
+a content provider or service IBinder to other processes.</p>
+<p>Just be thoughtful about what you are doing. :)</p>
+    </div>
+    </article>
+</div>
+
+        <nav class="postindexpager"><ul class="pager">
+<li class="previous">
+                <a href="index-2462.html" rel="prev">Newer posts</a>
+            </li>
+            <li class="next">
+                <a href="index-2460.html" rel="next">Older posts</a>
+            </li>
+        </ul></nav>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="assets/js/search.js"></script>
+</body>
+</html>

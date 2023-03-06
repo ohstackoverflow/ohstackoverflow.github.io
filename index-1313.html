@@ -108,7 +108,87 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-apply-unmerged-upstream-pull-requests-from-other-forks-into-my-fork/" class="u-url">How to apply unmerged upstream pull requests from other forks into my fork?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/flatten-an-irregular-arbitrarily-nested-list-of-lists/" class="u-url">Flatten an irregular (arbitrarily nested) list of lists</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/flatten-an-irregular-arbitrarily-nested-list-of-lists/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T06:24:26+08:00" itemprop="datePublished" title="2023-02-18 06:24">2023-02-18 06:24</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>Yes, I know this subject has been covered before:</p>
+<ul>
+<li>Python idiom to chain (flatten) an infinite iterable of finite iterables?</li>
+<li>Flattening a shallow list in Python</li>
+<li>Comprehension for flattening a sequence of sequences?</li>
+<li>How do I make a flat list out of a list of lists?</li>
+</ul>
+<p>but as far as I know, all solutions, except for one, fail on a list like
+<code>[[[1, 2, 3], [4, 5]], 6]</code>, where the desired output is <code>[1, 2, 3, 4, 5, 6]</code>
+(or perhaps even better, an iterator).</p>
+<p>The only solution I saw that works for an arbitrary nesting is found in this
+question:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">def</span><span class="w"> </span><span class="nv">flatten</span><span class="ss">(</span><span class="nv">x</span><span class="ss">)</span>:
+<span class="w">    </span><span class="nb">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>[]
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nv">el</span><span class="w"> </span><span class="nv">in</span><span class="w"> </span><span class="nv">x</span>:
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nv">hasattr</span><span class="ss">(</span><span class="nv">el</span>,<span class="w"> </span><span class="s2">"__iter__"</span><span class="ss">)</span><span class="w"> </span><span class="nv">and</span><span class="w"> </span><span class="nv">not</span><span class="w"> </span><span class="nv">isinstance</span><span class="ss">(</span><span class="nv">el</span>,<span class="w"> </span><span class="nv">basestring</span><span class="ss">)</span>:
+<span class="w">            </span><span class="nb">result</span>.<span class="nv">extend</span><span class="ss">(</span><span class="nv">flatten</span><span class="ss">(</span><span class="nv">el</span><span class="ss">))</span>
+<span class="w">        </span><span class="k">else</span>:
+<span class="w">            </span><span class="nb">result</span>.<span class="nv">append</span><span class="ss">(</span><span class="nv">el</span><span class="ss">)</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">result</span>
+</pre></div>
+
+<p>Is this the best approach? Did I overlook something? Any problems?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>Using generator functions can make your example easier to read and improve
+performance.</p>
+<h4>Python 2</h4>
+<p>Using the <code>Iterable</code> ABC added in 2.6:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Iterable</span>
+
+<span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="n">xs</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">item</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">x</span>
+</pre></div>
+
+<h4>Python 3</h4>
+<p>In Python 3, <code>basestring</code> is no more, but the tuple <code>(str, bytes)</code> gives the
+same effect. Also, the <code>yield from</code> operator returns an item from a generator
+one at a time.</p>
+<div class="code"><pre class="code literal-block"><span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
+
+<span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="n">xs</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">)):</span>
+            <span class="k">yield from</span> <span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">x</span>
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>My solution:</p>
+<div class="code"><pre class="code literal-block"><span class="kn">import</span> <span class="nn">collections</span>
+
+
+<span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">a</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">x</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">flatten</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="p">]</span>
+</pre></div>
+
+<p>A little more concise, but pretty much the same.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-apply-unmerged-upstream-pull-requests-from-other-forks-into-my-fork/" class="u-url">How to apply unmerged upstream pull requests from other forks into my fork?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -275,86 +355,6 @@ even once.</p>
 <li>When should I use the <code>:=</code> operator in data.table?</li>
 </ul>
 </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/how-to-unstash-only-certain-files/" class="u-url">How to unstash only certain files?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/how-to-unstash-only-certain-files/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:23:06+08:00" itemprop="datePublished" title="2023-02-18 06:23">2023-02-18 06:23</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>I stashed my changes. Now I want to unstash only some files from the stash.
-How can I do this?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>As mentioned below, and detailed in "How would I extract a single file (or
-changes to a file) from a git stash?", you can apply use <code>git checkout</code> or
-<code>git show</code> to restore a specific file.</p>
-<div class="code"><pre class="code literal-block">git checkout stash@{0} -- &lt;filename&gt;
-</pre></div>
-
-<p>With Git 2.23+ (August 2019), use <code>git restore</code>, which replaces the confusing
-<code>git checkout</code> command:</p>
-<div class="code"><pre class="code literal-block">git restore --source=stash@{0} -- &lt;filename&gt;
-</pre></div>
-
-<p>That does <strong>overwrite</strong> <code>filename</code>: make sure you didn't have local
-modifications, or you might want to merge the stashed file instead.</p>
-<p>(As commented by Jaime M., for certain shell like tcsh where you need to
-escape the special characters, the syntax would be: <code>git checkout 'stash@{0}'
--- &lt;filename&gt;</code>)</p>
-<blockquote>
-<p>or to save it under another filename:</p>
-</blockquote>
-<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="k">show</span><span class="w"> </span><span class="nv">stash</span>@{<span class="mi">0</span>}:<span class="o">&lt;</span><span class="nv">full</span><span class="w"> </span><span class="nv">filename</span><span class="o">&gt;</span><span class="w">  </span><span class="o">&gt;</span><span class="w">  </span><span class="o">&lt;</span><span class="nv">newfile</span><span class="o">&gt;</span>
-</pre></div>
-
-<blockquote>
-<p>(note that here <code>&lt;full filename&gt;</code> is full pathname of a file relative to top
-directory of a project (think: relative to <code>stash@{0}</code>)).</p>
-</blockquote>
-<p>yucer suggests in the comments:</p>
-<blockquote>
-<p>If you want to select manually which changes you want to apply from that
-file:</p>
-</blockquote>
-<div class="code"><pre class="code literal-block"><span class="n">git</span><span class="w"> </span><span class="n">difftool</span><span class="w"> </span><span class="n">stash</span><span class="err">@</span><span class="p">{</span><span class="mi">0</span><span class="p">}</span><span class="o">..</span><span class="n">HEAD</span><span class="w"> </span><span class="o">--</span><span class="w"> </span><span class="o">&lt;</span><span class="n">filename</span><span class="o">&gt;</span>
-</pre></div>
-
-<p>Vivek adds in the comments:</p>
-<blockquote>
-<p>Looks like "<code>git checkout stash@{0} -- &lt;filename&gt;</code>" restores the version of
-the file as of the time when the stash was performed -- it does <em>NOT</em> apply
-(just) the stashed changes for that file.<br>
- To do the latter:</p>
-</blockquote>
-<div class="code"><pre class="code literal-block">git diff stash@{0}^1 stash@{0} -- &lt;filename&gt; | git apply
-</pre></div>
-
-<p>(as commented by peterflynn, you might need <code>| git apply -p1</code> in some cases,
-removing one (<code>p1</code>) leading slash from traditional diff paths)</p>
-<hr>
-<p>As commented: "unstash" (<code>git stash pop</code>), then:</p>
-<ul>
-<li>add what you want to keep to the index (<code>git add</code>)</li>
-<li>stash the rest: <code>git stash --keep-index</code>
-</li>
-</ul>
-<p>The last point is what allows you to keep some file while stashing others.<br>
-It is illustrated in "How to stash only one file out of multiple files that
-have changed".</p>
-<p><br></p>
-<h3>Suggest</h3>
-<div class="code"><pre class="code literal-block">git checkout stash@{N} &lt;File(s)/Folder(s) path&gt;
-</pre></div>
-
-<p>Eg. To restore only ./test.c file and ./include folder from last stashed,</p>
-<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="nv">checkout</span><span class="w"> </span><span class="nv">stash</span>@{<span class="mi">0</span>}<span class="w"> </span>.<span class="o">/</span><span class="nv">test</span>.<span class="nv">c</span><span class="w"> </span>.<span class="o">/</span><span class="k">include</span>
-</pre></div>
-    </div>
     </article>
 </div>
 
@@ -370,7 +370,7 @@ have changed".</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

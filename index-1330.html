@@ -108,7 +108,182 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-an-unsigned-char/" class="u-url">What is an unsigned char?</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/why-is-lock-this-bad/" class="u-url">Why is lock(this) {...} bad?</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/why-is-lock-this-bad/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T06:49:30+08:00" itemprop="datePublished" title="2023-02-18 06:49">2023-02-18 06:49</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>The MSDN documentation says that</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">SomeObject</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">SomeOperation</span><span class="p">()</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="n">lock</span><span class="p">(</span><span class="n">this</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="o">//</span><span class="n">Access</span><span class="w"> </span><span class="n">instance</span><span class="w"> </span><span class="n">variables</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>is "a problem if the instance can be accessed publicly". I'm wondering why? Is
+it because the lock will be held longer than necessary? Or is there some more
+insidious reason?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>It is bad form to use <code>this</code> in lock statements because it is generally out of
+your control who else might be locking on that object.</p>
+<p>In order to properly plan parallel operations, special care should be taken to
+consider possible deadlock situations, and having an unknown number of lock
+entry points hinders this. For example, any one with a reference to the object
+can lock on it without the object designer/creator knowing about it. This
+increases the complexity of multi-threaded solutions and might affect their
+correctness.</p>
+<p>A private field is usually a better option as the compiler will enforce access
+restrictions to it, and it will encapsulate the locking mechanism. Using
+<code>this</code> violates encapsulation by exposing part of your locking implementation
+to the public. It is also not clear that you will be acquiring a lock on
+<code>this</code> unless it has been documented. Even then, relying on documentation to
+prevent a problem is sub-optimal.</p>
+<p>Finally, there is the common misconception that <code>lock(this)</code> actually modifies
+the object passed as a parameter, and in some way makes it read-only or
+inaccessible. This is <strong>false</strong>. The object passed as a parameter to <code>lock</code>
+merely serves as a <strong>key</strong>. If a lock is already being held on that key, the
+lock cannot be made; otherwise, the lock is allowed.</p>
+<p>This is why it's bad to use strings as the keys in <code>lock</code> statements, since
+they are immutable and are shared/accessible across parts of the application.
+You should use a private variable instead, an <code>Object</code> instance will do
+nicely.</p>
+<p>Run the following C# code as an example.</p>
+<div class="code"><pre class="code literal-block"><span class="n">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="n">Person</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">int</span><span class="w"> </span><span class="n">Age</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">get</span><span class="p">;</span><span class="w"> </span><span class="n">set</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">Name</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">get</span><span class="p">;</span><span class="w"> </span><span class="n">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">public</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">LockThis</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">lock</span><span class="w"> </span><span class="p">(</span><span class="n">this</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">System</span><span class="o">.</span><span class="n">Threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">Sleep</span><span class="p">(</span><span class="mi">10000</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">class</span><span class="w"> </span><span class="n">Program</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Main</span><span class="p">(</span><span class="n">string</span><span class="p">[]</span><span class="w"> </span><span class="n">args</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">nancy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Person</span><span class="w"> </span><span class="p">{</span><span class="n">Name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Nancy Drew"</span><span class="p">,</span><span class="w"> </span><span class="n">Age</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="p">};</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Thread</span><span class="p">(</span><span class="n">nancy</span><span class="o">.</span><span class="n">LockThis</span><span class="p">);</span>
+<span class="w">        </span><span class="n">a</span><span class="o">.</span><span class="n">Start</span><span class="p">();</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Thread</span><span class="p">(</span><span class="n">Timewarp</span><span class="p">);</span>
+<span class="w">        </span><span class="n">b</span><span class="o">.</span><span class="n">Start</span><span class="p">(</span><span class="n">nancy</span><span class="p">);</span>
+<span class="w">        </span><span class="n">Thread</span><span class="o">.</span><span class="n">Sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">anotherNancy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Person</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Nancy Drew"</span><span class="p">,</span><span class="w"> </span><span class="n">Age</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="w"> </span><span class="p">};</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">Thread</span><span class="p">(</span><span class="n">NameChange</span><span class="p">);</span>
+<span class="w">        </span><span class="n">c</span><span class="o">.</span><span class="n">Start</span><span class="p">(</span><span class="n">anotherNancy</span><span class="p">);</span>
+<span class="w">        </span><span class="n">a</span><span class="o">.</span><span class="n">Join</span><span class="p">();</span>
+<span class="w">        </span><span class="n">Console</span><span class="o">.</span><span class="n">ReadLine</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">Timewarp</span><span class="p">(</span><span class="n">object</span><span class="w"> </span><span class="n">subject</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">person</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subject</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Person</span><span class="p">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">person</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ArgumentNullException</span><span class="p">(</span><span class="s2">"subject"</span><span class="p">);</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="n">lock</span><span class="w"> </span><span class="n">does</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">make</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">object</span><span class="w"> </span><span class="n">read</span><span class="o">-</span><span class="n">only</span><span class="o">.</span>
+<span class="w">        </span><span class="n">lock</span><span class="w"> </span><span class="p">(</span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">person</span><span class="o">.</span><span class="n">Age</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">23</span><span class="p">)</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="n">There</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">lock</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="s1">'person'</span><span class="w"> </span><span class="n">due</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">LockThis</span><span class="w"> </span><span class="n">method</span><span class="w"> </span><span class="n">running</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">another</span><span class="w"> </span><span class="n">thread</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Monitor</span><span class="o">.</span><span class="n">TryEnter</span><span class="p">(</span><span class="n">person</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="bp">false</span><span class="p">)</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">Console</span><span class="o">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s2">"'this' person is locked!"</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="k">else</span><span class="w"> </span><span class="n">Monitor</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">person</span><span class="p">);</span>
+<span class="w">                </span><span class="n">person</span><span class="o">.</span><span class="n">Age</span><span class="o">++</span><span class="p">;</span>
+<span class="w">                </span><span class="k">if</span><span class="p">(</span><span class="n">person</span><span class="o">.</span><span class="n">Age</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">18</span><span class="p">)</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="o">//</span><span class="w"> </span><span class="n">Changing</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="s1">'person.Name'</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="n">doesn</span><span class="s1">'t change the lock...</span>
+<span class="w">                    </span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Nancy Smith"</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">Console</span><span class="o">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s2">"{0} is {1} years old."</span><span class="p">,</span><span class="w"> </span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span><span class="n">person</span><span class="o">.</span><span class="n">Age</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">NameChange</span><span class="p">(</span><span class="n">object</span><span class="w"> </span><span class="n">subject</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">var</span><span class="w"> </span><span class="n">person</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subject</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Person</span><span class="p">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">person</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">)</span><span class="w"> </span><span class="n">throw</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">ArgumentNullException</span><span class="p">(</span><span class="s2">"subject"</span><span class="p">);</span>
+<span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">You</span><span class="w"> </span><span class="n">should</span><span class="w"> </span><span class="n">avoid</span><span class="w"> </span><span class="n">locking</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">strings</span><span class="p">,</span><span class="w"> </span><span class="n">since</span><span class="w"> </span><span class="n">they</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">immutable</span><span class="o">.</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Monitor</span><span class="o">.</span><span class="n">TryEnter</span><span class="p">(</span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="bp">false</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">Console</span><span class="o">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s2">"Failed to obtain lock on 50 year old Nancy, because Timewarp(object) locked on string </span><span class="se">\"</span><span class="s2">Nancy Drew</span><span class="se">\"</span><span class="s2">."</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="n">Monitor</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Monitor</span><span class="o">.</span><span class="n">TryEnter</span><span class="p">(</span><span class="s2">"Nancy Drew"</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="bp">false</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">Console</span><span class="o">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s2">"Failed to obtain lock using 'Nancy Drew' literal, locked by 'person.Name' since both are the same object thanks to inlining!"</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="n">Monitor</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="s2">"Nancy Drew"</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Monitor</span><span class="o">.</span><span class="n">TryEnter</span><span class="p">(</span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span><span class="mi">10000</span><span class="p">))</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">string</span><span class="w"> </span><span class="n">oldName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="p">;</span>
+<span class="w">            </span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Nancy Callahan"</span><span class="p">;</span>
+<span class="w">            </span><span class="n">Console</span><span class="o">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s2">"Name changed from '{0}' to '{1}'."</span><span class="p">,</span><span class="w"> </span><span class="n">oldName</span><span class="p">,</span><span class="w"> </span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="n">Monitor</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">person</span><span class="o">.</span><span class="n">Name</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Console output</p>
+<div class="code"><pre class="code literal-block">'this' person is locked!
+Nancy Drew is 16 years old.
+'this' person is locked!
+Nancy Drew is 17 years old.
+Failed to obtain lock on 50 year old Nancy, because Timewarp(object) locked on string "Nancy Drew".
+'this' person is locked!
+Nancy Smith is 18 years old.
+'this' person is locked!
+Nancy Smith is 19 years old.
+'this' person is locked!
+Nancy Smith is 20 years old.
+Failed to obtain lock using 'Nancy Drew' literal, locked by 'person.Name' since both are the same object thanks to inlining!
+'this' person is locked!
+Nancy Smith is 21 years old.
+'this' person is locked!
+Nancy Smith is 22 years old.
+'this' person is locked!
+Nancy Smith is 23 years old.
+'this' person is locked!
+Nancy Smith is 24 years old.
+Name changed from 'Nancy Drew' to 'Nancy Callahan'.
+</pre></div>
+
+<p><br></p>
+<h3>Suggest</h3>
+<p>Because if people can get at your object instance (ie: your <code>this</code>) pointer,
+then they can also try to lock that same object. Now they might not be aware
+that you're locking on <code>this</code> internally, so this may cause problems (possibly
+a deadlock)</p>
+<p>In addition to this, it's also bad practice, because it's locking "too much"</p>
+<p>For example, you might have a member variable of <code>List&lt;int&gt;</code>, and the only
+thing you actually need to lock is that member variable. If you lock the
+entire object in your functions, then other things which call those functions
+will be blocked waiting for the lock. If those functions don't need to access
+the member list, you'll be causing other code to wait and slow down your
+application for no reason at all.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-an-unsigned-char/" class="u-url">What is an unsigned char?</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -224,39 +399,6 @@ inet_ntop</code>). On my system (header "in.h"):</p>
 <p>The last character is for terminating NULL, as I belive, so the max length is
 45, as other answers.</p>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/removing-the-file-preview-on-the-right-side-of-the-editor-in-vs-code/" class="u-url">Removing the file preview on the right side of the editor in VS Code</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/removing-the-file-preview-on-the-right-side-of-the-editor-in-vs-code/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:48:17+08:00" itemprop="datePublished" title="2023-02-18 06:48">2023-02-18 06:48</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>This beauty appeared after a recent update, and it is very distracting to me.</p>
-<p><img alt="Screenshot code view in VS Code. On the right hand side is a very narrow
-column containing a small version of the code in the main view. There is a red
-arrow pointing to it, indicating that this is what the OP wants
-removed." src="images/tRvro.png"></p>
-<p>I searched through the menus, but didn't find any setting to remove it. Is
-there any way to banish it from the editor?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>This is called the minimap, and, as stated in that link,</p>
-<blockquote>
-<p>If you would like to disable minimap, you can set <code>"editor.minimap.enabled":
-false</code> in your user or workspace settings.</p>
-</blockquote>
-<p>Once you save the settings file, the minimap will be gone.</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>You can also toggle the minimap from the Command Palette. You can go to 'View'
-and select Command Palette or just <code>Ctrl</code>+<code>Shift</code>+<code>P</code> and type in the word
-'minimap', you will instantly get the option to toggle the minimap.</p>
-<p><img alt="minimap toggle option" src="images/09dFv.png"></p>
-    </div>
     </article>
 </div>
 
@@ -272,7 +414,7 @@ and select Command Palette or just <code>Ctrl</code>+<code>Shift</code>+<code>P<
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

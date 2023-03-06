@@ -108,7 +108,82 @@
 
     
 <div class="postindex">
-    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/your-branch-is-ahead-of-origin-master-by-3-commits/" class="u-url">Your branch is ahead of 'origin/master' by 3 commits</a></h1>
+    <article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/combating-angularjs-executing-controller-twice/" class="u-url">Combating AngularJS executing controller twice</a></h1>
+        <div class="metadata">
+            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
+                <a href="authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="posts/combating-angularjs-executing-controller-twice/" rel="bookmark">
+            <time class="published dt-published" datetime="2023-02-18T06:05:03+08:00" itemprop="datePublished" title="2023-02-18 06:05">2023-02-18 06:05</time></a>
+            </p>
+        </div>
+    </header><div class="e-content entry-content">
+    <p>I understand AngularJS runs through some code twice, sometimes even more, like
+<code>$watch</code> events, constantly checking model states etc.</p>
+<p>However my code:</p>
+<div class="code"><pre class="code literal-block"><span class="n">function</span><span class="w"> </span><span class="n">MyController</span><span class="p">(</span><span class="o">$</span><span class="n">scope</span><span class="p">,</span><span class="w"> </span><span class="n">User</span><span class="p">,</span><span class="w"> </span><span class="n">local</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="k">var</span><span class="w"> </span><span class="o">$</span><span class="n">scope</span><span class="o">.</span><span class="n">User</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">local</span><span class="o">.</span><span class="n">get</span><span class="p">();</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">Get</span><span class="w"> </span><span class="n">locally</span><span class="w"> </span><span class="n">save</span><span class="w"> </span><span class="n">user</span><span class="w"> </span><span class="n">data</span>
+
+<span class="n">User</span><span class="o">.</span><span class="n">get</span><span class="p">({</span><span class="w"> </span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="o">$</span><span class="n">scope</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">_id</span><span class="o">.$</span><span class="n">oid</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="n">function</span><span class="p">(</span><span class="n">user</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="o">$</span><span class="n">scope</span><span class="o">.</span><span class="n">User</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">User</span><span class="p">(</span><span class="n">user</span><span class="p">);</span>
+<span class="w">  </span><span class="n">local</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="o">$</span><span class="n">scope</span><span class="o">.</span><span class="n">User</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="o">//...</span>
+</pre></div>
+
+<p>Is executed twice, inserting 2 records into my DB. I'm clearly still learning
+as I've been banging my head against this for ages!</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The app router specified navigation to <code>MyController</code> like so:</p>
+<div class="code"><pre class="code literal-block"><span class="o">$</span><span class="nt">routeProvider</span><span class="p">.</span><span class="nc">when</span><span class="o">(</span><span class="s1">'/'</span><span class="o">,</span>
+<span class="w">                   </span><span class="p">{</span><span class="w"> </span><span class="n">templateUrl</span><span class="p">:</span><span class="w"> </span><span class="s1">'pages/home.html'</span><span class="p">,</span>
+<span class="w">                     </span><span class="n">controller</span><span class="o">:</span><span class="w"> </span><span class="n">MyController</span><span class="w"> </span><span class="p">}</span><span class="o">);</span>
+</pre></div>
+
+<p>But I also had this in <code>home.html</code>:</p>
+<div class="code"><pre class="code literal-block">&lt;div data-ng-controller="MyController"&gt;
+</pre></div>
+
+<p>This digested the controller twice. Removing the <code>data-ng-controller</code>
+attribute from the HTML resolved the issue. Alternatively, the <code>controller:</code>
+property could have been removed from the routing directive.</p>
+<p>This problem also appears when using tabbed navigation. For example, <code>app.js</code>
+might contain:</p>
+<div class="code"><pre class="code literal-block">  .state('tab.reports', {
+    url: '/reports',
+    views: {
+      'tab-reports': {
+        templateUrl: 'templates/tab-reports.html',
+        controller: 'ReportsCtrl'
+      }
+    }
+  })
+</pre></div>
+
+<p>The corresponding reports tab HTML might resemble:</p>
+<div class="code"><pre class="code literal-block">&lt;ion-view view-title="Reports"&gt;
+  &lt;ion-content ng-controller="ReportsCtrl"&gt;
+</pre></div>
+
+<p>This will also result in running the controller twice.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<blockquote>
+<p>AngularJS docs - ngController<br>
+ Note that you can also attach controllers to the DOM by declaring it in a
+route definition via the $route service. <strong>A common mistake is to declare
+the controller again using ng-controller in the template itself. This will
+cause the controller to be attached and executed twice.</strong></p>
+</blockquote>
+<p>When you use ngRoute with the <code>ng-view</code> directive, the controller gets
+attached to that dom element by default (or ui-view if you use ui-router). So
+you will not need to attach it again in the template.</p>
+    </div>
+    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/your-branch-is-ahead-of-origin-master-by-3-commits/" class="u-url">Your branch is ahead of 'origin/master' by 3 commits</a></h1>
         <div class="metadata">
             <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
                 <a href="authors/arya/">Arya</a>
@@ -255,41 +330,6 @@ new = original.copy()
 # new['c'] points to the same original['d'] mutable dictionary, so it will be changed
 </pre></div>
     </div>
-    </article><article class="h-entry post-text" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title"><a href="posts/what-is-the-native-keyword-in-java-for/" class="u-url">What is the native keyword in Java for?</a></h1>
-        <div class="metadata">
-            <p class="byline author vcard"><span class="byline-name fn" itemprop="author">
-                <a href="authors/arya/">Arya</a>
-            </span></p>
-            <p class="dateline">
-            <a href="posts/what-is-the-native-keyword-in-java-for/" rel="bookmark">
-            <time class="published dt-published" datetime="2023-02-18T06:03:48+08:00" itemprop="datePublished" title="2023-02-18 06:03">2023-02-18 06:03</time></a>
-            </p>
-        </div>
-    </header><div class="e-content entry-content">
-    <p>While playing this puzzle (It's a Java keyword trivia game), I came across the
-<code>native</code> keyword.</p>
-<p>What is the native keyword in Java used for?</p>
-<p><br><br></p>
-<h2>Answer</h2>
-<p>The <code>native</code> keyword is applied to a method to indicate that the method is
-implemented in native code using JNI (Java Native Interface).</p>
-<p><br></p>
-<h3>Suggest</h3>
-<p>It marks a method, that it will be implemented in other languages, not in
-Java. It works together with JNI (Java Native Interface).</p>
-<p>Native methods were used in the past to write performance critical sections
-but with Java getting faster this is now less common. Native methods are
-currently needed when</p>
-<ul>
-<li>
-<p>You need to call a library from Java that is written in other language.</p>
-</li>
-<li>
-<p>You need to access system or hardware resources that are only reachable from the other language (typically C). Actually, many system functions that interact with real computer (disk and network IO, for instance) can only do this because they call native code.</p>
-</li>
-</ul>
-<p>See Also Java Native Interface Specification</p>
-    </div>
     </article>
 </div>
 
@@ -305,7 +345,7 @@ currently needed when</p>
         <!--End of body content-->
 
         <footer id="footer">
-            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow-ZH</a>  
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
             
         </footer>
 </div>

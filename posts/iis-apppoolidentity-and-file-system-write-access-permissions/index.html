@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IIS AppPoolIdentity and file system write access permissions | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/iis-apppoolidentity-and-file-system-write-access-permissions/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../what-does-the-m-stand-for-in-c-decimal-literal-notation/" title="What does the M stand for in C# Decimal literal notation?" type="text/html">
+<link rel="next" href="../how-can-i-open-a-cmd-window-in-a-specific-location/" title="How can I open a cmd window in a specific location?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="IIS AppPoolIdentity and file system write access permissions">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/iis-apppoolidentity-and-file-system-write-access-permissions/">
+<meta property="og:description" content="Here's an issue with IIS 7.5 and ASP.NET that I've been researching and
+getting nowhere with. Any help would be greatly appreciated.
+My question is: using ASP.NET in IIS 7.5, how does IIS and/or the o">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T15:15:30+08:00">
+<meta property="article:tag" content="asp.net">
+<meta property="article:tag" content="iis-7.5">
+<meta property="article:tag" content="permissions">
+<meta property="article:tag" content="windows-server-2008-r2">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">IIS AppPoolIdentity and file system write access permissions</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T15:15:30+08:00" itemprop="datePublished" title="2023-03-03 15:15">2023-03-03 15:15</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Here's an issue with IIS 7.5 and ASP.NET that I've been researching and
+getting nowhere with. Any help would be greatly appreciated.</p>
+<p>My question is: using ASP.NET in IIS 7.5, how does IIS and/or the operating
+system allow the web application to write to a folder like <code>C:\dump</code> when
+running under full trust? How is it that I don't have to explicitly add write
+access for the application pool user (in this case <code>ApplicationPoolIdentity</code>)?</p>
+<p>This much I know:</p>
+<ul>
+<li>In IIS 7.5, the default Identity for an Application Pool is <code>ApplicationPoolIdentity</code>.</li>
+<li>
+<code>ApplicationPoolIdentity</code> represents a Windows user account called "IIS APPPOOL\AppPoolName", which is created when the Application Pool is created, where AppPoolName is the name of the Application Pool.</li>
+<li>The "IIS APPPOOL\AppPoolName" user is by default a member of the <code>IIS_IUSRS</code> group.</li>
+<li>If you are running under Full Trust, your web application can write to many areas of the file system (excluding folders like <code>C:\Users</code>, <code>C:\Windows</code>, etc). For example, your application will have access to write to some folders, like, <code>C:\dump</code>.</li>
+<li>By default, the <code>IIS_IUSRS</code> group is not given read or write access to <code>C:\dump</code> (at least not access that is visible through the "Security" tab in Windows Explorer).</li>
+<li>If you deny write access to <code>IIS_IUSRS</code>, you will get a SecurityException when trying to write to the folder (as expected).</li>
+</ul>
+<p>So, taking all of that into account, how is write access granted to the "IIS
+APPPOOL\AppPoolName" user? The w3wp.exe process runs as this user, so what
+allows this user to write to a folder it doesn't seem to have explicit access
+to?</p>
+<p>Please note that I understand this was probably done for the sake of
+convenience, since it would be a pain to grant a user access to every folder
+it needs to write to if you are running under Full Trust. If you want to limit
+this access, you can always run the application under Medium Trust. I am
+interested in finding out about the way the operating system and/or IIS allows
+these writes to take place, even though there appears to be no explicit file
+system access granted.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p>The <code>ApplicationPoolIdentity</code> is assigned membership of the <code>Users</code> group as
+well as the <code>IIS_IUSRS</code> group. On first glance this may look somewhat
+worrying, however the <code>Users</code> group has somewhat limited NTFS rights.</p>
+<p>For example, if you try and create a folder in the <code>C:\Windows</code> folder then
+you'll find that you can't. The <code>ApplicationPoolIdentity</code> still needs to be
+able to read files from the windows system folders (otherwise how else would
+the worker process be able to dynamically load essential DLL's).</p>
+<p>With regard to your observations about being able to write to your <code>c:\dump</code>
+folder. If you take a look at the permissions in the Advanced Security
+Settings, you'll see the following:</p>
+<p><img alt="enter image description here" src="../../images/2UnXC.png"></p>
+<p>See that Special permission being inherited from <code>c:\</code>:</p>
+<p><img alt="enter image description here" src="../../images/ZLam7.png"></p>
+<p>That's the reason your site's <code>ApplicationPoolIdentity</code> can read and <em>write</em>
+to that folder. That right is being inherited from the <code>c:\</code> drive.</p>
+<p>In a shared environment where you possibly have several hundred sites, each
+with their own application pool and Application Pool Identity, you would store
+the site folders in a folder or volume that has had the <code>Users</code> group removed
+and the permissions set such that only Administrators and the SYSTEM account
+have access (with inheritance).</p>
+<p>You would then individually assign the requisite permissions each <code>IIS
+AppPool\[name]</code> requires on it's site root folder.</p>
+<p>You should also ensure that any folders you create where you store potentially
+sensitive files or data have the <code>Users</code> group removed. You should also make
+sure that any applications that you install don't store sensitive data in
+their <code>c:\program files\[app name]</code> folders and that they use the user profile
+folders instead.</p>
+<p>So yes, on first glance it looks like the <code>ApplicationPoolIdentity</code> has more
+rights than it should, but it actually has no more rights than it's group
+membership dictates.</p>
+<p>An <code>ApplicationPoolIdentity</code>'s group membership can be examined using the
+SysInternals Process Explorer tool. Find the worker process that is running
+with the Application Pool Identity you're interested in (you will have to add
+the <code>User Name</code> column to the list of columns to display:</p>
+<p><img alt="enter image description here" src="../../images/xUQcp.png"></p>
+<p>For example, I have a pool here named <code>900300</code> which has an Application Pool
+Identity of <code>IIS APPPOOL\900300</code>. Right clicking on properties for the process
+and selecting the Security tab we see:</p>
+<p><img alt="enter image description here" src="../../images/D9Zqu.png"></p>
+<p>As we can see <code>IIS APPPOOL\900300</code> is a member of the <code>Users</code> group.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<ol>
+<li>
+<p>Right click on folder.</p>
+</li>
+<li>
+<p>Click Properties</p>
+</li>
+<li>
+<p>Click Security Tab. You will see something like this:</p>
+</li>
+</ol>
+<p><img alt="enter image description here" src="../../images/FlPIc.jpg"></p>
+<ol>
+<li>Click "Edit..." button in above screen. You will see something like this:</li>
+</ol>
+<p><img alt="enter image description here" src="../../images/C58r1.jpg"></p>
+<ol>
+<li>Click "Add..." button in above screen. You will see something like this:</li>
+</ol>
+<p><img alt="enter image description here" src="../../images/e5v38.jpg"></p>
+<ol>
+<li>Click "Locations..." button in above screen. You will see something like this. Now, go to the very of top of this tree structure and select your computer name, then click OK.</li>
+</ol>
+<p><img alt="enter image description here" src="../../images/t8Fc9.jpg"></p>
+<ol>
+<li>Now type "iis apppool\your_apppool_name" and click "Check Names" button. If the apppool exists, you will see your apppool name in the textbox with underline in it. Click OK button.</li>
+</ol>
+<p><img alt="enter image description here" src="../../images/1oweH.jpg"></p>
+<ol>
+<li>
+<p>Check/uncheck whatever access you need to grant to the account</p>
+</li>
+<li>
+<p>Click Apply button and then OK.</p>
+</li>
+</ol>
+</div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/aspnet/" rel="tag">asp.net</a></li>
+            <li><a class="tag p-category" href="../../categories/iis-75/" rel="tag">iis-7.5</a></li>
+            <li><a class="tag p-category" href="../../categories/permissions/" rel="tag">permissions</a></li>
+            <li><a class="tag p-category" href="../../categories/windows-server-2008-r2/" rel="tag">windows-server-2008-r2</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../what-does-the-m-stand-for-in-c-decimal-literal-notation/" rel="prev" title="What does the M stand for in C# Decimal literal notation?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../how-can-i-open-a-cmd-window-in-a-specific-location/" rel="next" title="How can I open a cmd window in a specific location?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

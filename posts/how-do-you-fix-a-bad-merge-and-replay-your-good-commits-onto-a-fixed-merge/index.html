@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How do you fix a bad merge, and replay your good commits onto a fixed merge? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-do-you-fix-a-bad-merge-and-replay-your-good-commits-onto-a-fixed-merge/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../show-diff-between-commits/" title="Show diff between commits" type="text/html">
+<link rel="next" href="../is-there-a-valid-way-to-disable-autocomplete-in-a-html-form/" title="Is there a valid way to disable autocomplete in a HTML form?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How do you fix a bad merge, and replay your good commits onto a fixed ">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-do-you-fix-a-bad-merge-and-replay-your-good-commits-onto-a-fixed-merge/">
+<meta property="og:description" content="I accidentally committed an unwanted file (filename.orig while resolving a
+merge) to my repository several commits ago, without me noticing it until now.
+I want to completely delete the file from the ">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T14:53:06+08:00">
+<meta property="article:tag" content="git">
+<meta property="article:tag" content="git-filter-branch">
+<meta property="article:tag" content="git-rewrite-history">
+<meta property="article:tag" content="git-rm">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How do you fix a bad merge, and replay your good commits onto a fixed merge?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T14:53:06+08:00" itemprop="datePublished" title="2023-03-03 14:53">2023-03-03 14:53</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I accidentally committed an unwanted file (<code>filename.orig</code> while resolving a
+merge) to my repository several commits ago, without me noticing it until now.
+I want to completely delete the file from the repository history.</p>
+<p>Is it possible to rewrite the change history such that <code>filename.orig</code> was
+never added to the repository in the first place?</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<p><strong>Please don't use this recipe if your situation is not the one described in
+the question. This recipe is for fixing a bad merge, and replaying your good
+commits onto a fixed merge.</strong></p>
+<p>Although <code>filter-branch</code> will do what you want, it is quite a complex command
+and I would probably choose to do this with <code>git rebase</code>. It's probably a
+personal preference. <code>filter-branch</code> can do it in a single, slightly more
+complex command, whereas the <code>rebase</code> solution is performing the equivalent
+logical operations one step at a time.</p>
+<p>Try the following recipe:</p>
+<div class="code"><pre class="code literal-block"><span class="err">#</span><span class="w"> </span><span class="k">create</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="k">check</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">temporary</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="k">at</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">location</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">bad</span><span class="w"> </span><span class="k">merge</span>
+<span class="n">git</span><span class="w"> </span><span class="n">checkout</span><span class="w"> </span><span class="o">-</span><span class="n">b</span><span class="w"> </span><span class="n">tmpfix</span><span class="w"> </span><span class="o">&lt;</span><span class="n">sha1</span><span class="o">-</span><span class="k">of</span><span class="o">-</span><span class="k">merge</span><span class="o">&gt;</span>
+
+<span class="err">#</span><span class="w"> </span><span class="n">remove</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">incorrectly</span><span class="w"> </span><span class="n">added</span><span class="w"> </span><span class="k">file</span>
+<span class="n">git</span><span class="w"> </span><span class="n">rm</span><span class="w"> </span><span class="n">somefile</span><span class="p">.</span><span class="n">orig</span>
+
+<span class="err">#</span><span class="w"> </span><span class="k">commit</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">amended</span><span class="w"> </span><span class="k">merge</span>
+<span class="n">git</span><span class="w"> </span><span class="k">commit</span><span class="w"> </span><span class="o">--</span><span class="n">amend</span>
+
+<span class="err">#</span><span class="w"> </span><span class="k">go</span><span class="w"> </span><span class="n">back</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">master</span><span class="w"> </span><span class="n">branch</span>
+<span class="n">git</span><span class="w"> </span><span class="n">checkout</span><span class="w"> </span><span class="n">master</span>
+
+<span class="err">#</span><span class="w"> </span><span class="n">replant</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">master</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="n">onto</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">corrected</span><span class="w"> </span><span class="k">merge</span>
+<span class="n">git</span><span class="w"> </span><span class="n">rebase</span><span class="w"> </span><span class="n">tmpfix</span>
+
+<span class="err">#</span><span class="w"> </span><span class="k">delete</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">temporary</span><span class="w"> </span><span class="n">branch</span>
+<span class="n">git</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="o">-</span><span class="n">d</span><span class="w"> </span><span class="n">tmpfix</span>
+</pre></div>
+
+<p>(Note that you don't actually need a temporary branch, you can do this with a
+'detached HEAD', but you need to take a note of the commit id generated by the
+<code>git commit --amend</code> step to supply to the <code>git rebase</code> command rather than
+using the temporary branch name.)</p>
+<p><br></p>
+<h3>Suggest</h3>
+<h2>Intro: You Have 5 Solutions Available</h2>
+<p>The original poster states:</p>
+<blockquote>
+<p>I accidentally committed an unwanted file...to my repository several commits
+ago...I want to completely delete the file from the repository history.</p>
+<p>Is it possible to rewrite the change history such that <code>filename.orig</code> was
+never added to the repository in the first place?</p>
+</blockquote>
+<p>There are many different ways to remove the history of a file completely from
+git:</p>
+<ol>
+<li>Amending commits.</li>
+<li>Hard resets (possibly plus a rebase).</li>
+<li>Non-interactive rebase.</li>
+<li>Interactive rebases.</li>
+<li>Filtering branches.</li>
+</ol>
+<p>In the case of the original poster, amending the commit isn't really an option
+by itself, since he made several additional commits afterwards, but for the
+sake of completeness, I will also explain how to do it, for anyone else who
+justs wants to amend their previous commit.</p>
+<p><strong>Note that all of these solutions involve <em>altering/re-writing</em>
+history/commits in one way another, so anyone with old copies of the commits
+will have to do extra work to re-sync their history with the new history.</strong></p>
+<hr>
+<h2>Solution 1: Amending Commits</h2>
+<p>If you accidentally made a change (such as adding a file) in your previous
+commit, and you don't want the history of that change to exist anymore, then
+you can simply amend the previous commit to remove the file from it:</p>
+<div class="code"><pre class="code literal-block">git rm &lt;file&gt;
+git commit --amend --no-edit
+</pre></div>
+
+<hr>
+<h2>Solution 2: Hard Reset (Possibly Plus a Rebase)</h2>
+<p>Like solution #1, if you just want to get rid of your previous commit, then
+you also have the option of simply doing a hard reset to its parent:</p>
+<div class="code"><pre class="code literal-block">git reset --hard HEAD^
+</pre></div>
+
+<p>That command will hard-reset your branch to the previous 1st parent commit.</p>
+<p><em><strong>However</strong></em> , if, like the original poster, you've made several commits
+after the commit you want to undo the change to, you can still use hard resets
+to modify it, but doing so also involves using a rebase. Here are the steps
+that you can use to amend a commit further back in history:</p>
+<div class="code"><pre class="code literal-block"># Create a new branch at the commit you want to amend
+git checkout -b temp &lt;commit&gt;
+
+# Amend the commit
+git rm &lt;file&gt;
+git commit --amend --no-edit
+
+# Rebase your previous branch onto this new commit, starting from the old-commit
+git rebase --rebase-merges --onto temp &lt;old-commit&gt; master
+
+# Verify your changes
+git diff master@{1}
+</pre></div>
+
+<hr>
+<h2>Solution 3: Non-interactive Rebase</h2>
+<p>This will work if you just want to remove a commit from history entirely:</p>
+<div class="code"><pre class="code literal-block"># Create a new branch at the parent-commit of the commit that you want to remove
+git branch temp &lt;parent-commit&gt;
+
+# Rebase onto the parent-commit, starting from the commit-to-remove
+git rebase --rebase-merges --onto temp &lt;commit-to-remove&gt; master
+
+# Or use `-r` instead of the longer `--rebase-merges`
+git rebase -r --onto temp &lt;commit-to-remove&gt; master
+
+# Verify your changes
+git diff master@{1}
+</pre></div>
+
+<hr>
+<h2>Solution 4: Interactive Rebases</h2>
+<p>This solution will allow you to accomplish the same things as solutions #2 and</p>
+<h2>3, i.e. modify or remove commits further back in history than your</h2>
+<p>immediately previous commit, so which solution you choose to use is sort of up
+to you. Interactive rebases are not well-suited to rebasing hundreds of
+commits, for performance reasons, so I would use non-interactive rebases or
+the filter branch solution (see below) in those sort of situations.</p>
+<p>To begin the interactive rebase, use the following:</p>
+<div class="code"><pre class="code literal-block">git rebase --interactive &lt;commit-to-amend-or-remove&gt;~
+
+# Or `-i` instead of the longer `--interactive`
+git rebase -i &lt;commit-to-amend-or-remove&gt;~
+</pre></div>
+
+<p>This will cause git to rewind the commit history back to the parent of the
+commit that you want to modify or remove. It will then present you a list of
+the rewound commits in reverse order in whatever editor git is set to use
+(this is Vim by default):</p>
+<div class="code"><pre class="code literal-block"><span class="n">pick</span><span class="w"> </span><span class="n">00ddaac</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="n">symlinks</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">executables</span>
+<span class="n">pick</span><span class="w"> </span><span class="n">03fa071</span><span class="w"> </span><span class="k">Set</span><span class="w"> </span><span class="n n-Quoted">`push.default`</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n n-Quoted">`simple`</span>
+<span class="n">pick</span><span class="w"> </span><span class="n">7668f34</span><span class="w"> </span><span class="k">Modify</span><span class="w"> </span><span class="n">Bash</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="n">Homebrew</span><span class="w"> </span><span class="n">recommended</span><span class="w"> </span><span class="k">PATH</span>
+<span class="n">pick</span><span class="w"> </span><span class="n">475593a</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="k">global</span><span class="w"> </span><span class="p">.</span><span class="n">gitignore</span><span class="w"> </span><span class="k">file</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">OS</span><span class="w"> </span><span class="n">X</span>
+<span class="n">pick</span><span class="w"> </span><span class="n">1b7f496</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="n">alias</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Dr</span><span class="w"> </span><span class="n">Java</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">Bash</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="p">(</span><span class="n">OS</span><span class="w"> </span><span class="n">X</span><span class="p">)</span>
+</pre></div>
+
+<p>The commit that you want to modify or remove will be at the top of this list.
+To remove it, simply delete its line in the list. Otherwise, replace "pick"
+with "edit" on the 1st line, like so:</p>
+<div class="code"><pre class="code literal-block"><span class="n">edit</span><span class="w"> </span><span class="n">00ddaac</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="n">symlinks</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">executables</span>
+<span class="n">pick</span><span class="w"> </span><span class="n">03fa071</span><span class="w"> </span><span class="k">Set</span><span class="w"> </span><span class="n n-Quoted">`push.default`</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n n-Quoted">`simple`</span>
+</pre></div>
+
+<p>Next, enter <code>git rebase --continue</code>. If you chose to remove the commit
+entirely, then that it all you need to do (other than verification, see final
+step for this solution). If, on the other hand, you wanted to modify the
+commit, then git will reapply the commit and then pause the rebase.</p>
+<div class="code"><pre class="code literal-block"><span class="nv">Stopped</span><span class="w"> </span><span class="nv">at</span><span class="w"> </span><span class="mi">00</span><span class="nv">ddaacab0a85d9989217dd9fe9e1b317ed069ac</span>...<span class="w"> </span><span class="nv">Add</span><span class="w"> </span><span class="nv">symlinks</span>
+<span class="nv">You</span><span class="w"> </span><span class="nv">can</span><span class="w"> </span><span class="nv">amend</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">commit</span><span class="w"> </span><span class="nv">now</span>,<span class="w"> </span><span class="nv">with</span>
+
+<span class="w">        </span><span class="nv">git</span><span class="w"> </span><span class="nv">commit</span><span class="w"> </span><span class="o">--</span><span class="nv">amend</span>
+
+<span class="nv">Once</span><span class="w"> </span><span class="nv">you</span><span class="w"> </span><span class="nv">are</span><span class="w"> </span><span class="nv">satisfied</span><span class="w"> </span><span class="nv">with</span><span class="w"> </span><span class="nv">your</span><span class="w"> </span><span class="nv">changes</span>,<span class="w"> </span><span class="nv">run</span>
+
+<span class="w">        </span><span class="nv">git</span><span class="w"> </span><span class="nv">rebase</span><span class="w"> </span><span class="o">--</span><span class="k">continue</span>
+</pre></div>
+
+<p>At this point, you can remove the file and amend the commit, then continue the
+rebase:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">git</span><span class="w"> </span><span class="nv">rm</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">file</span><span class="o">&gt;</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">commit</span><span class="w"> </span><span class="o">--</span><span class="nv">amend</span><span class="w"> </span><span class="o">--</span><span class="nv">no</span><span class="o">-</span><span class="nv">edit</span>
+<span class="nv">git</span><span class="w"> </span><span class="nv">rebase</span><span class="w"> </span><span class="o">--</span><span class="k">continue</span>
+</pre></div>
+
+<p>That's it. As a final step, whether you modified the commit or removed it
+completely, it's always a good idea to verify that no other unexpected changes
+were made to your branch by diffing it with its state before the rebase:</p>
+<div class="code"><pre class="code literal-block">git diff master@{1}
+</pre></div>
+
+<hr>
+<h2>Solution 5: Filtering Branches</h2>
+<p>Finally, this solution is best if you want to completely wipe out all traces
+of a file's existence from history, and none of the other solutions are quite
+up to the task.</p>
+<div class="code"><pre class="code literal-block">git filter-branch --index-filter \
+'git rm --cached --ignore-unmatch &lt;file&gt;'
+</pre></div>
+
+<p>That will remove <code>&lt;file&gt;</code> from all commits, starting from the root commit. If
+instead you just want to rewrite the commit range <code>HEAD~5..HEAD</code>, then you can
+pass that as an additional argument to <code>filter-branch</code>, as pointed out in this
+answer:</p>
+<div class="code"><pre class="code literal-block">git filter-branch --index-filter \
+'git rm --cached --ignore-unmatch &lt;file&gt;' HEAD~5..HEAD
+</pre></div>
+
+<p>Again, after the <code>filter-branch</code> is complete, it's usually a good idea to
+verify that there are no other unexpected changes by diffing your branch with
+its previous state before the filtering operation:</p>
+<div class="code"><pre class="code literal-block">git diff master@{1}
+</pre></div>
+
+<hr>
+<h4>Filter-Branch Alternative: BFG Repo Cleaner</h4>
+<p>I've heard that the BFG Repo Cleaner tool runs faster than <code>git filter-
+branch</code>, so you might want to check that out as an option too. <strong>It's even
+mentioned officially in the filter-branch documentation as a viable
+alternative:</strong></p>
+<blockquote>
+<p>git-filter-branch allows you to make complex shell-scripted rewrites of your
+Git history, but you probably don’t need this flexibility if you’re simply
+<em>removing unwanted data</em> like large files or passwords. For those operations
+you may want to consider The BFG Repo-Cleaner, a JVM-based alternative to
+git-filter-branch, typically at least 10-50x faster for those use-cases, and
+with quite different characteristics:</p>
+<ul>
+<li>
+<p>Any particular version of a file is cleaned exactly <em>once</em>. The BFG,
+unlike git-filter-branch, does not give you the opportunity to handle a file
+differently based on where or when it was committed within your history.
+This constraint gives the core performance benefit of The BFG, and is well-
+suited to the task of cleansing bad data - you don’t care <em>where</em> the bad
+data is, you just want it <em>gone</em>.</p>
+</li>
+<li>
+<p>By default The BFG takes full advantage of multi-core machines,
+cleansing commit file-trees in parallel. git-filter-branch cleans commits
+sequentially (ie in a single-threaded manner), though it <em>is</em> possible to
+write filters that include their own parallellism, in the scripts executed
+against each commit.</p>
+</li>
+<li>
+<p>The command options are much more restrictive than git-filter branch,
+and dedicated just to the tasks of removing unwanted data- e.g: <code>--strip-
+blobs-bigger-than 1M</code>.</p>
+</li>
+</ul>
+</blockquote>
+<h2>Additional Resources</h2>
+<ol>
+<li>Pro Git § 6.4 Git Tools - Rewriting History.</li>
+<li>git-filter-branch(1) Manual Page.</li>
+<li>git-commit(1) Manual Page.</li>
+<li>git-reset(1) Manual Page.</li>
+<li>git-rebase(1) Manual Page.</li>
+<li>The BFG Repo Cleaner (see also this answer from the creator himself).</li>
+</ol>
+</div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/git/" rel="tag">git</a></li>
+            <li><a class="tag p-category" href="../../categories/git-filter-branch/" rel="tag">git-filter-branch</a></li>
+            <li><a class="tag p-category" href="../../categories/git-rewrite-history/" rel="tag">git-rewrite-history</a></li>
+            <li><a class="tag p-category" href="../../categories/git-rm/" rel="tag">git-rm</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../show-diff-between-commits/" rel="prev" title="Show diff between commits">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../is-there-a-valid-way-to-disable-autocomplete-in-a-html-form/" rel="next" title="Is there a valid way to disable autocomplete in a HTML form?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

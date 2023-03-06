@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What uses are there for "placement new"? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/what-uses-are-there-for-placement-new/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../why-does-this-go-into-an-infinite-loop/" title="Why does this go into an infinite loop?" type="text/html">
+<link rel="next" href="../what-in-the-world-are-spring-beans/" title="What in the world are Spring beans?" type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content='What uses are there for "placement new"?'>
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/what-uses-are-there-for-placement-new/">
+<meta property="og:description" content="Has anyone here ever used C++'s &quot;placement new&quot;? If so, what for? It looks to
+me like it would only be useful on memory-mapped hardware.
+
+Answer
+Placement new allows you to construct an object in memo">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T04:52:32+08:00">
+<meta property="article:tag" content="c++">
+<meta property="article:tag" content="memory-management">
+<meta property="article:tag" content="new-operator">
+<meta property="article:tag" content="placement-new">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">What uses are there for "placement new"?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T04:52:32+08:00" itemprop="datePublished" title="2023-03-03 04:52">2023-03-03 04:52</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>Has anyone here ever used C++'s "placement new"? If so, what for? It looks to
+me like it would only be useful on memory-mapped hardware.</p>
+<p><br><br></p>
+<h2>Answer</h2>
+<h3>Placement new allows you to construct an object in memory that's already</h3>
+<p>allocated.</p>
+<p>You may want to do this for optimization when you need to construct multiple
+instances of an object, and it is faster not to re-allocate memory each time
+you need a new instance. Instead, it might be more efficient to perform a
+single allocation for a chunk of memory that can hold multiple objects, even
+though you don't want to use all of it at once.</p>
+<p>DevX gives a good example:</p>
+<blockquote>
+<p>Standard C++ also supports placement new operator, which constructs an
+object on a pre-allocated buffer. This is useful when building a memory
+pool, a garbage collector or simply when performance and exception safety
+are paramount (there's no danger of allocation failure since the memory has
+already been allocated, and constructing an object on a pre-allocated buffer
+takes less time):</p>
+</blockquote>
+<div class="code"><pre class="code literal-block">char *buf  = new char[sizeof(string)]; // pre-allocated buffer
+string *p = new (buf) string("hi");    // placement new
+string *q = new string("hi");          // ordinary heap allocation
+</pre></div>
+
+<p>You may also want to be sure there can be no allocation failure at a certain
+part of critical code (for instance, in code executed by a pacemaker). In that
+case you would want to allocate memory earlier, then use placement new within
+the critical section.</p>
+<h3>Deallocation in placement new</h3>
+<p>You should not deallocate every object that is using the memory buffer.
+Instead you should delete[] only the original buffer. You would have to then
+call the destructors of your classes manually. For a good suggestion on this,
+please see Stroustrup's FAQ on: Is there a "placement delete"?</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>We use it with custom memory pools. Just a sketch:</p>
+<div class="code"><pre class="code literal-block"><span class="nt">class</span><span class="w"> </span><span class="nt">Pool</span><span class="w"> </span><span class="p">{</span>
+<span class="n">public</span><span class="p">:</span>
+<span class="w">    </span><span class="nf">Pool</span><span class="p">()</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="c">/* implementation details irrelevant */</span><span class="w"> </span><span class="p">}</span><span class="o">;</span>
+<span class="w">    </span><span class="nt">virtual</span><span class="w"> </span><span class="o">~</span><span class="nt">Pool</span><span class="o">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c">/* ditto */</span><span class="w"> </span><span class="p">}</span><span class="o">;</span>
+
+<span class="w">    </span><span class="nt">virtual</span><span class="w"> </span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">allocate</span><span class="o">(</span><span class="nt">size_t</span><span class="o">);</span>
+<span class="w">    </span><span class="nt">virtual</span><span class="w"> </span><span class="nt">void</span><span class="w"> </span><span class="nt">deallocate</span><span class="o">(</span><span class="nt">void</span><span class="w"> </span><span class="o">*);</span>
+
+<span class="w">    </span><span class="nt">static</span><span class="w"> </span><span class="nt">Pool</span><span class="w"> </span><span class="o">*</span><span class="nt">Pool</span><span class="p">::</span><span class="nd">misc_pool</span><span class="o">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">misc_pool_p</span><span class="p">;</span><span class="w"> </span><span class="c">/* global MiscPool for general use */</span><span class="w"> </span><span class="p">}</span>
+<span class="err">}</span><span class="o">;</span>
+
+<span class="nt">class</span><span class="w"> </span><span class="nt">ClusterPool</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nt">public</span><span class="w"> </span><span class="nt">Pool</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c">/* ... */</span><span class="w"> </span><span class="p">}</span><span class="o">;</span>
+<span class="nt">class</span><span class="w"> </span><span class="nt">FastPool</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nt">public</span><span class="w"> </span><span class="nt">Pool</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c">/* ... */</span><span class="w"> </span><span class="p">}</span><span class="o">;</span>
+<span class="nt">class</span><span class="w"> </span><span class="nt">MapPool</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nt">public</span><span class="w"> </span><span class="nt">Pool</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c">/* ... */</span><span class="w"> </span><span class="p">}</span><span class="o">;</span>
+<span class="nt">class</span><span class="w"> </span><span class="nt">MiscPool</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nt">public</span><span class="w"> </span><span class="nt">Pool</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c">/* ... */</span><span class="w"> </span><span class="p">}</span><span class="o">;</span>
+
+<span class="o">//</span><span class="w"> </span><span class="nt">elsewhere</span><span class="o">...</span>
+
+<span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">pnew_new</span><span class="o">(</span><span class="nt">size_t</span><span class="w"> </span><span class="nt">size</span><span class="o">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="err">return</span><span class="w"> </span><span class="n">Pool</span><span class="p">:</span><span class="o">:</span><span class="nf">misc_pool</span><span class="p">()</span><span class="o">-&gt;</span><span class="nf">allocate</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">pnew_new</span><span class="o">(</span><span class="nt">size_t</span><span class="w"> </span><span class="nt">size</span><span class="o">,</span><span class="w"> </span><span class="nt">Pool</span><span class="w"> </span><span class="o">*</span><span class="nt">pool_p</span><span class="o">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="err">if</span><span class="w"> </span><span class="err">(!pool_p)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="err">return</span><span class="w"> </span><span class="n">Pool</span><span class="p">:</span><span class="o">:</span><span class="nf">misc_pool</span><span class="p">()</span><span class="o">-&gt;</span><span class="nf">allocate</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="w">   </span><span class="nt">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="err">return</span><span class="w"> </span><span class="err">pool_p-&gt;allocate(size)</span><span class="p">;</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="err">}</span>
+
+<span class="nt">void</span><span class="w"> </span><span class="nt">pnew_delete</span><span class="o">(</span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">p</span><span class="o">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="err">Pool</span><span class="w"> </span><span class="err">*hp</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="n">Pool</span><span class="p">:</span><span class="o">:</span><span class="nf">find_pool</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+<span class="w">   </span><span class="err">//</span><span class="w"> </span><span class="n">note</span><span class="p">:</span><span class="w"> </span><span class="n">if</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">then</span><span class="w"> </span><span class="n">Pool</span><span class="o">::</span><span class="nf">find_pool</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="n">will</span><span class="w"> </span><span class="n">return</span><span class="w"> </span><span class="mi">0</span><span class="o">.</span>
+<span class="w">   </span><span class="n">if</span><span class="w"> </span><span class="p">(</span><span class="n">hp</span><span class="p">)</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="n">hp-</span><span class="o">&gt;</span><span class="nf">deallocate</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="err">}</span>
+
+<span class="o">//</span><span class="w"> </span><span class="nt">elsewhere</span><span class="o">...</span>
+
+<span class="nt">class</span><span class="w"> </span><span class="nt">Obj</span><span class="w"> </span><span class="p">{</span>
+<span class="n">public</span><span class="p">:</span>
+<span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="n">misc</span><span class="w"> </span><span class="n">ctors</span><span class="p">,</span><span class="w"> </span><span class="n">dtors</span><span class="p">,</span><span class="w"> </span><span class="n">etc</span><span class="o">.</span>
+
+<span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="n">just</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">sampling</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">new</span><span class="o">/</span><span class="n">del</span><span class="w"> </span><span class="n">operators</span>
+<span class="w">   </span><span class="n">void</span><span class="w"> </span><span class="o">*</span><span class="n">operator</span><span class="w"> </span><span class="nf">new</span><span class="p">(</span><span class="n">size_t</span><span class="w"> </span><span class="n">s</span><span class="p">)</span><span class="w">             </span><span class="err">{</span><span class="w"> </span><span class="n">return</span><span class="w"> </span><span class="nf">pnew_new</span><span class="p">(</span><span class="n">s</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">   </span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">operator</span><span class="w"> </span><span class="nt">new</span><span class="o">(</span><span class="nt">size_t</span><span class="w"> </span><span class="nt">s</span><span class="o">,</span><span class="w"> </span><span class="nt">Pool</span><span class="w"> </span><span class="o">*</span><span class="nt">hp</span><span class="o">)</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">pnew_new(s,</span><span class="w"> </span><span class="err">hp)</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">   </span><span class="nt">void</span><span class="w"> </span><span class="nt">operator</span><span class="w"> </span><span class="nt">delete</span><span class="o">(</span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">dp</span><span class="o">)</span><span class="w">           </span><span class="p">{</span><span class="w"> </span><span class="err">pnew_delete(dp)</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">   </span><span class="nt">void</span><span class="w"> </span><span class="nt">operator</span><span class="w"> </span><span class="nt">delete</span><span class="o">(</span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">dp</span><span class="o">,</span><span class="w"> </span><span class="nt">Pool</span><span class="o">*)</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="err">pnew_delete(dp)</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">   </span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">operator</span><span class="w"> </span><span class="nt">new</span><span class="cp">[]</span><span class="o">(</span><span class="nt">size_t</span><span class="w"> </span><span class="nt">s</span><span class="o">)</span><span class="w">           </span><span class="p">{</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">pnew_new(s)</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">   </span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">operator</span><span class="w"> </span><span class="nt">new</span><span class="cp">[]</span><span class="o">(</span><span class="nt">size_t</span><span class="w"> </span><span class="nt">s</span><span class="o">,</span><span class="w"> </span><span class="nt">Pool</span><span class="o">*</span><span class="w"> </span><span class="nt">hp</span><span class="o">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">return</span><span class="w"> </span><span class="err">pnew_new(s,</span><span class="w"> </span><span class="err">hp)</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">   </span><span class="nt">void</span><span class="w"> </span><span class="nt">operator</span><span class="w"> </span><span class="nt">delete</span><span class="cp">[]</span><span class="o">(</span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">dp</span><span class="o">)</span><span class="w">         </span><span class="p">{</span><span class="w"> </span><span class="err">pnew_delete(dp)</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">   </span><span class="nt">void</span><span class="w"> </span><span class="nt">operator</span><span class="w"> </span><span class="nt">delete</span><span class="cp">[]</span><span class="o">(</span><span class="nt">void</span><span class="w"> </span><span class="o">*</span><span class="nt">dp</span><span class="o">,</span><span class="w"> </span><span class="nt">Pool</span><span class="o">*)</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="err">pnew_delete(dp)</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="err">}</span><span class="o">;</span>
+
+<span class="o">//</span><span class="w"> </span><span class="nt">elsewhere</span><span class="o">...</span>
+
+<span class="nt">ClusterPool</span><span class="w"> </span><span class="o">*</span><span class="nt">cp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">new</span><span class="w"> </span><span class="nt">ClusterPool</span><span class="o">(</span><span class="nt">arg1</span><span class="o">,</span><span class="w"> </span><span class="nt">arg2</span><span class="o">,</span><span class="w"> </span><span class="o">...);</span>
+
+<span class="nt">Obj</span><span class="w"> </span><span class="o">*</span><span class="nt">new_obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">new</span><span class="w"> </span><span class="o">(</span><span class="nt">cp</span><span class="o">)</span><span class="w"> </span><span class="nt">Obj</span><span class="o">(</span><span class="nt">arg_a</span><span class="o">,</span><span class="w"> </span><span class="nt">arg_b</span><span class="o">,</span><span class="w"> </span><span class="o">...);</span>
+</pre></div>
+
+<p>Now you can cluster objects together in a single memory arena, select an
+allocator which is very fast but does no deallocation, use memory mapping, and
+any other semantic you wish to impose by choosing the pool and passing it as
+an argument to an object's placement new operator.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/c%2B%2B/" rel="tag">c++</a></li>
+            <li><a class="tag p-category" href="../../categories/memory-management/" rel="tag">memory-management</a></li>
+            <li><a class="tag p-category" href="../../categories/new-operator/" rel="tag">new-operator</a></li>
+            <li><a class="tag p-category" href="../../categories/placement-new/" rel="tag">placement-new</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../why-does-this-go-into-an-infinite-loop/" rel="prev" title="Why does this go into an infinite loop?">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../what-in-the-world-are-spring-beans/" rel="next" title="What in the world are Spring beans?">Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>

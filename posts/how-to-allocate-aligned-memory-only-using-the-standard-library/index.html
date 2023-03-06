@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to allocate aligned memory only using the standard library? | StackOverflow Snapshot</title>
+<link href="../../assets/css/all-nocdn.css" rel="stylesheet" type="text/css">
+<meta name="theme-color" content="#5670d4">
+<meta name="generator" content="Nikola (getnikola.com)">
+<link rel="canonical" href="https://ohstackoverflow.netlify.app/posts/how-to-allocate-aligned-memory-only-using-the-standard-library/">
+<!--[if lt IE 9]><script src="../../assets/js/html5.js"></script><![endif]--><meta name="author" content="Arya">
+<link rel="prev" href="../how-to-add-reference-to-system-web-optimization-for-mvc-3-converted-to-4-app/" title="How to add reference to System.Web.Optimization for MVC-3-converted-to-4 app" type="text/html">
+<link rel="next" href="../property-initialization-using-by-lazy-vs-lateinit/" title='Property initialization using "by lazy" vs. "lateinit"' type="text/html">
+<meta property="og:site_name" content="StackOverflow Snapshot">
+<meta property="og:title" content="How to allocate aligned memory only using the standard library?">
+<meta property="og:url" content="https://ohstackoverflow.netlify.app/posts/how-to-allocate-aligned-memory-only-using-the-standard-library/">
+<meta property="og:description" content="I just finished a test as part of a job interview, and one question stumped
+me, even using Google for reference. I'd like to see what the StackOverflow
+crew can do with it:
+
+The memset_16aligned funct">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2023-03-03T10:07:22+08:00">
+<meta property="article:tag" content="c">
+<meta property="article:tag" content="memory-management">
+</head>
+<body>
+<a href="#content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+<!-- Menubar -->
+
+<nav class="navbar navbar-inverse navbar-static-top"><div class="container">
+<!-- This keeps the margins nice -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar" aria-controls="bs-navbar" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="https://ohstackoverflow.netlify.app/">
+
+                <span id="blog-title">StackOverflow Snapshot</span>
+            </a>
+        </div>
+<!-- /.navbar-header -->
+        <div class="collapse navbar-collapse" id="bs-navbar" aria-expanded="false">
+            <ul class="nav navbar-nav">
+<li>
+<a href="../../archive.html">Archive</a>
+                </li>
+<li>
+<a href="../../categories/">Tags</a>
+
+                
+            </li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<div style="display:table;min-height:5rem;min-width:27rem;">
+					<div class="input-group" style="display: table-cell;vertical-align: middle;">
+						<input id="words" type="text" class="form-control" style="max-width:22rem;" onkeydown="if(event.keyCode==13){btn.click()}"><span class="input-group-btn" style="float:left">
+							<button id="btn" class="btn btn-default" type="button" data-toggle="modal" data-target="#myModal">
+								<span class="glyphicon glyphicon-search">
+							</span></button>
+						</span>
+					</div>
+<!-- /input-group -->
+				</div>
+
+				
+                
+                
+                
+            </ul>
+</div>
+<!-- /.navbar-collapse -->
+    </div>
+<!-- /.container -->
+</nav><!-- End of Menubar --><!-- 模态框（Modal） --><div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×
+				</button>
+				<h4 class="modal-title" id="myModalLabel">
+					查找结果
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div id="search-count" style="min-height:4rem;">
+				查找中，请稍后...
+				</div>
+				<div id="search-result">
+				</div>
+
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">
+					关闭
+				</button>
+			</div>
+		</div>
+<!-- /.modal-content -->
+	</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<div class="container" id="content" role="main">
+    <div class="body-content">
+        <!--Body content-->
+        <div class="row">
+            
+            
+<article class="post-text h-entry hentry postpage" itemscope="itemscope" itemtype="http://schema.org/Article"><header><h1 class="p-name entry-title" itemprop="headline name"><a href="." class="u-url">How to allocate aligned memory only using the standard library?</a></h1>
+
+        <div class="metadata">
+            <p class="byline author vcard p-author h-card"><span class="byline-name fn p-name" itemprop="author">
+                    <a class="u-url" href="../../authors/arya/">Arya</a>
+            </span></p>
+            <p class="dateline">
+            <a href="." rel="bookmark">
+            <time class="published dt-published" datetime="2023-03-03T10:07:22+08:00" itemprop="datePublished" title="2023-03-03 10:07">2023-03-03 10:07</time></a>
+            </p>
+            
+
+        </div>
+        
+
+    </header><div class="e-content entry-content" itemprop="articleBody text">
+    <p>I just finished a test as part of a job interview, and one question stumped
+me, even using Google for reference. I'd like to see what the StackOverflow
+crew can do with it:</p>
+<blockquote>
+<p>The <code>memset_16aligned</code> function requires a 16-byte aligned pointer passed to
+it, or it will crash.</p>
+<p>a) How would you allocate 1024 bytes of memory, and align it to a 16 byte
+boundary?<br>
+ b) Free the memory after the <code>memset_16aligned</code> has executed.</p>
+</blockquote>
+<div class="code"><pre class="code literal-block">{    
+   void *mem;
+   void *ptr;
+
+   // answer a) here
+
+   memset_16aligned(ptr, 0, 1024);
+
+   // answer b) here    
+}
+</pre></div>
+
+<p><br><br></p>
+<h2>Answer</h2>
+<h4>Original answer</h4>
+<div class="code"><pre class="code literal-block">{
+    void *mem = malloc(1024+16);
+    void *ptr = ((char *)mem+16) &amp; ~ 0x0F;
+    memset_16aligned(ptr, 0, 1024);
+    free(mem);
+}
+</pre></div>
+
+<h4>Fixed answer</h4>
+<div class="code"><pre class="code literal-block">{
+    void *mem = malloc(1024+15);
+    void *ptr = ((uintptr_t)mem+15) &amp; ~ (uintptr_t)0x0F;
+    memset_16aligned(ptr, 0, 1024);
+    free(mem);
+}
+</pre></div>
+
+<h4>Explanation as requested</h4>
+<p>The first step is to allocate enough spare space, just in case. Since the
+memory must be 16-byte aligned (meaning that the leading byte address needs to
+be a multiple of 16), adding 16 extra bytes guarantees that we have enough
+space. Somewhere in the first 16 bytes, there is a 16-byte aligned pointer.
+(Note that <code>malloc()</code> is supposed to return a pointer that is sufficiently
+well aligned for <em>any</em> purpose. However, the meaning of 'any' is primarily for
+things like basic types — <code>long</code>, <code>double</code>, <code>long double</code>, <code>long long</code>, and
+pointers to objects and pointers to functions. When you are doing more
+specialized things, like playing with graphics systems, they can need more
+stringent alignment than the rest of the system — hence questions and answers
+like this.)</p>
+<p>The next step is to convert the void pointer to a char pointer; GCC
+notwithstanding, you are not supposed to do pointer arithmetic on void
+pointers (and GCC has warning options to tell you when you abuse it). Then add
+16 to the start pointer. Suppose <code>malloc()</code> returned you an impossibly badly
+aligned pointer: 0x800001. Adding the 16 gives 0x800011. Now I want to round
+down to the 16-byte boundary — so I want to reset the last 4 bits to 0. 0x0F
+has the last 4 bits set to one; therefore, <code>~0x0F</code> has all bits set to one
+except the last four. Anding that with 0x800011 gives 0x800010. You can
+iterate over the other offsets and see that the same arithmetic works.</p>
+<p>The last step, <code>free()</code>, is easy: you always, and only, return to <code>free()</code> a
+value that one of <code>malloc()</code>, <code>calloc()</code> or <code>realloc()</code> returned to you —
+anything else is a disaster. You correctly provided <code>mem</code> to hold that value —
+thank you. The free releases it.</p>
+<p>Finally, if you know about the internals of your system's <code>malloc</code> package,
+you could guess that it might well return 16-byte aligned data (or it might be
+8-byte aligned). If it was 16-byte aligned, then you'd not need to dink with
+the values. However, this is dodgy and non-portable — other <code>malloc</code> packages
+have different minimum alignments, and therefore assuming one thing when it
+does something different would lead to core dumps. Within broad limits, this
+solution is portable.</p>
+<p>Someone else mentioned <code>posix_memalign()</code> as another way to get the aligned
+memory; that isn't available everywhere, but could often be implemented using
+this as a basis. Note that it was convenient that the alignment was a power of
+2; other alignments are messier.</p>
+<p>One more comment — this code does not check that the allocation succeeded.</p>
+<h4>Amendment</h4>
+<p>Windows Programmer pointed out that you can't do bit mask operations on
+pointers, and, indeed, GCC (3.4.6 and 4.3.1 tested) does complain like that.
+So, an amended version of the basic code — converted into a main program,
+follows. I've also taken the liberty of adding just 15 instead of 16, as has
+been pointed out. I'm using <code>uintptr_t</code> since C99 has been around long enough
+to be accessible on most platforms. If it wasn't for the use of <code>PRIXPTR</code> in
+the <code>printf()</code> statements, it would be sufficient to <code>#include &lt;stdint.h&gt;</code>
+instead of using <code>#include &lt;inttypes.h&gt;</code>. <em>[This code includes the fix pointed
+out by C.R., which was reiterating a point first made by Bill K a number of
+years ago, which I managed to overlook until now.]</em></p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;assert.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;inttypes.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">memset_16aligned</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">space</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">byte</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">nbytes</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">((</span><span class="n">nbytes</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x0F</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">(((</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">space</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x0F</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="w"> </span><span class="n">byte</span><span class="p">,</span><span class="w"> </span><span class="n">nbytes</span><span class="p">);</span><span class="w">  </span><span class="c1">// Not a custom implementation of memset()</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">malloc</span><span class="p">(</span><span class="mi">1024</span><span class="o">+</span><span class="mi">15</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)(((</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">mem</span><span class="o">+</span><span class="mi">15</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="o">~</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="mh">0x0F</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">"0x%08"</span><span class="w"> </span><span class="n">PRIXPTR</span><span class="w"> </span><span class="s">", 0x%08"</span><span class="w"> </span><span class="n">PRIXPTR</span><span class="w"> </span><span class="s">"</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">ptr</span><span class="p">);</span>
+<span class="w">    </span><span class="n">memset_16aligned</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span>
+<span class="w">    </span><span class="n">free</span><span class="p">(</span><span class="n">mem</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>And here is a marginally more generalized version, which will work for sizes
+which are a power of 2:</p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;assert.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;inttypes.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">memset_16aligned</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">space</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">byte</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">nbytes</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">((</span><span class="n">nbytes</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x0F</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">(((</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">space</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x0F</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="n">space</span><span class="p">,</span><span class="w"> </span><span class="n">byte</span><span class="p">,</span><span class="w"> </span><span class="n">nbytes</span><span class="p">);</span><span class="w">  </span><span class="c1">// Not a custom implementation of memset()</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">test_mask</span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">align</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uintptr_t</span><span class="w"> </span><span class="n">mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">~</span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)(</span><span class="n">align</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">malloc</span><span class="p">(</span><span class="mi">1024</span><span class="o">+</span><span class="n">align</span><span class="mi">-1</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)(((</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">mem</span><span class="o">+</span><span class="n">align</span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">mask</span><span class="p">);</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">((</span><span class="n">align</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">align</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">))</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">"0x%08"</span><span class="w"> </span><span class="n">PRIXPTR</span><span class="w"> </span><span class="s">", 0x%08"</span><span class="w"> </span><span class="n">PRIXPTR</span><span class="w"> </span><span class="s">"</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">ptr</span><span class="p">);</span>
+<span class="w">    </span><span class="n">memset_16aligned</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span>
+<span class="w">    </span><span class="n">free</span><span class="p">(</span><span class="n">mem</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">test_mask</span><span class="p">(</span><span class="mi">16</span><span class="p">);</span>
+<span class="w">    </span><span class="n">test_mask</span><span class="p">(</span><span class="mi">32</span><span class="p">);</span>
+<span class="w">    </span><span class="n">test_mask</span><span class="p">(</span><span class="mi">64</span><span class="p">);</span>
+<span class="w">    </span><span class="n">test_mask</span><span class="p">(</span><span class="mi">128</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>To convert <code>test_mask()</code> into a general purpose allocation function, the
+single return value from the allocator would have to encode the release
+address, as several people have indicated in their answers.</p>
+<h4>Problems with interviewers</h4>
+<p>Uri commented: Maybe I am having [a] reading comprehension problem this
+morning, but if the interview question specifically says: "How would you
+allocate 1024 bytes of memory" and you clearly allocate more than that.
+Wouldn't that be an automatic failure from the interviewer?</p>
+<p>My response won't fit into a 300-character comment...</p>
+<p>It depends, I suppose. I think most people (including me) took the question to
+mean "How would you allocate a space in which 1024 bytes of data can be
+stored, and where the base address is a multiple of 16 bytes". If the
+interviewer really meant how can you allocate 1024 bytes (only) and have it
+16-byte aligned, then the options are more limited.</p>
+<ul>
+<li>Clearly, one possibility is to allocate 1024 bytes and then give that address the 'alignment treatment'; the problem with that approach is that the actual available space is not properly determinate (the usable space is between 1008 and 1024 bytes, but there wasn't a mechanism available to specify which size), which renders it less than useful.</li>
+<li>Another possibility is that you are expected to write a full memory allocator and ensure that the 1024-byte block you return is appropriately aligned. If that is the case, you probably end up doing an operation fairly similar to what the proposed solution did, but you hide it inside the allocator.</li>
+</ul>
+<p>However, if the interviewer expected either of those responses, I'd expect
+them to recognize that this solution answers a closely related question, and
+then to reframe their question to point the conversation in the correct
+direction. (Further, if the interviewer got really stroppy, then I wouldn't
+want the job; if the answer to an insufficiently precise requirement is shot
+down in flames without correction, then the interviewer is not someone for
+whom it is safe to work.)</p>
+<h4>The world moves on</h4>
+<p>The title of the question has changed recently. It was <em>Solve the memory
+alignment in C interview question that stumped me</em>. The revised title ( <em>How
+to allocate aligned memory only using the standard library?</em> ) demands a
+slightly revised answer — this addendum provides it.</p>
+<p>C11 (ISO/IEC 9899:2011) added function <code>aligned_alloc()</code>:</p>
+<blockquote>
+<p><strong>7.22.3.1 The<code>aligned_alloc</code> function</strong></p>
+<p><strong>Synopsis</strong></p>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="nf">aligned_alloc</span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">alignment</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+</pre></div>
+
+<p><strong>Description</strong><br>
+ The <code>aligned_alloc</code> function allocates space for an object whose alignment
+is specified by <code>alignment</code>, whose size is specified by <code>size</code>, and whose
+value is indeterminate. The value of <code>alignment</code> shall be a valid alignment
+supported by the implementation and the value of <code>size</code> shall be an integral
+multiple of <code>alignment</code>.</p>
+<p><strong>Returns</strong><br>
+ The <code>aligned_alloc</code> function returns either a null pointer or a pointer to
+the allocated space.</p>
+</blockquote>
+<p>And POSIX defines <code>posix_memalign()</code>:</p>
+<blockquote>
+<div class="code"><pre class="code literal-block"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">posix_memalign</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">**</span><span class="n">memptr</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">alignment</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+</pre></div>
+
+<p>DESCRIPTION</p>
+<p>The <code>posix_memalign()</code> function shall allocate <code>size</code> bytes aligned on a
+boundary specified by <code>alignment</code>, and shall return a pointer to the
+allocated memory in <code>memptr</code>. The value of <code>alignment</code> shall be a power of
+two multiple of <code>sizeof(void *)</code>.</p>
+<p>Upon successful completion, the value pointed to by <code>memptr</code> shall be a
+multiple of <code>alignment</code>.</p>
+<p>If the size of the space requested is 0, the behavior is implementation-
+defined; the value returned in <code>memptr</code> shall be either a null pointer or a
+unique pointer.</p>
+<p>The <code>free()</code> function shall deallocate memory that has previously been
+allocated by <code>posix_memalign()</code>.</p>
+<p>RETURN VALUE</p>
+<p>Upon successful completion, <code>posix_memalign()</code> shall return zero; otherwise,
+an error number shall be returned to indicate the error.</p>
+</blockquote>
+<p>Either or both of these could be used to answer the question now, but only the
+POSIX function was an option when the question was originally answered.</p>
+<p>Behind the scenes, the new aligned memory function do much the same job as
+outlined in the question, except they have the ability to force the alignment
+more easily, and keep track of the start of the aligned memory internally so
+that the code doesn't have to deal with specially — it just frees the memory
+returned by the allocation function that was used.</p>
+<p><br></p>
+<h3>Suggest</h3>
+<p>Three slightly different answers depending how you look at the question:</p>
+<p>1) Good enough for the exact question asked is Jonathan Leffler's solution,
+except that to round up to 16-aligned, you only need 15 extra bytes, not 16.</p>
+<p>A:</p>
+<div class="code"><pre class="code literal-block"><span class="o">/*</span><span class="w"> </span><span class="n">allocate</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">room</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="mi">0</span><span class="o">-</span><span class="mi">15</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">ensure</span><span class="w"> </span><span class="mi">16</span><span class="o">-</span><span class="n">alignment</span><span class="w"> </span><span class="o">*/</span>
+<span class="n">void</span><span class="w"> </span><span class="o">*</span><span class="n">mem</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">malloc</span><span class="p">(</span><span class="mi">1024</span><span class="o">+</span><span class="mi">15</span><span class="p">);</span>
+<span class="n">ASSERT</span><span class="p">(</span><span class="n">mem</span><span class="p">);</span><span class="w"> </span><span class="c1">// some kind of error-handling code</span>
+<span class="o">/*</span><span class="w"> </span><span class="nb">round</span><span class="w"> </span><span class="n">up</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">multiple</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="mi">16</span><span class="p">:</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="mi">15</span><span class="w"> </span><span class="nb">and</span><span class="w"> </span><span class="nb">then</span><span class="w"> </span><span class="nb">round</span><span class="w"> </span><span class="n">down</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">masking</span><span class="w"> </span><span class="o">*/</span>
+<span class="n">void</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">((</span><span class="nb">char</span><span class="o">*</span><span class="p">)</span><span class="n">mem</span><span class="o">+</span><span class="mi">15</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="o">~</span><span class="w"> </span><span class="p">(</span><span class="n">size_t</span><span class="p">)</span><span class="mi">0</span><span class="n">x0F</span><span class="p">;</span>
+</pre></div>
+
+<p>B:</p>
+<div class="code"><pre class="code literal-block">free(mem);
+</pre></div>
+
+<p>2) For a more generic memory allocation function, the caller doesn't want to
+have to keep track of two pointers (one to use and one to free). So you store
+a pointer to the 'real' buffer below the aligned buffer.</p>
+<p>A:</p>
+<div class="code"><pre class="code literal-block"><span class="nv">void</span><span class="w"> </span><span class="o">*</span><span class="nv">mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">malloc</span><span class="ss">(</span><span class="mi">1024</span><span class="o">+</span><span class="mi">15</span><span class="o">+</span><span class="nv">sizeof</span><span class="ss">(</span><span class="nv">void</span><span class="o">*</span><span class="ss">))</span><span class="c1">;</span>
+<span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="o">!</span><span class="nv">mem</span><span class="ss">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nv">mem</span><span class="c1">;</span>
+<span class="nv">void</span><span class="w"> </span><span class="o">*</span><span class="nv">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">((</span><span class="nv">char</span><span class="o">*</span><span class="ss">)</span><span class="nv">mem</span><span class="o">+</span><span class="nv">sizeof</span><span class="ss">(</span><span class="nv">void</span><span class="o">*</span><span class="ss">)</span><span class="o">+</span><span class="mi">15</span><span class="ss">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="o">~</span><span class="w"> </span><span class="ss">(</span><span class="nv">size_t</span><span class="ss">)</span><span class="mi">0</span><span class="nv">x0F</span><span class="c1">;</span>
+<span class="ss">((</span><span class="nv">void</span><span class="o">**</span><span class="ss">)</span><span class="nv">ptr</span><span class="ss">)</span>[<span class="o">-</span><span class="mi">1</span>]<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">mem</span><span class="c1">;</span>
+<span class="k">return</span><span class="w"> </span><span class="nv">ptr</span><span class="c1">;</span>
+</pre></div>
+
+<p>B:</p>
+<div class="code"><pre class="code literal-block"><span class="k">if</span><span class="w"> </span><span class="ss">(</span><span class="nv">ptr</span><span class="ss">)</span><span class="w"> </span><span class="nv">free</span><span class="ss">(((</span><span class="nv">void</span><span class="o">**</span><span class="ss">)</span><span class="nv">ptr</span><span class="ss">)</span>[<span class="o">-</span><span class="mi">1</span>]<span class="ss">)</span><span class="c1">;</span>
+</pre></div>
+
+<p>Note that unlike (1), where only 15 bytes were added to mem, this code could
+actually <em>reduce</em> the alignment if your implementation happens to guarantee
+32-byte alignment from malloc (unlikely, but in theory a C implementation
+could have a 32-byte aligned type). That doesn't matter if all you do is call
+memset_16aligned, but if you use the memory for a struct then it could matter.</p>
+<p>I'm not sure off-hand what a good fix is for this (other than to warn the user
+that the buffer returned is not necessarily suitable for arbitrary structs)
+since there's no way to determine programatically what the implementation-
+specific alignment guarantee is. I guess at startup you could allocate two or
+more 1-byte buffers, and assume that the worst alignment you see is the
+guaranteed alignment. If you're wrong, you waste memory. Anyone with a better
+idea, please say so...</p>
+<p>[ <em>Added</em> : The 'standard' trick is to create a union of 'likely to be
+maximally aligned types' to determine the requisite alignment. The maximally
+aligned types are likely to be (in C99) '<code>long long</code>', '<code>long double</code>', '<code>void
+*</code>', or '<code>void (*)(void)</code>'; if you include <code>&lt;stdint.h&gt;</code>, you could presumably
+use '<code>intmax_t</code>' in place of <code>long long</code> (and, on Power 6 (AIX) machines,
+<code>intmax_t</code> would give you a 128-bit integer type). The alignment requirements
+for that union can be determined by embedding it into a struct with a single
+char followed by the union:</p>
+<div class="code"><pre class="code literal-block">struct alignment
+{
+    char     c;
+    union
+    {
+        intmax_t      imax;
+        long double   ldbl;
+        void         *vptr;
+        void        (*fptr)(void);
+    }        u;
+} align_data;
+size_t align = (char *)&amp;align_data.u.imax - &amp;align_data.c;
+</pre></div>
+
+<p>You would then use the larger of the requested alignment (in the example, 16)
+and the <code>align</code> value calculated above.</p>
+<p>On (64-bit) Solaris 10, it appears that the basic alignment for the result
+from <code>malloc()</code> is a multiple of 32 bytes.<br>
+]</p>
+<p>In practice, aligned allocators often take a parameter for the alignment
+rather than it being hardwired. So the user will pass in the size of the
+struct they care about (or the least power of 2 greater than or equal to that)
+and all will be well.</p>
+<p>3) Use what your platform provides: <code>posix_memalign</code> for POSIX,
+<code>_aligned_malloc</code> on Windows.</p>
+<p>4) If you use C11, then the cleanest - portable and concise - option is to use
+the standard library function <code>aligned_alloc</code> that was introduced in this
+version of the language specification.</p>
+    </div>
+    <aside class="postpromonav"><nav><ul itemprop="keywords" class="tags">
+<li><a class="tag p-category" href="../../categories/c/" rel="tag">c</a></li>
+            <li><a class="tag p-category" href="../../categories/memory-management/" rel="tag">memory-management</a></li>
+        </ul>
+<ul class="pager hidden-print">
+<li class="previous">
+                <a href="../how-to-add-reference-to-system-web-optimization-for-mvc-3-converted-to-4-app/" rel="prev" title="How to add reference to System.Web.Optimization for MVC-3-converted-to-4 app">Previous post</a>
+            </li>
+            <li class="next">
+                <a href="../property-initialization-using-by-lazy-vs-lateinit/" rel="next" title='Property initialization using "by lazy" vs. "lateinit"'>Next post</a>
+            </li>
+        </ul></nav></aside></article>
+</div>
+        <!--End of body content-->
+
+        <footer id="footer">
+            Contents © 2023         Go to StackOverflow Chinese Site  <a href="http://stackoverflow.ink">StackOverflow中文网</a>  
+            
+        </footer>
+</div>
+</div>
+
+
+            <script src="../../assets/js/all-nocdn.js"></script><!-- fancy dates --><script>
+    moment.locale("en");
+    fancydates(0, "YYYY-MM-DD HH:mm");
+    </script><!-- end fancy dates --><script>
+    baguetteBox.run('div#content', {
+        ignoreClass: 'islink',
+        captions: function(element) {
+            return element.getElementsByTagName('img')[0].alt;
+    }});
+    </script><script src="../../assets/js/search.js"></script>
+</body>
+</html>
